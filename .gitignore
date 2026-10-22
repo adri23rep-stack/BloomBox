@@ -1,0 +1,13 @@
+.theos/
+packages/
+.DS_Store
+*.xcscmblueprint
+*.xccheckout
+*.xcarchive
+xcuserdata
+Resources/Frameworks/OpenSSL.framework
+apps_nightly.json
+
+# Restored from the pinned release by Scripts/fetch-bundled-dependencies.py
+Vendor/StikJIT/idevice/libidevice_ffi.a
+Resources/BundledRuntime/LiveExec32.ipa
