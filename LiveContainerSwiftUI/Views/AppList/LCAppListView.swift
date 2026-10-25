@@ -542,7 +542,28 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
         do {
             if app.appInfo.is32bit { try await ensureBundled32BitRuntime(for: app) }
-            try await app.launchFromLibrary(forceJIT: forceJIT)
+            if liveBoardMode == "ios" {
+                guard #available(iOS 16.0, *) else {
+                    throw "La navegación de sesión requiere iOS 16 o posterior."
+                }
+                guard app.appInfo.defaultClassicMode == 0 else {
+                    throw "Desactiva Classic Mode en los ajustes de esta app para mantener abierto el launcher."
+                }
+                guard app.uiIsShared else {
+                    throw "Abre los ajustes de esta app y selecciona Convert to Shared App antes de usarla en esta sesión."
+                }
+                let defaults = LCUtils.appGroupUserDefault
+                // The Home session uses in-app windows, never a replacement host process.
+                defaults.set(MultitaskMode.virtualWindow.rawValue, forKey: "LCMultitaskMode")
+                UserDefaults.standard.set(true, forKey: "LCLaunchMultitaskMaximized")
+                defaults.set(true, forKey: "LCMaxOneAppOnStage")
+                if defaults.object(forKey: "LCMultitaskBottomWindowBar") == nil {
+                    defaults.set(true, forKey: "LCMultitaskBottomWindowBar")
+                }
+                try await app.launchFromLibrary(multitask: true, forceJIT: forceJIT)
+            } else {
+                try await app.launchFromLibrary(forceJIT: forceJIT)
+            }
         } catch {
             errorInfo = error.localizedDescription
             errorShow = true

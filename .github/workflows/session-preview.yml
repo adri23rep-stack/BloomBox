@@ -1,0 +1,43 @@
+name: Strata Session Preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["feature/session-navigation"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.2'
+      - name: Verify packaging
+        run: python3 -m unittest discover -s Tests/session-tests -v
+      - name: Restore verified dependencies
+        run: python3 Scripts/fetch-bundled-dependencies.py
+      - name: Build unsigned iPhone app
+        run: |
+          set -o pipefail
+          xcodebuild -project LiveContainer.xcodeproj -scheme LiveContainer \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build.log
+      - name: Package standalone preview
+        run: |
+          python3 Scripts/package-session-preview.py build/Build/Products/Release-iphoneos/LiveContainer.app Strata-Session-Preview.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Strata-Session-Preview
+          path: Strata-Session-Preview.ipa
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Xcode-build-log
+          path: build.log

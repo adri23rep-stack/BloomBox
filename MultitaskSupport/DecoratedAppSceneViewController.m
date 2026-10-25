@@ -63,10 +63,10 @@
         }
     }];
     
-    UIImage *minimizeImage = [UIImage systemImageNamed:@"minus.circle"];
+    UIImage *minimizeImage = [UIImage systemImageNamed:@"house.fill"];
     UIImageConfiguration *minimizeConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightMedium];
     minimizeImage = [minimizeImage imageWithConfiguration:minimizeConfig];
-    UIBarButtonItem *minimizeButton = [[UIBarButtonItem alloc] initWithImage:minimizeImage style:UIBarButtonItemStylePlain target:self action:@selector(minimizeWindow)];
+    UIBarButtonItem *minimizeButton = [[UIBarButtonItem alloc] initWithImage:minimizeImage style:UIBarButtonItemStylePlain target:self action:@selector(returnToLauncher)];
     minimizeButton.tintColor = [UIColor systemYellowColor];
     
     NSString *maximizeImageName = _isMaximized ? @"arrow.down.right.and.arrow.up.left.circle" : @"arrow.up.left.and.arrow.down.right.circle";
@@ -82,7 +82,13 @@
     UIBarButtonItem *closeButton = [[UIBarButtonItem alloc] initWithImage:closeImage style:UIBarButtonItemStylePlain target:self action:@selector(closeWindow)];
     closeButton.tintColor = [UIColor systemRedColor];
     
-    NSArray *barButtonItems = @[closeButton, self.maximizeButton, minimizeButton];
+    minimizeButton.accessibilityLabel = @"Inicio";
+    closeButton.accessibilityLabel = @"Cerrar esta app";
+    UIBarButtonItem *appsButton = [[UIBarButtonItem alloc]
+        initWithTitle:nil image:[UIImage systemImageNamed:@"square.stack.fill"] primaryAction:nil
+        menu:[MultitaskDockManager.shared sessionMenu]];
+    appsButton.accessibilityLabel = @"Apps abiertas y posición de la barra";
+    NSArray *barButtonItems = @[minimizeButton, appsButton, closeButton];
     if([NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"]) {
         // resize handle overlaps the close button, so put the buttons on the left
         self.navigationItem.leftBarButtonItems = barButtonItems;
@@ -240,6 +246,11 @@
             settings.safeAreaInsetsPortrait = UIEdgeInsetsZero;
         }
     }];
+}
+
+- (void)returnToLauncher {
+    [MultitaskDockManager.shared minimizeAllWindowsExcept:nil];
+    [MultitaskDockManager.shared showSessionDock];
 }
 
 - (void)closeWindow {
@@ -494,7 +505,8 @@
     [self.view layoutIfNeeded];
     [UIView animateWithDuration:0.3 animations:^{
         BOOL bottomWindowBar = [NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"];
-        BOOL hideWindowBar = MultitaskDockManager.shared.isCollapsed && self.isMaximized;
+        // Session navigation remains available even when the floating dock is collapsed.
+        BOOL hideWindowBar = NO;
         CGFloat navBarHeight = hideWindowBar ? 0 : 44;
         self.navigationBar.alpha = hideWindowBar ? 0 : 1;
         self.navigationBar.hidden = hideWindowBar;

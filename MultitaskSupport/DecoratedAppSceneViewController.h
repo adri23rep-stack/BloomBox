@@ -14,6 +14,7 @@ API_AVAILABLE(ios(16.0))
 @property(nonatomic) CGFloat scaleRatio;
 - (instancetype)initWindowName:(NSString*)windowName bundleId:(NSString*)bundleId dataUUID:(NSString*)dataUUID rootVC:(UIViewController*)rootVC;
 - (instancetype)initWindowName:(NSString*)windowName bundleId:(NSString*)bundleId dataUUID:(NSString*)dataUUID rootVC:(UIViewController*)rootVC fullScreen:(BOOL)fullScreen;
+- (void)closeWindow;
 - (void)minimizeWindow;
 - (void)minimizeWindowPiP;
 - (void)unminimizeWindowPiP;

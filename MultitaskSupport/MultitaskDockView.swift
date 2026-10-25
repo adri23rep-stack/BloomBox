@@ -716,6 +716,50 @@ class AppInfoProvider {
         }
     }
     
+    // Rebuilt every time the menu opens: no stale app rows or retained guest controllers.
+    @objc public func sessionMenu() -> UIMenu {
+        UIMenu(title: "Sesión", children: [UIDeferredMenuElement.uncached { [weak self] completion in
+            guard let self else { completion([]); return }
+            var items: [UIMenuElement] = self.apps.map { app in
+                let uuid = app.appUUID
+                let open = UIAction(title: "Abrir", image: UIImage(systemName: "arrow.up.forward.app")) { [weak self] _ in
+                    _ = self?.bringMultitaskViewToFront(uuid: uuid)
+                }
+                let close = UIAction(title: "Cerrar", image: UIImage(systemName: "xmark"), attributes: .destructive) { [weak self] _ in
+                    self?.closeSessionApp(uuid: uuid)
+                }
+                return UIMenu(title: app.appName, children: [open, close])
+            }
+            if items.isEmpty {
+                items.append(UIAction(title: "No hay apps abiertas", attributes: .disabled) { _ in })
+            }
+            let defaults = LCUtils.appGroupUserDefault
+            let bottom = defaults.bool(forKey: "LCMultitaskBottomWindowBar")
+            let positions: [UIMenuElement] = [false, true].map { value in
+                UIAction(title: value ? "Abajo" : "Arriba", state: bottom == value ? .on : .off) { _ in
+                    defaults.set(value, forKey: "LCMultitaskBottomWindowBar")
+                }
+            }
+            items.append(UIMenu(title: "Posición de la barra", children: positions))
+            completion(items)
+        }])
+    }
+
+    func closeSessionApp(uuid: String) {
+        guard let app = apps.first(where: { $0.appUUID == uuid }),
+              let controller = app.view?._viewDelegate() as? DecoratedAppSceneViewController else { return }
+        // Uses the manual-close path, so automatic restart does not reopen the app.
+        controller.closeWindow()
+    }
+
+    @objc public func showSessionDock() {
+        isCollapsed = false
+        isDockHidden = false
+        showDock()
+        updateDockFrame()
+        notifyDockCollapseChanged()
+    }
+
     @objc public func minimizeAllWindows(except: DecoratedAppSceneViewController? = nil) {
         DispatchQueue.main.async {
             self.apps.forEach { app in
@@ -1053,7 +1097,7 @@ struct MinimizeAllButtonView: View {
                 .fill(Color.gray.opacity(0.8))
                 .frame(width: dockManager.adaptiveIconSize, height: dockManager.adaptiveIconSize)
             
-            Image(systemName: "rectangle.stack.badge.minus")
+            Image(systemName: "house.fill")
                 .foregroundColor(.white)
                 .font(.system(size: dockManager.adaptiveIconSize * 0.4, weight: .semibold))
         }
@@ -1135,6 +1179,15 @@ struct AppIconView: View {
             }
         )
         .contentShape(Rectangle())
+        .accessibilityLabel(app.appName)
+        .contextMenu {
+            Button("Abrir", systemImage: "arrow.up.forward.app") {
+                _ = dockManager.bringMultitaskViewToFront(uuid: app.appUUID)
+            }
+            Button("Cerrar", systemImage: "xmark", role: .destructive) {
+                dockManager.closeSessionApp(uuid: app.appUUID)
+            }
+        }
     }
     
     private func loadAppIcon() {

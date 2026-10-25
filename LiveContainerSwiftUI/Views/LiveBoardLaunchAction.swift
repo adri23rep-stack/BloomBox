@@ -4,6 +4,9 @@ import Foundation
 extension LCAppModel {
     @MainActor
     func launchFromLibrary(multitask: Bool? = nil, reuseExistingWindow: Bool = true, forceJIT: Bool = false) async throws {
+        if appInfo.isLocked && !DataManager.shared.model.isHiddenAppUnlocked {
+            guard try await LCUtils.authenticateUser() else { return }
+        }
         if #available(iOS 16.0, *), reuseExistingWindow,
            let folder = uiSelectedContainer?.folderName,
            MultitaskManager.isUsing(container: folder) {
@@ -13,9 +16,6 @@ extension LCAppModel {
             }
             if !found { found = MultitaskDockManager.shared.bringMultitaskViewToFront(uuid: folder) }
             if found { return }
-        }
-        if appInfo.isLocked && !DataManager.shared.model.isHiddenAppUnlocked {
-            guard try await LCUtils.authenticateUser() else { return }
         }
         try await runApp(multitask: multitask, forceJIT: forceJIT ? true : nil)
     }

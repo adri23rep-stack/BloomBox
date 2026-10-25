@@ -1,5 +1,7 @@
 # Strata
 
+> **Session navigation preview:** sin compilación Xcode ni prueba en iPhone. Ver [estado](docs/SESSION-NAVIGATION.md). Las verificaciones históricas de abajo corresponden al autor original.
+
 A customizable launcher built on [LiveContainer](https://github.com/LiveContainer/LiveContainer), with three interface modes and bundled SideStore support.
 
 <p align="center"><img src="Resources/Assets.xcassets/AppIcon.appiconset/AppIcon1024.png" width="160" alt="Strata icon"></p>
