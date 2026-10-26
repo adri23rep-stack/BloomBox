@@ -12,6 +12,30 @@
 - [ ] Botón **Listo** termina edición, y siguen funcionando arrastrar, soltar, carpetas, búsqueda y navegación.
 - [ ] Compilación arm64 + empaquetado SideStore; prueba en iPhone sin interferir con long-press de iconos.
 
+## Revisión obligatoria antes de la sesión 2
+
+**Estado:** Sesión 1 compilada en GitHub Actions, pero **todavía en prueba del iPhone**. No se considera terminada ni debe fusionarse hasta revisar los puntos siguientes.
+
+### Bugs reportados
+
+- [ ] **BUG-001 · Alta prioridad · Acceso a SideStore** — El usuario reportó que desaparecieron o quedaron inaccesibles las opciones para entrar a SideStore desde el escritorio de Manzana. **Pendiente reproducir y ubicar la causa**; no se debe asumir que se borró SideStore. Resultado esperado: llegar a SideStore y a la gestión de apps sin perder el escritorio ni las opciones que ya funcionaban.
+
+### Mejoras y revisión de la sesión 1
+
+- [ ] **MEJ-001 · Accesos claros** — Mantener un acceso visible y sencillo a SideStore, a apps instaladas y a ajustes de LiveContainer, sin saturar el Home estilo iPhone. Antes de rediseñarlos, validar con el usuario dónde quiere cada entrada.
+- [ ] **MEJ-002 · Edición natural** — Probar pulsación larga sobre espacio vacío, entrada al temblor, botones (−) de iconos y carpetas y salida con «Listo»; ajustar respuesta y animaciones según las pruebas en el dispositivo.
+- [ ] **MEJ-003 · No perder funciones** — Verificar arrastrar y ordenar iconos, Dock, carpetas, búsqueda, apertura de apps, regreso al launcher y persistencia del diseño después de cerrar/reabrir.
+- [ ] **MEJ-004 · Borrado seguro** — Distinguir «Quitar de inicio» de «Desinstalar»; pedir confirmación antes de cualquier operación destructiva y no tocar datos de SideStore accidentalmente.
+- [ ] **MEJ-005 · Accesibilidad y fluidez** — Probar modo claro/oscuro, Reduce Motion, vibración, animaciones y que los gestos del escritorio no bloqueen los menús o los toques normales.
+
+### Criterios para avanzar
+- [ ] SideStore y administración de apps vuelven a ser accesibles.
+- [ ] El usuario confirma en iPhone que los gestos y controles de edición funcionan.
+- [ ] Ninguna función previa se pierde; compilación de IPA combinado y comprobación de extensiones correctas.
+- [ ] El usuario da el visto bueno a la sesión 1.
+
+**Nota de alcance:** Esto es una lista de seguimiento, no una confirmación de que las mejoras ya estén programadas ni implementadas. **No modificar código** hasta revisar las pruebas y decidir los ajustes.
+
 ## Sesión 2 — Menú flotante de edición
 - [ ] Abrir menú translúcido de la esquina con **Añadir widget**, **Personalizar**, **Editar fondo**, **Editar páginas**.
 - [ ] Animación, desenfoque, modo claro/oscuro, accesibilidad y acciones funcionales.
