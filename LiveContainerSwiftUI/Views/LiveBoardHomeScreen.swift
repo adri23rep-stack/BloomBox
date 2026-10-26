@@ -42,6 +42,7 @@ struct LiveBoardHomeScreen: View {
     private var reduceMotion: Bool { systemReduceMotion || customReduceMotion }
     @State private var layout = LiveBoardHomeLayout()
     @State private var page = 1
+    @State private var homeHasAppeared = false
     @State private var desktopSettings = false
     @State private var editing = false
     @State private var pendingRemovalKey: String?
@@ -174,6 +175,7 @@ struct LiveBoardHomeScreen: View {
             .onAppear {
                 layout = LiveBoardHomeLayout.decode(savedLayout)
                 reconcile()
+                homeHasAppeared = true
                 wallpaper = UIImage(contentsOfFile: wallpaperURL.path)
                 if page > 0 && hiddenPageIndices.contains(page - 1) {
                     page = (visiblePageIndices.first ?? 0) + 1
@@ -1087,14 +1089,30 @@ struct LiveBoardHomeScreen: View {
     }
 
     private func reconcile() {
-        let keysBefore = layout.pages.flatMap { $0.compactMap { $0 } }
-            + layout.dock + layout.folders.flatMap { $0.apps }
+        let hadSavedLayout = layout.initialized
+        let knownKeys = Set(layout.pages.flatMap { $0.compactMap { $0 } }
+            + layout.dock + layout.folders.flatMap { $0.apps } + layout.hidden)
         let needsShortcuts = [Self.sideStoreKey, Self.installKey]
-            .filter { !keysBefore.contains($0) }
+            .filter { !knownKeys.contains($0) }
+        // Only installed guest apps not seen before, never icons the user hid.
+        let newGuestKeys = hadSavedLayout
+            ? appKeys.filter { appMap[$0] != nil && !knownKeys.contains($0) }
+            : []
         layout.reconcile(appKeys, favorites: favoriteKeys)
-        // Restore missing shortcuts once. Later moves preserve the user's chosen placement.
         for key in needsShortcuts.reversed() {
             layout.place(key, on: 0)
+        }
+        if !newGuestKeys.isEmpty {
+            let visible = visiblePageIndices
+            let preferred = (page > 0 && visible.contains(page - 1))
+                ? page - 1 : (visible.first ?? 0)
+            if let target = layout.revealNewApps(
+                newGuestKeys, visiblePages: visible, preferredPage: preferred
+            ), homeHasAppeared {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.24)) {
+                    page = target + 1
+                }
+            }
         }
     }
     private func title(_ key: String) -> String {
