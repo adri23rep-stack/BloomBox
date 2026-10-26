@@ -775,7 +775,7 @@ struct LiveBoardHomeScreen: View {
                         }
                         .padding(6)
                         .frame(maxWidth: .infinity)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 13))
+                        .liveBoardGlass(radius: 13, interactive: false)
                         .padding(.horizontal, 7)
                         .padding(.bottom, 11)
                     }
@@ -815,7 +815,7 @@ struct LiveBoardHomeScreen: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(10)
                         .frame(height: geometry.size.height * 0.24)
-                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 13))
+                        .liveBoardGlass(radius: 13, interactive: false)
                         .rotationEffect(.degrees(reduceMotion ? 0
                             : sin(timeline.date.timeIntervalSinceReferenceDate * 15 + 0.3) * 1.4))
                         HStack(spacing: 8) {
@@ -833,7 +833,7 @@ struct LiveBoardHomeScreen: View {
                             .frame(maxWidth: .infinity)
                             .frame(height: geometry.size.height * 0.27)
                             .clipped()
-                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 13))
+                            .liveBoardGlass(radius: 13, interactive: false)
                             .clipShape(RoundedRectangle(cornerRadius: 13))
                             .rotationEffect(.degrees(reduceMotion ? 0
                                 : sin(timeline.date.timeIntervalSinceReferenceDate * 15 + 1.5) * 1.5))
@@ -846,7 +846,7 @@ struct LiveBoardHomeScreen: View {
                             .padding(9)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                             .frame(height: geometry.size.height * 0.27)
-                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 13))
+                            .liveBoardGlass(radius: 13, interactive: false)
                             .rotationEffect(.degrees(reduceMotion ? 0
                                 : sin(timeline.date.timeIntervalSinceReferenceDate * 15 + 2.8) * 1.5))
                         }
