@@ -88,6 +88,35 @@ struct LiveBoardHomeLayout: Codable, Equatable {
         for key in moved { place(key, on: destinationPage) }
         return true
     }
+    /// When apps are installed, the usual reconciliation may put them on the
+    /// final page even when it is hidden. Relocate only *new* keys to visible
+    /// pages; existing layouts, folders and Dock remain untouched.
+    @discardableResult mutating func revealNewApps(
+        _ newKeys: [String], visiblePages: [Int], preferredPage: Int
+    ) -> Int? {
+        guard !newKeys.isEmpty else { return nil }
+        let visible = visiblePages.filter { pages.indices.contains($0) }
+        var lastTarget: Int?
+        for key in newKeys {
+            guard !hidden.contains(key) else { continue }
+            let current = pages.firstIndex(where: { $0.contains(key) })
+            guard current != nil || dock.contains(key) == false else { continue }
+            let candidates = ([preferredPage] + visible)
+                .filter { visible.contains($0) }
+            var seenTargets = Set<Int>()
+            let unique = candidates.filter { seenTargets.insert($0).inserted }
+            if let target = unique.first(where: { pages[$0].contains(nil) }) {
+                place(key, on: target)
+                lastTarget = target
+            } else {
+                let target = pages.count
+                place(key, on: target)
+                lastTarget = target
+            }
+        }
+        return lastTarget
+    }
+
     mutating func putInDock(_ key: String) {
         guard dock.count < 4, !key.hasPrefix("folder:") else { return }
         removePlacement(key); dock.append(key)
