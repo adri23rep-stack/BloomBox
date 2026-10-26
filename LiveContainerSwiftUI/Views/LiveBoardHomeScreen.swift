@@ -389,6 +389,64 @@ struct LiveBoardHomeScreen: View {
         .accessibilityIdentifier("home.icon.\(key)")
     }
 
+    private func shortcutIcon(_ key: String, showLabel: Bool) -> some View {
+        let size: CGFloat = largeIcons ? 76 : 64
+        let isSideStore = key == Self.sideStoreKey
+        return Button {
+            guard !editing else { return }
+            if isSideStore { openSideStore() }
+            else { openInstall() }
+        } label: {
+            VStack(spacing: 5) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
+                        .fill(isSideStore ? Color(red: 0.14, green: 0.26, blue: 0.69)
+                                          : Color(red: 0.12, green: 0.58, blue: 0.76))
+                    if isSideStore, let icon = BuiltInSideStoreAppInfo.shared.iconIsDarkIcon(darkIcons) {
+                        Image(uiImage: icon).resizable().scaledToFill()
+                            .clipShape(RoundedRectangle(cornerRadius: size * 0.23, style: .continuous))
+                    } else {
+                        Image(systemName: isSideStore ? "square.stack.3d.up.fill" : "square.and.arrow.down.fill")
+                            .font(.system(size: size * 0.44, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .frame(width: size, height: size)
+                .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
+                         phase: isSideStore ? 0.7 : 2.1))
+                if showLabel {
+                    Text(isSideStore ? "SideStore" : "Instalar app")
+                        .font(.system(size: 12))
+                        .lineLimit(1)
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.85), radius: 2, y: 1)
+                        .frame(width: 82)
+                }
+            }
+        }
+        .buttonStyle(LiveBoardHomePressStyle(reduceMotion: reduceMotion))
+        .contextMenu {
+            Button("Editar pantalla de inicio", systemImage: "square.grid.3x3") { enterEditMode() }
+            if layout.dock.contains(key) {
+                Button("Mover al escritorio", systemImage: "rectangle.bottomthird.inset.filled") {
+                    layout.place(key, on: max(0, page - 1)); reconcile()
+                }
+            } else if layout.dock.count < 4 {
+                Button("Añadir al Dock", systemImage: "rectangle.bottomthird.inset.filled") {
+                    layout.putInDock(key); reconcile()
+                }
+            }
+            Menu("Mover a página", systemImage: "rectangle.on.rectangle") {
+                ForEach(layout.pages.indices, id: \.self) { index in
+                    Button("Página \(index + 1)") {
+                        layout.place(key, on: index); page = index + 1; reconcile()
+                    }
+                }
+            }
+        }
+        .accessibilityLabel(isSideStore ? "Abrir SideStore" : "Instalar IPA en LiveContainer")
+    }
+
     @ViewBuilder private func appMenu(_ key: String, app: LCAppModel) -> some View {
         Button("Launch", systemImage: "play.fill") { launch(app) }.disabled(app.isAppRunning || app.isSigningInProgress)
         if let launchWithJIT { Button("Launch with JIT", systemImage: "bolt.fill") { launchWithJIT(app) }.disabled(app.appInfo is BuiltInSideStoreAppInfo) }
@@ -774,8 +832,23 @@ struct LiveBoardHomeScreen: View {
         }
     }
 
-    private func reconcile() { layout.reconcile(appKeys, favorites: favoriteKeys) }
-    private func title(_ key: String) -> String { appMap[key].map { appCustomization.name($0) } ?? "App" }
+    private func reconcile() {
+        let keysBefore = layout.pages.flatMap { $0.compactMap { $0 } }
+            + layout.dock + layout.folders.flatMap { $0.apps }
+        let needsShortcuts = [Self.sideStoreKey, Self.installKey]
+            .filter { !keysBefore.contains($0) }
+        layout.reconcile(appKeys, favorites: favoriteKeys)
+        // Restore missing shortcuts once. Later moves preserve the user's chosen placement.
+        for key in needsShortcuts.reversed() {
+            layout.place(key, on: 0)
+        }
+    }
+    private func title(_ key: String) -> String {
+        if key == Self.sideStoreKey { return "SideStore" }
+        if key == Self.installKey { return "Instalar app" }
+        if let folder = layout.folders.first(where: { $0.id == key }) { return folder.name }
+        return appMap[key].map { appCustomization.name($0) } ?? "App"
+    }
     private func addPage() { layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity)); page = layout.pages.count }
     private func setCategory(_ value: String?, key: String) {
         var map = (try? JSONDecoder().decode([String: String].self, from: Data(categories.utf8))) ?? [:]
@@ -787,7 +860,9 @@ struct LiveBoardHomeScreen: View {
         provider.loadObject(ofClass: NSString.self) { value, _ in
             guard let key = value as? String else { return }
             DispatchQueue.main.async {
-                guard appMap[key] != nil || layout.folders.contains(where: { $0.id == key }) else { return }
+                guard appMap[key] != nil ||
+                      key == Self.sideStoreKey || key == Self.installKey ||
+                      layout.folders.contains(where: { $0.id == key }) else { return }
                 apply(key)
             }
         }
