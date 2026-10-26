@@ -48,4 +48,35 @@ assertTrue(dockTest.dock == ["B", "manzana:sidestore", "C", "A"], "Dock order ch
 assertTrue(!dockTest.moveToDock("folder:test", at: 0), "Folders disallowed in Dock")
 assertTrue(!dockTest.moveToDock("A", at: 4), "Out of bounds Dock slot rejected")
 
-print("Manzana Home layout checks passed: pages, pinned shortcuts, Dock drop and swaps")
+// Regression: new installations must not end up exclusively on a hidden page.
+var installTest = LiveBoardHomeLayout()
+installTest.initialized = true
+installTest.pages = [
+    ["Old"] + Array(repeating: nil, count: 23),
+    ["Hidden"] + Array(repeating: nil, count: 23)
+]
+installTest.dock = ["manzana:sidestore", "manzana:install"]
+installTest.reconcile(["Old", "Hidden", "Fresh", "manzana:sidestore", "manzana:install"], favorites: [])
+assertTrue(installTest.pages[1].contains("Fresh"), "Baseline: reconciliation places new apps on final page")
+assertTrue(installTest.revealNewApps(["Fresh"], visiblePages: [0], preferredPage: 0) == 0,
+           "Freshly installed app is moved to visible page")
+assertTrue(installTest.pages[0].contains("Fresh"), "New icon visible on Home")
+assertTrue(installTest.pages[1].contains("Hidden"), "Hidden page contents not moved")
+assertTrue(installTest.dock == ["manzana:sidestore", "manzana:install"],
+           "Pinned shortcuts and Dock layout unchanged")
+
+// When all visible pages are full, make a fresh visible page rather than
+// stealing space or leaving the newly installed icon inside a hidden page.
+var fullTest = LiveBoardHomeLayout()
+fullTest.initialized = true
+fullTest.pages = [
+    (0..<24).map { Optional("old-\($0)") },
+    ["Secret"] + Array(repeating: nil, count: 23)
+]
+fullTest.reconcile((0..<24).map { "old-\($0)" } + ["Secret", "NewlyInstalled"], favorites: [])
+let target = fullTest.revealNewApps(["NewlyInstalled"], visiblePages: [0], preferredPage: 0)
+assertTrue(target == 2, "A new page is made when visible page is full")
+assertTrue(fullTest.pages[2].contains("NewlyInstalled"), "New icon is on the created visible page")
+assertTrue(fullTest.pages[1].contains("Secret"), "Hidden page retains all its icons")
+
+print("Manzana Home layout checks passed: pages, Dock and visible new installations")
