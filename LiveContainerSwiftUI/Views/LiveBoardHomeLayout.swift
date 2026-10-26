@@ -24,6 +24,8 @@ struct LiveBoardHomeLayout: Codable, Equatable {
     }
     mutating func reconcile(_ keys: [String], favorites: [String]) {
         let known = Set(keys)
+        // Older saved layouts may have removed the built-in app. Unhide it on update.
+        hidden.removeAll { Self.pinnedKeys.contains($0) }
         var seen = Set<String>()
         hidden = hidden.filter { known.contains($0) && seen.insert($0).inserted }
         dock = Array(dock.filter { known.contains($0) && seen.insert($0).inserted }.prefix(4))
@@ -70,7 +72,22 @@ struct LiveBoardHomeLayout: Codable, Equatable {
             pages[p][free] = key
         } else { place(key, on: p + 1) }
     }
-    mutating func hide(_ key: String) { removePlacement(key); hidden.append(key) }
+    /// Built-in SideStore can move, but must never disappear from Manzana.
+    static let pinnedKeys: Set<String> = ["builtin:sidestore", "manzana:install"]
+    mutating func hide(_ key: String) {
+        guard !Self.pinnedKeys.contains(key) else { return }
+        removePlacement(key)
+        hidden.append(key)
+    }
+
+    /// A page cannot be removed if it is the only page. Items are relocated first.
+    @discardableResult mutating func removePage(at index: Int) -> Bool {
+        guard pages.count > 1, pages.indices.contains(index) else { return false }
+        let moved = pages.remove(at: index).compactMap { $0 }
+        let destinationPage = min(index, pages.count - 1)
+        for key in moved { place(key, on: destinationPage) }
+        return true
+    }
     mutating func putInDock(_ key: String) {
         guard dock.count < 4, !key.hasPrefix("folder:") else { return }
         removePlacement(key); dock.append(key)
