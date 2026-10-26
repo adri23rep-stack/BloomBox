@@ -71,6 +71,12 @@ struct LiveBoardHomeScreen: View {
     @State private var folderName = ""
     @State private var wallpaperError: String?
 
+    private struct LibrarySection: Identifiable {
+        let title: String
+        let keys: [String]
+        var id: String { title }
+    }
+
     private static let sideStoreKey = "manzana:sidestore"
     private static let installKey = "manzana:install"
     private enum DesktopAction { case interface, sources, tweaks, wallpaper, apps, settings, jit }
@@ -408,6 +414,26 @@ struct LiveBoardHomeScreen: View {
                     }
             }.navigationViewStyle(.stack)
         }
+        .sheet(item: $expandedLibraryCategory) { section in
+            NavigationView {
+                ScrollView {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 18), count: 4), spacing: 24) {
+                        ForEach(section.keys, id: \.self) { key in
+                            libraryLaunchIcon(key, size: 64, label: true)
+                        }
+                    }
+                    .padding(20)
+                }
+                .navigationTitle(section.title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Listo") { expandedLibraryCategory = nil }
+                    }
+                }
+            }
+            .navigationViewStyle(.stack)
+        }
         .sheet(isPresented: $jitSetup) { LiveBoardJITSetup() }
         .sheet(isPresented: $customizing) { customizeSheet }
         .sheet(isPresented: $choosingWallpaper) {
@@ -475,6 +501,216 @@ struct LiveBoardHomeScreen: View {
 
     /// Native Home page management shows the wallpaper once, behind floating
     /// glass previews. A miniature is material, not another wallpaper image.
+    // MARK: - App Library: final page of Manzana's Home
+    // Only guests installed in LiveContainer are listed, not unrelated iOS apps.
+    private func libraryCategory(for key: String, assigned: [String: String]) -> String {
+        if let custom = assigned[key], !custom.isEmpty {
+            return custom
+        }
+        if key == Self.sideStoreKey || key == Self.installKey { return "Utilidades" }
+        let hint = "\(title(key)) \(appMap[key]?.bundleIdentifier ?? "")".lowercased()
+        func containsAny(_ words: [String]) -> Bool { words.contains { hint.contains($0) } }
+        if containsAny(["youtube", "tiktok", "instagram", "whatsapp", "discord", "facebook",
+                         "twitter", "threads", "telegram", "reddit", "messenger", "social"]) {
+            return "Social"
+        }
+        if containsAny(["game", "mario", "samba", "kart", "taiko", "melon", "emu",
+                         "minecraft", "ryujinx", "retro", "puzzle", "play"]) {
+            return "Juegos"
+        }
+        if containsAny(["ibis", "pixiv", "camera", "photo", "editor", "draw", "pinterest",
+                         "art", "paint", "creative", "music", "video"]) {
+            return "Creatividad"
+        }
+        if containsAny(["notes", "office", "docs", "drive", "calendar", "notion",
+                         "word", "excel", "productivity", "file", "takopi"]) {
+            return "Productividad"
+        }
+        if containsAny(["settings", "clock", "utility", "utilities", "browser",
+                         "safari", "remote", "tool", "jit", "terminal", "store"]) {
+            return "Utilidades"
+        }
+        return "Otras apps"
+    }
+
+    private var librarySections: [LibrarySection] {
+        let keys = appKeys
+        let assigned = (try? JSONDecoder().decode([String: String].self, from: Data(categories.utf8))) ?? [:]
+        let favorites = favoriteKeys.filter { keys.contains($0) }
+        var suggestions = favorites
+        suggestions.append(contentsOf: keys.filter { !suggestions.contains($0) })
+        let recent = Array(keys.reversed().prefix(8))
+        var groups: [String: [String]] = [:]
+        for key in keys {
+            groups[libraryCategory(for: key, assigned: assigned), default: []].append(key)
+        }
+        let categoryNames = ["Social", "Productividad", "Utilidades", "Juegos", "Creatividad", "Otras apps"]
+        let otherNames = groups.keys.filter { !categoryNames.contains($0) }.sorted()
+        let categories = (categoryNames + otherNames).compactMap { name -> LibrarySection? in
+            guard let items = groups[name], !items.isEmpty else { return nil }
+            return LibrarySection(title: name, keys: items)
+        }
+        return [LibrarySection(title: "Sugerencias", keys: Array(suggestions.prefix(8))),
+                LibrarySection(title: "Añadidas recientemente", keys: recent)] + categories
+    }
+
+    private var librarySearchMatches: [String] {
+        appKeys.filter {
+            libraryQuery.isEmpty ||
+            title($0).localizedCaseInsensitiveContains(libraryQuery) ||
+            (appMap[$0]?.bundleIdentifier.localizedCaseInsensitiveContains(libraryQuery) ?? false)
+        }.sorted { title($0).localizedStandardCompare(title($1)) == .orderedAscending }
+    }
+
+    private func appLibrary(width: CGFloat) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 23) {
+                HStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 22))
+                    TextField("Biblioteca de apps", text: $libraryQuery)
+                        .font(.system(size: 21))
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .focused($librarySearchFocused)
+                        .submitLabel(.search)
+                    if !libraryQuery.isEmpty {
+                        Button { libraryQuery = "" } label: {
+                            Image(systemName: "xmark.circle.fill")
+                        }.accessibilityLabel("Borrar búsqueda")
+                    }
+                }
+                .padding(.horizontal, 19)
+                .frame(height: 56)
+                .liveBoardGlass(radius: 28, interactive: false)
+                .contentShape(RoundedRectangle(cornerRadius: 28))
+                .padding(.horizontal, 22)
+                .padding(.top, 20)
+                if libraryQuery.isEmpty {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 18), count: 2),
+                              alignment: .center, spacing: 26) {
+                        ForEach(librarySections) { section in
+                            VStack(spacing: 9) {
+                                librarySectionTile(section)
+                                Text(section.title)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
+                                    .frame(maxWidth: .infinity)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 23)
+                } else if librarySearchMatches.isEmpty {
+                    Text("No se encontraron aplicaciones")
+                        .foregroundStyle(.white.opacity(0.78))
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 50)
+                } else {
+                    LazyVStack(spacing: 9) {
+                        ForEach(librarySearchMatches, id: \.self) { key in
+                            Button {
+                                librarySearchFocused = false
+                                launchLibraryKey(key)
+                            } label: {
+                                HStack(spacing: 14) {
+                                    miniatureIcon(key, size: 43)
+                                    Text(title(key))
+                                        .font(.system(size: 17))
+                                    Spacer()
+                                }
+                                .padding(8)
+                            }
+                            .buttonStyle(.plain)
+                            .liveBoardGlass(radius: 17, interactive: false)
+                        }
+                    }
+                    .padding(.horizontal, 22)
+                }
+            }
+            .padding(.bottom, 80)
+        }
+        .onTapGesture { if librarySearchFocused { librarySearchFocused = false } }
+        .accessibilityIdentifier("manzana.app-library")
+    }
+
+    private func librarySectionTile(_ section: LibrarySection) -> some View {
+        GeometryReader { geometry in
+            let gap: CGFloat = 8
+            let pad: CGFloat = 11
+            let size = (geometry.size.width - pad * 2 - gap) / 2
+            VStack(spacing: gap) {
+                HStack(spacing: gap) {
+                    libraryTileSlot(section, offset: 0, size: size)
+                    libraryTileSlot(section, offset: 1, size: size)
+                }
+                HStack(spacing: gap) {
+                    libraryTileSlot(section, offset: 2, size: size)
+                    Button {
+                        expandedLibraryCategory = section
+                    } label: {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 2), spacing: 3) {
+                            ForEach(3..<7, id: \.self) { index in
+                                if section.keys.indices.contains(index) {
+                                    miniatureIcon(section.keys[index], size: (size - 4) / 2)
+                                        .frame(width: (size - 4) / 2, height: (size - 4) / 2)
+                                } else {
+                                    Color.white.opacity(0.07)
+                                        .frame(width: (size - 4) / 2, height: (size - 4) / 2)
+                                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                                }
+                            }
+                        }
+                    }
+                    .frame(width: size, height: size)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Abrir categoría \(section.title)")
+                }
+            }
+            .padding(pad)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 25))
+            .overlay(RoundedRectangle(cornerRadius: 25)
+                .strokeBorder(.white.opacity(0.16), lineWidth: 1))
+        }
+        .aspectRatio(1, contentMode: .fit)
+    }
+
+    @ViewBuilder
+    private func libraryTileSlot(_ section: LibrarySection, offset: Int, size: CGFloat) -> some View {
+        if section.keys.indices.contains(offset) {
+            libraryLaunchIcon(section.keys[offset], size: size, label: false)
+                .frame(width: size, height: size)
+        } else {
+            Color.clear.frame(width: size, height: size)
+        }
+    }
+
+    private func libraryLaunchIcon(_ key: String, size: CGFloat, label: Bool) -> some View {
+        Button { launchLibraryKey(key) } label: {
+            VStack(spacing: 5) {
+                miniatureIcon(key, size: size)
+                    .frame(width: size, height: size)
+                    .clipShape(RoundedRectangle(cornerRadius: size * 0.23, style: .continuous))
+                if label {
+                    Text(title(key))
+                        .font(.system(size: 12))
+                        .lineLimit(1)
+                        .foregroundStyle(.white)
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
+        .onDrag { NSItemProvider(object: key as NSString) }
+        .accessibilityLabel("Abrir \(title(key))")
+    }
+
+    private func launchLibraryKey(_ key: String) {
+        if key == Self.sideStoreKey { openSideStore() }
+        else if key == Self.installKey { openInstall() }
+        else if let app = appMap[key] { launch(app) }
+    }
+
     private func pageMiniature(_ index: Int) -> some View {
         GeometryReader { geometry in
             let iconSize = min(34, max(15, geometry.size.width / 5.25))
