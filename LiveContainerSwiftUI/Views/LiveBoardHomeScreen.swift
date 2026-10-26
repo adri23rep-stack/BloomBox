@@ -13,6 +13,8 @@ struct LiveBoardHomeScreen: View {
     let manage: (LCAppModel) -> Void
     let openInterface: () -> Void
     let openManagement: () -> Void
+    let openSideStore: () -> Void
+    let openInstall: () -> Void
     let openTab: (LCTabIdentifier) -> Void
     let secondaryInstance: Bool
     var launchWithJIT: ((LCAppModel) -> Void)? = nil
@@ -40,6 +42,10 @@ struct LiveBoardHomeScreen: View {
     @State private var desktopSettings = false
     @State private var editing = false
     @State private var pendingRemovalKey: String?
+    @State private var removedIcon: String?
+    @State private var pageManager = false
+    @State private var pendingPageRemoval: Int?
+    @State private var desktopAction: DesktopAction?
     @State private var searching = false
     @State private var query = ""
     @FocusState private var searchFocused: Bool
@@ -54,8 +60,19 @@ struct LiveBoardHomeScreen: View {
     @State private var folderName = ""
     @State private var wallpaperError: String?
 
-    private var appKeys: [String] { apps.map(liveBoardAppKey) }
-    private var appMap: [String: LCAppModel] { Dictionary(apps.map { (liveBoardAppKey($0), $0) }, uniquingKeysWith: { first, _ in first }) }
+    private static let sideStoreKey = "manzana:sidestore"
+    private static let installKey = "manzana:install"
+    private enum DesktopAction { case interface, sources, tweaks, wallpaper, apps, settings, jit }
+
+    private var appKeys: [String] {
+        apps.filter { !($0.appInfo is BuiltInSideStoreAppInfo) }.map(liveBoardAppKey)
+            + [Self.sideStoreKey, Self.installKey]
+    }
+    private var appMap: [String: LCAppModel] {
+        Dictionary(apps.filter { !($0.appInfo is BuiltInSideStoreAppInfo) }.map {
+            (liveBoardAppKey($0), $0)
+        }, uniquingKeysWith: { first, _ in first })
+    }
     private var favoriteKeys: [String] { (try? JSONDecoder().decode([String].self, from: Data(favorites.utf8))) ?? [] }
     private var wallpaperURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -153,6 +170,57 @@ struct LiveBoardHomeScreen: View {
         } message: {
             Text("Quitar un icono del inicio no desinstala la aplicación ni borra sus datos.")
         }
+        .confirmationDialog("Eliminar página", isPresented: Binding(
+            get: { pendingPageRemoval != nil },
+            set: { if !$0 { pendingPageRemoval = nil } }
+        ), titleVisibility: .visible) {
+            Button("Eliminar página y reubicar iconos", role: .destructive) {
+                if let index = pendingPageRemoval { removePage(index) }
+                pendingPageRemoval = nil
+            }
+            Button("Cancelar", role: .cancel) { pendingPageRemoval = nil }
+        } message: {
+            Text("Los iconos se moverán a otra página. No se desinstala ninguna aplicación.")
+        }
+        .sheet(isPresented: $pageManager) {
+            NavigationView {
+                List {
+                    ForEach(layout.pages.indices, id: \.self) { index in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text("Página \(index + 1)")
+                                Text("\(layout.pages[index].compactMap { $0 }.count) iconos")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button(role: .destructive) {
+                                if layout.pages[index].allSatisfy({ $0 == nil }) {
+                                    removePage(index)
+                                } else {
+                                    pendingPageRemoval = index
+                                }
+                            } label: {
+                                Image(systemName: "trash")
+                                    .frame(width: 42, height: 42)
+                            }
+                            .disabled(layout.pages.count <= 1)
+                            .accessibilityLabel("Eliminar página \(index + 1)")
+                        }
+                    }
+                }
+                .navigationTitle("Páginas")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Listo") { pageManager = false }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button {
+                            addPage()
+                        } label: { Image(systemName: "plus") }
+                    }
+                }
+            }.navigationViewStyle(.stack)
+        }
         .alert("New Home category", isPresented: $addingCategory) {
             TextField("Category name", text: $categoryName)
             Button("Add") {
@@ -165,8 +233,17 @@ struct LiveBoardHomeScreen: View {
             }
             Button("Cancel", role: .cancel) { }
         }
-        .sheet(isPresented: $desktopSettings) {
-            NavigationView { controls.navigationTitle("Escritorio").toolbar { ToolbarItem(placement: .confirmationAction) { Button("Listo") { desktopSettings = false } } } }.navigationViewStyle(.stack)
+        .sheet(isPresented: $desktopSettings, onDismiss: performDesktopAction) {
+            NavigationView {
+                controls
+                    .navigationTitle("Escritorio")
+                    .navigationBarTitleDisplayMode(.large)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Listo") { desktopSettings = false }
+                        }
+                    }
+            }.navigationViewStyle(.stack)
         }
         .sheet(isPresented: $jitSetup) { LiveBoardJITSetup() }
         .sheet(isPresented: $customizing) { customizeSheet }
@@ -627,6 +704,45 @@ struct LiveBoardHomeScreen: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { customizing = false } } }
         }.navigationViewStyle(.stack)
     }
+    private func performDesktopAction() {
+        guard let action = desktopAction else { return }
+        desktopAction = nil
+        switch action {
+        case .interface: openInterface()
+        case .sources: openTab(.sources)
+        case .tweaks: openTab(.tweaks)
+        case .wallpaper: customizing = true
+        case .apps: openManagement()
+        case .settings: openTab(.settings)
+        case .jit: jitSetup = true
+        }
+    }
+
+    private func requestDesktopAction(_ action: DesktopAction) {
+        desktopAction = action
+        desktopSettings = false
+    }
+
+    private func removeFromHome(_ key: String) {
+        guard key != Self.sideStoreKey, key != Self.installKey else { return }
+        withAnimation(reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.85)) {
+            layout.hide(key)
+            reconcile()
+        }
+        pendingRemovalKey = nil
+    }
+
+    private func removePage(_ index: Int) {
+        guard layout.pages.count > 1 else { return }
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.26)) {
+            if layout.removePage(at: index) {
+                if page > index + 1 { page -= 1 }
+                else if page == index + 1 { page = min(index + 1, layout.pages.count) }
+                reconcile()
+            }
+        }
+    }
+
     private func enterEditMode() {
         guard !editing, !searching, openFolder == nil else { return }
         UIImpactFeedbackGenerator(style: .soft).impactOccurred()
