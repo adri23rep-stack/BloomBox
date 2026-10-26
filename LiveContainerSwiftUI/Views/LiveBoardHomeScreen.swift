@@ -11,6 +11,7 @@ struct LiveBoardHomeScreen: View {
     let apps: [LCAppModel]
     let launch: (LCAppModel) -> Void
     let manage: (LCAppModel) -> Void
+    let uninstall: (LCAppModel) -> Void
     let openInterface: () -> Void
     let openManagement: () -> Void
     let openSideStore: () -> Void
@@ -48,6 +49,7 @@ struct LiveBoardHomeScreen: View {
     @State private var desktopSettings = false
     @State private var editing = false
     @State private var pendingRemovalKey: String?
+    @State private var pendingUninstall: LCAppModel?
     @State private var removedIcon: String?
     @State private var pageManager = false
     @State private var pendingPageRemoval: Int?
@@ -186,6 +188,20 @@ struct LiveBoardHomeScreen: View {
         }
         .background(LiveBoardOrientationLock(mask: .portrait))
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .confirmationDialog("Desinstalar aplicación", isPresented: Binding(
+            get: { pendingUninstall != nil },
+            set: { if !$0 { pendingUninstall = nil } }
+        ), titleVisibility: .visible) {
+            if let app = pendingUninstall {
+                Button("Desinstalar app", role: .destructive) {
+                    pendingUninstall = nil
+                    uninstall(app)
+                }
+            }
+            Button("Cancelar", role: .cancel) { pendingUninstall = nil }
+        } message: {
+            Text("Se quitará la aplicación de LiveContainer y del escritorio de Manzana. Sus carpetas de datos se conservarán. Esta acción no se puede deshacer.")
+        }
         .confirmationDialog("Editar icono", isPresented: Binding(
             get: { pendingRemovalKey != nil },
             set: { if !$0 { pendingRemovalKey = nil } }
@@ -814,8 +830,24 @@ struct LiveBoardHomeScreen: View {
             Button("New Category…") { categoryApp = key; categoryName = ""; addingCategory = true }
             Button("Uncategorized") { setCategory(nil, key: key) }
         }
-        Button("App Settings", systemImage: "gearshape") { searching = false; manage(app) }
-        Button("Quitar del escritorio", systemImage: "minus.circle", role: .destructive) { removeFromHome(key) }
+        Button("Ajustes de LiveContainer", systemImage: "gearshape") {
+            searching = false
+            manage(app)
+        }
+        if !app.uiIsShared {
+            Button("Desinstalar app", systemImage: "trash", role: .destructive) {
+                pendingUninstall = app
+            }
+            .disabled(app.isAppRunning || app.isSigningInProgress)
+        } else {
+            Button("Administrar app compartida", systemImage: "square.on.square") {
+                searching = false
+                manage(app)
+            }
+        }
+        Button("Quitar del escritorio", systemImage: "minus.circle", role: .destructive) {
+            removeFromHome(key)
+        }
     }
 
     private func dock(width: CGFloat) -> some View {
