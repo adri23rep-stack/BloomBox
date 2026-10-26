@@ -268,7 +268,7 @@ struct LiveBoardHomeScreen: View {
                                 }
                             }
                             .padding(.horizontal, 25)
-                            .padding(.top, max(45, min(110, geometry.size.height * 0.14)))
+                            .padding(.top, max(70, min(310, geometry.size.height * 0.22)))
                             .padding(.bottom, 30)
                         }
                         .scrollIndicators(.hidden)
@@ -1051,12 +1051,15 @@ struct LiveBoardHomeScreen: View {
     private func removePage(_ index: Int) {
         guard layout.pages.count > 1, layout.pages.indices.contains(index) else { return }
         let previouslyHidden = hiddenPageIndices
+        let movedIcons = layout.pages[index].contains { $0 != nil }
+        let targetPage = min(index, layout.pages.count - 2)
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.26)) {
             if layout.removePage(at: index) {
-                let shifted = Set(previouslyHidden.compactMap { value -> Int? in
+                var shifted = Set(previouslyHidden.compactMap { value -> Int? in
                     if value == index { return nil }
                     return value > index ? value - 1 : value
                 })
+                if movedIcons { shifted.remove(targetPage) }
                 persistHiddenPages(shifted)
                 if page > index + 1 { page -= 1 }
                 else if page == index + 1 { page = min(index + 1, layout.pages.count) }
