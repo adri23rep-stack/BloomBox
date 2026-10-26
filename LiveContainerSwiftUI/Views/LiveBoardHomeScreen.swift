@@ -333,9 +333,13 @@ struct LiveBoardHomeScreen: View {
                         }
                         .frame(width: cellWidth, height: pitch, alignment: .top)
                         .contentShape(Rectangle())
-                        .onDrop(of: [UTType.text], isTargeted: nil) { providers in
-                            acceptDrop(providers) { key in layout.place(key, on: index, slot: slot); reconcile() }
-                        }
+                        .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
+                            acceptDrop(providers) { key in
+                                withAnimation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.85)) {
+                                    layout.place(key, on: index, slot: slot); reconcile()
+                                }
+                            }
+                        })
                     }
                 }
             }
@@ -498,10 +502,14 @@ struct LiveBoardHomeScreen: View {
         .frame(height: 110)
         .frame(maxWidth: .infinity)
         .liveBoardGlass(radius: 34, interactive: false)
-        .onDrop(of: [UTType.text], isTargeted: nil) { providers in
+        .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
             guard layout.dock.count < 4 else { return false }
-            return acceptDrop(providers) { key in layout.putInDock(key); reconcile() }
-        }
+            return acceptDrop(providers) { key in
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) {
+                    layout.putInDock(key); reconcile()
+                }
+            }
+        })
         .accessibilityIdentifier("home.dock")
     }
 
@@ -520,10 +528,12 @@ struct LiveBoardHomeScreen: View {
                         .frame(width: 6, height: 6).frame(width: 18, height: 32)
                 }
                 .accessibilityLabel(index == 0 ? "Widgets" : "Página \(index)")
-                .onDrop(of: [UTType.text], isTargeted: nil) { providers in
+                .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
                     guard index > 0 else { return false }
-                    return acceptDrop(providers) { key in layout.place(key, on: index - 1); page = index; reconcile() }
-                }
+                    return acceptDrop(providers) { key in
+                        layout.place(key, on: index - 1); page = index; reconcile()
+                    }
+                })
             }
             if editing {
                 Button { pageManager = true } label: {
@@ -579,7 +589,9 @@ struct LiveBoardHomeScreen: View {
             }
             Button("Remove Folder", systemImage: "folder.badge.minus", role: .destructive) { layout.dissolveFolder(folder.id); reconcile() }
         }
-        .onDrop(of: [UTType.text], isTargeted: nil) { providers in acceptDrop(providers) { key in layout.put(key, in: folder.id); reconcile() } }
+        .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
+            acceptDrop(providers) { key in layout.put(key, in: folder.id); reconcile() }
+        })
         .accessibilityLabel("\(folder.name), folder, \(folder.apps.count) apps")
     }
 
@@ -994,5 +1006,21 @@ private struct LiveBoardGlassSurface: ViewModifier {
 extension View {
     func liveBoardGlass(radius: CGFloat, interactive: Bool = true) -> some View {
         modifier(LiveBoardGlassSurface(radius: radius, interactive: interactive))
+    }
+}
+
+/// Explicit move proposal prevents iOS from advertising a green copy (+) badge
+/// while rearranging an icon over Home, Dock, page controls or folders.
+private struct LiveBoardMoveDropDelegate: DropDelegate {
+    let accept: ([NSItemProvider]) -> Bool
+
+    func validateDrop(info: DropInfo) -> Bool {
+        info.hasItemsConforming(to: [UTType.text.identifier])
+    }
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+    func performDrop(info: DropInfo) -> Bool {
+        accept(info.itemProviders(for: [UTType.text.identifier]))
     }
 }
