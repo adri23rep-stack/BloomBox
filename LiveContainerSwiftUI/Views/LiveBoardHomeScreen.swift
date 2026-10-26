@@ -193,14 +193,25 @@ struct LiveBoardHomeScreen: View {
             set: { if !$0 { pendingUninstall = nil } }
         ), titleVisibility: .visible) {
             if let app = pendingUninstall {
-                Button("Desinstalar app", role: .destructive) {
-                    pendingUninstall = nil
-                    uninstall(app)
+                if app.uiIsShared {
+                    Button("Abrir ajustes para convertir a privada") {
+                        pendingUninstall = nil
+                        manage(app)
+                    }
+                } else {
+                    Button("Desinstalar app", role: .destructive) {
+                        pendingUninstall = nil
+                        uninstall(app)
+                    }
                 }
             }
             Button("Cancelar", role: .cancel) { pendingUninstall = nil }
         } message: {
-            Text("Se quitará la aplicación de LiveContainer y del escritorio de Manzana. Sus carpetas de datos se conservarán. Esta acción no se puede deshacer.")
+            if pendingUninstall?.uiIsShared == true {
+                Text("Esta app está compartida entre instancias de LiveContainer. Por seguridad, conviértela a app privada desde sus ajustes antes de desinstalarla.")
+            } else {
+                Text("Se quitará la app de LiveContainer y del escritorio de Manzana. Sus carpetas de datos se conservarán. Esta acción no se puede deshacer.")
+            }
         }
         .confirmationDialog("Editar icono", isPresented: Binding(
             get: { pendingRemovalKey != nil },
@@ -834,17 +845,10 @@ struct LiveBoardHomeScreen: View {
             searching = false
             manage(app)
         }
-        if !app.uiIsShared {
-            Button("Desinstalar app", systemImage: "trash", role: .destructive) {
-                pendingUninstall = app
-            }
-            .disabled(app.isAppRunning || app.isSigningInProgress)
-        } else {
-            Button("Administrar app compartida", systemImage: "square.on.square") {
-                searching = false
-                manage(app)
-            }
+        Button("Desinstalar app", systemImage: "trash", role: .destructive) {
+            pendingUninstall = app
         }
+        .disabled(app.isAppRunning || app.isSigningInProgress)
         Button("Quitar del escritorio", systemImage: "minus.circle", role: .destructive) {
             removeFromHome(key)
         }
