@@ -28,6 +28,10 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-layout/main.swift -o /tmp/manzana-home-layout-tests
           /tmp/manzana-home-layout-tests
+      - name: Verify animated wallpaper import and GIF timing
+        run: |
+          swiftc LiveContainerSwiftUI/Views/Manzana/ManzanaWallpaperMedia.swift Tests/wallpaper/main.swift -o /tmp/manzana-wallpaper-tests
+          /tmp/manzana-wallpaper-tests
       - name: Restore verified dependencies
         run: python3 Scripts/fetch-bundled-dependencies.py
       - name: Render three-layer Manzana RGB icon
