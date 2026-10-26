@@ -57,6 +57,7 @@ struct LiveBoardHomeScreen: View {
     @State private var searching = false
     @State private var query = ""
     @State private var libraryQuery = ""
+    @AppStorage("ManzanaLibraryRecents", store: LCUtils.appGroupUserDefault) private var libraryRecentsJSON = "[]"
     @FocusState private var librarySearchFocused: Bool
     @State private var expandedLibraryCategory: LibrarySection?
     @FocusState private var searchFocused: Bool
@@ -98,6 +99,9 @@ struct LiveBoardHomeScreen: View {
         layout.pages.indices.filter { !hiddenPageIndices.contains($0) }
     }
     private var libraryPageIndex: Int { layout.pages.count + 1 }
+    private var recentLibraryKeys: [String] {
+        (try? JSONDecoder().decode([String].self, from: Data(libraryRecentsJSON.utf8))) ?? []
+    }
     private var favoriteKeys: [String] { (try? JSONDecoder().decode([String].self, from: Data(favorites.utf8))) ?? [] }
     private var wallpaperURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -107,7 +111,7 @@ struct LiveBoardHomeScreen: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                background.blur(radius: searching ? 8 : 0)
+                background.blur(radius: (searching || page == libraryPageIndex) ? 14 : 0)
                 VStack(spacing: 0) {
                     TabView(selection: $page) {
                         ManzanaDesktopView(openSettings: { desktopSettings = true }).tag(0)
@@ -168,7 +172,7 @@ struct LiveBoardHomeScreen: View {
                                 Button("Personalizar", systemImage: "paintbrush") { customizing = true }
                                 Button("Añadir página", systemImage: "plus") { addPage() }
                                 Button("Gestionar páginas", systemImage: "square.grid.2x2") { pageManager = true }
-                                Button("Biblioteca de apps", systemImage: "magnifyingglass") { searching = true }
+                                Button("Biblioteca de apps", systemImage: "square.grid.2x2") { finishEditing(); page = libraryPageIndex }
                             } label: { Text("Edit").font(.system(size: 16, weight: .semibold)).padding(.horizontal, 18).padding(.vertical, 8) }
                             .liveBoardGlass(radius: 18)
                             Spacer()
@@ -186,7 +190,7 @@ struct LiveBoardHomeScreen: View {
             .foregroundColor(.white)
             .frame(width: geometry.size.width, height: geometry.size.height)
             .simultaneousGesture(DragGesture(minimumDistance: 35).onEnded { value in
-                if !searching && !editing && openFolder == nil && page > 0 &&
+                if !searching && !editing && openFolder == nil && page > 0 && page < libraryPageIndex &&
                     value.translation.height > 65 && abs(value.translation.height) > abs(value.translation.width) * 1.4 {
                     beginSearch()
                 }
@@ -539,7 +543,8 @@ struct LiveBoardHomeScreen: View {
         let favorites = favoriteKeys.filter { keys.contains($0) }
         var suggestions = favorites
         suggestions.append(contentsOf: keys.filter { !suggestions.contains($0) })
-        let recent = Array(keys.reversed().prefix(8))
+        let stored = recentLibraryKeys.filter { keys.contains($0) }
+        let recent = Array((stored + keys.reversed().filter { !stored.contains($0) }).prefix(8))
         var groups: [String: [String]] = [:]
         for key in keys {
             groups[libraryCategory(for: key, assigned: assigned), default: []].append(key)
@@ -570,7 +575,7 @@ struct LiveBoardHomeScreen: View {
                         .font(.system(size: 22))
                     TextField("Biblioteca de apps", text: $libraryQuery)
                         .font(.system(size: 21))
-                        .autocorrectionDisabled()
+                        .disableAutocorrection(true)
                         .textInputAutocapitalization(.never)
                         .focused($librarySearchFocused)
                         .submitLabel(.search)
@@ -1157,6 +1162,13 @@ struct LiveBoardHomeScreen: View {
                     }
                 })
             }
+            Button { page = libraryPageIndex } label: {
+                Image(systemName: "square.grid.2x2.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(page == libraryPageIndex ? 1 : 0.55))
+                    .frame(width: 21, height: 32)
+            }
+            .accessibilityLabel("Biblioteca de apps")
             if editing {
                 Button { pageManager = true } label: {
                     Image(systemName: "rectangle.stack")
@@ -1493,6 +1505,12 @@ struct LiveBoardHomeScreen: View {
             layout.place(key, on: 0)
         }
         if !newGuestKeys.isEmpty {
+            let prior = recentLibraryKeys
+            let merged = newGuestKeys.reversed() + prior.filter { !newGuestKeys.contains($0) }
+            if let data = try? JSONEncoder().encode(Array(merged.prefix(50))),
+               let string = String(data: data, encoding: .utf8) {
+                libraryRecentsJSON = string
+            }
             let visible = visiblePageIndices
             let preferred = (page > 0 && visible.contains(page - 1))
                 ? page - 1 : (visible.first ?? 0)
