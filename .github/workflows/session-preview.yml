@@ -20,6 +20,10 @@ jobs:
           xcode-version: '26.2'
       - name: Verify packaging
         run: python3 -m unittest discover -s Tests/session-tests -v
+      - name: Verify document storage
+        run: |
+          swiftc LiveContainerSwiftUI/Views/Manzana/ManzanaFileStore.swift Tests/manzana-files/main.swift -o /tmp/manzana-files-test
+          /tmp/manzana-files-test
       - name: Restore verified dependencies
         run: python3 Scripts/fetch-bundled-dependencies.py
       - name: Build unsigned iPhone app
@@ -32,13 +36,13 @@ jobs:
         run: |
           python3 Scripts/package-session-preview.py build/Build/Products/Release-iphoneos/LiveContainer.app Strata-Session-Preview.ipa
       - name: Preserve combined SideStore runtime
-        run: python3 Scripts/package-combined-session.py Strata-Session-Preview.ipa Manzana-Session-Alpha1-SideStore.ipa
+        run: python3 Scripts/package-combined-session.py Strata-Session-Preview.ipa Manzana-Session-Alpha2-SideStore.ipa
       - uses: actions/upload-artifact@v4
         with:
-          name: Manzana-Session-Alpha1-SideStore
+          name: Manzana-Session-Alpha2-SideStore
           path: |
-            Manzana-Session-Alpha1-SideStore.ipa
-            Manzana-Session-Alpha1-SideStore.ipa.verification.json
+            Manzana-Session-Alpha2-SideStore.ipa
+            Manzana-Session-Alpha2-SideStore.ipa.verification.json
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:

@@ -36,7 +36,8 @@ struct LiveBoardHomeScreen: View {
     @AppStorage("LiveBoardReduceMotion", store: LCUtils.appGroupUserDefault) private var customReduceMotion = false
     private var reduceMotion: Bool { systemReduceMotion || customReduceMotion }
     @State private var layout = LiveBoardHomeLayout()
-    @State private var page = 1
+    @State private var page = 0
+    @State private var desktopSettings = false
     @State private var editing = false
     @State private var searching = false
     @State private var query = ""
@@ -66,7 +67,7 @@ struct LiveBoardHomeScreen: View {
                 background.blur(radius: searching ? 8 : 0)
                 VStack(spacing: 0) {
                     TabView(selection: $page) {
-                        controls.padding(.top, 20).tag(0)
+                        ManzanaDesktopView(openSettings: { desktopSettings = true }).tag(0)
                         ForEach(layout.pages.indices, id: \.self) { index in
                             homePage(index, width: geometry.size.width, height: max(400, geometry.size.height - 126)).tag(index + 1)
                         }
@@ -132,6 +133,9 @@ struct LiveBoardHomeScreen: View {
                 if let key = categoryApp { setCategory(value, key: key) }
             }
             Button("Cancel", role: .cancel) { }
+        }
+        .sheet(isPresented: $desktopSettings) {
+            NavigationView { controls.navigationTitle("Escritorio").toolbar { ToolbarItem(placement: .confirmationAction) { Button("Listo") { desktopSettings = false } } } }.navigationViewStyle(.stack)
         }
         .sheet(isPresented: $jitSetup) { LiveBoardJITSetup() }
         .sheet(isPresented: $customizing) { customizeSheet }
@@ -313,6 +317,8 @@ struct LiveBoardHomeScreen: View {
 
     private var pageControl: some View {
         HStack(spacing: 5) {
+            Button { page = 0 } label: { Image(systemName: "house.fill").frame(width: 32, height: 32) }
+                .accessibilityLabel("Escritorio Manzana")
             Button { beginSearch() } label: {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 12, weight: .semibold)).frame(width: 28, height: 32)
