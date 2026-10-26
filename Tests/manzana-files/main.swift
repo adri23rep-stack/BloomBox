@@ -44,5 +44,26 @@ try store.importFile(source, into: folder)
 try store.moveToTrash(folder)
 try store.restore(trash.appendingPathComponent("Projects", isDirectory: true))
 check(try Data(contentsOf: folder.appendingPathComponent("example.txt")) == bytes)
+// Moving and copying remain confined to user documents, and collisions preserve data.
+let nested = folder.appendingPathComponent("Nested", isDirectory: true)
+try store.createFolder("Nested", in: folder)
+try store.copy(renamed, into: folder)
+try store.copy(renamed, into: folder)
+check(try Data(contentsOf: folder.appendingPathComponent("renamed.txt")) == bytes)
+check(try Data(contentsOf: folder.appendingPathComponent("renamed (2).txt")) == bytes)
+try store.move(renamed, into: folder)
+check(!fm.fileExists(atPath: renamed.path))
+check(try Data(contentsOf: folder.appendingPathComponent("renamed (3).txt")) == bytes)
+try store.move(folder.appendingPathComponent("renamed (3).txt"), into: folder)
+check(try Data(contentsOf: folder.appendingPathComponent("renamed (3).txt")) == bytes)
+rejects { try store.move(folder, into: nested) }
+rejects { try store.copy(folder, into: nested) }
+rejects { try store.copy(folder, into: folder) }
+rejects { try store.move(store.root, into: folder) }
+rejects { try store.copy(duplicate, into: trash) }
+rejects { try store.move(duplicate, into: trash) }
+rejects { try store.move(duplicate, into: temporary) }
+rejects { try store.copy(duplicate, into: link) }
+check(try Data(contentsOf: duplicate) == bytes)
 rejects { try store.restore(duplicate) }
-print("Manzana storage checks passed: import, collisions, rename, folders, confinement, trash and restore")
+print("Manzana storage checks passed: import, collisions, rename, folders, move, copy, confinement, trash and restore")
