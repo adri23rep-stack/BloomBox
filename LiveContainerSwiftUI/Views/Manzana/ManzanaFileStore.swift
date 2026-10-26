@@ -83,4 +83,33 @@ struct ManzanaFileStore {
         guard source.deletingLastPathComponent() == (try trashFolder()) else { throw Failure.outsideRoot }
         try fm.moveItem(at: source, to: uniqueName(source.lastPathComponent, in: root))
     }
+
+    /// Transfers stay inside Manzana Files and cannot touch the private app runtime or Trash.
+    private func transfer(_ url: URL, into destinationFolder: URL, copying: Bool) throws {
+        let source = try checked(url)
+        let folder = try checked(destinationFolder)
+        let trash = root.appendingPathComponent(".Trash", isDirectory: true)
+        guard source != root,
+              source != trash, !source.path.hasPrefix(trash.path + "/"),
+              folder != trash, !folder.path.hasPrefix(trash.path + "/") else {
+            throw Failure.outsideRoot
+        }
+        guard (try folder.resourceValues(forKeys: [.isDirectoryKey])).isDirectory == true else {
+            throw Failure.invalidFile
+        }
+        // Prevent recursive directory copies and moving a parent into one of its children.
+        guard folder != source, !folder.path.hasPrefix(source.path + "/") else {
+            throw Failure.outsideRoot
+        }
+        if !copying && source.deletingLastPathComponent() == folder { return }
+        let target = try uniqueName(source.lastPathComponent, in: folder)
+        if copying { try fm.copyItem(at: source, to: target) }
+        else { try fm.moveItem(at: source, to: target) }
+    }
+    func move(_ url: URL, into folder: URL) throws {
+        try transfer(url, into: folder, copying: false)
+    }
+    func copy(_ url: URL, into folder: URL) throws {
+        try transfer(url, into: folder, copying: true)
+    }
 }
