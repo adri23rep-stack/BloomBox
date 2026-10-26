@@ -48,6 +48,7 @@ struct LiveBoardHomeScreen: View {
     @State private var miniatureWidgetPhoto: UIImage?
     @State private var desktopSettings = false
     @State private var editing = false
+    @State private var showWidgetGallery = false
     @State private var pendingRemovalKey: String?
     @State private var pendingUninstall: LCAppModel?
     @State private var removedIcon: String?
@@ -169,6 +170,7 @@ struct LiveBoardHomeScreen: View {
                     VStack {
                         HStack {
                             Menu {
+                                Button("Añadir widget", systemImage: "square.grid.2x2.badge.plus") { showWidgetGallery = true }
                                 Button("Personalizar", systemImage: "paintbrush") { customizing = true }
                                 Button("Añadir página", systemImage: "plus") { addPage() }
                                 Button("Gestionar páginas", systemImage: "square.grid.2x2") { pageManager = true }
@@ -440,6 +442,7 @@ struct LiveBoardHomeScreen: View {
         }
         .sheet(isPresented: $jitSetup) { LiveBoardJITSetup() }
         .sheet(isPresented: $customizing) { customizeSheet }
+        .sheet(isPresented: $showWidgetGallery) { ManzanaWidgetGallery() }
         .sheet(isPresented: $choosingWallpaper) {
             LiveBoardWallpaperPicker { image in
                 choosingWallpaper = false
