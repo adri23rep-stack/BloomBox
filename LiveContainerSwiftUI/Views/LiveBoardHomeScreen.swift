@@ -124,7 +124,7 @@ struct LiveBoardHomeScreen: View {
                                     .font(.system(size: 14, weight: .semibold))
                                 ProgressView(value: min(1, max(0, installProgress)), total: 1)
                                     .tint(.white)
-                                Text("(Int(min(1, max(0, installProgress)) * 100)) %")
+                                Text("\(Int(min(1, max(0, installProgress)) * 100)) %")
                                     .font(.caption2.monospacedDigit())
                                     .foregroundStyle(.white.opacity(0.8))
                             }
