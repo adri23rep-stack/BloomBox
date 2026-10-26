@@ -166,6 +166,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                                             else { choosingIPA = true }
                                         },
                                         openTab: { sharedModel.selectedTab = $0 },
+                                        installInProgress: installprogressVisible,
+                                        installProgress: Double(installProgressPercentage),
                                         secondaryInstance: sharedModel.multiLCStatus == 2,
                                         launchWithJIT: { app in Task { await launchFromLiveBoard(app, forceJIT: true) } })
                 } else if !manageLibrary {
