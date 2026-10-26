@@ -36,7 +36,7 @@ struct LiveBoardHomeScreen: View {
     @AppStorage("LiveBoardReduceMotion", store: LCUtils.appGroupUserDefault) private var customReduceMotion = false
     private var reduceMotion: Bool { systemReduceMotion || customReduceMotion }
     @State private var layout = LiveBoardHomeLayout()
-    @State private var page = 0
+    @State private var page = 1
     @State private var desktopSettings = false
     @State private var editing = false
     @State private var searching = false
@@ -317,8 +317,8 @@ struct LiveBoardHomeScreen: View {
 
     private var pageControl: some View {
         HStack(spacing: 5) {
-            Button { page = 0 } label: { Image(systemName: "house.fill").frame(width: 32, height: 32) }
-                .accessibilityLabel("Escritorio Manzana")
+            Button { page = 1 } label: { Image(systemName: "house.fill").frame(width: 32, height: 32) }
+                .accessibilityLabel("Pantalla de inicio")
             Button { beginSearch() } label: {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 12, weight: .semibold)).frame(width: 28, height: 32)
@@ -329,7 +329,7 @@ struct LiveBoardHomeScreen: View {
                     Circle().fill(.white.opacity(page == index ? 1 : 0.35))
                         .frame(width: 6, height: 6).frame(width: 18, height: 32)
                 }
-                .accessibilityLabel(index == 0 ? "Controls" : "Page \(index)")
+                .accessibilityLabel(index == 0 ? "Widgets" : "Página \(index)")
                 .onDrop(of: [UTType.text], isTargeted: nil) { providers in
                     guard index > 0 else { return false }
                     return acceptDrop(providers) { key in layout.place(key, on: index - 1); page = index; reconcile() }
@@ -350,7 +350,11 @@ struct LiveBoardHomeScreen: View {
     private func folderIcon(_ folder: LiveBoardHomeLayout.Folder, showLabel: Bool) -> some View {
         let size: CGFloat = largeIcons ? 76 : 64
         return Button {
-            guard !editing else { return }; folderPage = 0; openFolder = folder.id
+            guard !editing else { return }
+            folderPage = 0
+            withAnimation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.82)) {
+                openFolder = folder.id
+            }
         } label: {
             VStack(spacing: 5) {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 3), spacing: 3) {
@@ -381,7 +385,9 @@ struct LiveBoardHomeScreen: View {
 
     private func folderOverlay(_ folder: LiveBoardHomeLayout.Folder, width: CGFloat) -> some View {
         ZStack {
-            Color.black.opacity(0.12).ignoresSafeArea().contentShape(Rectangle()).onTapGesture { openFolder = nil }
+            Color.black.opacity(0.12).ignoresSafeArea().contentShape(Rectangle()).onTapGesture {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.24)) { openFolder = nil }
+            }
             VStack(spacing: 28) {
                 Button { renameKey = folder.id; renameValue = folder.name } label: { Text(folder.name).font(.system(size: 30, weight: .semibold)) }.buttonStyle(.plain)
                 TabView(selection: $folderPage) {
@@ -404,7 +410,9 @@ struct LiveBoardHomeScreen: View {
                 .tabViewStyle(.page(indexDisplayMode: folder.apps.count > 9 ? .always : .never))
                 .frame(width: min(width - 56, 340), height: 340)
                 .liveBoardGlass(radius: 38, interactive: false)
-                Button("Close") { openFolder = nil }.font(.subheadline).accessibilityIdentifier("home.folder.close")
+                Button("Cerrar") {
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.24)) { openFolder = nil }
+                }.font(.subheadline).accessibilityIdentifier("home.folder.close")
             }.offset(y: -25)
         }
         .accessibilityAddTraits(.isModal)
@@ -452,8 +460,15 @@ struct LiveBoardHomeScreen: View {
     private var searchResults: [LCAppModel] {
         apps.filter { query.isEmpty || title(liveBoardAppKey($0)).localizedCaseInsensitiveContains(query) || $0.bundleIdentifier.localizedCaseInsensitiveContains(query) }
     }
-    private func beginSearch() { openFolder = nil; searching = true }
-    private func closeSearch() { searchFocused = false; searching = false; query = "" }
+    private func beginSearch() {
+        openFolder = nil
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.24)) { searching = true }
+    }
+    private func closeSearch() {
+        searchFocused = false
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) { searching = false }
+        query = ""
+    }
 
     private func searchOverlay(height: CGFloat) -> some View {
         ZStack(alignment: .top) {
@@ -607,7 +622,7 @@ private struct LiveBoardHomeIcon: View {
             }.contentShape(Rectangle())
         }
         .buttonStyle(LiveBoardHomePressStyle(reduceMotion: reduceMotion))
-        .disabled(!editing && (app.isAppRunning || app.isSigningInProgress))
+        .disabled(!editing && app.isSigningInProgress)
         .accessibilityLabel(title)
         .accessibilityHint(editing ? "Drag to rearrange" : "Launch app. Touch and hold for more actions.")
 
