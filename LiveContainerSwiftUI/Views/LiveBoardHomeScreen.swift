@@ -38,6 +38,7 @@ struct LiveBoardHomeScreen: View {
     @AppStorage("LiveBoardWallpaperDim", store: LCUtils.appGroupUserDefault) private var wallpaperDim = 0.1
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @AppStorage("LiveBoardReduceMotion", store: LCUtils.appGroupUserDefault) private var customReduceMotion = false
+    @AppStorage("LiveBoardHiddenPages", store: LCUtils.appGroupUserDefault) private var hiddenPagesJSON = "[]"
     private var reduceMotion: Bool { systemReduceMotion || customReduceMotion }
     @State private var layout = LiveBoardHomeLayout()
     @State private var page = 1
@@ -75,6 +76,13 @@ struct LiveBoardHomeScreen: View {
             (liveBoardAppKey($0), $0)
         }, uniquingKeysWith: { first, _ in first })
     }
+    private var hiddenPageIndices: Set<Int> {
+        let values = (try? JSONDecoder().decode([Int].self, from: Data(hiddenPagesJSON.utf8))) ?? []
+        return Set(values.filter { layout.pages.indices.contains($0) })
+    }
+    private var visiblePageIndices: [Int] {
+        layout.pages.indices.filter { !hiddenPageIndices.contains($0) }
+    }
     private var favoriteKeys: [String] { (try? JSONDecoder().decode([String].self, from: Data(favorites.utf8))) ?? [] }
     private var wallpaperURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -88,7 +96,7 @@ struct LiveBoardHomeScreen: View {
                 VStack(spacing: 0) {
                     TabView(selection: $page) {
                         ManzanaDesktopView(openSettings: { desktopSettings = true }).tag(0)
-                        ForEach(layout.pages.indices, id: \.self) { index in
+                        ForEach(visiblePageIndices, id: \.self) { index in
                             homePage(index, width: geometry.size.width, height: max(400, geometry.size.height - 126)).tag(index + 1)
                         }
                     }
@@ -201,57 +209,106 @@ struct LiveBoardHomeScreen: View {
         } message: {
             Text("Quitar un icono del inicio no desinstala la aplicación ni borra sus datos.")
         }
-        .sheet(isPresented: $pageManager) {
-            NavigationView {
-                List {
-                    ForEach(layout.pages.indices, id: \.self) { index in
+        .fullScreenCover(isPresented: $pageManager) {
+            GeometryReader { geometry in
+                ZStack {
+                    background
+                    Color.black.opacity(0.22).ignoresSafeArea()
+                    VStack(spacing: 0) {
                         HStack {
-                            VStack(alignment: .leading) {
-                                Text("Página \(index + 1)")
-                                Text("\(layout.pages[index].compactMap { $0 }.count) iconos")
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
                             Spacer()
-                            Button(role: .destructive) {
-                                if layout.pages[index].allSatisfy({ $0 == nil }) {
-                                    removePage(index)
-                                } else {
-                                    pendingPageRemoval = index
+                            Button { pageManager = false } label: {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 21, weight: .semibold))
+                                    .frame(width: 70, height: 45)
+                                    .liveBoardGlass(radius: 23)
+                            }
+                            .accessibilityLabel("Listo")
+                        }
+                        .padding(.horizontal, 25)
+                        .padding(.top, 15)
+
+                        ScrollView {
+                            LazyVGrid(columns: [
+                                GridItem(.flexible(), spacing: 22),
+                                GridItem(.flexible(), spacing: 22)
+                            ], alignment: .center, spacing: 24) {
+                                ForEach(layout.pages.indices, id: \.self) { index in
+                                    VStack(spacing: 12) {
+                                        Button {
+                                            selectPageFromOverview(index)
+                                        } label: {
+                                            pageMiniature(index)
+                                                .opacity(hiddenPageIndices.contains(index) ? 0.55 : 1)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .contextMenu {
+                                            if layout.pages.count > 1 {
+                                                Button("Eliminar página", systemImage: "trash", role: .destructive) {
+                                                    if layout.pages[index].allSatisfy({ $0 == nil }) { removePage(index) }
+                                                    else { pendingPageRemoval = index }
+                                                }
+                                            }
+                                        }
+                                        .accessibilityLabel("Página \(index + 1). Mantén pulsado para eliminarla")
+                                        Button { togglePageVisibility(index) } label: {
+                                            Image(systemName: hiddenPageIndices.contains(index)
+                                                  ? "circle" : "checkmark.circle.fill")
+                                                .font(.system(size: 29, weight: .light))
+                                                .foregroundStyle(.white)
+                                                .frame(width: 45, height: 42)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel(hiddenPageIndices.contains(index)
+                                            ? "Mostrar página \(index + 1)" : "Ocultar página \(index + 1)")
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 25)
+                            .padding(.top, max(45, min(110, geometry.size.height * 0.14)))
+                            .padding(.bottom, 30)
+                        }
+                        .scrollIndicators(.hidden)
+
+                        HStack(spacing: 22) {
+                            Button {
+                                addPage()
+                            } label: {
+                                Label("Añadir página", systemImage: "plus")
+                            }
+                            Button {
+                                if layout.pages.count > 1 {
+                                    let index = min(max(0, page - 1), layout.pages.count - 1)
+                                    if layout.pages[index].allSatisfy({ $0 == nil }) { removePage(index) }
+                                    else { pendingPageRemoval = index }
                                 }
                             } label: {
-                                Image(systemName: "trash")
-                                    .frame(width: 42, height: 42)
+                                Label("Eliminar página", systemImage: "trash")
                             }
-                            .disabled(layout.pages.count <= 1)
-                            .accessibilityLabel("Eliminar página \(index + 1)")
+                            .disabled(layout.pages.count < 2)
                         }
+                        .font(.subheadline.weight(.medium))
+                        .buttonStyle(.plain)
+                        .padding(.vertical, 14)
+                        .padding(.horizontal, 18)
+                        .liveBoardGlass(radius: 24, interactive: false)
+                        .padding(.bottom, 20)
                     }
                 }
-                .navigationTitle("Páginas")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Listo") { pageManager = false }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button {
-                            addPage()
-                        } label: { Image(systemName: "plus") }
-                    }
-                }
+                .foregroundStyle(.white)
             }
-            .navigationViewStyle(.stack)
             .confirmationDialog("Eliminar página", isPresented: Binding(
-                        get: { pendingPageRemoval != nil },
-                        set: { if !$0 { pendingPageRemoval = nil } }
-                    ), titleVisibility: .visible) {
-                        Button("Eliminar página y reubicar iconos", role: .destructive) {
-                            if let index = pendingPageRemoval { removePage(index) }
-                            pendingPageRemoval = nil
-                        }
-                        Button("Cancelar", role: .cancel) { pendingPageRemoval = nil }
-                    } message: {
-                        Text("Los iconos se moverán a otra página. No se desinstala ninguna aplicación.")
-                    }
+                get: { pendingPageRemoval != nil },
+                set: { if !$0 { pendingPageRemoval = nil } }
+            ), titleVisibility: .visible) {
+                Button("Eliminar página y conservar sus iconos", role: .destructive) {
+                    if let index = pendingPageRemoval { removePage(index) }
+                    pendingPageRemoval = nil
+                }
+                Button("Cancelar", role: .cancel) { pendingPageRemoval = nil }
+            } message: {
+                Text("Los iconos se reubicarán en otra página sin desinstalar aplicaciones.")
+            }
         }
         .alert("New Home category", isPresented: $addingCategory) {
             TextField("Category name", text: $categoryName)
@@ -562,7 +619,7 @@ struct LiveBoardHomeScreen: View {
                     .font(.system(size: 12, weight: .semibold)).frame(width: 28, height: 32)
             }.accessibilityLabel("Search")
             Rectangle().fill(.white.opacity(0.22)).frame(width: 0.5, height: 12).padding(.trailing, 3)
-            ForEach(0...layout.pages.count, id: \.self) { index in
+            ForEach([0] + visiblePageIndices.map { $0 + 1 }, id: \.self) { index in
                 Button { page = index } label: {
                     Circle().fill(.white.opacity(page == index ? 1 : 0.35))
                         .frame(width: 6, height: 6).frame(width: 18, height: 32)
