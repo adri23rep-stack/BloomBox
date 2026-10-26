@@ -80,3 +80,16 @@ assertTrue(fullTest.pages[2].contains("NewlyInstalled"), "New icon is on the cre
 assertTrue(fullTest.pages[1].contains("Secret"), "Hidden page retains all its icons")
 
 print("Manzana Home layout checks passed: pages, Dock and visible new installations")
+
+// Deleting a page preserves its widgets, shifts later pages and avoids duplicate kinds.
+let widgetPages = [0: ["clock"], 1: ["photo", "notes"], 2: ["clock", "notes"]]
+let removedMiddle = ManzanaPageWidgetLayout.removingPage(1, target: 1, from: widgetPages)
+assert(removedMiddle[0] == ["clock"])
+assert(removedMiddle[1] == ["clock", "notes", "photo"])
+assert(removedMiddle[2] == nil)
+let removedFirst = ManzanaPageWidgetLayout.removingPage(0, target: 0, from: widgetPages)
+assert(removedFirst[0] == ["photo", "notes", "clock"])
+assert(removedFirst[1] == ["clock", "notes"])
+let removedLast = ManzanaPageWidgetLayout.removingPage(2, target: 1, from: widgetPages)
+assert(removedLast[1] == ["photo", "notes", "clock"])
+print("Widget page deletion checks passed")

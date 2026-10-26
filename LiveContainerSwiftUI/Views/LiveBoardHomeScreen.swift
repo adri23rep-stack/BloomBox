@@ -64,6 +64,7 @@ struct LiveBoardHomeScreen: View {
     @State private var expandedLibraryCategory: LibrarySection?
     @FocusState private var searchFocused: Bool
     @State private var customizing = false
+    @State private var iconCustomization = false
     @State private var choosingWallpaper = false
     @State private var wallpaper: UIImage?
     @State private var openFolder: String?
@@ -172,7 +173,7 @@ struct LiveBoardHomeScreen: View {
                         HStack {
                             Menu {
                                 Button("Añadir widget", systemImage: "square.grid.2x2.badge.plus") { showWidgetGallery = true }
-                                Button("Personalizar", systemImage: "paintbrush") { customizing = true }
+                                Button("Personalizar", systemImage: "paintbrush") { iconCustomization = true }
                                 Button("Añadir página", systemImage: "plus") { addPage() }
                                 Button("Gestionar páginas", systemImage: "square.grid.2x2") { pageManager = true }
                                 Button("Biblioteca de apps", systemImage: "square.grid.2x2") { finishEditing(); page = libraryPageIndex }
@@ -452,6 +453,7 @@ struct LiveBoardHomeScreen: View {
         }
         .sheet(isPresented: $jitSetup) { LiveBoardJITSetup() }
         .sheet(isPresented: $customizing) { customizeSheet }
+        .sheet(isPresented: $iconCustomization) { iconCustomizationSheet }
         .sheet(isPresented: $showWidgetGallery) {
             if page > 0 && page <= layout.pages.count {
                 ManzanaWidgetGallery(pageSelection: Set(widgets(on: page - 1)), onToggle: { toggleWidget($0, on: page - 1) })
@@ -1096,6 +1098,8 @@ struct LiveBoardHomeScreen: View {
                     }
                 }
                 .frame(width: size, height: size)
+                .modifier(ManzanaIconTreatment())
+                .clipShape(RoundedRectangle(cornerRadius: size * 0.23))
                 .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
                          phase: isSideStore ? 0.7 : 2.1))
                 if showLabel {
@@ -1466,6 +1470,14 @@ struct LiveBoardHomeScreen: View {
         appMenu(key, app: app)
     }
 
+    @ViewBuilder private var iconCustomizationSheet: some View {
+        if #available(iOS 16.4, *) {
+            ManzanaIconCustomization().padding(12)
+                .presentationDetents([.height(420), .medium])
+                .presentationBackground(.clear)
+                .presentationDragIndicator(.visible)
+        } else { ManzanaIconCustomization().padding() }
+    }
     private var customizeSheet: some View {
         NavigationView {
             Form {
@@ -1532,13 +1544,7 @@ struct LiveBoardHomeScreen: View {
         let targetPage = min(index, layout.pages.count - 2)
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.26)) {
             if layout.removePage(at: index) {
-                var shiftedWidgets: [Int: [String]] = [:]
-                let previousWidgets = pageWidgets
-                for (old, items) in previousWidgets where old != index { shiftedWidgets[old > index ? old - 1 : old] = items }
-                for id in previousWidgets[index] ?? [] where !shiftedWidgets[targetPage, default: []].contains(id) {
-                    shiftedWidgets[targetPage, default: []].append(id)
-                }
-                saveWidgets(shiftedWidgets)
+                saveWidgets(ManzanaPageWidgetLayout.removingPage(index, target: targetPage, from: pageWidgets))
                 var shifted = Set(previouslyHidden.compactMap { value -> Int? in
                     if value == index { return nil }
                     return value > index ? value - 1 : value

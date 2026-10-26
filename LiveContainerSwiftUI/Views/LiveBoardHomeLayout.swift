@@ -167,3 +167,15 @@ struct LiveBoardHomeLayout: Codable, Equatable {
         for key in contents { place(key, on: 0) }
     }
 }
+
+/// Keeps widget assignments attached to their pages when page indices shift.
+enum ManzanaPageWidgetLayout {
+    static func removingPage(_ index: Int, target: Int, from previous: [Int: [String]]) -> [Int: [String]] {
+        var shifted: [Int: [String]] = [:]
+        for (old, items) in previous where old != index { shifted[old > index ? old - 1 : old] = items }
+        for id in previous[index] ?? [] where !shifted[target, default: []].contains(id) {
+            shifted[target, default: []].append(id)
+        }
+        return shifted
+    }
+}
