@@ -3,7 +3,7 @@ name: Strata Session Preview
 on:
   workflow_dispatch:
   push:
-    branches: ["feature/session-navigation", "feature/manzana-file-transfers", "fix/iphone-home-stage1-build", "feature/home-gestures-session1"]
+    branches: ["feature/session-navigation", "feature/manzana-file-transfers", "fix/iphone-home-stage1-build", "feature/home-gestures-session1", "fix/home-session1-qa"]
 
 permissions:
   contents: read
@@ -24,6 +24,10 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Views/Manzana/ManzanaFileStore.swift Tests/manzana-files/main.swift -o /tmp/manzana-files-test
           /tmp/manzana-files-test
+      - name: Verify Home layout and pinned shortcuts
+        run: |
+          swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-layout/main.swift -o /tmp/manzana-home-layout-tests
+          /tmp/manzana-home-layout-tests
       - name: Restore verified dependencies
         run: python3 Scripts/fetch-bundled-dependencies.py
       - name: Build unsigned iPhone app
