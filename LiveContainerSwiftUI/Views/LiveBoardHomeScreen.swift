@@ -105,9 +105,10 @@ struct LiveBoardHomeScreen: View {
                     VStack {
                         HStack {
                             Menu {
-                                Button("Customize", systemImage: "paintbrush") { customizing = true }
-                                Button("Add page", systemImage: "plus") { addPage() }
-                                Button("App library", systemImage: "square.grid.2x2") { searching = true }
+                                Button("Personalizar", systemImage: "paintbrush") { customizing = true }
+                                Button("Añadir página", systemImage: "plus") { addPage() }
+                                Button("Gestionar páginas", systemImage: "square.grid.2x2") { pageManager = true }
+                                Button("Biblioteca de apps", systemImage: "magnifyingglass") { searching = true }
                             } label: { Text("Edit").font(.system(size: 16, weight: .semibold)).padding(.horizontal, 18).padding(.vertical, 8) }
                             .liveBoardGlass(radius: 18)
                             Spacer()
@@ -147,9 +148,7 @@ struct LiveBoardHomeScreen: View {
             if let key = pendingRemovalKey {
                 if let app = appMap[key] {
                     Button("Quitar de la pantalla de inicio", role: .destructive) {
-                        layout.hide(key)
-                        reconcile()
-                        pendingRemovalKey = nil
+                        removeFromHome(key)
                     }
                     if !(app.appInfo is BuiltInSideStoreAppInfo) {
                         Button("Administrar o desinstalar…") {
@@ -160,8 +159,10 @@ struct LiveBoardHomeScreen: View {
                     }
                 } else if layout.folders.contains(where: { $0.id == key }) {
                     Button("Deshacer carpeta", role: .destructive) {
-                        layout.dissolveFolder(key)
-                        reconcile()
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+                            layout.dissolveFolder(key)
+                            reconcile()
+                        }
                         pendingRemovalKey = nil
                     }
                 }
@@ -320,7 +321,10 @@ struct LiveBoardHomeScreen: View {
                         let slot = row * 4 + column
                         let key = layout.pages[index][slot]
                         ZStack(alignment: .top) {
-                            if let key { homeItem(key, showLabel: !largeIcons) }
+                            if let key {
+                                homeItem(key, showLabel: !largeIcons)
+                                    .transition(reduceMotion ? .opacity : .scale(scale: 0.25).combined(with: .opacity))
+                            }
                             else {
                                 Color.clear.frame(width: largeIcons ? 76 : 64, height: largeIcons ? 76 : 80)
                                     .contentShape(Rectangle())
@@ -353,6 +357,8 @@ struct LiveBoardHomeScreen: View {
         Group {
             if let folder = layout.folders.first(where: { $0.id == key }) {
                 folderIcon(folder, showLabel: showLabel)
+            } else if key == Self.sideStoreKey || key == Self.installKey {
+                shortcutIcon(key, showLabel: showLabel)
             } else if let app = appMap[key] {
                 LiveBoardHomeIcon(app: app, title: title(key), size: largeIcons ? 76 : 64,
                                   showLabel: showLabel, dark: darkIcons, editing: editing,
@@ -420,7 +426,7 @@ struct LiveBoardHomeScreen: View {
             Button("Uncategorized") { setCategory(nil, key: key) }
         }
         Button("App Settings", systemImage: "gearshape") { searching = false; manage(app) }
-        Button("Remove from Home Screen", systemImage: "minus.circle", role: .destructive) { layout.hide(key); reconcile() }
+        Button("Quitar del escritorio", systemImage: "minus.circle", role: .destructive) { removeFromHome(key) }
     }
 
     private func dock(width: CGFloat) -> some View {
@@ -462,7 +468,16 @@ struct LiveBoardHomeScreen: View {
                 }
             }
             if editing {
-                Button { addPage() } label: { Image(systemName: "plus").font(.system(size: 12, weight: .semibold)).frame(width: 24, height: 32) }.accessibilityLabel("Add page")
+                Button { pageManager = true } label: {
+                    Image(systemName: "rectangle.stack")
+                        .font(.system(size: 12, weight: .semibold))
+                        .frame(width: 24, height: 32)
+                }.accessibilityLabel("Gestionar páginas")
+                Button { addPage() } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .semibold))
+                        .frame(width: 24, height: 32)
+                }.accessibilityLabel("Añadir página")
             }
         }
         .buttonStyle(.plain)
@@ -549,22 +564,22 @@ struct LiveBoardHomeScreen: View {
     private var controls: some View {
         ScrollView {
             VStack(spacing: 16) {
-                Button(action: openInterface) { controlCard("Interface", detail: "iOS Home Screen", symbol: "square.grid.3x3.fill", wide: true) }
+                Button { requestDesktopAction(.interface) } label: { controlCard("Interface", detail: "iOS Home Screen", symbol: "square.grid.3x3.fill", wide: true) }
                 HStack(spacing: 16) {
-                    Button { openTab(.sources) } label: {
+                    Button { requestDesktopAction(.sources) } label: {
                         controlCard("lc.tabView.sources".loc, detail: secondaryInstance ? "Manage in primary instance" : "Discover & install", symbol: "books.vertical", wide: false)
                     }.disabled(secondaryInstance).accessibilityIdentifier("home.controls.sources")
-                    Button { openTab(.tweaks) } label: {
+                    Button { requestDesktopAction(.tweaks) } label: {
                         controlCard("lc.tabView.tweaks".loc, detail: secondaryInstance ? "Manage in primary instance" : "App extensions", symbol: "wrench.and.screwdriver", wide: false)
                     }.disabled(secondaryInstance).accessibilityIdentifier("home.controls.tweaks")
                 }
                 HStack(spacing: 16) {
-                    Button { customizing = true } label: { controlCard("Wallpaper", detail: "Customize", symbol: "photo", wide: false) }
-                    Button(action: openManagement) { controlCard("Apps", detail: "Install & manage", symbol: "square.stack.3d.up", wide: false) }
+                    Button { requestDesktopAction(.wallpaper) } label: { controlCard("Wallpaper", detail: "Customize", symbol: "photo", wide: false) }
+                    Button { requestDesktopAction(.apps) } label: { controlCard("Apps", detail: "Install & manage", symbol: "square.stack.3d.up", wide: false) }
                 }
                 HStack(spacing: 16) {
-                    Button { openTab(.settings) } label: { controlCard("lc.tabView.settings".loc, detail: "LiveContainer", symbol: "gearshape.fill", wide: false) }.accessibilityIdentifier("home.controls.settings")
-                    Button { jitSetup = true } label: { controlCard("JIT", detail: "Setup & providers", symbol: "bolt.fill", wide: false) }.accessibilityIdentifier("home.controls.jit")
+                    Button { requestDesktopAction(.settings) } label: { controlCard("lc.tabView.settings".loc, detail: "LiveContainer", symbol: "gearshape.fill", wide: false) }.accessibilityIdentifier("home.controls.settings")
+                    Button { requestDesktopAction(.jit) } label: { controlCard("JIT", detail: "Setup & providers", symbol: "bolt.fill", wide: false) }.accessibilityIdentifier("home.controls.jit")
                 }
             }.buttonStyle(.plain).padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 20)
         }
@@ -581,7 +596,8 @@ struct LiveBoardHomeScreen: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: wide ? 124 : 128)
-        .liveBoardGlass(radius: 28)
+        .liveBoardGlass(radius: 28, interactive: false)
+        .contentShape(RoundedRectangle(cornerRadius: 28))
     }
 
     private var searchResults: [LCAppModel] {
