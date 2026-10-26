@@ -66,6 +66,10 @@ struct LiveBoardHomeScreen: View {
     @State private var customizing = false
     @State private var iconCustomization = false
     @State private var choosingWallpaper = false
+    @State private var choosingMotionWallpaper = false
+    @State private var importingMotionWallpaper = false
+    @AppStorage("ManzanaMotionWallpaper", store: LCUtils.appGroupUserDefault) private var motionWallpaper = ""
+    @AppStorage("ManzanaPauseWallpaper", store: LCUtils.appGroupUserDefault) private var pauseWallpaper = false
     @State private var wallpaper: UIImage?
     @State private var openFolder: String?
     @State private var folderPage = 0
@@ -214,6 +218,7 @@ struct LiveBoardHomeScreen: View {
                 }
             }
         }
+        .overlay { if importingMotionWallpaper { ProgressView("Preparando fondo…").padding(20).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20)) } }
         .background(LiveBoardOrientationLock(mask: .portrait))
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .confirmationDialog("Desinstalar aplicación", isPresented: Binding(
@@ -274,7 +279,7 @@ struct LiveBoardHomeScreen: View {
         .fullScreenCover(isPresented: $pageManager) {
             GeometryReader { geometry in
                 ZStack {
-                    background
+                    wallpaperBackground(paused: false)
                     Color.black.opacity(0.22).ignoresSafeArea()
                     VStack(spacing: 0) {
                         HStack {
@@ -459,6 +464,22 @@ struct LiveBoardHomeScreen: View {
                 ManzanaWidgetGallery(pageSelection: Set(widgets(on: page - 1)), onToggle: { toggleWidget($0, on: page - 1) })
             } else { ManzanaWidgetGallery() }
         }
+        .fileImporter(isPresented: $choosingMotionWallpaper, allowedContentTypes: [.movie, .gif]) { result in
+            switch result {
+            case .success(let url):
+                importingMotionWallpaper = true
+                Task {
+                    do {
+                        let name = try await Task.detached(priority: .userInitiated) { try ManzanaWallpaperMedia.importFile(url) }.value
+                        let old = motionWallpaper
+                        motionWallpaper = name; wallpaperStyle = "motion"
+                        if old != name, let oldURL = ManzanaWallpaperMedia.url(old) { try? FileManager.default.removeItem(at: oldURL) }
+                    } catch { wallpaperError = error.localizedDescription }
+                    importingMotionWallpaper = false
+                }
+            case .failure(let error): wallpaperError = error.localizedDescription
+            }
+        }
         .sheet(isPresented: $choosingWallpaper) {
             LiveBoardWallpaperPicker { image in
                 choosingWallpaper = false
@@ -507,11 +528,18 @@ struct LiveBoardHomeScreen: View {
         } message: { Text(wallpaperError ?? "") }
     }
 
-    private var background: some View {
+    private var background: some View { wallpaperBackground(paused: pageManager) }
+
+    private func wallpaperBackground(paused: Bool) -> some View {
         GeometryReader { geometry in
             ZStack {
                 Color.black
-                if wallpaperStyle == "photo", let wallpaper {
+                if wallpaperStyle == "motion", let url = ManzanaWallpaperMedia.url(motionWallpaper) {
+                    ManzanaAnimatedWallpaper(url: url, fit: wallpaperFit,
+                        paused: pauseWallpaper || reduceMotion || paused)
+                        .id(motionWallpaper)
+                        .frame(width: geometry.size.width, height: geometry.size.height).clipped()
+                } else if wallpaperStyle == "photo", let wallpaper {
                     Image(uiImage: wallpaper).resizable().aspectRatio(contentMode: wallpaperFit ? .fit : .fill)
                         .frame(width: geometry.size.width, height: geometry.size.height).clipped()
                 } else if wallpaperStyle != "black" {
@@ -1482,12 +1510,17 @@ struct LiveBoardHomeScreen: View {
         NavigationView {
             Form {
                 Section("Wallpaper") {
+                    Button("Importar video o GIF (Archivos)") { customizing = false; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { choosingMotionWallpaper = true } }
+                        .disabled(importingMotionWallpaper)
+                    if importingMotionWallpaper { ProgressView("Preparando fondo…") }
+                    if !motionWallpaper.isEmpty { Toggle("Pausar fondo animado", isOn: $pauseWallpaper) }
                     Button("Choose Photo") { customizing = false; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { choosingWallpaper = true } }
                     Picker("Background", selection: $wallpaperStyle) {
                         Text("Red ribbons").tag("red"); Text("Blue ribbons").tag("blue"); Text("Black").tag("black")
                         if wallpaper != nil { Text("Your photo").tag("photo") }
+                        if !motionWallpaper.isEmpty { Text("Video / GIF").tag("motion") }
                     }
-                    if wallpaperStyle == "photo" { Toggle("Fit entire image", isOn: $wallpaperFit) }
+                    if wallpaperStyle == "photo" || wallpaperStyle == "motion" { Toggle("Mostrar fondo completo", isOn: $wallpaperFit) }
                     VStack(alignment: .leading) { Text("Dim wallpaper"); Slider(value: $wallpaperDim, in: 0...0.7) }
                 }
                 Section("Iconos") { ManzanaIconCustomization() }
