@@ -19,6 +19,7 @@
 ### Bugs reportados
 
 - [ ] **BUG-001 · Alta prioridad · Acceso a SideStore** — El usuario reportó que desaparecieron o quedaron inaccesibles las opciones para entrar a SideStore desde el escritorio de Manzana. **Pendiente reproducir y ubicar la causa**; no se debe asumir que se borró SideStore. Resultado esperado: llegar a SideStore y a la gestión de apps sin perder el escritorio ni las opciones que ya funcionaban.
+- [ ] **BUG-002 · Interfaz de arrastre · Prioridad media** — Al tomar/arrastrar una app en el escritorio aparece un **símbolo verde (+)** superpuesto al icono (captura del usuario). Se solicita **quitar ese indicador** para que arrastrar/reordenar se vea como el Home original del iPhone. Mantener funcionando drag & drop, sin marcador verde de copia. **Pendiente investigar y corregir junto a los demás bugs; no modificar código todavía.**
 
 ### Mejoras y revisión de la sesión 1
 
