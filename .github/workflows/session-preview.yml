@@ -3,7 +3,7 @@ name: Strata Session Preview
 on:
   workflow_dispatch:
   push:
-    branches: ["feature/session-navigation", "feature/manzana-file-transfers", "fix/iphone-home-stage1-build", "feature/home-gestures-session1", "fix/home-session1-qa"]
+    branches: ["feature/session-navigation", "feature/manzana-file-transfers", "fix/iphone-home-stage1-build", "feature/home-gestures-session1", "fix/home-session1-qa", "feature/home-page-gallery-dock-progress"]
 
 permissions:
   contents: read
