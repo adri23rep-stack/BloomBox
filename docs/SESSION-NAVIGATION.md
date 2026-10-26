@@ -1,7 +1,10 @@
 # Strata: navegación de sesión Alpha 1
 
 Base: huzaifahshahid71-ops/Strata c6efc2d0d1134e366f2c1d7401a6a5dd984b4b7f.
-Estado: NO compilado con Xcode; NO probado en iPhone.
+Estado: compilación Release arm64 con Xcode 26.2 y empaquetado combinado correctos.
+NO probado en iPhone.
+Build validado: https://github.com/adri23rep-stack/Manzana/actions/runs/40250414739
+Commit compilado: 0fd9a8d30974757224e93ba76736b6870036a962.
 
 ## Cambios
 - Inicio iOS abre Shared Apps en multitarea interna, maximizadas.
@@ -25,7 +28,7 @@ Seis pruebas de empaquetado pasan (incluida conservación de SideStore): ejecuta
 estructura Payload/extensiones/permisos del ejecutable.
 YAML válido y git diff --check limpio.
 
-## Compilación pendiente
+## Compilación validada
 Strata Session Preview se ejecuta al subir feature/session-navigation o manualmente.
 Usa Xcode 26.2, restaura dependencias fijadas y genera un IPA SIN FIRMAR en Actions.
 No publica releases ni pide certificados.
