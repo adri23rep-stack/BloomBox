@@ -113,6 +113,32 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
     }
 
+    /// Remove only a private guest bundle and preserve its data containers.
+    func uninstallLauncherApp(_ app: LCAppModel) {
+        guard !(app.appInfo is BuiltInSideStoreAppInfo),
+              !app.uiIsShared, !app.isAppRunning, !app.isSigningInProgress else {
+            errorInfo = "No se puede desinstalar una app compartida, en ejecución o en proceso de firma. Las apps compartidas se administran desde sus ajustes de LiveContainer."
+            errorShow = true
+            return
+        }
+        do {
+            guard let bundlePath = app.appInfo.bundlePath() else {
+                throw CocoaError(.fileNoSuchFile)
+            }
+            let root = LCPath.bundlePath.standardizedFileURL.resolvingSymlinksInPath()
+            let candidate = URL(fileURLWithPath: bundlePath).standardizedFileURL.resolvingSymlinksInPath()
+            guard candidate.deletingLastPathComponent() == root,
+                  candidate.pathExtension.lowercased() == "app" else {
+                throw CocoaError(.fileWriteNoPermission)
+            }
+            try FileManager.default.removeItem(at: candidate)
+            removeApp(app: app)
+        } catch {
+            errorInfo = error.localizedDescription
+            errorShow = true
+        }
+    }
+
     var filteredApps: [LCAppModel] {
         let apps = sortedApps
         if searchContext.debouncedQuery.isEmpty {
@@ -152,6 +178,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                     LiveBoardHomeScreen(apps: launcherApps,
                                         launch: { app in Task { await launchFromLiveBoard(app) } },
                                         manage: manageLauncherApp,
+                                        uninstall: uninstallLauncherApp,
                                         openInterface: openInterface,
                                         openManagement: { manageLibrary = true },
                                         openSideStore: {
