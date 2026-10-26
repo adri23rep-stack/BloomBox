@@ -21,7 +21,7 @@ No hay mezclador de audio, barra lateral nueva ni tarjetas con capturas.
 ## Validación
 Los cinco archivos Swift/Objective-C modificados pasan análisis sintáctico con
 tree-sitter. Esto NO valida tipos, enlaces ni APIs UIKit.
-Tres pruebas del empaquetador pasan: ejecutable ausente, extensión ausente y
+Seis pruebas de empaquetado pasan (incluida conservación de SideStore): ejecutable ausente, extensión ausente y
 estructura Payload/extensiones/permisos del ejecutable.
 YAML válido y git diff --check limpio.
 
@@ -29,9 +29,11 @@ YAML válido y git diff --check limpio.
 Strata Session Preview se ejecuta al subir feature/session-navigation o manualmente.
 Usa Xcode 26.2, restaura dependencias fijadas y genera un IPA SIN FIRMAR en Actions.
 No publica releases ni pide certificados.
-Este workflow genera la versión independiente; NO reconstruye todavía el IPA
-combinado Strata + SideStore. No sustituir una instalación combinada con este
-preview sin validar antes el empaquetado y preservar los datos.
+El workflow genera también Manzana-Session-Alpha1-SideStore.ipa. Conserva el
+motor, extensiones y SideStore del paquete original r11 verificado por SHA-256;
+sustituye únicamente LiveContainerSwiftUI.framework compilado desde esta rama.
+Comprueba byte por byte todos los archivos conservados. Requiere volver a firmar
+con SideStore y conservar las extensiones. Sigue pendiente la prueba en iPhone.
 
 ## Pruebas pendientes en iPhone
 1. Instalar la compilación firmada conservando las extensiones.

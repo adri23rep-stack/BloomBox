@@ -31,6 +31,15 @@ jobs:
       - name: Package standalone preview
         run: |
           python3 Scripts/package-session-preview.py build/Build/Products/Release-iphoneos/LiveContainer.app Strata-Session-Preview.ipa
+      - name: Preserve combined SideStore runtime
+        run: python3 Scripts/package-combined-session.py Strata-Session-Preview.ipa Manzana-Session-Alpha1-SideStore.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Manzana-Session-Alpha1-SideStore
+          path: |
+            Manzana-Session-Alpha1-SideStore.ipa
+            Manzana-Session-Alpha1-SideStore.ipa.verification.json
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: Strata-Session-Preview
