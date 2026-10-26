@@ -43,6 +43,8 @@ struct LiveBoardHomeScreen: View {
     @State private var layout = LiveBoardHomeLayout()
     @State private var page = 1
     @State private var homeHasAppeared = false
+    @AppStorage("ManzanaNote", store: LCUtils.appGroupUserDefault) private var miniatureNote = ""
+    @State private var miniatureWidgetPhoto: UIImage?
     @State private var desktopSettings = false
     @State private var editing = false
     @State private var pendingRemovalKey: String?
@@ -238,34 +240,54 @@ struct LiveBoardHomeScreen: View {
                                 GridItem(.flexible(), spacing: 22),
                                 GridItem(.flexible(), spacing: 22)
                             ], alignment: .center, spacing: 24) {
-                                ForEach(layout.pages.indices, id: \.self) { index in
+                                ForEach([-1] + Array(layout.pages.indices), id: \.self) { index in
                                     VStack(spacing: 12) {
                                         Button {
-                                            selectPageFromOverview(index)
+                                            if index == -1 {
+                                                page = 0
+                                                pageManager = false
+                                            } else {
+                                                selectPageFromOverview(index)
+                                            }
                                         } label: {
-                                            pageMiniature(index)
-                                                .opacity(hiddenPageIndices.contains(index) ? 0.55 : 1)
+                                            Group {
+                                                if index == -1 {
+                                                    widgetPageMiniature()
+                                                } else {
+                                                    pageMiniature(index)
+                                                        .opacity(hiddenPageIndices.contains(index) ? 0.55 : 1)
+                                                }
+                                            }
                                         }
                                         .buttonStyle(.plain)
                                         .contextMenu {
-                                            if layout.pages.count > 1 {
+                                            if index >= 0 && layout.pages.count > 1 {
                                                 Button("Eliminar página", systemImage: "trash", role: .destructive) {
                                                     if layout.pages[index].allSatisfy({ $0 == nil }) { removePage(index) }
                                                     else { pendingPageRemoval = index }
                                                 }
                                             }
                                         }
-                                        .accessibilityLabel("Página \(index + 1). Mantén pulsado para eliminarla")
-                                        Button { togglePageVisibility(index) } label: {
-                                            Image(systemName: hiddenPageIndices.contains(index)
-                                                  ? "circle" : "checkmark.circle.fill")
+                                        .accessibilityLabel(index == -1
+                                            ? "Página de widgets" : "Página \(index + 1). Mantén pulsado para eliminarla")
+                                        if index == -1 {
+                                            Image(systemName: "checkmark.circle.fill")
                                                 .font(.system(size: 29, weight: .light))
                                                 .foregroundStyle(.white)
                                                 .frame(width: 45, height: 42)
+                                                .accessibilityLabel("Página de widgets siempre disponible")
+                                        } else {
+                                            Button { togglePageVisibility(index) } label: {
+                                                Image(systemName: hiddenPageIndices.contains(index)
+                                                      ? "circle" : "checkmark.circle.fill")
+                                                    .font(.system(size: 29, weight: .light))
+                                                    .foregroundStyle(.white)
+                                                    .frame(width: 45, height: 42)
+                                            }
+                                            .buttonStyle(.plain)
+                                            .accessibilityLabel(hiddenPageIndices.contains(index)
+                                                ? "Mostrar página \(index + 1)" : "Ocultar página \(index + 1)")
                                         }
-                                        .buttonStyle(.plain)
-                                        .accessibilityLabel(hiddenPageIndices.contains(index)
-                                            ? "Mostrar página \(index + 1)" : "Ocultar página \(index + 1)")
                                     }
                                 }
                             }
@@ -301,6 +323,12 @@ struct LiveBoardHomeScreen: View {
                     }
                 }
                 .foregroundStyle(.white)
+            }
+            .onAppear {
+                let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                    .appendingPathComponent("Manzana", isDirectory: true)
+                    .appendingPathComponent("widget-photo.jpg")
+                miniatureWidgetPhoto = UIImage(contentsOfFile: url.path)
             }
             .confirmationDialog("Eliminar página", isPresented: Binding(
                 get: { pendingPageRemoval != nil },
