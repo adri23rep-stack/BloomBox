@@ -99,8 +99,7 @@ struct LiveBoardHomeLayout: Codable, Equatable {
         var lastTarget: Int?
         for key in newKeys {
             guard !hidden.contains(key) else { continue }
-            let current = pages.firstIndex(where: { $0.contains(key) })
-            guard current != nil || dock.contains(key) == false else { continue }
+            guard !dock.contains(key) else { continue }
             let candidates = ([preferredPage] + visible)
                 .filter { visible.contains($0) }
             var seenTargets = Set<Int>()
