@@ -16,6 +16,8 @@ struct LiveBoardHomeScreen: View {
     let openSideStore: () -> Void
     let openInstall: () -> Void
     let openTab: (LCTabIdentifier) -> Void
+    let installInProgress: Bool
+    let installProgress: Double
     let secondaryInstance: Bool
     var launchWithJIT: ((LCAppModel) -> Void)? = nil
     @ObservedObject private var appCustomization = LiveBoardAppCustomization.shared
@@ -101,6 +103,34 @@ struct LiveBoardHomeScreen: View {
                 .blur(radius: searching ? 14 : 0)
                 .allowsHitTesting(!searching)
                 .accessibilityHidden(searching)
+                if installInProgress {
+                    VStack {
+                        HStack(spacing: 10) {
+                            ProgressView()
+                                .tint(.white)
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text("Instalando aplicación…")
+                                    .font(.system(size: 14, weight: .semibold))
+                                ProgressView(value: min(1, max(0, installProgress)), total: 1)
+                                    .tint(.white)
+                                Text("(Int(min(1, max(0, installProgress)) * 100)) %")
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundStyle(.white.opacity(0.8))
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(15)
+                        .liveBoardGlass(radius: 22, interactive: false)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 8)
+                        Spacer()
+                    }
+                    .allowsHitTesting(false)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Instalando aplicación")
+                    .accessibilityValue("(Int(min(1, max(0, installProgress)) * 100)) por ciento")
+                    .transition(.opacity)
+                }
                 if editing && !searching {
                     VStack {
                         HStack {
@@ -494,23 +524,32 @@ struct LiveBoardHomeScreen: View {
 
     private func dock(width: CGFloat) -> some View {
         HStack(spacing: 0) {
-            if layout.dock.isEmpty { Spacer() }
-            ForEach(layout.dock, id: \.self) { key in
-                homeItem(key, showLabel: false).frame(width: (width - 32) / 4)
+            ForEach(0..<4, id: \.self) { slot in
+                ZStack {
+                    if layout.dock.indices.contains(slot) {
+                        homeItem(layout.dock[slot], showLabel: false)
+                    } else {
+                        Color.clear
+                            .frame(width: largeIcons ? 76 : 64, height: largeIcons ? 76 : 80)
+                    }
+                }
+                .frame(width: (width - 32) / 4, height: 110)
+                .contentShape(Rectangle())
+                .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
+                    acceptDrop(providers) { key in
+                        withAnimation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.84)) {
+                            _ = layout.moveToDock(key, at: slot, fallbackPage: max(0, page - 1))
+                            reconcile()
+                        }
+                    }
+                })
+                .accessibilityIdentifier("home.dock.slot.(slot)")
             }
-            if layout.dock.isEmpty { Spacer() }
         }
         .frame(height: 110)
         .frame(maxWidth: .infinity)
         .liveBoardGlass(radius: 34, interactive: false)
-        .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
-            guard layout.dock.count < 4 else { return false }
-            return acceptDrop(providers) { key in
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) {
-                    layout.putInDock(key); reconcile()
-                }
-            }
-        })
+        .contentShape(RoundedRectangle(cornerRadius: 34))
         .accessibilityIdentifier("home.dock")
     }
 
