@@ -1506,7 +1506,7 @@ struct LiveBoardHomeScreen: View {
         }
         if !newGuestKeys.isEmpty {
             let prior = recentLibraryKeys
-            let merged = newGuestKeys.reversed() + prior.filter { !newGuestKeys.contains($0) }
+            let merged = Array(newGuestKeys.reversed()) + prior.filter { !newGuestKeys.contains($0) }
             if let data = try? JSONEncoder().encode(Array(merged.prefix(50))),
                let string = String(data: data, encoding: .utf8) {
                 libraryRecentsJSON = string
