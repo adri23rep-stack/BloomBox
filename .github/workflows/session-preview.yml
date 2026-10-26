@@ -3,7 +3,7 @@ name: Strata Session Preview
 on:
   workflow_dispatch:
   push:
-    branches: ["feature/session-navigation", "feature/manzana-file-transfers", "fix/iphone-home-stage1-build", "feature/home-gestures-session1", "fix/home-session1-qa", "feature/home-page-gallery-dock-progress", "fix/new-app-visible-glass-pages", "feature/home-uninstall-livecontainer-settings", "release/manzana-v0.1.0"]
+    branches: ["feature/session-navigation", "feature/manzana-file-transfers", "fix/iphone-home-stage1-build", "feature/home-gestures-session1", "fix/home-session1-qa", "feature/home-page-gallery-dock-progress", "fix/new-app-visible-glass-pages", "feature/home-uninstall-livecontainer-settings", "release/manzana-v0.1.0", "feature/manzana-rgb-branding-v0.1.1"]
 
 permissions:
   contents: write
@@ -30,6 +30,8 @@ jobs:
           /tmp/manzana-home-layout-tests
       - name: Restore verified dependencies
         run: python3 Scripts/fetch-bundled-dependencies.py
+      - name: Render three-layer Manzana RGB icon
+        run: swift Scripts/generate-manzana-icon.swift
       - name: Build unsigned iPhone app
         run: |
           set -o pipefail
@@ -40,7 +42,30 @@ jobs:
         run: |
           python3 Scripts/package-session-preview.py build/Build/Products/Release-iphoneos/LiveContainer.app Strata-Session-Preview.ipa
       - name: Preserve combined SideStore runtime
-        run: python3 Scripts/package-combined-session.py Strata-Session-Preview.ipa Manzana-Session-Alpha2-SideStore.ipa
+        run: python3 Scripts/package-combined-session.py Strata-Session-Preview.ipa Manzana-Session-Alpha2-SideStore.ipa --branding-dir Resources/Branding
+      - name: Verify final installed name and icon
+        run: |
+          python3 - <<'PY'
+          import json,plistlib,zipfile
+          from pathlib import Path
+          p=Path('Manzana-Session-Alpha2-SideStore.ipa')
+          with zipfile.ZipFile(p) as z:
+              root='Payload/LiveContainer.app/'
+              info=plistlib.loads(z.read(root+'Info.plist'))
+              assert info['CFBundleName']=='Manzana'
+              assert info['CFBundleDisplayName']=='Manzana'
+              assert z.read(root+'Assets.car')!=b''
+              for name in ('AppIcon60x60@2x.png', 'AppIcon76x76@2x~ipad.png'):
+                  assert z.read(root+name).startswith(bytes.fromhex('89504e470d0a1a0a'))
+              for name in z.namelist():
+                  if name.startswith(root) and name.endswith('.lproj/InfoPlist.strings'):
+                      strings=plistlib.loads(z.read(name))
+                      assert strings['CFBundleName']=='Manzana', name
+          report=json.loads(Path(str(p)+'.verification.json').read_text())
+          assert report['display_name']=='Manzana'
+          assert report['icon_catalog_updated']
+          print('Verified Manzana name, all localized names and RGB icon in final SideStore IPA')
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: Manzana-Session-Alpha2-SideStore
@@ -52,6 +77,11 @@ jobs:
         with:
           name: Strata-Session-Preview
           path: Strata-Session-Preview.ipa
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Manzana-RGB-AppIcon
+          path: Resources/Branding/ManzanaRGB1024.png
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
