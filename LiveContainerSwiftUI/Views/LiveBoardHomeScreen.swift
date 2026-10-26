@@ -432,56 +432,132 @@ struct LiveBoardHomeScreen: View {
         }.ignoresSafeArea()
     }
 
+    /// Native Home page management shows the wallpaper once, behind floating
+    /// glass previews. A miniature is material, not another wallpaper image.
     private func pageMiniature(_ index: Int) -> some View {
         GeometryReader { geometry in
             let iconSize = min(34, max(15, geometry.size.width / 5.25))
             ZStack {
-                if wallpaperStyle == "photo", let wallpaper {
-                    Image(uiImage: wallpaper)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .clipped()
-                } else if wallpaperStyle == "black" {
-                    Color.black
-                } else {
-                    LiveBoardRibbonWallpaper(blue: wallpaperStyle == "blue")
-                }
-                Color.black.opacity(wallpaperDim)
-                VStack(spacing: 0) {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 4), spacing: 7) {
-                        ForEach(0..<LiveBoardHomeLayout.capacity, id: \.self) { slot in
-                            if let key = layout.pages[index][slot] {
-                                miniatureIcon(key, size: iconSize)
-                            } else {
-                                Color.clear.frame(width: iconSize, height: iconSize)
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(Color.white.opacity(0.065))
+                TimelineView(.animation(minimumInterval: 1.0 / 24)) { timeline in
+                    VStack(spacing: 0) {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 4), spacing: 7) {
+                            ForEach(0..<LiveBoardHomeLayout.capacity, id: \.self) { slot in
+                                if let key = layout.pages[index][slot] {
+                                    miniatureIcon(key, size: iconSize)
+                                        .rotationEffect(.degrees(reduceMotion ? 0
+                                            : sin(timeline.date.timeIntervalSinceReferenceDate * 15
+                                                  + Double(slot) * 1.83) * 1.6))
+                                } else {
+                                    Color.clear.frame(width: iconSize, height: iconSize)
+                                }
                             }
                         }
-                    }
-                    .padding(.horizontal, 9)
-                    .padding(.top, 15)
-                    Spacer(minLength: 3)
-                    HStack(spacing: 7) {
-                        ForEach(0..<4, id: \.self) { slot in
-                            if layout.dock.indices.contains(slot) {
-                                miniatureIcon(layout.dock[slot], size: iconSize * 0.8)
-                            } else {
-                                Color.clear.frame(width: iconSize * 0.8, height: iconSize * 0.8)
+                        .padding(.horizontal, 9)
+                        .padding(.top, 15)
+                        Spacer(minLength: 3)
+                        HStack(spacing: 7) {
+                            ForEach(0..<4, id: \.self) { slot in
+                                if layout.dock.indices.contains(slot) {
+                                    miniatureIcon(layout.dock[slot], size: iconSize * 0.8)
+                                        .rotationEffect(.degrees(reduceMotion ? 0
+                                            : sin(timeline.date.timeIntervalSinceReferenceDate * 15
+                                                  + Double(slot) * 2.3) * 1.6))
+                                } else {
+                                    Color.clear.frame(width: iconSize * 0.8, height: iconSize * 0.8)
+                                }
                             }
                         }
+                        .padding(6)
+                        .frame(maxWidth: .infinity)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 13))
+                        .padding(.horizontal, 7)
+                        .padding(.bottom, 11)
                     }
-                    .padding(6)
-                    .frame(maxWidth: .infinity)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 13))
-                    .padding(.horizontal, 7)
-                    .padding(.bottom, 11)
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .strokeBorder(.white.opacity(0.18), lineWidth: 1)
+                    .strokeBorder(.white.opacity(0.24), lineWidth: 1)
+            }
+        }
+        .aspectRatio(0.54, contentMode: .fit)
+    }
+
+    private func widgetPageMiniature() -> some View {
+        GeometryReader { geometry in
+            let pad: CGFloat = 12
+            ZStack {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(Color.white.opacity(0.065))
+                TimelineView(.animation(minimumInterval: 1.0 / 24)) { timeline in
+                    VStack(spacing: 9) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Reloj")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.85))
+                            Text(timeline.date, format: .dateTime.hour().minute())
+                                .font(.system(size: 30, weight: .light, design: .rounded))
+                                .minimumScaleFactor(0.6)
+                                .lineLimit(1)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .frame(height: geometry.size.height * 0.24)
+                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 13))
+                        .rotationEffect(.degrees(reduceMotion ? 0
+                            : sin(timeline.date.timeIntervalSinceReferenceDate * 15 + 0.3) * 1.4))
+                        HStack(spacing: 8) {
+                            Group {
+                                if let photo = miniatureWidgetPhoto {
+                                    Image(uiImage: photo)
+                                        .resizable()
+                                        .scaledToFill()
+                                } else {
+                                    Image(systemName: "photo.on.rectangle.angled")
+                                        .font(.system(size: 25))
+                                        .foregroundStyle(.white.opacity(0.9))
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: geometry.size.height * 0.27)
+                            .clipped()
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 13))
+                            .clipShape(RoundedRectangle(cornerRadius: 13))
+                            .rotationEffect(.degrees(reduceMotion ? 0
+                                : sin(timeline.date.timeIntervalSinceReferenceDate * 15 + 1.5) * 1.5))
+                            VStack(alignment: .leading, spacing: 6) {
+                                Image(systemName: "note.text")
+                                Text(miniatureNote.isEmpty ? "Notas" : miniatureNote)
+                                    .lineLimit(3)
+                            }
+                            .font(.system(size: 9))
+                            .padding(9)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                            .frame(height: geometry.size.height * 0.27)
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 13))
+                            .rotationEffect(.degrees(reduceMotion ? 0
+                                : sin(timeline.date.timeIntervalSinceReferenceDate * 15 + 2.8) * 1.5))
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, pad)
+                    .padding(.top, 18)
+                    .padding(.bottom, 12)
+                }
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .strokeBorder(.white.opacity(0.24), lineWidth: 1)
             }
         }
         .aspectRatio(0.54, contentMode: .fit)
