@@ -29,4 +29,23 @@ assertTrue(!home.removePage(at: 0), "Cannot delete last page")
 home.reconcile(["A", "B", "manzana:sidestore", "manzana:install"], favorites: [])
 assertTrue(home.dock.contains("manzana:sidestore"), "SideStore stays in dock")
 assertTrue(home.dock.contains("manzana:install"), "Installer stays in dock")
-print("Manzana Home layout checks passed")
+// Direct drop from a Home page into an empty Dock slot.
+var dockTest = LiveBoardHomeLayout()
+dockTest.pages = [["A", "B", "C", "D", "E"] + Array(repeating: nil, count: 19)]
+dockTest.dock = ["manzana:sidestore", "manzana:install"]
+dockTest.initialized = true
+assertTrue(dockTest.moveToDock("A", at: 2), "Drop Home app into Dock")
+assertTrue(dockTest.dock == ["manzana:sidestore", "manzana:install", "A"], "Dock inserted at target slot")
+assertTrue(!dockTest.pages[0].contains("A"), "Dock app removed from Home grid")
+
+// A full Dock swaps the target icon back into the dragged app's Home slot.
+dockTest.dock.append("B")
+assertTrue(dockTest.moveToDock("C", at: 1), "Drop onto full Dock")
+assertTrue(dockTest.dock == ["manzana:sidestore", "C", "A", "B"], "Full Dock target replaced")
+assertTrue(dockTest.pages[0][2] == "manzana:install", "Displaced pinned installer returns to Home")
+assertTrue(dockTest.moveToDock("B", at: 0), "Reorder Dock icon")
+assertTrue(dockTest.dock == ["B", "manzana:sidestore", "C", "A"], "Dock order changed")
+assertTrue(!dockTest.moveToDock("folder:test", at: 0), "Folders disallowed in Dock")
+assertTrue(!dockTest.moveToDock("A", at: 4), "Out of bounds Dock slot rejected")
+
+print("Manzana Home layout checks passed: pages, pinned shortcuts, Dock drop and swaps")
