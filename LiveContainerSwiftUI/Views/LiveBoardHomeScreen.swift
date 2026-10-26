@@ -56,6 +56,9 @@ struct LiveBoardHomeScreen: View {
     @State private var desktopAction: DesktopAction?
     @State private var searching = false
     @State private var query = ""
+    @State private var libraryQuery = ""
+    @FocusState private var librarySearchFocused: Bool
+    @State private var expandedLibraryCategory: LibrarySection?
     @FocusState private var searchFocused: Bool
     @State private var customizing = false
     @State private var choosingWallpaper = false
@@ -88,6 +91,7 @@ struct LiveBoardHomeScreen: View {
     private var visiblePageIndices: [Int] {
         layout.pages.indices.filter { !hiddenPageIndices.contains($0) }
     }
+    private var libraryPageIndex: Int { layout.pages.count + 1 }
     private var favoriteKeys: [String] { (try? JSONDecoder().decode([String].self, from: Data(favorites.utf8))) ?? [] }
     private var wallpaperURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -104,14 +108,21 @@ struct LiveBoardHomeScreen: View {
                         ForEach(visiblePageIndices, id: \.self) { index in
                             homePage(index, width: geometry.size.width, height: max(400, geometry.size.height - 126)).tag(index + 1)
                         }
+                        appLibrary(width: geometry.size.width)
+                            .tag(libraryPageIndex)
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .blur(radius: openFolder == nil ? 0 : 18)
-                    pageControl.padding(.bottom, 18)
-                    dock(width: geometry.size.width)
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, -22)
-                        .blur(radius: openFolder == nil ? 0 : 18)
+                    if page != libraryPageIndex {
+                        pageControl.padding(.bottom, 18)
+                        dock(width: geometry.size.width)
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, -22)
+                            .blur(radius: openFolder == nil ? 0 : 18)
+                    }
+                    else {
+                        Color.clear.frame(height: 20)
+                    }
                 }
                 .blur(radius: searching ? 14 : 0)
                 .allowsHitTesting(!searching)
@@ -175,7 +186,10 @@ struct LiveBoardHomeScreen: View {
                 }
             })
             .onChange(of: appKeys) { _ in reconcile() }
-            .onChange(of: layout) { savedLayout = $0.encoded; page = min(page, layout.pages.count) }
+            .onChange(of: layout) {
+                savedLayout = $0.encoded
+                page = min(page, libraryPageIndex)
+            }
             .onAppear {
                 layout = LiveBoardHomeLayout.decode(savedLayout)
                 reconcile()
