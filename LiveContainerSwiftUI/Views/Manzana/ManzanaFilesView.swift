@@ -247,6 +247,6 @@ private struct ManzanaFolderPicker: View {
             current = checked
             folders = directories
             error = nil
-        } catch { error = error.localizedDescription }
+        } catch { self.error = error.localizedDescription }
     }
 }
