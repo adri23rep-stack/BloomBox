@@ -57,6 +57,7 @@ final class ManzanaFilesModel: ObservableObject {
 }
 
 struct ManzanaFileSelection: Identifiable { let id = UUID(); let url: URL }
+struct ManzanaFileTransfer: Identifiable { let id = UUID(); let url: URL; let copying: Bool }
 
 struct ManzanaFilesView: View {
     @StateObject private var model = ManzanaFilesModel()
@@ -67,6 +68,7 @@ struct ManzanaFilesView: View {
     @State private var renaming: URL?
     @State private var preview: ManzanaFileSelection?
     @State private var sharing: ManzanaFileSelection?
+    @State private var transferring: ManzanaFileTransfer?
     @State private var search = ""
 
     var body: some View {
@@ -127,6 +129,16 @@ struct ManzanaFilesView: View {
         } message: { Text(model.error ?? "") }
         .sheet(item: $preview) { ManzanaFilePreview(url: $0.url) }
         .sheet(item: $sharing) { ManzanaShareFile(url: $0.url) }
+        .sheet(item: $transferring) { selection in
+            if let store = model.store {
+                ManzanaFolderPicker(store: store, source: selection.url, copying: selection.copying) { folder in
+                    model.run {
+                        if selection.copying { try $0.copy(selection.url, into: folder) }
+                        else { try $0.move(selection.url, into: folder) }
+                    }
+                }
+            }
+        }
     }
     private func fileRow(_ url: URL) -> some View {
         let directory = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
@@ -146,6 +158,8 @@ struct ManzanaFilesView: View {
                 if !directory {
                     Button("Compartir / Exportar", systemImage: "square.and.arrow.up") { sharing = ManzanaFileSelection(url: url) }
                 }
+                Button("Mover a carpeta", systemImage: "folder") { transferring = ManzanaFileTransfer(url: url, copying: false) }
+                Button("Copiar a carpeta", systemImage: "doc.on.doc") { transferring = ManzanaFileTransfer(url: url, copying: true) }
                 Button("Renombrar", systemImage: "pencil") { name = url.lastPathComponent; renaming = url }
                 Button("Mover a papelera", systemImage: "trash", role: .destructive) { model.run { try $0.moveToTrash(url) } }
             }
@@ -170,5 +184,69 @@ private struct ManzanaFilePreview: UIViewControllerRepresentable {
         init(_ url: URL) { self.url = url }
         func numberOfPreviewItems(in controller: QLPreviewController) -> Int { 1 }
         func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem { url as NSURL }
+    }
+}
+
+
+private struct ManzanaFolderPicker: View {
+    let store: ManzanaFileStore
+    let source: URL
+    let copying: Bool
+    let onSelect: (URL) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var current: URL?
+    @State private var folders: [URL] = []
+    @State private var error: String?
+
+    var body: some View {
+        NavigationView {
+            List {
+                if let current, current != store.root {
+                    Button {
+                        navigate(current.deletingLastPathComponent())
+                    } label: { Label("Carpeta anterior", systemImage: "arrow.up.left") }
+                }
+                ForEach(folders, id: \.path) { folder in
+                    Button { navigate(folder) } label: {
+                        Label(folder.lastPathComponent, systemImage: "folder.fill")
+                    }
+                }
+                if folders.isEmpty {
+                    Text("No hay más carpetas aquí.").foregroundStyle(.secondary)
+                }
+                if let error { Text(error).foregroundStyle(.red) }
+            }
+            .navigationTitle(copying ? "Copiar en" : "Mover a")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(copying ? "Copiar aquí" : "Mover aquí") {
+                        if let current { onSelect(current); dismiss() }
+                    }
+                    .disabled(current == nil || (!copying && current == source.deletingLastPathComponent()))
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .onAppear { navigate(store.root) }
+    }
+
+    private func navigate(_ folder: URL) {
+        do {
+            let checked = try store.checked(folder)
+            let sourceIsFolder = (try? source.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+            let directories = try store.contents(checked).filter { url in
+                guard (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else {
+                    return false
+                }
+                return !sourceIsFolder || (url != source && !url.path.hasPrefix(source.path + "/"))
+            }
+            current = checked
+            folders = directories
+            error = nil
+        } catch { error = error.localizedDescription }
     }
 }
