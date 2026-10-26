@@ -175,6 +175,9 @@ struct LiveBoardHomeScreen: View {
                 layout = LiveBoardHomeLayout.decode(savedLayout)
                 reconcile()
                 wallpaper = UIImage(contentsOfFile: wallpaperURL.path)
+                if page > 0 && hiddenPageIndices.contains(page - 1) {
+                    page = (visiblePageIndices.first ?? 0) + 1
+                }
             }
         }
         .background(LiveBoardOrientationLock(mask: .portrait))
@@ -397,6 +400,136 @@ struct LiveBoardHomeScreen: View {
                 Color.black.opacity(wallpaperDim)
             }
         }.ignoresSafeArea()
+    }
+
+    private func pageMiniature(_ index: Int) -> some View {
+        GeometryReader { geometry in
+            let iconSize = min(34, max(15, geometry.size.width / 5.25))
+            ZStack {
+                if wallpaperStyle == "photo", let wallpaper {
+                    Image(uiImage: wallpaper)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                } else if wallpaperStyle == "black" {
+                    Color.black
+                } else {
+                    LiveBoardRibbonWallpaper(blue: wallpaperStyle == "blue")
+                }
+                Color.black.opacity(wallpaperDim)
+                VStack(spacing: 0) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 4), spacing: 7) {
+                        ForEach(0..<LiveBoardHomeLayout.capacity, id: \.self) { slot in
+                            if let key = layout.pages[index][slot] {
+                                miniatureIcon(key, size: iconSize)
+                            } else {
+                                Color.clear.frame(width: iconSize, height: iconSize)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 9)
+                    .padding(.top, 15)
+                    Spacer(minLength: 3)
+                    HStack(spacing: 7) {
+                        ForEach(0..<4, id: \.self) { slot in
+                            if layout.dock.indices.contains(slot) {
+                                miniatureIcon(layout.dock[slot], size: iconSize * 0.8)
+                            } else {
+                                Color.clear.frame(width: iconSize * 0.8, height: iconSize * 0.8)
+                            }
+                        }
+                    }
+                    .padding(6)
+                    .frame(maxWidth: .infinity)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 13))
+                    .padding(.horizontal, 7)
+                    .padding(.bottom, 11)
+                }
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .strokeBorder(.white.opacity(0.18), lineWidth: 1)
+            }
+        }
+        .aspectRatio(0.54, contentMode: .fit)
+    }
+
+    @ViewBuilder private func miniatureIcon(_ key: String, size: CGFloat) -> some View {
+        if let folder = layout.folders.first(where: { $0.id == key }) {
+            RoundedRectangle(cornerRadius: size * 0.23)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: 2), spacing: 1) {
+                        ForEach(Array(folder.apps.prefix(4)), id: \.self) { child in
+                            if let app = appMap[child] {
+                                LiveBoardIconImage(app: app, dark: darkIcons)
+                                    .frame(width: size * 0.38, height: size * 0.38)
+                                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                            }
+                        }
+                    }
+                    .padding(3)
+                }
+                .frame(width: size, height: size)
+        } else if key == Self.sideStoreKey {
+            if let icon = BuiltInSideStoreAppInfo.shared.iconIsDarkIcon(darkIcons) {
+                Image(uiImage: icon).resizable().scaledToFill()
+                    .frame(width: size, height: size)
+                    .clipShape(RoundedRectangle(cornerRadius: size * 0.23))
+            } else {
+                Image(systemName: "square.stack.fill")
+                    .frame(width: size, height: size)
+            }
+        } else if key == Self.installKey {
+            Image(systemName: "square.and.arrow.down.fill")
+                .font(.system(size: size * 0.5))
+                .frame(width: size, height: size)
+                .background(Color.cyan, in: RoundedRectangle(cornerRadius: size * 0.23))
+        } else if let app = appMap[key] {
+            LiveBoardIconImage(app: app, dark: darkIcons)
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: size * 0.23))
+        } else {
+            RoundedRectangle(cornerRadius: size * 0.23)
+                .fill(.white.opacity(0.22))
+                .frame(width: size, height: size)
+        }
+    }
+
+    private func persistHiddenPages(_ indices: Set<Int>) {
+        let valid = indices.filter { layout.pages.indices.contains($0) }.sorted()
+        if let data = try? JSONEncoder().encode(valid), let value = String(data: data, encoding: .utf8) {
+            hiddenPagesJSON = value
+        }
+    }
+
+    private func togglePageVisibility(_ index: Int) {
+        guard layout.pages.indices.contains(index) else { return }
+        var hidden = hiddenPageIndices
+        if hidden.contains(index) {
+            hidden.remove(index)
+        } else {
+            guard layout.pages.count - hidden.count > 1 else { return }
+            hidden.insert(index)
+        }
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) {
+            persistHiddenPages(hidden)
+            if page > 0, hidden.contains(page - 1) {
+                page = (layout.pages.indices.first { !hidden.contains($0) } ?? 0) + 1
+            }
+        }
+    }
+
+    private func selectPageFromOverview(_ index: Int) {
+        guard layout.pages.indices.contains(index) else { return }
+        var hidden = hiddenPageIndices
+        hidden.remove(index)
+        persistHiddenPages(hidden)
+        page = index + 1
+        pageManager = false
     }
 
     private func homePage(_ index: Int, width: CGFloat, height: CGFloat) -> some View {
@@ -916,11 +1049,20 @@ struct LiveBoardHomeScreen: View {
     }
 
     private func removePage(_ index: Int) {
-        guard layout.pages.count > 1 else { return }
+        guard layout.pages.count > 1, layout.pages.indices.contains(index) else { return }
+        let previouslyHidden = hiddenPageIndices
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.26)) {
             if layout.removePage(at: index) {
+                let shifted = Set(previouslyHidden.compactMap { value -> Int? in
+                    if value == index { return nil }
+                    return value > index ? value - 1 : value
+                })
+                persistHiddenPages(shifted)
                 if page > index + 1 { page -= 1 }
                 else if page == index + 1 { page = min(index + 1, layout.pages.count) }
+                if page > 0 && shifted.contains(page - 1) {
+                    page = (layout.pages.indices.first { !shifted.contains($0) } ?? 0) + 1
+                }
                 reconcile()
             }
         }
