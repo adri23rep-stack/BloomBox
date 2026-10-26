@@ -3,10 +3,10 @@ name: Strata Session Preview
 on:
   workflow_dispatch:
   push:
-    branches: ["feature/session-navigation", "feature/manzana-file-transfers", "fix/iphone-home-stage1-build", "feature/home-gestures-session1", "fix/home-session1-qa", "feature/home-page-gallery-dock-progress", "fix/new-app-visible-glass-pages", "feature/home-uninstall-livecontainer-settings"]
+    branches: ["feature/session-navigation", "feature/manzana-file-transfers", "fix/iphone-home-stage1-build", "feature/home-gestures-session1", "fix/home-session1-qa", "feature/home-page-gallery-dock-progress", "fix/new-app-visible-glass-pages", "feature/home-uninstall-livecontainer-settings", "release/manzana-v0.1.0"]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -58,3 +58,21 @@ jobs:
         with:
           name: Xcode-build-log
           path: build.log
+      - name: Publish first Manzana release
+        if: github.ref == 'refs/heads/release/manzana-v0.1.0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cp Manzana-Session-Alpha2-SideStore.ipa Manzana-v0.1.0-SideStore-unsigned.ipa
+          cp Manzana-Session-Alpha2-SideStore.ipa.verification.json Manzana-v0.1.0-verification.json
+          zip -j -q Manzana-v0.1.0-SideStore.zip Manzana-v0.1.0-SideStore-unsigned.ipa Manzana-v0.1.0-verification.json
+          gh release create v0.1.0 \
+            Manzana-v0.1.0-SideStore-unsigned.ipa \
+            Manzana-v0.1.0-SideStore.zip \
+            Manzana-v0.1.0-verification.json \
+            --target "$GITHUB_SHA" \
+            --title "Manzana v0.1.0 — Primera release" \
+            --notes-file docs/RELEASE-v0.1.0.md \
+            --prerelease
+
