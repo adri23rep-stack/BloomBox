@@ -760,7 +760,7 @@ class AppInfoProvider {
         notifyDockCollapseChanged()
     }
 
-    @objc public func minimizeAllWindows(except: DecoratedAppSceneViewController? = nil) {
+    @objc(minimizeAllWindowsExcept:) public func minimizeAllWindows(except: DecoratedAppSceneViewController? = nil) {
         DispatchQueue.main.async {
             self.apps.forEach { app in
                 if let vc = app.view?._viewDelegate() as? DecoratedAppSceneViewController,

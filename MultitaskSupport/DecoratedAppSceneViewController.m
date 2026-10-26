@@ -85,8 +85,9 @@
     minimizeButton.accessibilityLabel = @"Inicio";
     closeButton.accessibilityLabel = @"Cerrar esta app";
     UIBarButtonItem *appsButton = [[UIBarButtonItem alloc]
-        initWithTitle:nil image:[UIImage systemImageNamed:@"square.stack.fill"] primaryAction:nil
-        menu:[MultitaskDockManager.shared sessionMenu]];
+        initWithImage:[UIImage systemImageNamed:@"square.stack.fill"]
+        style:UIBarButtonItemStylePlain target:nil action:nil];
+    appsButton.menu = [MultitaskDockManager.shared sessionMenu];
     appsButton.accessibilityLabel = @"Apps abiertas y posición de la barra";
     NSArray *barButtonItems = @[minimizeButton, appsButton, closeButton];
     if([NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"]) {
