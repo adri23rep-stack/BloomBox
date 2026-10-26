@@ -154,6 +154,17 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                                         manage: manageLauncherApp,
                                         openInterface: openInterface,
                                         openManagement: { manageLibrary = true },
+                                        openSideStore: {
+                                            if UserDefaults.sideStoreExist() { LCUtils.openSideStore(delegate: self) }
+                                            else {
+                                                errorInfo = "SideStore no está disponible en esta instalación."
+                                                errorShow = true
+                                            }
+                                        },
+                                        openInstall: {
+                                            if sharedModel.multiLCStatus == 2 { manageLibrary = true }
+                                            else { choosingIPA = true }
+                                        },
                                         openTab: { sharedModel.selectedTab = $0 },
                                         secondaryInstance: sharedModel.multiLCStatus == 2,
                                         launchWithJIT: { app in Task { await launchFromLiveBoard(app, forceJIT: true) } })
