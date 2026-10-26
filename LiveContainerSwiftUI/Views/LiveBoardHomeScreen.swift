@@ -328,6 +328,7 @@ struct LiveBoardHomeScreen: View {
                                                 .font(.system(size: 29, weight: .light))
                                                 .foregroundStyle(.white)
                                                 .frame(width: 45, height: 42)
+                                                .liveBoardGlass(radius: 22)
                                                 .accessibilityLabel("Página de widgets siempre disponible")
                                         } else {
                                             Button { togglePageVisibility(index) } label: {
@@ -336,6 +337,7 @@ struct LiveBoardHomeScreen: View {
                                                     .font(.system(size: 29, weight: .light))
                                                     .foregroundStyle(.white)
                                                     .frame(width: 45, height: 42)
+                                                    .liveBoardGlass(radius: 22)
                                             }
                                             .buttonStyle(.plain)
                                             .accessibilityLabel(hiddenPageIndices.contains(index)
@@ -372,6 +374,13 @@ struct LiveBoardHomeScreen: View {
                         .padding(.vertical, 14)
                         .padding(.horizontal, 18)
                         .liveBoardGlass(radius: 24, interactive: false)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .strokeBorder(LinearGradient(
+                                    colors: [.white.opacity(0.40), .white.opacity(0.08), .white.opacity(0.24)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                ), lineWidth: 0.8)
+                        }
                         .padding(.bottom, 20)
                     }
                 }
@@ -591,6 +600,10 @@ struct LiveBoardHomeScreen: View {
                 .padding(.horizontal, 19)
                 .frame(height: 56)
                 .liveBoardGlass(radius: 28, interactive: false)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .strokeBorder(.white.opacity(0.35), lineWidth: 0.7)
+                }
                 .contentShape(RoundedRectangle(cornerRadius: 28))
                 .padding(.horizontal, 22)
                 .padding(.top, 20)
@@ -676,9 +689,14 @@ struct LiveBoardHomeScreen: View {
                 }
             }
             .padding(pad)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 25))
-            .overlay(RoundedRectangle(cornerRadius: 25)
-                .strokeBorder(.white.opacity(0.16), lineWidth: 1))
+            .liveBoardGlass(radius: 25, interactive: false)
+            .overlay {
+                RoundedRectangle(cornerRadius: 25, style: .continuous)
+                    .strokeBorder(LinearGradient(
+                        colors: [.white.opacity(0.43), .white.opacity(0.10), .white.opacity(0.25)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ), lineWidth: 0.9)
+            }
         }
         .aspectRatio(1, contentMode: .fit)
     }
@@ -724,9 +742,8 @@ struct LiveBoardHomeScreen: View {
             let iconSize = min(34, max(15, geometry.size.width / 5.25))
             ZStack {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(Color.white.opacity(0.065))
+                    .fill(Color.clear)
+                    .liveBoardGlass(radius: 24, interactive: false)
                 TimelineView(.animation(minimumInterval: 1.0 / 24)) { timeline in
                     VStack(spacing: 0) {
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 4), spacing: 7) {
@@ -768,7 +785,10 @@ struct LiveBoardHomeScreen: View {
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .strokeBorder(.white.opacity(0.24), lineWidth: 1)
+                    .strokeBorder(LinearGradient(
+                        colors: [.white.opacity(0.52), .white.opacity(0.12), .white.opacity(0.30)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ), lineWidth: 0.9)
             }
         }
         .aspectRatio(0.54, contentMode: .fit)
@@ -779,9 +799,8 @@ struct LiveBoardHomeScreen: View {
             let pad: CGFloat = 12
             ZStack {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(Color.white.opacity(0.065))
+                    .fill(Color.clear)
+                    .liveBoardGlass(radius: 24, interactive: false)
                 TimelineView(.animation(minimumInterval: 1.0 / 24)) { timeline in
                     VStack(spacing: 9) {
                         VStack(alignment: .leading, spacing: 4) {
@@ -842,7 +861,10 @@ struct LiveBoardHomeScreen: View {
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .strokeBorder(.white.opacity(0.24), lineWidth: 1)
+                    .strokeBorder(LinearGradient(
+                        colors: [.white.opacity(0.52), .white.opacity(0.12), .white.opacity(0.30)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ), lineWidth: 0.9)
             }
         }
         .aspectRatio(0.54, contentMode: .fit)
