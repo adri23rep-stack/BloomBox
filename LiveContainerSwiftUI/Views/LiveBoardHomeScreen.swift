@@ -171,18 +171,6 @@ struct LiveBoardHomeScreen: View {
         } message: {
             Text("Quitar un icono del inicio no desinstala la aplicación ni borra sus datos.")
         }
-        .confirmationDialog("Eliminar página", isPresented: Binding(
-            get: { pendingPageRemoval != nil },
-            set: { if !$0 { pendingPageRemoval = nil } }
-        ), titleVisibility: .visible) {
-            Button("Eliminar página y reubicar iconos", role: .destructive) {
-                if let index = pendingPageRemoval { removePage(index) }
-                pendingPageRemoval = nil
-            }
-            Button("Cancelar", role: .cancel) { pendingPageRemoval = nil }
-        } message: {
-            Text("Los iconos se moverán a otra página. No se desinstala ninguna aplicación.")
-        }
         .sheet(isPresented: $pageManager) {
             NavigationView {
                 List {
@@ -220,7 +208,20 @@ struct LiveBoardHomeScreen: View {
                         } label: { Image(systemName: "plus") }
                     }
                 }
-            }.navigationViewStyle(.stack)
+            }
+            .navigationViewStyle(.stack)
+            .confirmationDialog("Eliminar página", isPresented: Binding(
+                        get: { pendingPageRemoval != nil },
+                        set: { if !$0 { pendingPageRemoval = nil } }
+                    ), titleVisibility: .visible) {
+                        Button("Eliminar página y reubicar iconos", role: .destructive) {
+                            if let index = pendingPageRemoval { removePage(index) }
+                            pendingPageRemoval = nil
+                        }
+                        Button("Cancelar", role: .cancel) { pendingPageRemoval = nil }
+                    } message: {
+                        Text("Los iconos se moverán a otra página. No se desinstala ninguna aplicación.")
+                    }
         }
         .alert("New Home category", isPresented: $addingCategory) {
             TextField("Category name", text: $categoryName)
