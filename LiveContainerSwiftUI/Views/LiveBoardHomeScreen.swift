@@ -39,6 +39,7 @@ struct LiveBoardHomeScreen: View {
     @State private var page = 1
     @State private var desktopSettings = false
     @State private var editing = false
+    @State private var pendingRemovalKey: String?
     @State private var searching = false
     @State private var query = ""
     @FocusState private var searchFocused: Bool
@@ -93,7 +94,7 @@ struct LiveBoardHomeScreen: View {
                             } label: { Text("Edit").font(.system(size: 16, weight: .semibold)).padding(.horizontal, 18).padding(.vertical, 8) }
                             .liveBoardGlass(radius: 18)
                             Spacer()
-                            Button("Done") { editing = false }.font(.system(size: 16, weight: .semibold))
+                            Button("Listo") { finishEditing() }.font(.system(size: 16, weight: .semibold))
                                 .padding(.horizontal, 18).padding(.vertical, 8).liveBoardGlass(radius: 18)
                         }.padding(.horizontal, 22)
                         Spacer()
@@ -122,6 +123,36 @@ struct LiveBoardHomeScreen: View {
         }
         .background(LiveBoardOrientationLock(mask: .portrait))
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .confirmationDialog("Editar icono", isPresented: Binding(
+            get: { pendingRemovalKey != nil },
+            set: { if !$0 { pendingRemovalKey = nil } }
+        ), titleVisibility: .visible) {
+            if let key = pendingRemovalKey {
+                if let app = appMap[key] {
+                    Button("Quitar de la pantalla de inicio", role: .destructive) {
+                        layout.hide(key)
+                        reconcile()
+                        pendingRemovalKey = nil
+                    }
+                    if !(app.appInfo is BuiltInSideStoreAppInfo) {
+                        Button("Administrar o desinstalar…") {
+                            pendingRemovalKey = nil
+                            finishEditing()
+                            manage(app)
+                        }
+                    }
+                } else if layout.folders.contains(where: { $0.id == key }) {
+                    Button("Deshacer carpeta", role: .destructive) {
+                        layout.dissolveFolder(key)
+                        reconcile()
+                        pendingRemovalKey = nil
+                    }
+                }
+            }
+            Button("Cancelar", role: .cancel) { pendingRemovalKey = nil }
+        } message: {
+            Text("Quitar un icono del inicio no desinstala la aplicación ni borra sus datos.")
+        }
         .alert("New Home category", isPresented: $addingCategory) {
             TextField("Category name", text: $categoryName)
             Button("Add") {
@@ -213,7 +244,11 @@ struct LiveBoardHomeScreen: View {
                         let key = layout.pages[index][slot]
                         ZStack(alignment: .top) {
                             if let key { homeItem(key, showLabel: !largeIcons) }
-                            else { Color.clear.frame(width: largeIcons ? 76 : 64, height: largeIcons ? 76 : 80) }
+                            else {
+                                Color.clear.frame(width: largeIcons ? 76 : 64, height: largeIcons ? 76 : 80)
+                                    .contentShape(Rectangle())
+                                    .onLongPressGesture(minimumDuration: 0.48, maximumDistance: 14, perform: enterEditMode)
+                            }
                         }
                         .frame(width: cellWidth, height: pitch, alignment: .top)
                         .contentShape(Rectangle())
@@ -224,10 +259,17 @@ struct LiveBoardHomeScreen: View {
                 }
             }
             Spacer(minLength: 0)
+                .contentShape(Rectangle())
+                .onLongPressGesture(minimumDuration: 0.48, maximumDistance: 14, perform: enterEditMode)
         }
         .padding(.horizontal, 14)
         .padding(.top, editing ? 50 : 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background {
+            // Background hit-testing only: gestures on app icons keep their context menus.
+            Color.clear.contentShape(Rectangle())
+                .onLongPressGesture(minimumDuration: 0.48, maximumDistance: 14, perform: enterEditMode)
+        }
     }
 
     private func homeItem(_ key: String, showLabel: Bool) -> some View {
@@ -242,15 +284,22 @@ struct LiveBoardHomeScreen: View {
                     launch(app)
                 })
                 .contextMenu { appMenu(key, app: app) }
-                .overlay(alignment: .topLeading) {
-                    if editing {
-                        Button { layout.hide(key) } label: {
-                            Image(systemName: "minus").font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(.white).frame(width: 24, height: 24)
-                                .liveBoardGlass(radius: 12)
-                        }.offset(x: -7, y: -7).accessibilityLabel("Remove \(title(key)) from Home Screen")
-                    }
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            if editing && (appMap[key] != nil || layout.folders.contains(where: { $0.id == key })) {
+                Button { pendingRemovalKey = key } label: {
+                    Image(systemName: "minus")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color.black.opacity(0.9))
+                        .frame(width: 25, height: 25)
+                        .background(Circle().fill(Color(white: 0.82)))
                 }
+                .buttonStyle(.plain)
+                .offset(x: -7, y: -8)
+                .zIndex(2)
+                .transition(reduceMotion ? .opacity : .scale(scale: 0.7).combined(with: .opacity))
+                .accessibilityLabel("Opciones para quitar \(title(key))")
             }
         }
         .onDrag { NSItemProvider(object: key as NSString) }
@@ -260,7 +309,7 @@ struct LiveBoardHomeScreen: View {
     @ViewBuilder private func appMenu(_ key: String, app: LCAppModel) -> some View {
         Button("Launch", systemImage: "play.fill") { launch(app) }.disabled(app.isAppRunning || app.isSigningInProgress)
         if let launchWithJIT { Button("Launch with JIT", systemImage: "bolt.fill") { launchWithJIT(app) }.disabled(app.appInfo is BuiltInSideStoreAppInfo) }
-        Button("Edit Home Screen", systemImage: "square.grid.3x3") { editing = true }
+        Button("Edit Home Screen", systemImage: "square.grid.3x3") { enterEditMode() }
         Button("Rename", systemImage: "pencil") { renameValue = title(key); renameKey = key }
         Button("Change app icon", systemImage: "photo") { appearanceApp = LiveBoardAppearanceSelection(app: app) }
         Button(favoriteKeys.contains(key) ? "Unfavorite" : "Favorite", systemImage: "star") {
@@ -368,11 +417,12 @@ struct LiveBoardHomeScreen: View {
                 }
                 .padding(6).frame(width: size, height: size)
                 .liveBoardGlass(radius: size * 0.23)
+                .modifier(LiveBoardEditWobble(active: editing && !reduceMotion, phase: Double(abs(folder.id.hashValue % 31)) / 7))
                 if showLabel { Text(folder.name).font(.system(size: 12)).lineLimit(1).shadow(color: .black.opacity(0.8), radius: 2, y: 1).frame(width: 80) }
             }
         }.buttonStyle(.plain)
         .contextMenu {
-            Button("Edit Home Screen", systemImage: "square.grid.3x3") { editing = true }
+            Button("Edit Home Screen", systemImage: "square.grid.3x3") { enterEditMode() }
             Button("Rename", systemImage: "pencil") { renameKey = folder.id; renameValue = folder.name }
             Menu("Move to Page") {
                 ForEach(layout.pages.indices, id: \.self) { index in Button("Page \(index + 1)") { layout.place(folder.id, on: index) } }
@@ -577,6 +627,21 @@ struct LiveBoardHomeScreen: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { customizing = false } } }
         }.navigationViewStyle(.stack)
     }
+    private func enterEditMode() {
+        guard !editing, !searching, openFolder == nil else { return }
+        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
+            editing = true
+        }
+    }
+
+    private func finishEditing() {
+        pendingRemovalKey = nil
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
+            editing = false
+        }
+    }
+
     private func reconcile() { layout.reconcile(appKeys, favorites: favoriteKeys) }
     private func title(_ key: String) -> String { appMap[key].map { appCustomization.name($0) } ?? "App" }
     private func addPage() { layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity)); page = layout.pages.count }
@@ -614,7 +679,7 @@ private struct LiveBoardHomeIcon: View {
                     .frame(width: size, height: size)
                     .clipShape(RoundedRectangle(cornerRadius: size * 0.23, style: .continuous))
                     .overlay { if app.isSigningInProgress { ProgressView(value: app.signProgress).padding(8).background(.ultraThinMaterial) } }
-                    .modifier(LiveBoardEditWobble(active: editing && !reduceMotion))
+                    .modifier(LiveBoardEditWobble(active: editing && !reduceMotion, phase: Double(abs(title.hashValue % 31)) / 7))
                 if showLabel {
                     Text(title).font(.system(size: 12, weight: .regular)).lineLimit(1)
                         .foregroundColor(.white).shadow(color: .black.opacity(0.85), radius: 2, x: 0, y: 1).frame(width: 82)
@@ -630,10 +695,11 @@ private struct LiveBoardHomeIcon: View {
 }
 private struct LiveBoardEditWobble: ViewModifier {
     let active: Bool
+    var phase: Double = 0
     @ViewBuilder func body(content: Content) -> some View {
         if active {
             TimelineView(.animation(minimumInterval: 1.0 / 30)) { time in
-                content.rotationEffect(.degrees(sin(time.date.timeIntervalSinceReferenceDate * 22) * 1.4))
+                content.rotationEffect(.degrees(sin(time.date.timeIntervalSinceReferenceDate * 22 + phase) * 1.5))
             }
         } else {
             content.rotationEffect(.zero).transaction { $0.animation = nil; $0.disablesAnimations = true }
