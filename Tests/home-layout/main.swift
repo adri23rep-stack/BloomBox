@@ -39,7 +39,7 @@ assertTrue(dockTest.dock == ["manzana:sidestore", "manzana:install", "A"], "Dock
 assertTrue(!dockTest.pages[0].contains("A"), "Dock app removed from Home grid")
 
 // A full Dock swaps the target icon back into the dragged app's Home slot.
-dockTest.dock.append("B")
+dockTest.putInDock("B")
 assertTrue(dockTest.moveToDock("C", at: 1), "Drop onto full Dock")
 assertTrue(dockTest.dock == ["manzana:sidestore", "C", "A", "B"], "Full Dock target replaced")
 assertTrue(dockTest.pages[0][2] == "manzana:install", "Displaced pinned installer returns to Home")
