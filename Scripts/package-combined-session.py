@@ -7,6 +7,7 @@ This produces an IPA to be re-signed by SideStore, not an install-signed app.
 """
 from pathlib import Path
 import argparse
+import copy
 import hashlib
 import io
 import json
@@ -41,9 +42,9 @@ def combine(preview, template_bytes, output, expected_hash=TEMPLATE_SHA256):
             for entry in donor.infolist():
                 if entry.filename.startswith(UI) or entry.filename.startswith(ROOT + '_CodeSignature/'):
                     continue
-                result.writestr(entry, donor.read(entry.filename))
+                result.writestr(copy.copy(entry), donor.read(entry.filename))
             for entry in changed:
-                result.writestr(entry, built.read(entry.filename))
+                result.writestr(copy.copy(entry), built.read(entry.filename))
         with zipfile.ZipFile(output) as result:
             if result.testzip() is not None:
                 raise ValueError('Corrupt combined archive')
