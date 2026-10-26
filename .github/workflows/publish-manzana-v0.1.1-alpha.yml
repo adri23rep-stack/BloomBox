@@ -1,0 +1,70 @@
+name: Publish Manzana v0.1.1-alpha
+
+on:
+  push:
+    branches: ["release/manzana-v0.1.1-alpha"]
+    paths:
+      - '.github/workflows/publish-manzana-v0.1.1-alpha.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download last successful compiled SideStore IPA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          gh run download 40302143478 --repo "$GITHUB_REPOSITORY" \
+            --name Manzana-Animated-Wallpapers-SideStore --dir dist
+          test -s dist/Manzana-Animated-Wallpapers-SideStore.ipa
+          test -s dist/Manzana-Animated-Wallpapers-SideStore.ipa.verification.json
+      - name: Verify original IPA and prepare named release files
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, plistlib, zipfile
+          ipa=Path('dist/Manzana-Animated-Wallpapers-SideStore.ipa')
+          report=Path('dist/Manzana-Animated-Wallpapers-SideStore.ipa.verification.json')
+          data=json.loads(report.read_text())
+          assert data.get('display_name') == 'Manzana', data
+          assert data.get('icon_catalog_updated'), data
+          with zipfile.ZipFile(ipa) as z:
+              info=plistlib.loads(z.read('Payload/LiveContainer.app/Info.plist'))
+              assert info.get('CFBundleDisplayName')=='Manzana',info
+              assert z.testzip() is None
+          print('Verified latest compiled SideStore IPA:',ipa.stat().st_size,'bytes')
+          PY
+          cp dist/Manzana-Animated-Wallpapers-SideStore.ipa Manzana-v0.1.1-alpha-SideStore-unsigned.ipa
+          cp dist/Manzana-Animated-Wallpapers-SideStore.ipa.verification.json Manzana-v0.1.1-alpha-verification.json
+          sha256sum Manzana-v0.1.1-alpha-SideStore-unsigned.ipa > Manzana-v0.1.1-alpha-SHA256.txt
+      - name: Publish experimental release without changing main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag='v0.1.1-alpha'
+          files=(
+            Manzana-v0.1.1-alpha-SideStore-unsigned.ipa
+            Manzana-v0.1.1-alpha-verification.json
+            Manzana-v0.1.1-alpha-SHA256.txt
+          )
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "${files[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target a9c2bd0af9713e3dc2e4f89de1cdaff4aefa014a \
+              --title 'Manzana v0.1.1-alpha — Widgets y fondos animados' \
+              --notes-file docs/RELEASE-v0.1.1-alpha.md \
+              --prerelease
+          fi
+          echo "Release: https://github.com/$GITHUB_REPOSITORY/releases/tag/$tag" >> "$GITHUB_STEP_SUMMARY"
