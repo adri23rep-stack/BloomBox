@@ -49,6 +49,7 @@ struct LiveBoardHomeScreen: View {
     @State private var desktopSettings = false
     @State private var editing = false
     @State private var showWidgetGallery = false
+    @AppStorage("ManzanaPageWidgets", store: LCUtils.appGroupUserDefault) private var pageWidgetsJSON = "{}"
     @State private var pendingRemovalKey: String?
     @State private var pendingUninstall: LCAppModel?
     @State private var removedIcon: String?
@@ -451,7 +452,11 @@ struct LiveBoardHomeScreen: View {
         }
         .sheet(isPresented: $jitSetup) { LiveBoardJITSetup() }
         .sheet(isPresented: $customizing) { customizeSheet }
-        .sheet(isPresented: $showWidgetGallery) { ManzanaWidgetGallery() }
+        .sheet(isPresented: $showWidgetGallery) {
+            if page > 0 && page <= layout.pages.count {
+                ManzanaWidgetGallery(pageSelection: Set(widgets(on: page - 1)), onToggle: { toggleWidget($0, on: page - 1) })
+            } else { ManzanaWidgetGallery() }
+        }
         .sheet(isPresented: $choosingWallpaper) {
             LiveBoardWallpaperPicker { image in
                 choosingWallpaper = false
@@ -744,15 +749,20 @@ struct LiveBoardHomeScreen: View {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .fill(Color.clear)
                     .liveBoardGlass(radius: 24, interactive: false)
-                TimelineView(.animation(minimumInterval: 1.0 / 24)) { timeline in
+                TimelineView(.periodic(from: .now, by: 60)) { timeline in
                     VStack(spacing: 0) {
+                        if !widgets(on: index).isEmpty {
+                            HStack {
+                                ForEach(widgets(on: index), id: \.self) { id in
+                                    Image(systemName: id == "clock" ? "clock" : id == "photo" ? "photo" : "note.text")
+                                        .font(.caption).frame(maxWidth: .infinity).padding(6).liveBoardGlass(radius: 8)
+                                }
+                            }.padding(8)
+                        }
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 4), spacing: 7) {
                             ForEach(0..<LiveBoardHomeLayout.capacity, id: \.self) { slot in
                                 if let key = layout.pages[index][slot] {
                                     miniatureIcon(key, size: iconSize)
-                                        .rotationEffect(.degrees(reduceMotion ? 0
-                                            : sin(timeline.date.timeIntervalSinceReferenceDate * 15
-                                                  + Double(slot) * 1.83) * 1.6))
                                 } else {
                                     Color.clear.frame(width: iconSize, height: iconSize)
                                 }
@@ -765,9 +775,6 @@ struct LiveBoardHomeScreen: View {
                             ForEach(0..<4, id: \.self) { slot in
                                 if layout.dock.indices.contains(slot) {
                                     miniatureIcon(layout.dock[slot], size: iconSize * 0.8)
-                                        .rotationEffect(.degrees(reduceMotion ? 0
-                                            : sin(timeline.date.timeIntervalSinceReferenceDate * 15
-                                                  + Double(slot) * 2.3) * 1.6))
                                 } else {
                                     Color.clear.frame(width: iconSize * 0.8, height: iconSize * 0.8)
                                 }
@@ -792,6 +799,7 @@ struct LiveBoardHomeScreen: View {
             }
         }
         .aspectRatio(0.54, contentMode: .fit)
+        .modifier(LiveBoardEditWobble(active: pageManager && !reduceMotion, phase: 0.4))
     }
 
     private func widgetPageMiniature() -> some View {
@@ -801,7 +809,7 @@ struct LiveBoardHomeScreen: View {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .fill(Color.clear)
                     .liveBoardGlass(radius: 24, interactive: false)
-                TimelineView(.animation(minimumInterval: 1.0 / 24)) { timeline in
+                TimelineView(.periodic(from: .now, by: 60)) { timeline in
                     VStack(spacing: 9) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Reloj")
@@ -816,8 +824,6 @@ struct LiveBoardHomeScreen: View {
                         .padding(10)
                         .frame(height: geometry.size.height * 0.24)
                         .liveBoardGlass(radius: 13, interactive: false)
-                        .rotationEffect(.degrees(reduceMotion ? 0
-                            : sin(timeline.date.timeIntervalSinceReferenceDate * 15 + 0.3) * 1.4))
                         HStack(spacing: 8) {
                             Group {
                                 if let photo = miniatureWidgetPhoto {
@@ -835,8 +841,6 @@ struct LiveBoardHomeScreen: View {
                             .clipped()
                             .liveBoardGlass(radius: 13, interactive: false)
                             .clipShape(RoundedRectangle(cornerRadius: 13))
-                            .rotationEffect(.degrees(reduceMotion ? 0
-                                : sin(timeline.date.timeIntervalSinceReferenceDate * 15 + 1.5) * 1.5))
                             VStack(alignment: .leading, spacing: 6) {
                                 Image(systemName: "note.text")
                                 Text(miniatureNote.isEmpty ? "Notas" : miniatureNote)
@@ -847,8 +851,6 @@ struct LiveBoardHomeScreen: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                             .frame(height: geometry.size.height * 0.27)
                             .liveBoardGlass(radius: 13, interactive: false)
-                            .rotationEffect(.degrees(reduceMotion ? 0
-                                : sin(timeline.date.timeIntervalSinceReferenceDate * 15 + 2.8) * 1.5))
                         }
                         Spacer(minLength: 0)
                     }
@@ -868,6 +870,7 @@ struct LiveBoardHomeScreen: View {
             }
         }
         .aspectRatio(0.54, contentMode: .fit)
+        .modifier(LiveBoardEditWobble(active: pageManager && !reduceMotion, phase: 0.4))
     }
 
     @ViewBuilder private func miniatureIcon(_ key: String, size: CGFloat) -> some View {
@@ -945,7 +948,50 @@ struct LiveBoardHomeScreen: View {
         pageManager = false
     }
 
-    private func homePage(_ index: Int, width: CGFloat, height: CGFloat) -> some View {
+    private var pageWidgets: [Int: [String]] {
+        (try? JSONDecoder().decode([Int: [String]].self, from: Data(pageWidgetsJSON.utf8))) ?? [:]
+    }
+    private func widgets(on index: Int) -> [String] { pageWidgets[index] ?? [] }
+    private func saveWidgets(_ values: [Int: [String]]) {
+        if let data = try? JSONEncoder().encode(values), let value = String(data: data, encoding: .utf8) { pageWidgetsJSON = value }
+    }
+    private func toggleWidget(_ id: String, on index: Int) {
+        guard layout.pages.indices.contains(index) else { return }
+        var values = pageWidgets
+        if values[index, default: []].contains(id) { values[index]?.removeAll { $0 == id } }
+        else { values[index, default: []].append(id) }
+        saveWidgets(values)
+    }
+    @ViewBuilder private func homePage(_ index: Int, width: CGFloat, height: CGFloat) -> some View {
+        if widgets(on: index).isEmpty { homeIconGrid(index, width: width, height: height) }
+        else {
+            ScrollView {
+                VStack(spacing: 14) {
+                    ForEach(widgets(on: index), id: \.self) { id in
+                        ManzanaDesktopView(openSettings: { desktopSettings = true }, singleWidget: id)
+                            .contextMenu {
+                                Menu("Mover a página") {
+                                    ForEach(Array(layout.pages.indices), id: \.self) { target in
+                                        Button("Página \(target + 1)") {
+                                            var values = pageWidgets
+                                            values[index]?.removeAll { $0 == id }
+                                            if !values[target, default: []].contains(id) { values[target, default: []].append(id) }
+                                            saveWidgets(values)
+                                            var hidden = hiddenPageIndices; hidden.remove(target); persistHiddenPages(hidden)
+                                            page = target + 1
+                                        }.disabled(target == index)
+                                    }
+                                }
+                                Button("Quitar widget", role: .destructive) { toggleWidget(id, on: index) }
+                            }
+                            .padding(.horizontal, 20)
+                    }
+                    homeIconGrid(index, width: width, height: height).frame(height: height)
+                }.padding(.top, editing ? 50 : 20)
+            }
+        }
+    }
+    private func homeIconGrid(_ index: Int, width: CGFloat, height: CGFloat) -> some View {
         let cellWidth = (width - 28) / 4
         let pitch = min(editing ? 92 : 99, max(72, (height - (editing ? 69 : 39)) / 6))
         return VStack(spacing: 0) {
@@ -1231,7 +1277,8 @@ struct LiveBoardHomeScreen: View {
                             if slot < folder.apps.count, let app = appMap[folder.apps[slot]] {
                                 LiveBoardIconImage(app: app, dark: darkIcons)
                             } else { Color.clear }
-                        }.aspectRatio(1, contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 4))
+                        }.aspectRatio(1, contentMode: .fit)
+            .modifier(ManzanaIconTreatment()).clipShape(RoundedRectangle(cornerRadius: 4))
                     }
                 }
                 .padding(6).frame(width: size, height: size)
@@ -1431,6 +1478,7 @@ struct LiveBoardHomeScreen: View {
                     if wallpaperStyle == "photo" { Toggle("Fit entire image", isOn: $wallpaperFit) }
                     VStack(alignment: .leading) { Text("Dim wallpaper"); Slider(value: $wallpaperDim, in: 0...0.7) }
                 }
+                Section("Iconos") { ManzanaIconCustomization() }
                 Section("Appearance") {
                     Toggle("Large icons", isOn: $largeIcons)
                     Toggle("Reduce motion", isOn: $customReduceMotion)
@@ -1484,6 +1532,13 @@ struct LiveBoardHomeScreen: View {
         let targetPage = min(index, layout.pages.count - 2)
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.26)) {
             if layout.removePage(at: index) {
+                var shiftedWidgets: [Int: [String]] = [:]
+                let previousWidgets = pageWidgets
+                for (old, items) in previousWidgets where old != index { shiftedWidgets[old > index ? old - 1 : old] = items }
+                for id in previousWidgets[index] ?? [] where !shiftedWidgets[targetPage, default: []].contains(id) {
+                    shiftedWidgets[targetPage, default: []].append(id)
+                }
+                saveWidgets(shiftedWidgets)
                 var shifted = Set(previouslyHidden.compactMap { value -> Int? in
                     if value == index { return nil }
                     return value > index ? value - 1 : value
@@ -1627,16 +1682,18 @@ private struct LiveBoardHomePressStyle: ButtonStyle {
     }
 }
 struct LiveBoardIconImage: View {
+    @AppStorage("ManzanaIconStyle", store: LCUtils.appGroupUserDefault) private var iconStyle = "default"
     @ObservedObject var app: LCAppModel
     @ObservedObject private var customization = LiveBoardAppCustomization.shared
     let dark: Bool
     var body: some View {
         Group {
-            if let image = LiveBoardIconStore.image(app, dark: dark) { Image(uiImage: image).resizable().scaledToFill() }
+            if let image = LiveBoardIconStore.image(app, dark: dark || iconStyle == "dark") { Image(uiImage: image).resizable().scaledToFill() }
             else {
                 ZStack { Color(white: 0.2); Image(systemName: "app.dashed").resizable().scaledToFit().padding(14).foregroundColor(.white.opacity(0.6)) }
             }
         }.aspectRatio(1, contentMode: .fit)
+            .modifier(ManzanaIconTreatment())
     }
 }
 

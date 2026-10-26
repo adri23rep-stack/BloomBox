@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct ManzanaDesktopView: View {
     let openSettings: () -> Void
+    var singleWidget: String? = nil
     @AppStorage("ManzanaWidgetOrder", store: LCUtils.appGroupUserDefault) private var savedOrder = "clock,photo,notes"
     @AppStorage("ManzanaNote", store: LCUtils.appGroupUserDefault) private var note = ""
     @State private var files = false
@@ -21,6 +22,8 @@ struct ManzanaDesktopView: View {
             .appendingPathComponent("Manzana", isDirectory: true).appendingPathComponent("widget-photo.jpg")
     }
     var body: some View {
+        Group {
+            if let singleWidget { widget(singleWidget) } else {
         ScrollView {
             VStack(spacing: 16) {
                 HStack {
@@ -68,6 +71,8 @@ struct ManzanaDesktopView: View {
                 }
                 if order.isEmpty { Text("Añade widgets desde el botón de ajustes.").font(.subheadline).foregroundStyle(.secondary) }
             }.padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 24)
+        }
+            }
         }
         .onAppear { photo = UIImage(contentsOfFile: photoURL.path) }
         .sheet(isPresented: $files) { ManzanaFilesView() }
@@ -161,6 +166,8 @@ struct ManzanaDesktopView: View {
 /// Standalone widget selector. Uses the same persistent order as the original
 /// ManzanaDesktopView; no visual changes to the Home or its existing controls.
 struct ManzanaWidgetGallery: View {
+    var pageSelection: Set<String>? = nil
+    var onToggle: ((String) -> Void)? = nil
     @Environment(\.presentationMode) private var presentationMode
     @AppStorage("ManzanaWidgetOrder", store: LCUtils.appGroupUserDefault)
     private var savedOrder = "clock,photo,notes"
@@ -169,7 +176,9 @@ struct ManzanaWidgetGallery: View {
     @State private var photo: UIImage?
     private let available = ["clock", "photo", "notes"]
 
+    @State private var selection: Set<String> = []
     private var order: [String] {
+        if pageSelection != nil { return Array(selection) }
         var seen = Set<String>()
         return savedOrder.split(separator: ",").map(String.init)
             .filter { available.contains($0) && seen.insert($0).inserted }
@@ -184,7 +193,7 @@ struct ManzanaWidgetGallery: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("Elige los widgets que aparecerán en tu página de Manzana.")
+                    Text("Elige los widgets para esta página. Mantén pulsado uno en el escritorio para moverlo a otra página.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     ForEach(available, id: \.self) { id in
@@ -232,7 +241,7 @@ struct ManzanaWidgetGallery: View {
             }
         }
         .navigationViewStyle(.stack)
-        .onAppear { photo = UIImage(contentsOfFile: photoURL.path) }
+        .onAppear { photo = UIImage(contentsOfFile: photoURL.path); selection = pageSelection ?? [] }
         .accessibilityIdentifier("manzana.widgets.gallery")
     }
 
@@ -284,6 +293,10 @@ struct ManzanaWidgetGallery: View {
 
     private func toggle(_ id: String) {
         guard available.contains(id) else { return }
+        if let onToggle {
+            if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
+            onToggle(id); return
+        }
         var values = order
         if values.contains(id) {
             values.removeAll { $0 == id }
