@@ -271,7 +271,7 @@ struct LiveBoardHomeScreen: View {
                             .padding(.top, max(70, min(310, geometry.size.height * 0.22)))
                             .padding(.bottom, 30)
                         }
-                        .scrollIndicators(.hidden)
+                        // Compatible with deployment targets older than iOS 16.
 
                         HStack(spacing: 22) {
                             Button {
