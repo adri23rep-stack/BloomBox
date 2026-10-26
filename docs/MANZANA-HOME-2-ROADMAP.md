@@ -21,6 +21,9 @@
 - [ ] **BUG-001 · Alta prioridad · Acceso a SideStore** — El usuario reportó que desaparecieron o quedaron inaccesibles las opciones para entrar a SideStore desde el escritorio de Manzana. **Pendiente reproducir y ubicar la causa**; no se debe asumir que se borró SideStore. Resultado esperado: llegar a SideStore y a la gestión de apps sin perder el escritorio ni las opciones que ya funcionaban.
 - [ ] **BUG-002 · Interfaz de arrastre · Prioridad media** — Al tomar/arrastrar una app en el escritorio aparece un **símbolo verde (+)** superpuesto al icono (captura del usuario). Se solicita **quitar ese indicador** para que arrastrar/reordenar se vea como el Home original del iPhone. Mantener funcionando drag & drop, sin marcador verde de copia. **Pendiente investigar y corregir junto a los demás bugs; no modificar código todavía.**
 
+- [ ] **BUG-003 · Gestión de páginas · Prioridad alta** — El escritorio permite **crear páginas nuevas, pero no eliminarlas**. Debería permitir borrar páginas vacías de forma intuitiva, sin mover ni perder iconos inesperadamente. Las páginas no vacías deben requerir tratamiento seguro de su contenido (reubicar o confirmar) antes de borrarse.
+- [ ] **BUG-004 · Controles intermitentes · Prioridad alta** — En la pantalla **«Escritorio»** (captura adjunta por el usuario), las tarjetas **Interface, Sources, Tweaks, Wallpaper, Apps, Settings y JIT** algunas veces responden al toque y otras no. Investigar posibles conflictos de presentación de hojas, navegación, hit-testing o gestos; asegurar respuesta consistente y acceso funcional a SideStore/LiveContainer.
+
 ### Mejoras y revisión de la sesión 1
 
 - [ ] **MEJ-001 · Accesos claros** — Mantener un acceso visible y sencillo a SideStore, a apps instaladas y a ajustes de LiveContainer, sin saturar el Home estilo iPhone. Antes de rediseñarlos, validar con el usuario dónde quiere cada entrada.
@@ -28,6 +31,11 @@
 - [ ] **MEJ-003 · No perder funciones** — Verificar arrastrar y ordenar iconos, Dock, carpetas, búsqueda, apertura de apps, regreso al launcher y persistencia del diseño después de cerrar/reabrir.
 - [ ] **MEJ-004 · Borrado seguro** — Distinguir «Quitar de inicio» de «Desinstalar»; pedir confirmación antes de cualquier operación destructiva y no tocar datos de SideStore accidentalmente.
 - [ ] **MEJ-005 · Accesibilidad y fluidez** — Probar modo claro/oscuro, Reduce Motion, vibración, animaciones y que los gestos del escritorio no bloqueen los menús o los toques normales.
+
+- [ ] **MEJ-006 · Animación al quitar iconos** — Al tocar (−) y confirmar «Quitar del inicio», el icono debe **encogerse/desaparecer con una animación** tipo iPhone, respetando Reducir movimiento, mientras el resto de la cuadrícula se reorganiza de manera fluida.
+- [ ] **MEJ-007 · Acceso directo fijo a SideStore** — Añadir un **icono que parezca una app «SideStore»** en el escritorio y que abra SideStore/la vía de entrada compatible. Debe ser **movible entre posiciones/páginas y dock, pero imposible de borrar u ocultar**; no crear una app nueva real y no cambiar el bundle instalado.
+- [ ] **MEJ-008 · Acceso directo a instalar apps** — Añadir otro **icono tipo app «Instalar app»** que abra directamente la instalación/importación de apps de LiveContainer. Es un **acceso directo dentro de Manzana**, no una app instalada independiente, y debe conservar la navegación de regreso.
+- [ ] **MEJ-009 · Compatibilidad de páginas** — Incorporar una opción coherente para gestionar y eliminar páginas desde la propia edición, alineada a la futura Sesión 4. Priorizar al menos la eliminación segura de páginas vacías antes de la Sesión 2.
 
 ### Criterios para avanzar
 - [ ] SideStore y administración de apps vuelven a ser accesibles.
