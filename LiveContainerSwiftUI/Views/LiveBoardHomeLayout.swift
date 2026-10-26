@@ -92,6 +92,36 @@ struct LiveBoardHomeLayout: Codable, Equatable {
         guard dock.count < 4, !key.hasPrefix("folder:") else { return }
         removePlacement(key); dock.append(key)
     }
+    /// Drop an icon onto a visible Dock slot. A full Dock exchanges the target
+    /// icon with the dragged icon's original Home position, without data loss.
+    /// Dragging a Dock icon onto another Dock slot simply reorders it.
+    @discardableResult mutating func moveToDock(_ key: String, at slot: Int, fallbackPage: Int = 0) -> Bool {
+        guard (0..<4).contains(slot), !key.hasPrefix("folder:") else { return false }
+        if let oldDockIndex = dock.firstIndex(of: key) {
+            dock.remove(at: oldDockIndex)
+            dock.insert(key, at: min(slot, dock.count))
+            return true
+        }
+        var originalPage: Int?
+        var originalSlot: Int?
+        for p in pages.indices {
+            if let index = pages[p].firstIndex(where: { $0 == key }) {
+                originalPage = p
+                originalSlot = index
+                break
+            }
+        }
+        removePlacement(key)
+        if dock.count < 4 {
+            dock.insert(key, at: min(slot, dock.count))
+        } else {
+            let displaced = dock[slot]
+            dock[slot] = key
+            let targetPage = min(max(0, originalPage ?? fallbackPage), pages.count - 1)
+            place(displaced, on: targetPage, slot: originalSlot)
+        }
+        return true
+    }
     mutating func put(_ key: String, in folderID: String) {
         guard !key.hasPrefix("folder:"), folders.contains(where: { $0.id == folderID }) else { return }
         removePlacement(key)
