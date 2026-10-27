@@ -6,6 +6,7 @@ import WidgetKit
 struct ManzanaExpiryWidgetBundle: WidgetBundle {
     var body: some Widget {
         ManzanaExpiryLiveActivity()
+        BloomBoxPairingLiveActivity()
     }
 }
 
@@ -64,6 +65,68 @@ struct ManzanaExpiryLiveActivity: Widget {
             }
             .widgetURL(URL(string: "livecontainer://"))
             .keylineTint(.orange)
+        }
+    }
+}
+
+ 
+// A visible PIN during Settings pairing is necessary because the callback
+// arrives only after the user chooses "Pair with BloomBox" in iOS Settings.
+@available(iOSApplicationExtension 16.2, *)
+struct BloomBoxPairingLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: BloomBoxPairingAttributes.self) { context in
+            HStack(spacing: 12) {
+                Image(systemName: "key.fill")
+                    .font(.title2)
+                    .foregroundStyle(.mint)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("BloomBox · JIT pairing").font(.headline)
+                    if let pin = context.state.pin {
+                        Text(pin)
+                            .font(.title2.weight(.bold).monospacedDigit())
+                            .textSelection(.enabled)
+                            .accessibilityLabel("Pairing code " + pin)
+                    } else {
+                        Text("Open Settings and choose Pair with BloomBox")
+                            .font(.caption)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .activityBackgroundTint(.black)
+            .activitySystemActionForegroundColor(.mint)
+        } dynamicIsland: { context in
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    Label("BloomBox JIT", systemImage: "key.fill")
+                        .font(.headline)
+                }
+                DynamicIslandExpandedRegion(.center) {
+                    if let pin = context.state.pin {
+                        Text(pin).font(.system(size: 27, weight: .bold, design: .monospaced))
+                            .accessibilityLabel("Pairing code " + pin)
+                    } else {
+                        Text("Waiting for pairing request…").font(.subheadline)
+                    }
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    Text("Enter this code in iPhone Settings")
+                        .font(.caption)
+                }
+            } compactLeading: {
+                Image(systemName: "key.fill").foregroundStyle(.mint)
+            } compactTrailing: {
+                if let pin = context.state.pin {
+                    Text(pin).font(.caption2.monospacedDigit())
+                } else {
+                    Image(systemName: "ellipsis").foregroundStyle(.mint)
+                }
+            } minimal: {
+                Image(systemName: "key.fill").foregroundStyle(.mint)
+            }
+            .keylineTint(.mint)
         }
     }
 }
