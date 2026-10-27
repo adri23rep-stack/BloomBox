@@ -19,6 +19,7 @@ struct LiveBoardHomeScreen: View {
     let openTab: (LCTabIdentifier) -> Void
     let installInProgress: Bool
     let installProgress: Double
+    let installStage: String
     let secondaryInstance: Bool
     var launchWithJIT: ((LCAppModel) -> Void)? = nil
     @ObservedObject private var appCustomization = LiveBoardAppCustomization.shared
@@ -156,7 +157,7 @@ struct LiveBoardHomeScreen: View {
                             ProgressView()
                                 .tint(.white)
                             VStack(alignment: .leading, spacing: 5) {
-                                Text("Instalando aplicación…")
+                                Text(installStage)
                                     .font(.system(size: 14, weight: .semibold))
                                 ProgressView(value: min(1, max(0, installProgress)), total: 1)
                                     .tint(.white)
@@ -175,7 +176,7 @@ struct LiveBoardHomeScreen: View {
                     .allowsHitTesting(false)
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Instalando aplicación")
-                    .accessibilityValue("(Int(min(1, max(0, installProgress)) * 100)) por ciento")
+                    .accessibilityValue("\(Int(min(1, max(0, installProgress)) * 100)) por ciento")
                     .transition(.opacity)
                 }
                 if editing && !searching {
@@ -215,6 +216,9 @@ struct LiveBoardHomeScreen: View {
                 }
             }
             .onChange(of: appKeys) { _ in reconcile() }
+            .onReceive(NotificationCenter.default.publisher(for: .BloomBoxAppsDidInstall)) { _ in
+                reconcile()
+            }
             .onChange(of: layout) {
                 savedLayout = $0.encoded
                 page = min(page, libraryPageIndex)
