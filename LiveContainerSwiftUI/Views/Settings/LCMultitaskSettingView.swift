@@ -18,6 +18,7 @@ struct LCMultitaskSettingView: View {
     @AppStorage("LCMaxOneAppOnStage", store: LCUtils.appGroupUserDefault) var onlyOneAppOnStage = false
     @AppStorage("LCDockWidth", store: LCUtils.appGroupUserDefault) var dockWidth: Double = 64
     @AppStorage("LCCompactDock", store: LCUtils.appGroupUserDefault) var compactDock: Bool = true
+    @AppStorage("LCImmersiveRadialMenu", store: LCUtils.appGroupUserDefault) var immersiveRadialMenu: Bool = true
     @AppStorage("LCStartDockCollapsed", store: LCUtils.appGroupUserDefault) var startDockCollapsed: Bool = true
     @AppStorage("LCHideCollapsedDock", store: LCUtils.appGroupUserDefault) var hideCollapsedDock: Bool = false
     @AppStorage("LCRedirectURLToHost", store: LCUtils.appGroupUserDefault) var redirectURLToHost = false
@@ -56,6 +57,12 @@ struct LCMultitaskSettingView: View {
                         Toggle(isOn: $restartTerminatedApp) {
                             Text("lc.settings.restartTerminatedApp".loc)
                         }
+                    }
+                    Toggle("Menú circular a pantalla completa", isOn: $immersiveRadialMenu)
+                    if immersiveRadialMenu {
+                        Text("Desliza hacia arriba desde el borde inferior para mostrar el menú. Alternativa: doble toque con dos dedos. Se oculta al tocar fuera o después de 5 segundos.")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
                     }
                     Toggle(isOn: $bottomWindowBar) {
                         Text("lc.settings.bottomWindowBar".loc)
