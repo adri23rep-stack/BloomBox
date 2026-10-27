@@ -13,3 +13,15 @@ struct ManzanaExpiryAttributes: ActivityAttributes {
 
     var source: String
 }
+
+ 
+// A separate, short-lived Live Activity exposes the pairing PIN while
+// the user is in iOS Settings. The PIN is kept in ActivityKit state only.
+@available(iOS 16.2, *)
+struct BloomBoxPairingAttributes: ActivityAttributes {
+    struct ContentState: Codable, Hashable {
+        var pin: String?
+    }
+
+    var startedAt: Date
+}
