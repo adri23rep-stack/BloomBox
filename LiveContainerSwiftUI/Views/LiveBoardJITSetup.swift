@@ -5,6 +5,7 @@ struct LiveBoardJITSetup: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("LCJITEnablerType", store: LCUtils.appGroupUserDefault) private var provider = JITEnablerType.SideJITServer.rawValue
     @ObservedObject private var session = LiveBoardJITSession.shared
+    @ObservedObject private var pairing = ManzanaOnDevicePairing.shared
     @State private var importing = false
     @State private var hasPairing = FileManager.default.fileExists(atPath: LiveBoardBuiltInJIT.pairingURL.path)
     var body: some View {
@@ -17,6 +18,42 @@ struct LiveBoardJITSetup: View {
                     Button("Use built-in JIT") { provider = JITEnablerType.BuiltIn.rawValue }
                 }
                 if provider == JITEnablerType.BuiltIn.rawValue {
+                    if ManzanaOnDevicePairing.isSupported {
+                        Section("Pair on this iPhone (iOS 27)") {
+                            Text("One-time setup. Manzana acts like a local computer so your iPhone can pair with it without a PC. Wi-Fi and Local Network permission are required.")
+                                .font(.footnote)
+                            Text("1. Tap Start pairing.\n2. Open iPhone Settings → Privacy & Security → Developer Mode.\n3. Tap Pair with Manzana and enter the code shown here (also in a notification).\n4. Return to Manzana.")
+                                .font(.footnote)
+                            switch pairing.phase {
+                            case .idle:
+                                Button("Start pairing with Manzana") { pairing.start() }
+                            case .waiting:
+                                Label("Waiting for iOS to connect…", systemImage: "antenna.radiowaves.left.and.right")
+                                Button("Cancel pairing", role: .cancel) { pairing.cancel() }
+                            case .pin(let code):
+                                Text(code).font(.system(size: 34, weight: .bold, design: .monospaced))
+                                    .textSelection(.enabled).accessibilityLabel("Pairing code \(code)")
+                                Button("Cancel pairing", role: .cancel) { pairing.cancel() }
+                            case .paired:
+                                Label("Paired with this iPhone", systemImage: "checkmark.shield.fill")
+                                    .foregroundStyle(.green)
+                                Button("Pair again") { pairing.reset(); pairing.start() }
+                            case .failed(let reason):
+                                Label(reason, systemImage: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange).font(.footnote)
+                                Button("Retry pairing") { pairing.reset(); pairing.start() }
+                            }
+                            if pairing.backgroundLimited && pairing.active {
+                                Text("iOS limited background time for this installation. Open Settings right away before Manzana is suspended.")
+                                    .font(.footnote).foregroundStyle(.orange)
+                            }
+                            Button("Open iPhone Settings") {
+                                if let url = URL(string: UIApplication.openSettingsURLString) {
+                                    UIApplication.shared.open(url)
+                                }
+                            }
+                        }
+                    }
                     Section("One-time setup") {
                         Label(hasPairing ? "Pairing file imported" : "Pairing file needed", systemImage: hasPairing ? "checkmark.circle" : "doc.badge.plus")
                         Button(hasPairing ? "Replace pairing file" : "Import remote pairing file") { importing = true }
@@ -26,9 +63,9 @@ struct LiveBoardJITSetup: View {
                                 catch { session.message = error.localizedDescription }
                             }
                         }
-                        Text("Enable Developer Mode in iPhone Settings. Connect LocalDevVPN and Wi-Fi before using Launch with JIT. The first launch may download a developer disk image.")
+                        Text("Enable Developer Mode in Settings. Connect your existing LocalDevVPN before Prepare device or Launch with JIT; SideStore can keep using the same VPN. The first launch may download a developer disk image.")
                         Label(LCUtils.strataCanDebug() ? "Debugging permission available" : "Re-signing required: debugging permission missing", systemImage: LCUtils.strataCanDebug() ? "checkmark.shield" : "exclamationmark.shield")
-                        Text("Built-in JIT uses a guest process to keep its debugger connection alive. Normal launch requests open that guest full-screen. Keep app extensions when installing Strata. On newer iOS versions, the guest may also need a compatible JIT script in its app settings.").foregroundStyle(.secondary)
+                        Text("JIT applies only to guests installed inside Manzana, not other iPhone apps. It runs through LiveProcess, and some guest engines need a matching iOS 27 JIT script. Keep extensions when updating.").foregroundStyle(.secondary)
                     }
                     Section("Connection check") {
                         Button("Prepare device") { perform("prepare") }.disabled(session.busy || !hasPairing)
@@ -65,6 +102,13 @@ struct LiveBoardJITSetup: View {
                     } catch { session.message = error.localizedDescription }
                 }
         }.navigationViewStyle(.stack)
+            .onChange(of: pairing.phase) { phase in
+                if case .paired = phase {
+                    hasPairing = true
+                    provider = JITEnablerType.BuiltIn.rawValue
+                    session.message = "Pairing saved. Keep LocalDevVPN connected, then tap Prepare device."
+                }
+            }
     }
     private func perform(_ operation: String) { session.start(operation) }
 }

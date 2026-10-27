@@ -11,10 +11,14 @@ enum LiveBoardBuiltInJIT {
     static func importPairing(_ url: URL) throws {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        let data = try Data(contentsOf: url)
+        try storeOnDevicePairing(Data(contentsOf: url))
+    }
+    /// The in-app iOS 27 pairing host hands us exactly the same remote pairing format.
+    static func storeOnDevicePairing(_ data: Data) throws {
         try StrataPairingRecord.validate(data)
         try FileManager.default.createDirectory(at: pairingURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try data.write(to: pairingURL, options: [.atomic, .completeFileProtection])
+        UserDefaults.standard.set("On-device pairing ready. Connect LocalDevVPN, then prepare JIT.", forKey: "StrataJITLastStatus")
     }
     static func enable(pid: Int32 = getpid(), script: String?, operation: String = "enable", progress: @escaping (String) -> Void) async -> Bool {
         var recentMessages: [String] = []

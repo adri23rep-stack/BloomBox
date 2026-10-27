@@ -31,7 +31,11 @@
     return allowed;
 }
 + (NSObject *)strataStartJITHelper:(NSDictionary *)payload error:(NSError **)error {
-    NSExtension *ext = [NSExtension extensionWithIdentifier:[NSBundle.mainBundle.bundleIdentifier stringByAppendingString:@".JITHelper"] error:error];
+    // Read the extension's actual identifier: SideStore can rewrite both identifiers when signing.
+    NSString *helperPath = [NSBundle.mainBundle.builtInPlugInsPath stringByAppendingPathComponent:@"JITHelper.appex"];
+    NSBundle *bundle = [NSBundle bundleWithPath:helperPath];
+    NSString *identifier = bundle.bundleIdentifier ?: [NSBundle.mainBundle.bundleIdentifier stringByAppendingString:@".JITHelper"];
+    NSExtension *ext = [NSExtension extensionWithIdentifier:identifier error:error];
     if (!ext) return nil;
     NSExtensionItem *item = [NSExtensionItem new];
     item.userInfo = payload;

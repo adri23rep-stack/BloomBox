@@ -192,6 +192,16 @@ struct LCSettingsView: View {
                     Text("lc.settings.JitDesc".loc)
                 }
                 
+                if #available(iOS 16.2, *) {
+                    Section("Manzana · SideStore") {
+                        NavigationLink {
+                            ManzanaExpiryReminderSettings()
+                        } label: {
+                            Label("Caducidad · Isla Dinámica (8 horas)", systemImage: "clock.badge.exclamationmark")
+                        }
+                    }
+                }
+
                 Section {
                     Picker(selection: $selected32BitEmulator) {
                         ForEach(sharedModel.arm32EmuApps, id: \.self) { app in
