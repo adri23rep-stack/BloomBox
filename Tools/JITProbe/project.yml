@@ -1,0 +1,22 @@
+name: JITProbe
+options:
+  bundleIdPrefix: org.nikaido
+settings:
+  base:
+    CODE_SIGNING_ALLOWED: NO
+targets:
+  JITProbe:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: JITProbe
+        excludes:
+          - Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.nikaido.jitprobe
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: JITProbe/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGNING_ALLOWED: NO
