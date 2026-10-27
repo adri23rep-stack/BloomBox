@@ -120,27 +120,32 @@ struct LiveBoardHomeScreen: View {
         GeometryReader { geometry in
             ZStack {
                 background.blur(radius: (searching || page == libraryPageIndex) ? 14 : 0)
-                VStack(spacing: 0) {
-                    TabView(selection: $page) {
-                        ManzanaDesktopView(openSettings: { desktopSettings = true }).tag(0)
-                        ForEach(visiblePageIndices, id: \.self) { index in
-                            homePage(index, width: geometry.size.width, height: max(400, geometry.size.height - 126)).tag(index + 1)
-                        }
-                        appLibrary(width: geometry.size.width)
-                            .tag(libraryPageIndex)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.34), value: page == libraryPageIndex)
+                // Keep the pager the same height throughout the swipe. The old
+                // conditional Dock changed TabView's height at the halfway point.
+                TabView(selection: $page) {
+                    ManzanaDesktopView(openSettings: { desktopSettings = true }).tag(0)
+                    ForEach(visiblePageIndices, id: \.self) { index in
+                        homePage(index, width: geometry.size.width, height: max(400, geometry.size.height - 126)).tag(index + 1)
                     }
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                    .blur(radius: openFolder == nil ? 0 : 18)
-                    if page != libraryPageIndex {
+                    appLibrary(width: geometry.size.width)
+                        .tag(libraryPageIndex)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .blur(radius: openFolder == nil ? 0 : 18)
+                .overlay(alignment: .bottom) {
+                    VStack(spacing: 0) {
                         pageControl.padding(.bottom, 18)
                         dock(width: geometry.size.width)
                             .padding(.horizontal, 12)
                             .padding(.bottom, -22)
                             .blur(radius: openFolder == nil ? 0 : 18)
                     }
-                    else {
-                        Color.clear.frame(height: 20)
-                    }
+                    .opacity(page == libraryPageIndex ? 0 : 1)
+                    .allowsHitTesting(page != libraryPageIndex)
+                    .accessibilityHidden(page == libraryPageIndex)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.32),
+                               value: page == libraryPageIndex)
                 }
                 .blur(radius: searching ? 14 : 0)
                 .allowsHitTesting(!searching)
@@ -838,7 +843,7 @@ struct LiveBoardHomeScreen: View {
             }
         }
         .aspectRatio(0.54, contentMode: .fit)
-        .modifier(LiveBoardEditWobble(active: pageManager && !reduceMotion, phase: 0.4))
+        .modifier(LiveBoardEditWobble(active: pageManager && !reduceMotion, phase: 0.4, speed: 7.5))
     }
 
     private func widgetPageMiniature() -> some View {
@@ -909,7 +914,7 @@ struct LiveBoardHomeScreen: View {
             }
         }
         .aspectRatio(0.54, contentMode: .fit)
-        .modifier(LiveBoardEditWobble(active: pageManager && !reduceMotion, phase: 0.4))
+        .modifier(LiveBoardEditWobble(active: pageManager && !reduceMotion, phase: 0.4, speed: 7.5))
     }
 
     @ViewBuilder private func miniatureIcon(_ key: String, size: CGFloat) -> some View {
@@ -1711,10 +1716,12 @@ private struct LiveBoardHomeIcon: View {
 private struct LiveBoardEditWobble: ViewModifier {
     let active: Bool
     var phase: Double = 0
+    // Page previews should sway slowly; regular home icons keep their familiar wobble.
+    var speed: Double = 22
     @ViewBuilder func body(content: Content) -> some View {
         if active {
             TimelineView(.animation(minimumInterval: 1.0 / 30)) { time in
-                content.rotationEffect(.degrees(sin(time.date.timeIntervalSinceReferenceDate * 22 + phase) * 1.5))
+                content.rotationEffect(.degrees(sin(time.date.timeIntervalSinceReferenceDate * speed + phase) * 1.5))
             }
         } else {
             content.rotationEffect(.zero).transaction { $0.animation = nil; $0.disablesAnimations = true }
