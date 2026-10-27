@@ -31,7 +31,7 @@ with zipfile.ZipFile(ipa) as archive:
     if ui not in entries or len(archive.read(ui)) < 100000:
         raise SystemExit("The compiled Manzana UI is missing/invalid")
     for name in ("AppIcon60x60@2x.png", "AppIcon76x76@2x~ipad.png"):
-        if app + name in entries and not archive.read(app + name).startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+        if app + name in entries and not archive.read(app + name).startswith(bytes.fromhex("89504e470d0a1a0a")):
             raise SystemExit("Missing the correct Manzana RGB app icon: " + name)
     from pathlib import Path
     source_root = Path("LiveContainerSwiftUI/Views")
