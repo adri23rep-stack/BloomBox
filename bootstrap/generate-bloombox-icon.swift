@@ -12,8 +12,7 @@ func rgb(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat, _ a: CGFloat = 1) -> NSColor 
 func drawIcon(in rect: NSRect) {
     let scale = rect.width / size
     NSGraphicsContext.current?.saveGraphicsState()
-    let transform = AffineTransform(scale: scale)
-    transform.concat()
+    NSGraphicsContext.current!.cgContext.scaleBy(x: scale, y: scale)
 
     let canvas = NSRect(x: 0, y: 0, width: 1024, height: 1024)
     let bg = NSBezierPath(roundedRect: canvas.insetBy(dx: 8, dy: 8), xRadius: 215, yRadius: 215)
