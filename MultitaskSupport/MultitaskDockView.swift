@@ -600,6 +600,10 @@ class AppInfoProvider {
             if let targetView = findMultitaskView(in: window, withUUID: uuid) {
                 passURLSchemeToView(targetView)
                 animateViewAppearance(targetView, from: center, in: window)
+                let immersive = LCUtils.appGroupUserDefault.object(forKey: "LCImmersiveRadialMenu") as? Bool ?? true
+                if immersive, (targetView._viewDelegate() as? DecoratedAppSceneViewController)?.isMaximized == true {
+                    hideDock()
+                }
                 return true
             }
         }
