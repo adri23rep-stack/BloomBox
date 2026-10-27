@@ -795,16 +795,29 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             errorShow = true
             return
         }
-        let access = fileURL.startAccessingSecurityScopedResource()
-        defer { if access { fileURL.stopAccessingSecurityScopedResource() } }
+        var source = fileURL
+        var access = source.startAccessingSecurityScopedResource()
+        defer { if access { source.stopAccessingSecurityScopedResource() } }
         do {
-            guard FileManager.default.isReadableFile(atPath: fileURL.path) else {
+            // Files and the Share extension may provide a bookmark instead of a
+            // directly readable URL. Resolve it before copying into SideStore.
+            if !FileManager.default.isReadableFile(atPath: source.path),
+               let data = LCUtils.appGroupUserDefault.data(forKey: "LCLaunchExtensionFileBookmark") {
+                var stale = false
+                let resolved = try URL(resolvingBookmarkData: data,
+                    options: URL.BookmarkResolutionOptions(rawValue: 1 << 10),
+                    relativeTo: nil, bookmarkDataIsStale: &stale)
+                if access { source.stopAccessingSecurityScopedResource() }
+                source = resolved
+                access = source.startAccessingSecurityScopedResource()
+            }
+            guard FileManager.default.isReadableFile(atPath: source.path) else {
                 throw CocoaError(.fileReadNoPermission)
             }
             let inbox = LCPath.docPath.appendingPathComponent("SideStore/Documents/Inbox", isDirectory: true)
             try FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true)
             let destination = inbox.appendingPathComponent("\(UUID().uuidString)-\(fileURL.lastPathComponent)")
-            try FileManager.default.copyItem(at: fileURL, to: destination)
+            try FileManager.default.copyItem(at: source, to: destination)
             stagedSideStoreURL = destination
             showSideStoreHandoff = true
         } catch {
@@ -1529,7 +1542,13 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                     }
                 }
                 if let installUrl {
-                    Task { await installFromUrl(urlStr: installUrl) }
+                    let destination = components.queryItems?.first(where: { $0.name == "target" })?.value
+                    if destination == "sidestore", let fileURL = URL(string: installUrl), fileURL.isFileURL {
+                        Task { await handoffToSideStore(fileURL) }
+                    } else {
+                        wantsHomeShortcutAfterImport = destination == "bloombox"
+                        Task { await installFromUrl(urlStr: installUrl) }
+                    }
                 }
             }
         }
