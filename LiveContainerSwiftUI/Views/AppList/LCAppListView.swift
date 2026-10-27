@@ -1038,7 +1038,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 }
             } else {
                 sharedModel.apps.append(installedModel)
-                if let urlSchemes = finalNewApp.urlSchemes(), !urlSchemes.isEmpty {
+                if let urlSchemes = finalNewApp.urlSchemes(), urlSchemes.count > 0 {
                     UserDefaults.lcShared().mutableArrayValue(forKey: "LCGuestURLSchemes")
                         .addObjects(from: urlSchemes as! [Any])
                 }
