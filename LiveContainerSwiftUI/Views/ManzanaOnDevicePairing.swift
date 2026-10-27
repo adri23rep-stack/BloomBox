@@ -313,12 +313,15 @@ import UserNotifications
         // The default .queue strategy lets iOS grant this user-initiated job
         // when resources are available. The UI must wait for attach(), not submit().
         request.strategy = .queue
+        continuedRequestPending = true
         do {
             try BGTaskScheduler.shared.submit(request)
-            continuedRequestPending = true
             log("continued-processing submitted")
-            backgroundLimited = true
-            backgroundStatus = "Waiting for iOS to activate background protection…"
+            // The launch handler may already have run by the time submit returns.
+            if continued == nil {
+                backgroundLimited = true
+                backgroundStatus = "Waiting for iOS to activate background protection…"
+            }
         } catch {
             continuedRequestPending = false
             log("continued-processing refused: \(error.localizedDescription)")
