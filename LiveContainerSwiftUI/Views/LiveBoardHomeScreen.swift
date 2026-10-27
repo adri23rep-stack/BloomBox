@@ -37,6 +37,7 @@ struct LiveBoardHomeScreen: View {
     @AppStorage("LiveBoardWallpaperStyle", store: LCUtils.appGroupUserDefault) private var wallpaperStyle = "red"
     @AppStorage("LiveBoardWallpaperFit", store: LCUtils.appGroupUserDefault) private var wallpaperFit = false
     @AppStorage("LiveBoardWallpaperDim", store: LCUtils.appGroupUserDefault) private var wallpaperDim = 0.1
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @AppStorage("LiveBoardReduceMotion", store: LCUtils.appGroupUserDefault) private var customReduceMotion = false
     @AppStorage("LiveBoardHiddenPages", store: LCUtils.appGroupUserDefault) private var hiddenPagesJSON = "[]"
@@ -203,6 +204,11 @@ struct LiveBoardHomeScreen: View {
                     beginSearch()
                 }
             })
+            .onChange(of: scenePhase) { phase in
+                if phase == .active, #available(iOS 16.2, *) {
+                    Task { await ManzanaExpiryReminderCenter.shared.synchronize() }
+                }
+            }
             .onChange(of: appKeys) { _ in reconcile() }
             .onChange(of: layout) {
                 savedLayout = $0.encoded
@@ -213,6 +219,9 @@ struct LiveBoardHomeScreen: View {
                 reconcile()
                 homeHasAppeared = true
                 wallpaper = UIImage(contentsOfFile: wallpaperURL.path)
+                if #available(iOS 16.2, *) {
+                    Task { await ManzanaExpiryReminderCenter.shared.synchronize() }
+                }
                 if page > 0 && hiddenPageIndices.contains(page - 1) {
                     page = (visiblePageIndices.first ?? 0) + 1
                 }
