@@ -22,8 +22,11 @@ struct LiveBoardJITSetup: View {
                         Section("Pair on this iPhone (iOS 27)") {
                             Text("One-time setup. BloomBox acts like a local computer so your iPhone can pair with it without a PC. Wi-Fi and Local Network permission are required.")
                                 .font(.footnote)
-                            Text("1. Start pairing and wait until protection is active.\n2. In Settings → Privacy & Security → Developer Mode, tap Pair with BloomBox.\n3. Read the PIN in the Dynamic Island or notification and enter it in Settings.")
+                            Text("1. Start pairing and wait until protection is active.\n2. In Settings → Privacy & Security → Developer Mode, tap Pair with BloomBox.\n3. If iOS asks for your passcode, enter the SAME unlock passcode you use for your iPhone. This is NOT the BloomBox PIN.\n4. Only when iOS asks for a pairing code, read the separate PIN in the Dynamic Island or notification.")
                                 .font(.footnote)
+                            Text("Never guess your iPhone passcode. Repeated incorrect attempts can temporarily lock the device.")
+                                .font(.footnote)
+                                .foregroundStyle(.orange)
                             switch pairing.phase {
                             case .idle:
                                 Button("Start pairing with BloomBox") { pairing.start() }
