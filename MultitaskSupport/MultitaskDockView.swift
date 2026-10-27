@@ -711,10 +711,15 @@ class AppInfoProvider {
         DispatchQueue.main.async {
             self.apps.append(appModel)
             
-            if self.apps.count == 1 {
-                self.showDock()
-            } else if self.isVisible {
-                self.updateDockFrame()
+            // Immersive sessions open the circular overlay via a bottom-edge gesture.
+            // Do not create a persistent floating dock above the guest's controls.
+            let setting = LCUtils.appGroupUserDefault.object(forKey: "LCImmersiveRadialMenu") as? Bool ?? true
+            if !setting {
+                if self.apps.count == 1 {
+                    self.showDock()
+                } else if self.isVisible {
+                    self.updateDockFrame()
+                }
             }
         }
     }
