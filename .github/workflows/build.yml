@@ -6,6 +6,7 @@ on:
       - main
       - migration/import-full-source
       - fix/library-wobble-jit-pin-20261027
+      - feature/install-progress-files-handoff-20261027
   workflow_dispatch:
     inputs: 
       release__nightly:

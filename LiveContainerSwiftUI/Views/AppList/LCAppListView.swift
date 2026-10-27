@@ -50,6 +50,14 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     @State var installprogressVisible = false
     @State var installProgressPercentage : Float = 0.0
     @State var installObserver : NSKeyValueObservation?
+    @State private var installStage = "Preparing IPA…"
+    @State private var importedIPAURL: URL?
+    @State private var showImportDestination = false
+    @State private var wantsHomeShortcutAfterImport = false
+    @State private var installedShortcutApp: LCAppModel?
+    @State private var showHomeShortcutOption = false
+    @State private var showSideStoreHandoff = false
+    @State private var stagedSideStoreURL: URL?
     
     @State var installOptions: [AppReplaceOption]
     @StateObject var installReplaceAlert = AlertHelper<AppReplaceOption>()
@@ -195,6 +203,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                                         openTab: { sharedModel.selectedTab = $0 },
                                         installInProgress: installprogressVisible,
                                         installProgress: Double(installProgressPercentage),
+                                        installStage: installStage,
                                         secondaryInstance: sharedModel.multiLCStatus == 2,
                                         launchWithJIT: { app in Task { await launchFromLiveBoard(app, forceJIT: true) } })
                 } else if !manageLibrary {
@@ -380,10 +389,48 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             Text(errorInfo)
         }
         .betterFileImporter(isPresented: $choosingIPA, types: [.ipa, .tipa], multiple: false, callback: { fileUrls in
-            Task { await startInstallApp(fileUrls[0]) }
+            guard let file = fileUrls.first else { return }
+            Task { await startInstallApp(file) }
         }, onDismiss: {
             choosingIPA = false
         })
+        .confirmationDialog("Install \(importedIPAURL?.lastPathComponent ?? "app")", isPresented: $showImportDestination, titleVisibility: .visible) {
+            Button("Install in BloomBox") {
+                guard let file = importedIPAURL else { return }
+                importedIPAURL = nil
+                wantsHomeShortcutAfterImport = true
+                Task { await installFromUrl(urlStr: file.absoluteString) }
+            }
+            Button("Install in SideStore (iPhone Home Screen)") {
+                guard let file = importedIPAURL else { return }
+                importedIPAURL = nil
+                Task { await handoffToSideStore(file) }
+            }
+            Button("Cancel", role: .cancel) { importedIPAURL = nil }
+        } message: {
+            Text("BloomBox keeps an app in its own launcher. SideStore installs a signed app on the real iPhone Home Screen.")
+        }
+        .confirmationDialog("Add to your iPhone Home Screen?", isPresented: $showHomeShortcutOption, titleVisibility: .visible) {
+            Button("Create Home Screen profile") {
+                guard let app = installedShortcutApp else { return }
+                installedShortcutApp = nil
+                Task { await createHomeScreenProfile(for: app) }
+            }
+            Button("Keep only in BloomBox") { installedShortcutApp = nil }
+        } message: {
+            Text("Generate a LiveContainer Web Clip profile for the installed guest. iOS will ask you to approve it in Settings.")
+        }
+        .alert("SideStore IPA import", isPresented: $showSideStoreHandoff) {
+            Button("Open SideStore") {
+                if let file = stagedSideStoreURL {
+                    LCUtils.openSideStore(delegate: self, urlStr: file.absoluteString)
+                }
+                stagedSideStoreURL = nil
+            }
+            Button("Cancel", role: .cancel) { stagedSideStoreURL = nil }
+        } message: {
+            Text("Copied the IPA to SideStore's Inbox. If SideStore does not import it automatically, choose its IPA importer and open the staged file. SideStore installs apps on the real iPhone Home Screen.")
+        }
         .alert("lc.appList.installation".loc, isPresented: $installReplaceAlert.show) {
             ForEach(installOptions, id: \.self) { installOption in
                 Button(role: installOption.isReplace ? .destructive : nil, action: {
@@ -726,18 +773,74 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
 
 
     
-    func startInstallApp(_ fileUrl:URL) async {
+    func startInstallApp(_ fileUrl: URL) async {
+        // Keep original files intact, including those selected from Files.
+        wantsHomeShortcutAfterImport = false
+        await installFromUrl(urlStr: fileUrl.absoluteString)
+    }
+
+    @MainActor private func offerImportedIPA(_ url: URL) {
+        guard ["ipa", "tipa"].contains(url.pathExtension.lowercased()) else {
+            errorInfo = "Only .ipa and .tipa archives are supported."
+            errorShow = true
+            return
+        }
+        importedIPAURL = url
+        showImportDestination = true
+    }
+
+    @MainActor private func handoffToSideStore(_ fileURL: URL) async {
+        guard UserDefaults.sideStoreExist() else {
+            errorInfo = "SideStore is not included in this installation."
+            errorShow = true
+            return
+        }
+        var source = fileURL
+        var access = source.startAccessingSecurityScopedResource()
+        defer { if access { source.stopAccessingSecurityScopedResource() } }
         do {
-            self.installprogressVisible = true
-            try await installIpaFile(fileUrl)
-            try FileManager.default.removeItem(at: fileUrl)
+            // Files and the Share extension may provide a bookmark instead of a
+            // directly readable URL. Resolve it before copying into SideStore.
+            if !FileManager.default.isReadableFile(atPath: source.path),
+               let data = LCUtils.appGroupUserDefault.data(forKey: "LCLaunchExtensionFileBookmark") {
+                var stale = false
+                let resolved = try URL(resolvingBookmarkData: data,
+                    options: URL.BookmarkResolutionOptions(rawValue: 1 << 10),
+                    relativeTo: nil, bookmarkDataIsStale: &stale)
+                if access { source.stopAccessingSecurityScopedResource() }
+                source = resolved
+                access = source.startAccessingSecurityScopedResource()
+            }
+            guard FileManager.default.isReadableFile(atPath: source.path) else {
+                throw CocoaError(.fileReadNoPermission)
+            }
+            let inbox = LCPath.docPath.appendingPathComponent("SideStore/Documents/Inbox", isDirectory: true)
+            try FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true)
+            let destination = inbox.appendingPathComponent("\(UUID().uuidString)-\(fileURL.lastPathComponent)")
+            try FileManager.default.copyItem(at: source, to: destination)
+            stagedSideStoreURL = destination
+            showSideStoreHandoff = true
+        } catch {
+            errorInfo = "SideStore handoff failed: \(error.localizedDescription)"
+            errorShow = true
+        }
+    }
+
+    @MainActor private func createHomeScreenProfile(for app: LCAppModel) async {
+        guard let style = await promptForGeneratedIconStyle() else { return }
+        do {
+            guard let profile = app.appInfo.generateWebClipConfig(
+                withContainerId: app.uiSelectedContainer?.folderName, iconStyle: style) else {
+                throw CocoaError(.propertyListWriteInvalid)
+            }
+            let data = try PropertyListSerialization.data(fromPropertyList: profile, format: .xml, options: 0)
+            installMdm(data: data)
         } catch {
             errorInfo = error.localizedDescription
             errorShow = true
-            self.installprogressVisible = false
         }
     }
-    
+
     nonisolated func decompress(_ path: String, _ destination: String ,_ progress: Progress) async -> Int32 {
         extract(path, destination, progress)
     }
@@ -745,15 +848,16 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     func installIpaFile(_ url:URL) async throws {
         let fm = FileManager()
         
-        let installProgress = Progress.discreteProgress(totalUnitCount: 100)
-        self.installProgressPercentage = 0.0
-        self.installObserver = installProgress.observe(\.fractionCompleted) { p, v in
+        installprogressVisible = true
+        installProgressPercentage = 0
+        installStage = "Extracting IPA…"
+        let decompressProgress = Progress.discreteProgress(totalUnitCount: 100)
+        installObserver = decompressProgress.observe(\.fractionCompleted, options: [.initial, .new]) { progress, _ in
             DispatchQueue.main.async {
-                self.installProgressPercentage = Float(p.fractionCompleted)
+                self.installProgressPercentage = max(self.installProgressPercentage,
+                    min(0.70, Float(progress.fractionCompleted) * 0.70))
             }
         }
-        let decompressProgress = Progress.discreteProgress(totalUnitCount: 100)
-        installProgress.addChild(decompressProgress, withPendingUnitCount: 80)
         let payloadPath = fm.temporaryDirectory.appendingPathComponent("Payload")
         if fm.fileExists(atPath: payloadPath.path) {
             try fm.removeItem(at: payloadPath)
@@ -838,6 +942,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 try fm.removeItem(at: outputFolder)
             }
         }
+        installStage = "Saving app…"
+        installProgressPercentage = max(installProgressPercentage, 0.72)
         // Move it!
         try fm.moveItem(at: appFolderPath, to: outputFolder)
         let finalNewApp = LCAppInfo(bundlePath: outputFolder.path)
@@ -850,6 +956,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
         
         // patch and sign it
+        installStage = "Signing app…"
+        installProgressPercentage = max(installProgressPercentage, 0.78)
         var signError : String? = nil
         var signSuccess = false
         await withUnsafeContinuation({ c in
@@ -861,7 +969,15 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 signSuccess = success
                 c.resume()
             }, progressHandler: { signProgress in
-                installProgress.addChild(signProgress!, withPendingUnitCount: 20)
+                guard let signProgress else { return }
+                DispatchQueue.main.async {
+                    self.installObserver = signProgress.observe(\.fractionCompleted, options: [.initial, .new]) { progress, _ in
+                        DispatchQueue.main.async {
+                            self.installProgressPercentage = max(self.installProgressPercentage,
+                                min(0.95, 0.78 + Float(progress.fractionCompleted) * 0.17))
+                        }
+                    }
+                }
             }, forceSign: false)
         })
         
@@ -906,35 +1022,45 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             finalNewApp.spoofSDKVersion = true
         }
         finalNewApp.installationDate = Date.now
-        
-        DispatchQueue.main.async {
+        installStage = "Adding app to Home Screen…"
+        installProgressPercentage = max(installProgressPercentage, 0.96)
+
+        // Wait until the app is in the actual live registry before reporting 100%.
+        await MainActor.run {
+            let installedModel = LCAppModel(appInfo: finalNewApp, delegate: self)
             if let appToReplace {
-                let newAppModel = LCAppModel(appInfo: finalNewApp, delegate: self)
-                
                 if appToReplace.uiIsHidden {
                     sharedModel.hiddenApps.removeAll { $0 == appToReplace }
-                    sharedModel.hiddenApps.append(newAppModel)
+                    sharedModel.hiddenApps.append(installedModel)
                 } else {
                     sharedModel.apps.removeAll { $0 == appToReplace }
-                    sharedModel.apps.append(newAppModel)
+                    sharedModel.apps.append(installedModel)
                 }
-
             } else {
-                let newAppModel = LCAppModel(appInfo: finalNewApp, delegate: self)
-                sharedModel.apps.append(newAppModel)
-                
-                // add url schemes
+                sharedModel.apps.append(installedModel)
                 if let urlSchemes = finalNewApp.urlSchemes(), urlSchemes.count > 0 {
                     UserDefaults.lcShared().mutableArrayValue(forKey: "LCGuestURLSchemes")
                         .addObjects(from: urlSchemes as! [Any])
                 }
             }
-
-            self.installprogressVisible = false
+            sharedAppSortManager.sortedApps = sharedAppSortManager.getSortedApps(
+                sharedModel.apps, sortType: sharedAppSortManager.appSortType,
+                customSortOrder: sharedAppSortManager.customSortOrder)
+            // Reconcile pinned/page positions on this same UI cycle.
+            installStage = "Installed"
+            installProgressPercentage = 1
+            if wantsHomeShortcutAfterImport && !finalNewApp.isHidden {
+                installedShortcutApp = installedModel
+                wantsHomeShortcutAfterImport = false
+                showHomeShortcutOption = true
+            }
         }
+        try? await Task.sleep(nanoseconds: 320_000_000)
+        installprogressVisible = false
+        installObserver = nil
     }
-    
-    func startInstallFromUrl() async {
+
+        func startInstallFromUrl() async {
         guard let installUrlStr = await installUrlInput.open(), installUrlStr.count > 0 else {
             return
         }
@@ -1357,7 +1483,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     
     func handleURL(url : URL) {
         if url.isFileURL {
-            Task { await installFromUrl(urlStr: url.absoluteString) }
+            offerImportedIPA(url)
             return
         }
         
@@ -1415,7 +1541,13 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                     }
                 }
                 if let installUrl {
-                    Task { await installFromUrl(urlStr: installUrl) }
+                    let destination = components.queryItems?.first(where: { $0.name == "target" })?.value
+                    if destination == "sidestore", let fileURL = URL(string: installUrl), fileURL.isFileURL {
+                        Task { await handoffToSideStore(fileURL) }
+                    } else {
+                        wantsHomeShortcutAfterImport = destination == "bloombox"
+                        Task { await installFromUrl(urlStr: installUrl) }
+                    }
                 }
             }
         }

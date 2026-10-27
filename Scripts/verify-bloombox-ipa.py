@@ -29,6 +29,14 @@ with zipfile.ZipFile(ipa) as archive:
         raise SystemExit("NSSupportsLiveActivities is not enabled")
     if "processing" not in host.get("UIBackgroundModes", []):
         raise SystemExit("Background processing capability is missing from BloomBox")
+    document_types = {
+        t for entry in host.get("CFBundleDocumentTypes", [])
+        for t in entry.get("LSItemContentTypes", [])
+    }
+    if not {"org.bloombox.archive.ipa", "org.bloombox.archive.tipa"}.issubset(document_types):
+        raise SystemExit("BloomBox cannot receive IPA and TIPA documents from Files")
+    if "public.item" in document_types:
+        raise SystemExit("BloomBox must not hijack all document types in Files")
     pairing_modes = host.get("BGTaskSchedulerPermittedIdentifiers", [])
     host_id = host.get("CFBundleIdentifier", "")
     if not any(x == host_id + ".pairing.*" for x in pairing_modes):

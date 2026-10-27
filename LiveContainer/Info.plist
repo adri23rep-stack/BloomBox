@@ -16,13 +16,36 @@
 	<array>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>All Files</string>
+			<string>iOS App Archive</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
 			<key>LSHandlerRank</key>
-			<string>Owner</string>
+			<string>Alternate</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>public.item</string>
+				<string>com.apple.itunes.ipa</string>
+				<string>org.bloombox.archive.ipa</string>
+				<string>org.bloombox.archive.tipa</string>
 			</array>
+		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.bloombox.archive.ipa</string>
+			<key>UTTypeConformsTo</key><array><string>public.data</string></array>
+			<key>UTTypeTagSpecification</key><dict>
+				<key>public.filename-extension</key><array><string>ipa</string></array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.bloombox.archive.tipa</string>
+			<key>UTTypeConformsTo</key><array><string>public.data</string></array>
+			<key>UTTypeTagSpecification</key><dict>
+				<key>public.filename-extension</key><array><string>tipa</string></array>
+			</dict>
 		</dict>
 	</array>
 	<key>CFBundleExecutable</key>

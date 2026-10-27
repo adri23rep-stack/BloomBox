@@ -306,6 +306,7 @@ struct JITStreamerEBMountResponse : Codable {
 
 extension NSNotification {
     static let InstallAppNotification = Notification.Name.init("InstallAppNotification")
+    static let BloomBoxAppsDidInstall = Notification.Name("BloomBoxAppsDidInstall")
 }
 
 public enum LCTabIdentifier: Hashable {

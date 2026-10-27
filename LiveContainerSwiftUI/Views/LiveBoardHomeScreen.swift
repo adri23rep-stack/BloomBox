@@ -19,6 +19,7 @@ struct LiveBoardHomeScreen: View {
     let openTab: (LCTabIdentifier) -> Void
     let installInProgress: Bool
     let installProgress: Double
+    let installStage: String
     let secondaryInstance: Bool
     var launchWithJIT: ((LCAppModel) -> Void)? = nil
     @ObservedObject private var appCustomization = LiveBoardAppCustomization.shared
@@ -116,6 +117,32 @@ struct LiveBoardHomeScreen: View {
             .appendingPathComponent("LiveBoard", isDirectory: true).appendingPathComponent("wallpaper.jpg")
     }
 
+    private var installBanner: some View {
+        VStack {
+            HStack(spacing: 10) {
+                ProgressView().tint(.white)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(installStage).font(.system(size: 14, weight: .semibold))
+                    ProgressView(value: min(1, max(0, installProgress)), total: 1).tint(.white)
+                    Text("\(Int(min(1, max(0, installProgress)) * 100)) %")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.8))
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(15)
+            .liveBoardGlass(radius: 22, interactive: false)
+            .padding(.horizontal, 24)
+            .padding(.top, 8)
+            Spacer()
+        }
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Instalando aplicación")
+        .accessibilityValue("\(Int(min(1, max(0, installProgress)) * 100)) por ciento")
+        .transition(.opacity)
+    }
+
     var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -150,34 +177,7 @@ struct LiveBoardHomeScreen: View {
                 .blur(radius: searching ? 14 : 0)
                 .allowsHitTesting(!searching)
                 .accessibilityHidden(searching)
-                if installInProgress {
-                    VStack {
-                        HStack(spacing: 10) {
-                            ProgressView()
-                                .tint(.white)
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text("Instalando aplicación…")
-                                    .font(.system(size: 14, weight: .semibold))
-                                ProgressView(value: min(1, max(0, installProgress)), total: 1)
-                                    .tint(.white)
-                                Text("\(Int(min(1, max(0, installProgress)) * 100)) %")
-                                    .font(.caption2.monospacedDigit())
-                                    .foregroundStyle(.white.opacity(0.8))
-                            }
-                            Spacer(minLength: 0)
-                        }
-                        .padding(15)
-                        .liveBoardGlass(radius: 22, interactive: false)
-                        .padding(.horizontal, 24)
-                        .padding(.top, 8)
-                        Spacer()
-                    }
-                    .allowsHitTesting(false)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Instalando aplicación")
-                    .accessibilityValue("(Int(min(1, max(0, installProgress)) * 100)) por ciento")
-                    .transition(.opacity)
-                }
+                if installInProgress { installBanner }
                 if editing && !searching {
                     VStack {
                         HStack {
