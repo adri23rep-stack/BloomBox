@@ -132,7 +132,7 @@ class AppInfoProvider {
     
     @Published var apps: [DockAppModel] = []
     @Published var isVisible: Bool = false
-    @Published @objc var isCollapsed: Bool = false
+    @Published @objc var isCollapsed: Bool = (LCUtils.appGroupUserDefault.object(forKey: "LCStartDockCollapsed") as? Bool ?? true)
     @Published var isDockHidden: Bool = false
     @Published var settingsChanged: Bool = false
 
@@ -141,20 +141,20 @@ class AppInfoProvider {
 
     public struct Constants {
         // MARK: - Layout & Sizing
-        static let defaultDockWidth: CGFloat = 90.0
+        static let defaultDockWidth: CGFloat = 64.0
         static let minAdaptiveDockWidth: CGFloat = 50.0
         static let minAdaptiveIconSize: CGFloat = 10.0
         static let maxIconSize: CGFloat = 100.0
-        static let minCollapsedHeight: CGFloat = 60.0
-        static let minCollapsedButtonSize: CGFloat = 44.0
+        static let minCollapsedHeight: CGFloat = 54.0
+        static let minCollapsedButtonSize: CGFloat = 40.0
         static let maxCollapsedButtonSize: CGFloat = 80.0
         static let initialDockShowHeight: CGFloat = 120.0
 
         // MARK: - Margins & Padding
         static let adaptiveWidthVerticalMargin: CGFloat = 20.0
         static let dockVerticalMargin: CGFloat = 30.0
-        static let dockContentSpacing: CGFloat = 8.0
-        static let dockVerticalPadding: CGFloat = 30.0
+        static let dockContentSpacing: CGFloat = 6.0
+        static let dockVerticalPadding: CGFloat = 16.0
         // Extra padding is derived from dockVerticalPadding to match the SwiftUI layout exactly
         
         // MARK: - Ratios & Factors
@@ -202,7 +202,10 @@ class AppInfoProvider {
     // Original dock width from user settings (without auto-adjustment)
     private var originalDockWidth: CGFloat {
         let storedValue = LCUtils.appGroupUserDefault.double(forKey: "LCDockWidth")
-        return storedValue > 0 ? CGFloat(storedValue) : Constants.defaultDockWidth
+        let requestedWidth = storedValue > 0 ? CGFloat(storedValue) : Constants.defaultDockWidth
+        // Compact mode keeps the dock usable without covering the guest app.
+        let compact = LCUtils.appGroupUserDefault.object(forKey: "LCCompactDock") as? Bool ?? true
+        return compact ? min(requestedWidth, Constants.defaultDockWidth) : requestedWidth
     }
     
     // Calculate adaptive dock width (auto-adjust when exceeding safe area)
@@ -871,14 +874,14 @@ public struct MultitaskDockSwiftView: View {
     
     public var body: some View {
         GeometryReader { g in
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 if dockManager.isCollapsed {
                     CollapsedDockView(isHidden: dockManager.isDockHidden)
                         .onTapGesture {
                             dockManager.toggleDockCollapse()
                         }
                 } else {
-                    VStack(spacing: 8) {
+                    VStack(spacing: 6) {
                         CollapseButtonView()
                             .onTapGesture {
                                 dockManager.toggleDockCollapse()
@@ -898,14 +901,14 @@ public struct MultitaskDockSwiftView: View {
             .padding(dynamicPadding)
             .modifier { content in
                 if #available(iOS 26.0, *), SharedModel.isLiquidGlassEnabled {
-                    content.glassEffect(.regular, in: .rect(cornerRadius: 15))
+                    content.glassEffect(.regular, in: .rect(cornerRadius: 20))
                 } else {
                     content.background(
-                        RoundedRectangle(cornerRadius: 15)
-                            .fill(Color.black.opacity(dockManager.isDockHidden ? 0.3 : 0.7))
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color.black.opacity(dockManager.isDockHidden ? 0.2 : 0.45))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 15)
-                                    .stroke(Color.white.opacity(dockManager.isDockHidden ? 0.1 : 0.3), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color.white.opacity(dockManager.isDockHidden ? 0.12 : 0.22), lineWidth: 0.8)
                             )
                     )
                 }
@@ -1026,17 +1029,8 @@ struct CollapsedDockView: View {
     
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.blue.opacity(isHidden ? 0.4 : 0.8),
-                            Color.blue.opacity(isHidden ? 0.3 : 0.6)
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+            RoundedRectangle(cornerRadius: 15)
+                .fill(Color.white.opacity(isHidden ? 0.07 : 0.13))
                 .frame(width: dockManager.adaptiveIconSize, height: dockManager.adaptiveIconSize)
             
             Group {
@@ -1045,7 +1039,7 @@ struct CollapsedDockView: View {
                         .foregroundColor(.white.opacity(0.8))
                         .font(.system(size: dockManager.adaptiveIconSize * 0.35, weight: .bold))
                 } else {
-                    Image(systemName: "chevron.up")
+                    Image(systemName: "square.stack.3d.up.fill")
                         .foregroundColor(.white)
                         .font(.system(size: dockManager.adaptiveIconSize * 0.4, weight: .bold))
                 }
@@ -1053,11 +1047,12 @@ struct CollapsedDockView: View {
             .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 1)
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(isHidden ? 0.2 : 0.3), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 15)
+                .stroke(Color.white.opacity(isHidden ? 0.12 : 0.25), lineWidth: 0.8)
         )
-        .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 2)
+        .shadow(color: .black.opacity(0.18), radius: 3, x: 0, y: 2)
         .scaleEffect(isHidden ? 0.9 : 1.0)
+        .accessibilityLabel("Mostrar controles de BloomBox")
         .animation(.easeInOut(duration: 0.2), value: isHidden)
         .animation(.spring(response: MultitaskDockManager.Constants.longAnimationDuration, dampingFraction: MultitaskDockManager.Constants.standardSpringDamping), value: dockManager.adaptiveIconSize)
     }
@@ -1070,8 +1065,8 @@ struct CollapseButtonView: View {
     
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8)  
-                .fill(Color.gray.opacity(0.8))
+            RoundedRectangle(cornerRadius: 15)
+                .fill(Color.white.opacity(0.12))
                 .frame(width: dockManager.adaptiveIconSize, height: dockManager.adaptiveIconSize)
             
             Image(systemName: "chevron.down")
@@ -1079,8 +1074,8 @@ struct CollapseButtonView: View {
                 .font(.system(size: dockManager.adaptiveIconSize * 0.4, weight: .semibold))
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 8)  
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 15)
+                .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
         )
         .animation(.spring(response: MultitaskDockManager.Constants.longAnimationDuration, dampingFraction: MultitaskDockManager.Constants.standardSpringDamping), value: dockManager.adaptiveIconSize)
     }
@@ -1093,8 +1088,8 @@ struct MinimizeAllButtonView: View {
     
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.gray.opacity(0.8))
+            RoundedRectangle(cornerRadius: 15)
+                .fill(Color.white.opacity(0.12))
                 .frame(width: dockManager.adaptiveIconSize, height: dockManager.adaptiveIconSize)
             
             Image(systemName: "house.fill")
@@ -1102,8 +1097,8 @@ struct MinimizeAllButtonView: View {
                 .font(.system(size: dockManager.adaptiveIconSize * 0.4, weight: .semibold))
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 15)
+                .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
         )
     }
 }
