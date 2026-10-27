@@ -1047,7 +1047,6 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 sharedModel.apps, sortType: sharedAppSortManager.appSortType,
                 customSortOrder: sharedAppSortManager.customSortOrder)
             // Reconcile pinned/page positions on this same UI cycle.
-            NotificationCenter.default.post(name: .BloomBoxAppsDidInstall, object: nil)
             installStage = "Installed"
             installProgressPercentage = 1
             if wantsHomeShortcutAfterImport && !finalNewApp.isHidden {
