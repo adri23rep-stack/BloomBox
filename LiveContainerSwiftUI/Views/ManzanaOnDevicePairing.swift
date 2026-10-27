@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+import ActivityKit
 import BackgroundTasks
 import dnssd
 import Foundation
@@ -70,6 +71,8 @@ import UserNotifications
     private var registered: String?
     private var grace: UIBackgroundTaskIdentifier = .invalid
     private var deadline: Timer?
+    // Save only the ActivityKit ID, never the PIN on disk.
+    private var pairingActivityID: String?
 
     private init() {}
 
@@ -93,6 +96,7 @@ import UserNotifications
             return
         }
         beginBackground()
+        beginPairingLiveActivity()
         deadline = Timer.scheduledTimer(withTimeInterval: Self.timeout, repeats: false) { _ in
             MainActor.assumeIsolated {
                 ManzanaOnDevicePairing.shared.cancel(reason: "Pairing timed out. Try again when you are ready to pair from Settings.")
@@ -124,6 +128,7 @@ import UserNotifications
         guard let session else { return }
         husk_rppairing_cancel(session)
         stopAdvertising()
+        endPairingLiveActivity()
         phase = reason.map(Phase.failed) ?? .idle
         log(reason == nil ? "cancelled" : "stopped")
     }
@@ -137,7 +142,8 @@ import UserNotifications
     private func showPin(_ pin: String) {
         guard active else { return }
         phase = .pin(pin)
-        log("code shown")
+        log("code generated")
+        updatePairingLiveActivity(pin: pin)
         if #available(iOS 26.0, *), let task = continued as? BGContinuedProcessingTask {
             task.updateTitle("Pairing code \(pin)", subtitle: "Enter it on this \(Self.deviceKind) to pair with BloomBox")
             task.progress.completedUnitCount = 1
@@ -296,6 +302,7 @@ import UserNotifications
     }
 
     private func endBackground(success: Bool) {
+        endPairingLiveActivity()
         if #available(iOS 26.0, *), let task = continued as? BGContinuedProcessingTask {
             task.progress.completedUnitCount = task.progress.totalUnitCount
             task.setTaskCompleted(success: success)
@@ -308,6 +315,49 @@ import UserNotifications
         guard grace != .invalid else { return }
         UIApplication.shared.endBackgroundTask(grace)
         grace = .invalid
+    }
+
+    // MARK: Pairing PIN in Dynamic Island / Lock Screen
+
+    // iOS generates this PIN only after Settings initiates the connection.
+    // Show it in a dedicated Live Activity so it remains visible in Settings.
+    private func beginPairingLiveActivity() {
+        guard #available(iOS 16.2, *) else { return }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            log("Live Activities unavailable; pairing notification remains the fallback")
+            return
+        }
+        do {
+            let attributes = BloomBoxPairingAttributes(startedAt: Date())
+            let state = BloomBoxPairingAttributes.ContentState(pin: nil)
+            let activity = try Activity<BloomBoxPairingAttributes>.request(
+                attributes: attributes,
+                content: ActivityContent(state: state, staleDate: Date().addingTimeInterval(Self.timeout)),
+                pushType: nil)
+            pairingActivityID = activity.id
+            if case .pin(let code) = phase { updatePairingLiveActivity(pin: code) }
+            log("pairing Live Activity started")
+        } catch {
+            log("pairing Live Activity unavailable; using notifications")
+        }
+    }
+
+    private func updatePairingLiveActivity(pin: String) {
+        guard #available(iOS 16.2, *), let id = pairingActivityID else { return }
+        Task {
+            guard let activity = Activity<BloomBoxPairingAttributes>.activities.first(where: { $0.id == id }) else { return }
+            let state = BloomBoxPairingAttributes.ContentState(pin: pin)
+            await activity.update(ActivityContent(state: state, staleDate: Date().addingTimeInterval(Self.timeout)))
+        }
+    }
+
+    private func endPairingLiveActivity() {
+        guard #available(iOS 16.2, *), let id = pairingActivityID else { return }
+        pairingActivityID = nil
+        Task {
+            guard let activity = Activity<BloomBoxPairingAttributes>.activities.first(where: { $0.id == id }) else { return }
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
     }
 
     // MARK: Notifications
