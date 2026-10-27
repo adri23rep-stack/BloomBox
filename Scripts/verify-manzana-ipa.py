@@ -23,8 +23,27 @@ with zipfile.ZipFile(ipa) as archive:
         raise SystemExit("Embedded SideStore app is missing")
     host = plistlib.loads(archive.read(app + "Info.plist"))
     ext = plistlib.loads(archive.read(widget + "Info.plist"))
+    if host.get("CFBundleName") != "Manzana" or host.get("CFBundleDisplayName") != "Manzana":
+        raise SystemExit("Wrong app! Latest Manzana display name missing from final IPA")
     if host.get("NSSupportsLiveActivities") is not True:
         raise SystemExit("NSSupportsLiveActivities is not enabled")
+    ui = app + "Frameworks/LiveContainerSwiftUI.framework/LiveContainerSwiftUI"
+    if ui not in entries or len(archive.read(ui)) < 100000:
+        raise SystemExit("The compiled Manzana UI is missing/invalid")
+    for name in ("AppIcon60x60@2x.png", "AppIcon76x76@2x~ipad.png"):
+        if app + name in entries and not archive.read(app + name).startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+            raise SystemExit("Missing the correct Manzana RGB app icon: " + name)
+    from pathlib import Path
+    source_root = Path("LiveContainerSwiftUI/Views")
+    for item in ("Manzana/ManzanaDesktopView.swift", "Manzana/ManzanaAnimatedWallpaper.swift",
+                 "Manzana/ManzanaFilesView.swift"):
+        if not (source_root / item).is_file():
+            raise SystemExit("Wrong source branch: missing Manzana UI file " + item)
+    home_source = (source_root / "LiveBoardHomeScreen.swift").read_text()
+    for expected in ("ManzanaPageWidgets", "LiveBoardHiddenPages", "ManzanaMotionWallpaper", "ManzanaExpiryReminderCenter"):
+        if expected not in home_source:
+            raise SystemExit("Missing an expected Manzana UI feature: " + expected)
+
     if ext.get("CFBundleExecutable") != "ManzanaExpiryWidget":
         raise SystemExit("The widget executable is not declared")
     if ext.get("CFBundleVersion") != host.get("CFBundleVersion"):
