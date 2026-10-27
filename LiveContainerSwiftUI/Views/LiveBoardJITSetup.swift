@@ -24,7 +24,6 @@ struct LiveBoardJITSetup: View {
                                 .font(.footnote)
                             Text("1. Tap Start pairing.\n2. Open the iPhone Settings app → Privacy & Security → Developer Mode.\n3. Choose Pair with BloomBox. Only then will iOS generate the PIN.\n4. Expand the Dynamic Island to see the code, or check the BloomBox notification.\n5. Enter the PIN in Settings and return here.")
                                 .font(.footnote)
-                                .font(.footnote)
                             switch pairing.phase {
                             case .idle:
                                 Button("Start pairing with BloomBox") { pairing.start() }
