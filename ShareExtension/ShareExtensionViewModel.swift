@@ -473,6 +473,31 @@ final class ShareExtensionViewModel: ObservableObject {
         }
     }
 
+    func installSharedFileInSideStore(context: NSExtensionContext?) async {
+        await dispatchSharedIPA(target: "sidestore", context: context)
+    }
+
+    private func dispatchSharedIPA(target: String, context: NSExtensionContext?) async {
+        guard !isLaunching, case .file(let fileURL) = payload.kind else { return }
+        isLaunching = true
+        defer { isLaunching = false }
+        do {
+            try storeBookmark(for: fileURL)
+            var components = URLComponents(string: "livecontainer://install")!
+            components.queryItems = [
+                URLQueryItem(name: "url", value: fileURL.absoluteString),
+                URLQueryItem(name: "target", value: target)
+            ]
+            guard let url = components.url else {
+                throw ShareExtensionError("Could not build IPA handoff URL.")
+            }
+            LCShareExtensionLauncher.openURL(fromShareExtension: url)
+            (context ?? currentContext)?.completeRequest(returningItems: nil, completionHandler: nil)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     private func preparePayloadForLaunch() throws -> String? {
         switch payload.kind {
         case .url(let url):
