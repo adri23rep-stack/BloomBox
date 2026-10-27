@@ -1,6 +1,11 @@
 name: Xcode - Build
 
-on: 
+on:
+  push:
+    branches:
+      - feature/jit-ios27-localdevvpn-pairing
+      - feature/dynamic-island-sidestore-8h
+      - feature/manzana-v011-jit-expiry-8h
   workflow_dispatch:
     inputs: 
       release__nightly:
@@ -28,6 +33,16 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: recursive
+      - name: Restore pinned StikJIT and runtime dependencies
+        run: python3 Scripts/fetch-bundled-dependencies.py
+      - name: Install Rust toolchain for on-device pairing
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+      - name: Compile Manzana on-device pairing library
+        run: bash Scripts/build-ondevice-pairing.sh
+      - name: Render Manzana RGB icon before compiling
+        run: swift Scripts/generate-manzana-icon.swift
       - name: Set Scheme
         id: scheme
         run: |
@@ -67,6 +82,13 @@ jobs:
       - name: Create IPA
         run: |
           sh .github/build_github.sh
+
+      - name: Preserve Manzana branding in freshly compiled IPA
+        run: |
+          python3 Scripts/brand-manzana-final-ipa.py "LiveContainer+SideStore.ipa"
+          python3 Scripts/brand-manzana-final-ipa.py "LiveContainer.ipa"
+      - name: Verify Dynamic Island + SideStore IPA contents
+        run: python3 Scripts/verify-manzana-ipa.py "LiveContainer+SideStore.ipa"
 
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v7
