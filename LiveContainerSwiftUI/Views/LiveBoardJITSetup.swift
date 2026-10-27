@@ -22,20 +22,25 @@ struct LiveBoardJITSetup: View {
                         Section("Pair on this iPhone (iOS 27)") {
                             Text("One-time setup. BloomBox acts like a local computer so your iPhone can pair with it without a PC. Wi-Fi and Local Network permission are required.")
                                 .font(.footnote)
-                            Text("1. Tap Start pairing.\n2. Open the iPhone Settings app → Privacy & Security → Developer Mode.\n3. Choose Pair with BloomBox. Only then will iOS generate the PIN.\n4. Expand the Dynamic Island to see the code, or check the BloomBox notification.\n5. Enter the PIN in Settings and return here.")
+                            Text("1. Tap Start pairing and wait for Background protection active.\n2. Open Settings → Privacy & Security → Developer Mode.\n3. Tap Pair with BloomBox. iOS generates the PIN only when it connects.\n4. Look for the BloomBox background-task status in the Dynamic Island, or the PIN notification.\n5. Enter the code and return here.")
                                 .font(.footnote)
                             switch pairing.phase {
                             case .idle:
                                 Button("Start pairing with BloomBox") { pairing.start() }
                             case .waiting:
                                 Label("Waiting for a pairing request in Settings…", systemImage: "antenna.radiowaves.left.and.right")
-                                Text("The PIN cannot appear until you tap Pair with BloomBox in Settings. A Live Activity should show the code in the Dynamic Island when iOS requests it.")
-                                    .font(.footnote).foregroundStyle(.secondary)
+                                Text(pairing.backgroundStatus)
+                                    .font(.footnote)
+                                    .foregroundStyle(pairing.backgroundLimited ? .orange : .secondary)
+                                if pairing.backgroundLimited {
+                                    Text("Do not leave BloomBox until protection becomes active. If iOS refuses it, cancel and retry; switching to Settings can suspend pairing before a PIN is generated.")
+                                        .font(.footnote).foregroundStyle(.orange)
+                                }
                                 Button("Cancel pairing", role: .cancel) { pairing.cancel() }
                             case .pin(let code):
                                 Text(code).font(.system(size: 34, weight: .bold, design: .monospaced))
                                     .textSelection(.enabled).accessibilityLabel("Pairing code \(code)")
-                                Text("Enter this PIN in Settings. If it does not appear in the Dynamic Island, check Notifications or switch back to BloomBox.")
+                                Text("Enter this PIN in Settings. It should also appear in the system background task or a BloomBox notification; availability depends on iOS permissions.")
                                     .font(.footnote).foregroundStyle(.secondary)
                                 Button("Cancel pairing", role: .cancel) { pairing.cancel() }
                             case .paired:
@@ -47,16 +52,12 @@ struct LiveBoardJITSetup: View {
                                     .foregroundStyle(.orange).font(.footnote)
                                 Button("Retry pairing") { pairing.reset(); pairing.start() }
                             }
-                            if pairing.backgroundLimited && pairing.active {
-                                Text("iOS limited background time for this installation. Open Settings right away before BloomBox is suspended.")
-                                    .font(.footnote).foregroundStyle(.orange)
-                            }
-                            Button("BloomBox permissions (Local Network / Notifications)") {
+                             Button("BloomBox permissions (Local Network / Notifications)") {
                                 if let url = URL(string: UIApplication.openSettingsURLString) {
                                     UIApplication.shared.open(url)
                                 }
                             }
-                            Text("Developer Mode is in the main iPhone Settings app, not in BloomBox permissions. If Live Activities are disabled, allow notifications to receive the PIN instead.")
+                            Text("Developer Mode is in the main iPhone Settings app. BloomBox shows the system's own background-task status; notifications are the backup if the code isn't visible.")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }
