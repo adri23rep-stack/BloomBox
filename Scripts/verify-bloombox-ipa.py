@@ -27,6 +27,12 @@ with zipfile.ZipFile(ipa) as archive:
         raise SystemExit("Wrong app! Latest BloomBox display name missing from final IPA")
     if host.get("NSSupportsLiveActivities") is not True:
         raise SystemExit("NSSupportsLiveActivities is not enabled")
+    if "processing" not in host.get("UIBackgroundModes", []):
+        raise SystemExit("Background processing capability is missing from BloomBox")
+    pairing_modes = host.get("BGTaskSchedulerPermittedIdentifiers", [])
+    host_id = host.get("CFBundleIdentifier", "")
+    if not any(x == host_id + ".pairing.*" for x in pairing_modes):
+        raise SystemExit("JIT pairing background task identifier is missing/mismatched")
     ui = app + "Frameworks/LiveContainerSwiftUI.framework/LiveContainerSwiftUI"
     if ui not in entries or len(archive.read(ui)) < 100000:
         raise SystemExit("The compiled BloomBox UI is missing/invalid")
