@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-import ActivityKit
 import BackgroundTasks
 import dnssd
 import Foundation
@@ -47,6 +46,8 @@ import UserNotifications
     @Published private(set) var phase: Phase = .idle
     /// iOS refused the continued-processing task: BloomBox can only wait briefly in the background.
     @Published private(set) var backgroundLimited = false
+    /// Explain whether iOS actually accepted the background protection.
+    @Published private(set) var backgroundStatus = "Not started"
 
     static var isSupported: Bool {
         ProcessInfo.processInfo.isOperatingSystemAtLeast(
@@ -71,8 +72,6 @@ import UserNotifications
     private var registered: String?
     private var grace: UIBackgroundTaskIdentifier = .invalid
     private var deadline: Timer?
-    // Save only the ActivityKit ID, never the PIN on disk.
-    private var pairingActivityID: String?
 
     private init() {}
 
@@ -87,7 +86,8 @@ import UserNotifications
         }
         self.session = session
         phase = .waiting
-        backgroundLimited = false
+        backgroundLimited = true
+        backgroundStatus = "Preparing background pairing protection…"
         log("started")
         requestNotifications()
         guard publish(session) else {
@@ -96,7 +96,6 @@ import UserNotifications
             return
         }
         beginBackground()
-        beginPairingLiveActivity()
         deadline = Timer.scheduledTimer(withTimeInterval: Self.timeout, repeats: false) { _ in
             MainActor.assumeIsolated {
                 ManzanaOnDevicePairing.shared.cancel(reason: "Pairing timed out. Try again when you are ready to pair from Settings.")
@@ -128,7 +127,6 @@ import UserNotifications
         guard let session else { return }
         husk_rppairing_cancel(session)
         stopAdvertising()
-        endPairingLiveActivity()
         phase = reason.map(Phase.failed) ?? .idle
         log(reason == nil ? "cancelled" : "stopped")
     }
@@ -142,15 +140,17 @@ import UserNotifications
     private func showPin(_ pin: String) {
         guard active else { return }
         phase = .pin(pin)
-        log("code generated")
-        updatePairingLiveActivity(pin: pin)
+        log("code shown")
         if #available(iOS 26.0, *), let task = continued as? BGContinuedProcessingTask {
-            task.updateTitle("Pairing code \(pin)", subtitle: "Enter it on this \(Self.deviceKind) to pair with BloomBox")
-            task.progress.completedUnitCount = 1
+            // The system already shows continued task progress in a Live Activity.
+            // Update that existing activity instead of creating a competing one.
+            task.updateTitle("BloomBox JIT PIN: \(pin)", subtitle: "Enter this code in iPhone Settings")
+            task.progress.completedUnitCount = 3
         }
-        if UIApplication.shared.applicationState != .active {
-            notify("BloomBox pairing code: \(pin)", body: "Enter this code on your \(Self.deviceKind) to finish pairing.")
-        }
+        // Request the notification even if the app just changed state. This is
+        // the fallback when the system task UI is hidden or minimized.
+        notify("BloomBox JIT PIN: \(pin)", body: "Enter this code in Settings to finish pairing.")
+
     }
 
     private func finished(status: Int32, data: Data?, device: String?, message: String?) {
@@ -251,8 +251,10 @@ import UserNotifications
             MainActor.assumeIsolated {
                 let pairing = ManzanaOnDevicePairing.shared
                 if pairing.continued == nil && pairing.active {
-                    pairing.cancel(reason: "iOS stopped BloomBox in the background before pairing finished. "
-                                         + "Try again, and pair from Settings straight away.")
+                    pairing.backgroundLimited = true
+                    pairing.backgroundStatus = "iOS ended background execution before the PIN arrived."
+                    pairing.cancel(reason: "iOS suspended BloomBox before the PIN could be received. "
+                                         + "Start again once background protection is active, then open Settings.")
                 }
                 pairing.endGrace()
             }
@@ -262,13 +264,23 @@ import UserNotifications
 
     @available(iOS 26.0, *)
     private func submitContinued() {
-        guard let identifier = taskIdentifier else { backgroundLimited = true; return }
+        guard let identifier = taskIdentifier else {
+            backgroundLimited = true
+            backgroundStatus = "Background task identifier is unavailable after signing."
+            log("missing background task identifier")
+            return
+        }
         if registered != identifier {
             let ok = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: .main) { task in
                 guard let task = task as? BGContinuedProcessingTask else { task.setTaskCompleted(success: false); return }
                 MainActor.assumeIsolated { ManzanaOnDevicePairing.shared.attach(task) }
             }
-            guard ok else { log("register refused"); backgroundLimited = true; return }
+            guard ok else {
+                log("register refused")
+                backgroundLimited = true
+                backgroundStatus = "iOS refused to register background pairing."
+                return
+            }
             registered = identifier
         }
         let request = BGContinuedProcessingTaskRequest(identifier: identifier, title: "Pairing with BloomBox",
@@ -277,9 +289,11 @@ import UserNotifications
         do {
             try BGTaskScheduler.shared.submit(request)
             log("continued-processing submitted")
+            backgroundStatus = "Waiting for iOS to activate background protection…"
         } catch {
-            log("continued-processing refused")
+            log("continued-processing refused: \(error.localizedDescription)")
             backgroundLimited = true
+            backgroundStatus = "iOS refused background protection: \(error.localizedDescription)"
         }
     }
 
@@ -287,27 +301,45 @@ import UserNotifications
     private func attach(_ task: BGContinuedProcessingTask) {
         guard active else { task.setTaskCompleted(success: false); return }
         continued = task
-        task.progress.totalUnitCount = 2
+        backgroundLimited = false
+        backgroundStatus = "Background protection active. Open iPhone Settings and select Pair with BloomBox."
+        // Host listening + Bonjour advertising are already complete.
+        // Report real progress: 2/4 ready, 3/4 PIN, 4/4 paired.
+        task.progress.totalUnitCount = 4
+        task.progress.completedUnitCount = 2
         if case .pin(let pin) = phase {
-            task.updateTitle("Pairing code \(pin)", subtitle: "Enter it on this \(Self.deviceKind) to pair with BloomBox")
-            task.progress.completedUnitCount = 1
+            task.updateTitle("BloomBox JIT PIN: \(pin)", subtitle: "Enter this code in iPhone Settings")
+            task.progress.completedUnitCount = 3
         }
         task.expirationHandler = {
             DispatchQueue.main.async {
-                ManzanaOnDevicePairing.shared.continued = nil
-                ManzanaOnDevicePairing.shared.cancel(reason: "iOS stopped the pairing in the background. Try again.")
+                let pairing = ManzanaOnDevicePairing.shared
+                // The short UIKit background allowance may still be valid:
+                // do not cancel a handshake while that grace period remains.
+                pairing.continued = nil
+                pairing.backgroundLimited = true
+                pairing.backgroundStatus = "iOS ended the continuous task; using the short background grace period."
+                task.setTaskCompleted(success: false)
+                if pairing.grace == .invalid && pairing.active {
+                    pairing.cancel(reason: "iOS stopped background pairing before a PIN arrived. "
+                                          + "Check the background protection status and retry.")
+                }
             }
         }
         log("continued-processing running")
     }
 
     private func endBackground(success: Bool) {
-        endPairingLiveActivity()
         if #available(iOS 26.0, *), let task = continued as? BGContinuedProcessingTask {
-            task.progress.completedUnitCount = task.progress.totalUnitCount
+            if success {
+                task.progress.completedUnitCount = task.progress.totalUnitCount
+            }
             task.setTaskCompleted(success: success)
         }
         continued = nil
+        if success {
+            backgroundStatus = "Pairing completed successfully."
+        }
         endGrace()
     }
 
@@ -315,49 +347,6 @@ import UserNotifications
         guard grace != .invalid else { return }
         UIApplication.shared.endBackgroundTask(grace)
         grace = .invalid
-    }
-
-    // MARK: Pairing PIN in Dynamic Island / Lock Screen
-
-    // iOS generates this PIN only after Settings initiates the connection.
-    // Show it in a dedicated Live Activity so it remains visible in Settings.
-    private func beginPairingLiveActivity() {
-        guard #available(iOS 16.2, *) else { return }
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            log("Live Activities unavailable; pairing notification remains the fallback")
-            return
-        }
-        do {
-            let attributes = BloomBoxPairingAttributes(startedAt: Date())
-            let state = BloomBoxPairingAttributes.ContentState(pin: nil)
-            let activity = try Activity<BloomBoxPairingAttributes>.request(
-                attributes: attributes,
-                content: ActivityContent(state: state, staleDate: Date().addingTimeInterval(Self.timeout)),
-                pushType: nil)
-            pairingActivityID = activity.id
-            if case .pin(let code) = phase { updatePairingLiveActivity(pin: code) }
-            log("pairing Live Activity started")
-        } catch {
-            log("pairing Live Activity unavailable; using notifications")
-        }
-    }
-
-    private func updatePairingLiveActivity(pin: String) {
-        guard #available(iOS 16.2, *), let id = pairingActivityID else { return }
-        Task {
-            guard let activity = Activity<BloomBoxPairingAttributes>.activities.first(where: { $0.id == id }) else { return }
-            let state = BloomBoxPairingAttributes.ContentState(pin: pin)
-            await activity.update(ActivityContent(state: state, staleDate: Date().addingTimeInterval(Self.timeout)))
-        }
-    }
-
-    private func endPairingLiveActivity() {
-        guard #available(iOS 16.2, *), let id = pairingActivityID else { return }
-        pairingActivityID = nil
-        Task {
-            guard let activity = Activity<BloomBoxPairingAttributes>.activities.first(where: { $0.id == id }) else { return }
-            await activity.end(nil, dismissalPolicy: .immediate)
-        }
     }
 
     // MARK: Notifications
