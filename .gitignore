@@ -1,0 +1,17 @@
+.theos/
+packages/
+.DS_Store
+*.xcscmblueprint
+*.xccheckout
+*.xcarchive
+xcuserdata
+Resources/Frameworks/OpenSSL.framework
+apps_nightly.json
+
+# Restored from the pinned release by Scripts/fetch-bundled-dependencies.py
+Vendor/StikJIT/idevice/libidevice_ffi.a
+Resources/BundledRuntime/LiveExec32.ipa
+
+# iOS 27 on-device pairing Rust build artifacts
+Vendor/HuskRPPairing/target/
+Vendor/HuskRPPairing/libhusk_rppairing.a

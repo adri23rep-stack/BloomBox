@@ -1,0 +1,112 @@
+name: Strata Session Preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["feature/session-navigation", "feature/manzana-file-transfers", "fix/iphone-home-stage1-build", "feature/home-gestures-session1", "fix/home-session1-qa", "feature/home-page-gallery-dock-progress", "fix/new-app-visible-glass-pages", "feature/home-uninstall-livecontainer-settings", "release/manzana-v0.1.0", "feature/manzana-rgb-branding-v0.1.1", "fix/session2-widgets-only", "feature/glass-only-library-pages", "feature/widgets-pages-icon-style", "feature/animated-wallpapers"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.2'
+      - name: Verify packaging
+        run: python3 -m unittest discover -s Tests/session-tests -v
+      - name: Verify document storage
+        run: |
+          swiftc LiveContainerSwiftUI/Views/Manzana/ManzanaFileStore.swift Tests/manzana-files/main.swift -o /tmp/manzana-files-test
+          /tmp/manzana-files-test
+      - name: Verify Home layout and pinned shortcuts
+        run: |
+          swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-layout/main.swift -o /tmp/manzana-home-layout-tests
+          /tmp/manzana-home-layout-tests
+      - name: Verify animated wallpaper import and GIF timing
+        run: |
+          swiftc LiveContainerSwiftUI/Views/Manzana/ManzanaWallpaperMedia.swift Tests/wallpaper/main.swift -o /tmp/manzana-wallpaper-tests
+          /tmp/manzana-wallpaper-tests
+      - name: Restore verified dependencies
+        run: python3 Scripts/fetch-bundled-dependencies.py
+      - name: Render three-layer Manzana RGB icon
+        run: swift Scripts/generate-manzana-icon.swift
+      - name: Build unsigned iPhone app
+        run: |
+          set -o pipefail
+          xcodebuild -project LiveContainer.xcodeproj -scheme LiveContainer \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build.log
+      - name: Package standalone preview
+        run: |
+          python3 Scripts/package-session-preview.py build/Build/Products/Release-iphoneos/LiveContainer.app Strata-Session-Preview.ipa
+      - name: Preserve combined SideStore runtime
+        run: python3 Scripts/package-combined-session.py Strata-Session-Preview.ipa Manzana-Animated-Wallpapers-SideStore.ipa --branding-dir Resources/Branding
+      - name: Verify final installed name and icon
+        run: |
+          python3 - <<'PY'
+          import json,plistlib,zipfile
+          from pathlib import Path
+          p=Path('Manzana-Animated-Wallpapers-SideStore.ipa')
+          with zipfile.ZipFile(p) as z:
+              root='Payload/LiveContainer.app/'
+              info=plistlib.loads(z.read(root+'Info.plist'))
+              assert info['CFBundleName']=='Manzana'
+              assert info['CFBundleDisplayName']=='Manzana'
+              assert z.read(root+'Assets.car')!=b''
+              for name in ('AppIcon60x60@2x.png', 'AppIcon76x76@2x~ipad.png'):
+                  assert z.read(root+name).startswith(bytes.fromhex('89504e470d0a1a0a'))
+              for name in z.namelist():
+                  if name.startswith(root) and name.endswith('.lproj/InfoPlist.strings'):
+                      strings=plistlib.loads(z.read(name))
+                      assert strings['CFBundleName']=='Manzana', name
+          report=json.loads(Path(str(p)+'.verification.json').read_text())
+          assert report['display_name']=='Manzana'
+          assert report['icon_catalog_updated']
+          print('Verified Manzana name, all localized names and RGB icon in final SideStore IPA')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Manzana-Animated-Wallpapers-SideStore
+          path: |
+            Manzana-Animated-Wallpapers-SideStore.ipa
+            Manzana-Animated-Wallpapers-SideStore.ipa.verification.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Strata-Session-Preview
+          path: Strata-Session-Preview.ipa
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Manzana-RGB-AppIcon
+          path: Resources/Branding/ManzanaRGB1024.png
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Xcode-build-log
+          path: build.log
+      - name: Publish first Manzana release
+        if: github.ref == 'refs/heads/release/manzana-v0.1.0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cp Manzana-Animated-Wallpapers-SideStore.ipa Manzana-v0.1.0-SideStore-unsigned.ipa
+          cp Manzana-Animated-Wallpapers-SideStore.ipa.verification.json Manzana-v0.1.0-verification.json
+          zip -j -q Manzana-v0.1.0-SideStore.zip Manzana-v0.1.0-SideStore-unsigned.ipa Manzana-v0.1.0-verification.json
+          gh release create v0.1.0 \
+            Manzana-v0.1.0-SideStore-unsigned.ipa \
+            Manzana-v0.1.0-SideStore.zip \
+            Manzana-v0.1.0-verification.json \
+            --target "$GITHUB_SHA" \
+            --title "Manzana v0.1.0 — Primera release" \
+            --notes-file docs/RELEASE-v0.1.0.md \
+            --prerelease
+
