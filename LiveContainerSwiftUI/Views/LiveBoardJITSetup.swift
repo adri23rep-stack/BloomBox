@@ -22,17 +22,22 @@ struct LiveBoardJITSetup: View {
                         Section("Pair on this iPhone (iOS 27)") {
                             Text("One-time setup. BloomBox acts like a local computer so your iPhone can pair with it without a PC. Wi-Fi and Local Network permission are required.")
                                 .font(.footnote)
-                            Text("1. Tap Start pairing.\n2. Open iPhone Settings → Privacy & Security → Developer Mode.\n3. Tap Pair with BloomBox and enter the code shown here (also in a notification).\n4. Return to BloomBox.")
+                            Text("1. Tap Start pairing.\n2. Open the iPhone Settings app → Privacy & Security → Developer Mode.\n3. Choose Pair with BloomBox. Only then will iOS generate the PIN.\n4. Expand the Dynamic Island to see the code, or check the BloomBox notification.\n5. Enter the PIN in Settings and return here.")
+                                .font(.footnote)
                                 .font(.footnote)
                             switch pairing.phase {
                             case .idle:
                                 Button("Start pairing with BloomBox") { pairing.start() }
                             case .waiting:
-                                Label("Waiting for iOS to connect…", systemImage: "antenna.radiowaves.left.and.right")
+                                Label("Waiting for a pairing request in Settings…", systemImage: "antenna.radiowaves.left.and.right")
+                                Text("The PIN cannot appear until you tap Pair with BloomBox in Settings. A Live Activity should show the code in the Dynamic Island when iOS requests it.")
+                                    .font(.footnote).foregroundStyle(.secondary)
                                 Button("Cancel pairing", role: .cancel) { pairing.cancel() }
                             case .pin(let code):
                                 Text(code).font(.system(size: 34, weight: .bold, design: .monospaced))
                                     .textSelection(.enabled).accessibilityLabel("Pairing code \(code)")
+                                Text("Enter this PIN in Settings. If it does not appear in the Dynamic Island, check Notifications or switch back to BloomBox.")
+                                    .font(.footnote).foregroundStyle(.secondary)
                                 Button("Cancel pairing", role: .cancel) { pairing.cancel() }
                             case .paired:
                                 Label("Paired with this iPhone", systemImage: "checkmark.shield.fill")
@@ -47,11 +52,13 @@ struct LiveBoardJITSetup: View {
                                 Text("iOS limited background time for this installation. Open Settings right away before BloomBox is suspended.")
                                     .font(.footnote).foregroundStyle(.orange)
                             }
-                            Button("Open iPhone Settings") {
+                            Button("BloomBox permissions (Local Network / Notifications)") {
                                 if let url = URL(string: UIApplication.openSettingsURLString) {
                                     UIApplication.shared.open(url)
                                 }
                             }
+                            Text("Developer Mode is in the main iPhone Settings app, not in BloomBox permissions. If Live Activities are disabled, allow notifications to receive the PIN instead.")
+                                .font(.caption).foregroundStyle(.secondary)
                         }
                     }
                     Section("One-time setup") {
