@@ -148,7 +148,24 @@ struct LCAppSettingsView: View {
                     Text("lc.appSettings.launchWithJit".loc)
                 }
                 .disabled(model.uiIs32bit)
-                if #available(iOS 26.0, *), model.uiIsJITNeeded, !model.uiIs32bit {
+                // Also expose script setup for the Home Screen's explicit
+                // "Launch with JIT" action, which does not require the toggle.
+                if #available(iOS 26.0, *), !model.uiIs32bit {
+                    Text("iOS 26/27: a compatible JIT app needs a script that matches its executable-memory protocol. A script cannot make an incompatible app work.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    if model.bundleIdentifier == "org.nikaido.jitprobe" {
+                        Text("JIT Probe 1.0 only tests MAP_JIT. It does not implement the iOS 26+ executable-region protocol, so using a script will not turn its result green.")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                    } else {
+                        Button("Use included Universal JIT script") {
+                            // This script ships with BloomBox already; no file browser needed.
+                            // It only works for guests implementing the matching protocol.
+                            model.jitLaunchScriptJs = LCUtils.base64EncodedUniversalJITScript()
+                        }
+                        .accessibilityIdentifier("jit.use-bundled-universal-script")
+                    }
                     HStack {
                         Text("lc.appSettings.jit26.script".loc)
                         Spacer()
@@ -207,9 +224,8 @@ struct LCAppSettingsView: View {
                 }
             } footer: {
 
-                    if #available(iOS 26.0, *), model.uiIsJITNeeded {
-                        Text("lc.appSettings.launchWithJitDesc".loc + "\n" + "lc.appSettings.jit26.scriptDesc".loc)
-
+                    if #available(iOS 26.0, *) {
+                        Text("lc.appSettings.launchWithJitDesc".loc + "\n" + "lc.appSettings.jit26.scriptDesc".loc + "\nThe included universal.js requires app-specific breakpoint support. Apps without this support cannot gain full JIT on iOS 27 merely by choosing a script.")
                     } else {
                         Text("lc.appSettings.launchWithJitDesc".loc)
                     }

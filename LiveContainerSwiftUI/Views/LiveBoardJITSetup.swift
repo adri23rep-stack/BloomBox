@@ -22,17 +22,36 @@ struct LiveBoardJITSetup: View {
                         Section("Pair on this iPhone (iOS 27)") {
                             Text("One-time setup. BloomBox acts like a local computer so your iPhone can pair with it without a PC. Wi-Fi and Local Network permission are required.")
                                 .font(.footnote)
-                            Text("1. Tap Start pairing.\n2. Open iPhone Settings → Privacy & Security → Developer Mode.\n3. Tap Pair with BloomBox and enter the code shown here (also in a notification).\n4. Return to BloomBox.")
+                            Text("1. Start pairing and wait until protection is active.\n2. In Settings → Privacy & Security → Developer Mode, tap Pair with BloomBox.\n3. If iOS asks for your passcode, enter the SAME unlock passcode you use for your iPhone. This is NOT the BloomBox PIN.\n4. Only when iOS asks for a pairing code, read the separate PIN in the Dynamic Island or notification.")
                                 .font(.footnote)
+                            Text("Never guess your iPhone passcode. Repeated incorrect attempts can temporarily lock the device.")
+                                .font(.footnote)
+                                .foregroundStyle(.orange)
                             switch pairing.phase {
                             case .idle:
                                 Button("Start pairing with BloomBox") { pairing.start() }
                             case .waiting:
-                                Label("Waiting for iOS to connect…", systemImage: "antenna.radiowaves.left.and.right")
+                                Label("Waiting for a pairing request in Settings…", systemImage: "antenna.radiowaves.left.and.right")
+                                Text(pairing.backgroundStatus)
+                                    .font(.footnote)
+                                    .foregroundStyle(pairing.backgroundLimited ? .orange : .secondary)
+                                if pairing.protectionRetryAvailable {
+                                    Button("Retry background protection", systemImage: "arrow.clockwise") {
+                                        pairing.retryBackgroundProtection()
+                                    }
+                                    .accessibilityIdentifier("jit.retry-background-protection")
+                                    Text("The pairing listener is still active. Retry protection here, then wait until it says Background protection active before going to Settings.")
+                                        .font(.footnote).foregroundStyle(.orange)
+                                } else if pairing.backgroundLimited {
+                                    Text("Stay in BloomBox until iOS confirms background protection. The PIN cannot arrive if the app is suspended.")
+                                        .font(.footnote).foregroundStyle(.orange)
+                                }
                                 Button("Cancel pairing", role: .cancel) { pairing.cancel() }
                             case .pin(let code):
                                 Text(code).font(.system(size: 34, weight: .bold, design: .monospaced))
                                     .textSelection(.enabled).accessibilityLabel("Pairing code \(code)")
+                                Text("Enter this PIN in Settings. It should also appear in the system background task or a BloomBox notification; availability depends on iOS permissions.")
+                                    .font(.footnote).foregroundStyle(.secondary)
                                 Button("Cancel pairing", role: .cancel) { pairing.cancel() }
                             case .paired:
                                 Label("Paired with this iPhone", systemImage: "checkmark.shield.fill")
@@ -43,15 +62,13 @@ struct LiveBoardJITSetup: View {
                                     .foregroundStyle(.orange).font(.footnote)
                                 Button("Retry pairing") { pairing.reset(); pairing.start() }
                             }
-                            if pairing.backgroundLimited && pairing.active {
-                                Text("iOS limited background time for this installation. Open Settings right away before BloomBox is suspended.")
-                                    .font(.footnote).foregroundStyle(.orange)
-                            }
-                            Button("Open iPhone Settings") {
+                             Button("BloomBox permissions (Local Network / Notifications)") {
                                 if let url = URL(string: UIApplication.openSettingsURLString) {
                                     UIApplication.shared.open(url)
                                 }
                             }
+                            Text("Developer Mode is in the main iPhone Settings app. BloomBox shows the system's own background-task status; notifications are the backup if the code isn't visible.")
+                                .font(.caption).foregroundStyle(.secondary)
                         }
                     }
                     Section("One-time setup") {
