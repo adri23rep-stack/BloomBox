@@ -50,6 +50,14 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     @State var installprogressVisible = false
     @State var installProgressPercentage : Float = 0.0
     @State var installObserver : NSKeyValueObservation?
+    @State private var installStage = "Preparing IPA…"
+    @State private var importedIPAURL: URL?
+    @State private var showImportDestination = false
+    @State private var wantsHomeShortcutAfterImport = false
+    @State private var installedShortcutApp: LCAppModel?
+    @State private var showHomeShortcutOption = false
+    @State private var showSideStoreHandoff = false
+    @State private var stagedSideStoreURL: URL?
     
     @State var installOptions: [AppReplaceOption]
     @StateObject var installReplaceAlert = AlertHelper<AppReplaceOption>()
@@ -195,6 +203,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                                         openTab: { sharedModel.selectedTab = $0 },
                                         installInProgress: installprogressVisible,
                                         installProgress: Double(installProgressPercentage),
+                                        installStage: installStage,
                                         secondaryInstance: sharedModel.multiLCStatus == 2,
                                         launchWithJIT: { app in Task { await launchFromLiveBoard(app, forceJIT: true) } })
                 } else if !manageLibrary {
@@ -380,10 +389,48 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             Text(errorInfo)
         }
         .betterFileImporter(isPresented: $choosingIPA, types: [.ipa, .tipa], multiple: false, callback: { fileUrls in
-            Task { await startInstallApp(fileUrls[0]) }
+            guard let file = fileUrls.first else { return }
+            Task { await startInstallApp(file) }
         }, onDismiss: {
             choosingIPA = false
         })
+        .confirmationDialog("Install \(importedIPAURL?.lastPathComponent ?? "app")", isPresented: $showImportDestination, titleVisibility: .visible) {
+            Button("Install in BloomBox") {
+                guard let file = importedIPAURL else { return }
+                importedIPAURL = nil
+                wantsHomeShortcutAfterImport = true
+                Task { await installFromUrl(urlStr: file.absoluteString) }
+            }
+            Button("Install in SideStore (iPhone Home Screen)") {
+                guard let file = importedIPAURL else { return }
+                importedIPAURL = nil
+                Task { await handoffToSideStore(file) }
+            }
+            Button("Cancel", role: .cancel) { importedIPAURL = nil }
+        } message: {
+            Text("BloomBox keeps an app in its own launcher. SideStore installs a signed app on the real iPhone Home Screen.")
+        }
+        .confirmationDialog("Add to your iPhone Home Screen?", isPresented: $showHomeShortcutOption, titleVisibility: .visible) {
+            Button("Create Home Screen profile") {
+                guard let app = installedShortcutApp else { return }
+                installedShortcutApp = nil
+                Task { await createHomeScreenProfile(for: app) }
+            }
+            Button("Keep only in BloomBox") { installedShortcutApp = nil }
+        } message: {
+            Text("Generate a LiveContainer Web Clip profile for the installed guest. iOS will ask you to approve it in Settings.")
+        }
+        .alert("SideStore IPA import", isPresented: $showSideStoreHandoff) {
+            Button("Open SideStore") {
+                if let file = stagedSideStoreURL {
+                    LCUtils.openSideStore(delegate: self, urlStr: file.absoluteString)
+                }
+                stagedSideStoreURL = nil
+            }
+            Button("Cancel", role: .cancel) { stagedSideStoreURL = nil }
+        } message: {
+            Text("Copied the IPA to SideStore's Inbox. If SideStore does not import it automatically, choose its IPA importer and open the staged file. SideStore installs apps on the real iPhone Home Screen.")
+        }
         .alert("lc.appList.installation".loc, isPresented: $installReplaceAlert.show) {
             ForEach(installOptions, id: \.self) { installOption in
                 Button(role: installOption.isReplace ? .destructive : nil, action: {
@@ -726,18 +773,61 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
 
 
     
-    func startInstallApp(_ fileUrl:URL) async {
+    func startInstallApp(_ fileUrl: URL) async {
+        // Keep original files intact, including those selected from Files.
+        wantsHomeShortcutAfterImport = false
+        await installFromUrl(urlStr: fileUrl.absoluteString)
+    }
+
+    @MainActor private func offerImportedIPA(_ url: URL) {
+        guard ["ipa", "tipa"].contains(url.pathExtension.lowercased()) else {
+            errorInfo = "Only .ipa and .tipa archives are supported."
+            errorShow = true
+            return
+        }
+        importedIPAURL = url
+        showImportDestination = true
+    }
+
+    @MainActor private func handoffToSideStore(_ fileURL: URL) async {
+        guard UserDefaults.sideStoreExist() else {
+            errorInfo = "SideStore is not included in this installation."
+            errorShow = true
+            return
+        }
+        let access = fileURL.startAccessingSecurityScopedResource()
+        defer { if access { fileURL.stopAccessingSecurityScopedResource() } }
         do {
-            self.installprogressVisible = true
-            try await installIpaFile(fileUrl)
-            try FileManager.default.removeItem(at: fileUrl)
+            guard FileManager.default.isReadableFile(atPath: fileURL.path) else {
+                throw CocoaError(.fileReadNoPermission)
+            }
+            let inbox = LCPath.docPath.appendingPathComponent("SideStore/Documents/Inbox", isDirectory: true)
+            try FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true)
+            let destination = inbox.appendingPathComponent("\(UUID().uuidString)-\(fileURL.lastPathComponent)")
+            try FileManager.default.copyItem(at: fileURL, to: destination)
+            stagedSideStoreURL = destination
+            showSideStoreHandoff = true
+        } catch {
+            errorInfo = "SideStore handoff failed: \(error.localizedDescription)"
+            errorShow = true
+        }
+    }
+
+    @MainActor private func createHomeScreenProfile(for app: LCAppModel) async {
+        guard let style = await promptForGeneratedIconStyle() else { return }
+        do {
+            guard let profile = app.appInfo.generateWebClipConfig(
+                withContainerId: app.uiSelectedContainer?.folderName, iconStyle: style) else {
+                throw CocoaError(.propertyListWriteInvalid)
+            }
+            let data = try PropertyListSerialization.data(fromPropertyList: profile, format: .xml, options: 0)
+            installMdm(data: data)
         } catch {
             errorInfo = error.localizedDescription
             errorShow = true
-            self.installprogressVisible = false
         }
     }
-    
+
     nonisolated func decompress(_ path: String, _ destination: String ,_ progress: Progress) async -> Int32 {
         extract(path, destination, progress)
     }
@@ -1357,7 +1447,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     
     func handleURL(url : URL) {
         if url.isFileURL {
-            Task { await installFromUrl(urlStr: url.absoluteString) }
+            offerImportedIPA(url)
             return
         }
         
