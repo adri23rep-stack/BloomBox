@@ -50,6 +50,7 @@ enum StrataJITWorker {
                 switch readiness {
                 case .unreachable(let reason), .preparationFailed(let reason): throw NSError(domain: "StrataJIT", code: 2, userInfo: [NSLocalizedDescriptionKey: reason])
                 case .ready(let state):
+                    report("Device connection and developer image ready. Checking iOS JIT requirements…")
                     if operation == "prepare" {
                         let txm = state.isTXMPresent.map { $0 ? "present" : "not present" } ?? "unknown"
                         report("Device ready. TXM/SPTM: " + txm, done: true, success: true)
@@ -58,7 +59,11 @@ enum StrataJITWorker {
                     }
                     guard let txm = state.isTXMPresent else { throw NSError(domain: "StrataJIT", code: 3, userInfo: [NSLocalizedDescriptionKey: "Cannot determine device JIT requirements."]) }
                     let script = input["script"] as? String ?? ""
-                    if txm && script.isEmpty { throw NSError(domain: "StrataJIT", code: 4, userInfo: [NSLocalizedDescriptionKey: "This guest needs a compatible iOS JIT script. Configure its JIT script in app settings before launching."]) }
+                    if txm && script.isEmpty {
+                        throw NSError(domain: "StrataJIT", code: 4, userInfo: [
+                            NSLocalizedDescriptionKey: "Your device is paired and prepared, but iOS 26/27 requires a JIT script compatible with this app. Open the guest's BloomBox app settings and select its matching script. The included Universal script works ONLY with guests implementing the iOS 26 breakpoint protocol; it cannot enable unsupported JIT Probe 1.0."
+                        ])
+                    }
                     report("Connecting debugger…")
                     // Preserve the guest's existing protocol; never substitute a universal script for an arbitrary engine.
                     try StikJIT.enableJIT(targetPID: pid, pairingFile: pairing, ddiPaths: paths, configuration: config,
