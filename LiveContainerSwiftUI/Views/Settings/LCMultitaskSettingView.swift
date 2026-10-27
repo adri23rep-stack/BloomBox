@@ -16,7 +16,9 @@ struct LCMultitaskSettingView: View {
     @AppStorage("LCSkipTerminatedScreen", store: LCUtils.appGroupUserDefault) var skipTerminatedScreen = false
     @AppStorage("LCRestartTerminatedApp", store: LCUtils.appGroupUserDefault) var restartTerminatedApp = false
     @AppStorage("LCMaxOneAppOnStage", store: LCUtils.appGroupUserDefault) var onlyOneAppOnStage = false
-    @AppStorage("LCDockWidth", store: LCUtils.appGroupUserDefault) var dockWidth: Double = 80
+    @AppStorage("LCDockWidth", store: LCUtils.appGroupUserDefault) var dockWidth: Double = 64
+    @AppStorage("LCCompactDock", store: LCUtils.appGroupUserDefault) var compactDock: Bool = true
+    @AppStorage("LCStartDockCollapsed", store: LCUtils.appGroupUserDefault) var startDockCollapsed: Bool = true
     @AppStorage("LCHideCollapsedDock", store: LCUtils.appGroupUserDefault) var hideCollapsedDock: Bool = false
     @AppStorage("LCRedirectURLToHost", store: LCUtils.appGroupUserDefault) var redirectURLToHost = false
     
@@ -71,7 +73,7 @@ struct LCMultitaskSettingView: View {
                         Text("lc.settings.dockWidth".loc)
                             .foregroundColor(.primary)
                         Spacer()
-                        Text("\(Int(dockWidth))px")
+                        Text("\(Int(compactDock ? min(dockWidth, 64) : dockWidth))px")
                             .foregroundColor(.secondary)
                             .font(.caption)
                     }
@@ -81,6 +83,8 @@ struct LCMultitaskSettingView: View {
                     .tint(.accentColor)
                 }
                 .padding(.vertical, 4)
+                Toggle("Dock compacto (Liquid Glass)", isOn: $compactDock)
+                Toggle("Iniciar con controles contraídos", isOn: $startDockCollapsed)
                 Toggle(isOn: $hideCollapsedDock) {
                     Text("lc.settings.hideCollapsedDock".loc)
                 }
