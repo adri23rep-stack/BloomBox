@@ -835,15 +835,16 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     func installIpaFile(_ url:URL) async throws {
         let fm = FileManager()
         
-        let installProgress = Progress.discreteProgress(totalUnitCount: 100)
-        self.installProgressPercentage = 0.0
-        self.installObserver = installProgress.observe(\.fractionCompleted) { p, v in
+        installprogressVisible = true
+        installProgressPercentage = 0
+        installStage = "Extracting IPA…"
+        let decompressProgress = Progress.discreteProgress(totalUnitCount: 100)
+        installObserver = decompressProgress.observe(\.fractionCompleted, options: [.initial, .new]) { progress, _ in
             DispatchQueue.main.async {
-                self.installProgressPercentage = Float(p.fractionCompleted)
+                self.installProgressPercentage = max(self.installProgressPercentage,
+                    min(0.70, Float(progress.fractionCompleted) * 0.70))
             }
         }
-        let decompressProgress = Progress.discreteProgress(totalUnitCount: 100)
-        installProgress.addChild(decompressProgress, withPendingUnitCount: 80)
         let payloadPath = fm.temporaryDirectory.appendingPathComponent("Payload")
         if fm.fileExists(atPath: payloadPath.path) {
             try fm.removeItem(at: payloadPath)
@@ -928,6 +929,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 try fm.removeItem(at: outputFolder)
             }
         }
+        installStage = "Saving app…"
+        installProgressPercentage = max(installProgressPercentage, 0.72)
         // Move it!
         try fm.moveItem(at: appFolderPath, to: outputFolder)
         let finalNewApp = LCAppInfo(bundlePath: outputFolder.path)
@@ -940,6 +943,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
         
         // patch and sign it
+        installStage = "Signing app…"
+        installProgressPercentage = max(installProgressPercentage, 0.78)
         var signError : String? = nil
         var signSuccess = false
         await withUnsafeContinuation({ c in
@@ -951,7 +956,15 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 signSuccess = success
                 c.resume()
             }, progressHandler: { signProgress in
-                installProgress.addChild(signProgress!, withPendingUnitCount: 20)
+                guard let signProgress else { return }
+                DispatchQueue.main.async {
+                    self.installObserver = signProgress.observe(\.fractionCompleted, options: [.initial, .new]) { progress, _ in
+                        DispatchQueue.main.async {
+                            self.installProgressPercentage = max(self.installProgressPercentage,
+                                min(0.95, 0.78 + Float(progress.fractionCompleted) * 0.17))
+                        }
+                    }
+                }
             }, forceSign: false)
         })
         
@@ -996,35 +1009,46 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             finalNewApp.spoofSDKVersion = true
         }
         finalNewApp.installationDate = Date.now
-        
-        DispatchQueue.main.async {
+        installStage = "Adding app to Home Screen…"
+        installProgressPercentage = max(installProgressPercentage, 0.96)
+
+        // Wait until the app is in the actual live registry before reporting 100%.
+        await MainActor.run {
+            let installedModel = LCAppModel(appInfo: finalNewApp, delegate: self)
             if let appToReplace {
-                let newAppModel = LCAppModel(appInfo: finalNewApp, delegate: self)
-                
                 if appToReplace.uiIsHidden {
                     sharedModel.hiddenApps.removeAll { $0 == appToReplace }
-                    sharedModel.hiddenApps.append(newAppModel)
+                    sharedModel.hiddenApps.append(installedModel)
                 } else {
                     sharedModel.apps.removeAll { $0 == appToReplace }
-                    sharedModel.apps.append(newAppModel)
+                    sharedModel.apps.append(installedModel)
                 }
-
             } else {
-                let newAppModel = LCAppModel(appInfo: finalNewApp, delegate: self)
-                sharedModel.apps.append(newAppModel)
-                
-                // add url schemes
-                if let urlSchemes = finalNewApp.urlSchemes(), urlSchemes.count > 0 {
+                sharedModel.apps.append(installedModel)
+                if let urlSchemes = finalNewApp.urlSchemes(), !urlSchemes.isEmpty {
                     UserDefaults.lcShared().mutableArrayValue(forKey: "LCGuestURLSchemes")
                         .addObjects(from: urlSchemes as! [Any])
                 }
             }
-
-            self.installprogressVisible = false
+            sharedAppSortManager.sortedApps = sharedAppSortManager.getSortedApps(
+                sharedModel.apps, sortType: sharedAppSortManager.appSortType,
+                customSortOrder: sharedAppSortManager.customSortOrder)
+            // Reconcile pinned/page positions on this same UI cycle.
+            NotificationCenter.default.post(name: .BloomBoxAppsDidInstall, object: nil)
+            installStage = "Installed"
+            installProgressPercentage = 1
+            if wantsHomeShortcutAfterImport && !finalNewApp.isHidden {
+                installedShortcutApp = installedModel
+                wantsHomeShortcutAfterImport = false
+                showHomeShortcutOption = true
+            }
         }
+        try? await Task.sleep(nanoseconds: 320_000_000)
+        installprogressVisible = false
+        installObserver = nil
     }
-    
-    func startInstallFromUrl() async {
+
+        func startInstallFromUrl() async {
         guard let installUrlStr = await installUrlInput.open(), installUrlStr.count > 0 else {
             return
         }
