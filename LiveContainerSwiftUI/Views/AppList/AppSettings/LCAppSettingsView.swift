@@ -154,17 +154,17 @@ struct LCAppSettingsView: View {
                     Text("iOS 26/27: a compatible JIT app needs a script that matches its executable-memory protocol. A script cannot make an incompatible app work.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                    // Show the bundled script for ALL 64-bit guests, including
+                    // JIT Probe 1.1. The old bundle-ID restriction also hid it
+                    // for the updated tester because both versions share an ID.
+                    Button("Use included Universal JIT script") {
+                        model.jitLaunchScriptJs = LCUtils.base64EncodedUniversalJITScript()
+                    }
+                    .accessibilityIdentifier("jit.use-bundled-universal-script")
                     if model.bundleIdentifier == "org.nikaido.jitprobe" {
-                        Text("JIT Probe 1.0 only tests MAP_JIT. It does not implement the iOS 26+ executable-region protocol, so using a script will not turn its result green.")
+                        Text("JIT Probe 1.1: after selecting this script, launch with JIT and run the universal protocol test. The script alone does not prove JIT is enabled.")
                             .font(.footnote)
-                            .foregroundStyle(.orange)
-                    } else {
-                        Button("Use included Universal JIT script") {
-                            // This script ships with BloomBox already; no file browser needed.
-                            // It only works for guests implementing the matching protocol.
-                            model.jitLaunchScriptJs = LCUtils.base64EncodedUniversalJITScript()
-                        }
-                        .accessibilityIdentifier("jit.use-bundled-universal-script")
+                            .foregroundStyle(.secondary)
                     }
                     HStack {
                         Text("lc.appSettings.jit26.script".loc)
