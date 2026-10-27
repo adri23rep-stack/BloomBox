@@ -1,0 +1,47 @@
+name: Build JIT Probe 1.1 (iOS 26-27)
+on:
+  push:
+    branches:
+      - feature/jit-probe-1.1-ios27
+    paths:
+      - 'Tools/JITProbe/**'
+      - '.github/workflows/jit-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: cd Tools/JITProbe && xcodegen generate
+      - name: Build arm64 iPhone app
+        shell: bash
+        run: |
+          set -eo pipefail
+          cd Tools/JITProbe
+          xcodebuild -version
+          xcodebuild -project JITProbe.xcodeproj -scheme JITProbe -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: Package unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd Tools/JITProbe
+          test -f build/Build/Products/Release-iphoneos/JITProbe.app/JITProbe
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/JITProbe.app Payload/
+          zip -qry JITProbe-1.1-iOS26-27-unsigned.ipa Payload
+          unzip -tq JITProbe-1.1-iOS26-27-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JITProbe-1.1-iOS26-27-IPA
+          path: Tools/JITProbe/JITProbe-1.1-iOS26-27-unsigned.ipa
+          if-no-files-found: error
