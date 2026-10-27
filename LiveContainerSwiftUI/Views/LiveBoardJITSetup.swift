@@ -22,7 +22,7 @@ struct LiveBoardJITSetup: View {
                         Section("Pair on this iPhone (iOS 27)") {
                             Text("One-time setup. BloomBox acts like a local computer so your iPhone can pair with it without a PC. Wi-Fi and Local Network permission are required.")
                                 .font(.footnote)
-                            Text("1. Tap Start pairing and wait for Background protection active.\n2. Open Settings → Privacy & Security → Developer Mode.\n3. Tap Pair with BloomBox. iOS generates the PIN only when it connects.\n4. Look for the BloomBox background-task status in the Dynamic Island, or the PIN notification.\n5. Enter the code and return here.")
+                            Text("1. Start pairing and wait until protection is active.\n2. In Settings → Privacy & Security → Developer Mode, tap Pair with BloomBox.\n3. Read the PIN in the Dynamic Island or notification and enter it in Settings.")
                                 .font(.footnote)
                             switch pairing.phase {
                             case .idle:
@@ -32,8 +32,15 @@ struct LiveBoardJITSetup: View {
                                 Text(pairing.backgroundStatus)
                                     .font(.footnote)
                                     .foregroundStyle(pairing.backgroundLimited ? .orange : .secondary)
-                                if pairing.backgroundLimited {
-                                    Text("Do not leave BloomBox until protection becomes active. If iOS refuses it, cancel and retry; switching to Settings can suspend pairing before a PIN is generated.")
+                                if pairing.protectionRetryAvailable {
+                                    Button("Retry background protection", systemImage: "arrow.clockwise") {
+                                        pairing.retryBackgroundProtection()
+                                    }
+                                    .accessibilityIdentifier("jit.retry-background-protection")
+                                    Text("The pairing listener is still active. Retry protection here, then wait until it says Background protection active before going to Settings.")
+                                        .font(.footnote).foregroundStyle(.orange)
+                                } else if pairing.backgroundLimited {
+                                    Text("Stay in BloomBox until iOS confirms background protection. The PIN cannot arrive if the app is suspended.")
                                         .font(.footnote).foregroundStyle(.orange)
                                 }
                                 Button("Cancel pairing", role: .cancel) { pairing.cancel() }
