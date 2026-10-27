@@ -187,7 +187,7 @@
     glassView.layer.cornerRadius = diameter / 2.0;
     glassView.clipsToBounds = YES;
     glassView.userInteractionEnabled = NO;
-    [button addSubview:glassView];
+    [button insertSubview:glassView atIndex:0];
 
     UIImageSymbolConfiguration *symbolStyle =
         [UIImageSymbolConfiguration configurationWithPointSize:(diameter >= 85 ? 31 : 24)
