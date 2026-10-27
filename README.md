@@ -1,77 +1,77 @@
 # BloomBox 🌸
 
-### Tu espacio de apps en iPhone, sin complicaciones.
+### Your apps, your iPhone, your way — without the hassle.
 
-**Instala, organiza, personaliza y abre tus apps desde un solo lugar.** BloomBox es un escritorio alternativo y contenedor de aplicaciones para iOS, con aspecto familiar, accesos directos y herramientas que buscan evitar menús técnicos innecesarios.
+**Install, organize, customize, and launch your apps from one familiar place.** BloomBox is an alternative iOS home screen and app container built around direct shortcuts and approachable controls, so everyday tasks don't require digging through technical menus.
 
-> **Nuestra meta:** facilitarle todo al usuario común: instalación de apps, uso de JIT, acceso a tweaks y personalización. Queremos que las funciones complejas trabajen por detrás y que nadie tenga que entender interfaces avanzadas para usar BloomBox.
+> **Our mission:** Make everything easier for everyday users — app installation, JIT setup, tweaks, and personalization. Complex tools should work behind the scenes whenever possible, without forcing anyone to navigate advanced interfaces just to get things done.
 
-[![Compilación](https://github.com/adri23rep-stack/BloomBox/actions/workflows/build.yml/badge.svg)](https://github.com/adri23rep-stack/BloomBox/actions/workflows/build.yml)
-[![Licencia AGPL-3.0](https://img.shields.io/badge/licencia-AGPL--3.0-blue)](LICENSE)
+[![Build](https://github.com/adri23rep-stack/BloomBox/actions/workflows/build.yml/badge.svg)](https://github.com/adri23rep-stack/BloomBox/actions/workflows/build.yml)
+[![AGPL-3.0 License](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 
-## ✨ ¿Qué puedes hacer en BloomBox?
+## ✨ What can BloomBox do?
 
-| Área | Qué incluye la versión actual |
+| Feature | What's included today |
 | --- | --- |
-| 🏠 **Escritorio familiar** | Inicio estilo iPhone, Dock, carpetas, biblioteca de apps, búsqueda, páginas y arrastrar iconos para ordenarlos. |
-| 📲 **Instalar y administrar apps** | Accesos directos **SideStore** e **Instalar app** desde el escritorio; gestión de apps invitadas mediante LiveContainer. |
-| 🎨 **Personalización** | Paneles Liquid Glass, temas claro/oscuro, estilos de iconos **Original, Oscuro, Cristal y Teñido**, colores e iconos de distintos tamaños. |
-| 🌌 **Fondos con movimiento** | Fondos GIF o video MP4/MOV en bucle y sin sonido; controles de pausa, encuadre y oscurecimiento. |
-| 🧩 **Widgets propios** | Reloj, fotos y notas en distintas páginas, con opciones para añadirlos, moverlos y quitarlos. |
-| 📁 **Archivos** | Importar, buscar, previsualizar, crear carpetas, copiar, mover, renombrar, compartir y recuperar archivos de la papelera del espacio propio de BloomBox. |
-| 🛠️ **Herramientas y tweaks** | Acceso a la sección de tweaks y a herramientas de administración, sin saturar la pantalla principal. Su disponibilidad y compatibilidad dependen de cada tweak. |
-| ⚡ **JIT integrado (experimental)** | Asistente de emparejamiento en el iPhone y preparación de JIT para **apps invitadas**, utilizando LocalDevVPN. |
-| ⏳ **Avisos de SideStore (experimental)** | Contador de caducidad en Isla Dinámica desde ocho horas antes, aviso a una hora y prueba manual de tres minutos. |
+| 🏠 **A familiar Home Screen** | iPhone-style pages, Dock, folders, App Library, search, and drag-and-drop icon arrangement. |
+| 📲 **App installation and management** | Dedicated **SideStore** and **Install App** shortcuts on the Home Screen, plus guest-app management through LiveContainer. |
+| 🎨 **Personalization** | Liquid Glass panels, light/dark appearances, **Original, Dark, Clear, and Tinted** icon styles, adjustable colors, and icon sizes. |
+| 🌌 **Animated wallpapers** | Looping GIFs and silent MP4/MOV video backgrounds, with pause, fit, and dimming controls. |
+| 🧩 **Built-in widgets** | Clock, Photos, and Notes widgets across multiple pages, with controls to add, move, or remove them. |
+| 📁 **File management** | Import, search, preview, organize, copy, move, rename, share, and restore files from BloomBox's own trash. |
+| 🛠️ **Tools and tweaks** | Convenient access to a dedicated tweaks section and management tools without cluttering the Home Screen. Available features depend on each tweak's compatibility. |
+| ⚡ **Built-in JIT (experimental)** | On-device pairing assistance and JIT preparation for **guest apps**, using LocalDevVPN. |
+| ⏳ **SideStore expiry reminders (experimental)** | An eight-hour Dynamic Island countdown, a one-hour notification, and a manual three-minute test. |
 
-**Lo importante:** abrir una app, instalar algo o cambiar el fondo debe sentirse como una acción cotidiana, no como configurar una herramienta de desarrollo.
+**The idea:** Launching an app, installing something new, or changing your wallpaper should feel like a normal part of using your phone — not a development project.
 
-## 🧭 Nuestra filosofía: simple por fuera, potente por dentro
+## 🧭 Our philosophy: simple on the outside, powerful on the inside
 
-BloomBox se diseña en torno a cinco ideas:
+We build BloomBox around five principles:
 
-1. **Un toque antes que diez menús.** Acciones como *Instalar app* y *SideStore* deben estar a la vista.
-2. **JIT sin enredos.** Un flujo guiado que explique solo lo necesario; los diagnósticos y ajustes avanzados quedan para quien los necesite.
-3. **Tweaks más accesibles.** Encontrar, gestionar y entender la compatibilidad de los tweaks sin obligar a navegar por opciones técnicas.
-4. **Personalización sin romper nada.** Fondos animados, iconos, widgets, temas y páginas que puedas cambiar o revertir con facilidad.
-5. **Cuidar tus apps y tus datos.** Distinguir *Quitar del inicio* de *Desinstalar*, conservar ajustes al actualizar y avisar antes de operaciones riesgosas.
+1. **One tap beats ten menus.** Common actions such as *Install App* and *SideStore* should be easy to find.
+2. **JIT without the headache.** Guide users through essential steps, while keeping diagnostics and advanced options available when needed.
+3. **Approachable tweaks.** Help people find, manage, and understand tweak compatibility without requiring technical expertise.
+4. **Personalization without breaking things.** Make it easy to try wallpapers, icons, widgets, themes, and layouts — and undo changes.
+5. **Respect apps and user data.** Clearly separate *Remove from Home Screen* from *Uninstall*, preserve settings when possible, and warn before destructive actions.
 
-El objetivo no es quitar posibilidades: **es hacerlas fáciles de usar**.
+The goal isn't to remove advanced capabilities. **It's to make them easier to use.**
 
-## 📱 Instalación
+## 📱 Installation
 
-1. Entra a [GitHub Actions de BloomBox](https://github.com/adri23rep-stack/BloomBox/actions/workflows/build.yml).
-2. Abre la compilación **BloomBox - Build** más reciente que aparezca como exitosa.
-3. Descarga el artefacto **`BloomBox-SideStore-unsigned.ipa`**.
-4. Instala y firma la IPA con SideStore, **conservando las extensiones** incluidas.
+1. Open [BloomBox's GitHub Actions builds](https://github.com/adri23rep-stack/BloomBox/actions/workflows/build.yml).
+2. Select the latest successful **BloomBox - Build** workflow run.
+3. Download the **`BloomBox-SideStore-unsigned.ipa`** artifact.
+4. Sign and install the IPA with SideStore, **keeping its bundled app extensions**.
 
-> **Antes de actualizar:** respalda tus datos. Si vienes de Manzana, intenta mantener el mismo identificador de app, equipo y cuenta de firma para evitar perder acceso a los datos existentes. La IPA de Actions **no viene firmada**.
+> **Before updating:** Back up your data. When migrating from Manzana, keep the same app bundle identifier, signing team, and account where compatible to help preserve existing app data. GitHub Actions produces an **unsigned IPA**.
 
-## 🧪 Funciones experimentales y límites
+## 🧪 Experimental features and limitations
 
-- **JIT en el dispositivo:** existe un flujo de emparejamiento y preparación, pero **que la compilación sea exitosa no demuestra que JIT funcione en un iPhone real**. Se debe probar el emparejamiento, LocalDevVPN, la preparación y la ejecución de una app invitada por separado. No activa JIT para aplicaciones instaladas fuera de BloomBox. [Detalles](docs/Manzana-OnDevice-JIT.md).
-- **Isla Dinámica:** la actividad de caducidad usa información compartida por SideStore; puede requerir permisos, extensiones conservadas y abrir BloomBox tras renovar. **No renueva ni firma apps automáticamente.** Su comportamiento real sigue en pruebas. [Detalles](docs/Manzana-SideStore-8h-LiveActivity.md).
-- **Widgets:** por ahora son widgets propios de BloomBox. **No se pueden insertar directamente los widgets WidgetKit de cualquier app de terceros** ni colocarlos libremente en cada hueco entre iconos. [Detalles](docs/WIDGETS-PAGES-ICON-STYLES.md).
-- **Archivos y apps:** BloomBox administra su propio espacio y las apps invitadas; **no sustituye la pantalla de inicio del sistema (SpringBoard)** ni ofrece acceso sin permisos a archivos o apps privadas de iOS. [Detalles](docs/MANZANA-FILES.md).
-- **Fondos animados:** los videos se reproducen silenciados y la reproducción se pausa cuando corresponde para limitar consumo. [Detalles](docs/ANIMATED-WALLPAPERS.md).
+- **On-device JIT:** The pairing and preparation flows are included, but **a successful build does not prove JIT works on a real iPhone**. Pairing, LocalDevVPN, device preparation, and JIT attachment to a guest app each need device testing. It does not enable JIT for unrelated apps installed outside BloomBox. [Technical notes](docs/Manzana-OnDevice-JIT.md).
+- **Dynamic Island:** Expiration reminders depend on data shared by SideStore, compatible signing and extensions, permissions, and reopening BloomBox after renewals. **BloomBox does not automatically renew or sign apps.** Real-device behavior still needs validation. [Technical notes](docs/Manzana-SideStore-8h-LiveActivity.md).
+- **Widgets:** BloomBox currently offers its own built-in widgets. **Third-party apps' native WidgetKit widgets are not directly supported**, and free placement between individual icons is not yet available. [Current behavior](docs/WIDGETS-PAGES-ICON-STYLES.md).
+- **Files and guest apps:** BloomBox manages its own document space and hosted apps. It **does not replace iOS SpringBoard** or bypass iOS permissions to access other apps' private files. [File management notes](docs/MANZANA-FILES.md).
+- **Animated wallpapers:** Video backgrounds are muted, and playback pauses when appropriate to help manage resource usage. [Wallpaper notes](docs/ANIMATED-WALLPAPERS.md).
 
-## 🚀 Hacia dónde vamos
+## 🚀 What's next?
 
-- **Instalación todavía más directa:** reunir importación, instalación, administración y actualizaciones en flujos claros.
-- **JIT guiado:** comprobar requisitos, mostrar fallos entendibles y reducir pasos manuales cuando iOS lo permita.
-- **Tweaks fáciles de manejar:** explicar requisitos y compatibilidad antes de aplicarlos y facilitar el regreso a una configuración estable.
-- **Escritorio más flexible:** widgets en posiciones libres, mejores gestos, organización de páginas y más opciones visuales.
-- **Una experiencia para todos:** velocidad, accesibilidad, mensajes sencillos y ajustes avanzados fuera del camino del usuario común.
+- **Even simpler app installation:** Bring importing, installation, management, and updates into straightforward flows.
+- **Guided JIT:** Check requirements, show understandable errors, and reduce manual steps where iOS allows it.
+- **Easier tweak management:** Explain requirements and compatibility before applying changes, with a clear way to return to a stable setup.
+- **More flexible Home Screen:** Freely positioned widgets, smoother gestures, better page organization, and additional customization.
+- **An experience for everyone:** Fast, accessible interactions, plain-language messages, and advanced settings that stay out of the way until you need them.
 
-Estas son **metas**, no funciones que deban considerarse terminadas.
+These are **development goals**, not promises that every feature is finished or supported on all devices.
 
-## 🌱 Acerca del proyecto
+## 🌱 About BloomBox
 
-BloomBox evolucionó de **Manzana** y ahora tiene [su propio repositorio](https://github.com/adri23rep-stack/BloomBox). Conserva bases y componentes derivados de [Strata](https://github.com/huzaifahshahid71-ops/Strata) y [LiveContainer](https://github.com/LiveContainer/LiveContainer), entre otros. No es una aplicación escrita completamente desde cero.
+BloomBox evolved from **Manzana** and now lives in [its own repository](https://github.com/adri23rep-stack/BloomBox). It builds on earlier open-source work including [Strata](https://github.com/huzaifahshahid71-ops/Strata) and [LiveContainer](https://github.com/LiveContainer/LiveContainer). It is an independently maintained derivative, **not a project written entirely from scratch**.
 
-Algunos nombres internos siguen siendo `Manzana`, `Strata` o `LiveContainer` por compatibilidad con código, preferencias y datos anteriores; la aplicación se presenta como **BloomBox**. Consulta [la migración](BLOOMBOX_MIGRATION.md).
+Some internal names such as `Manzana`, `Strata`, and `LiveContainer` remain for compatibility with older settings, code paths, and guest-app data. The app's public name is **BloomBox**. See the [migration notes](BLOOMBOX_MIGRATION.md).
 
-**Código abierto · [AGPL-3.0](LICENSE)**. Los componentes de terceros mantienen sus propias licencias; consulta los [créditos y avisos](THIRD_PARTY_NOTICES.md).
+**Open source · [AGPL-3.0](LICENSE)**. Third-party components retain their applicable licenses. See [credits and third-party notices](THIRD_PARTY_NOTICES.md).
 
 ---
 
-**BloomBox 🌸 — Menos configuración. Más disfrutar tu iPhone.**
+**BloomBox 🌸 — Less configuring. More enjoying your iPhone.**
