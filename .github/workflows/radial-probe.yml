@@ -1,6 +1,12 @@
 name: BloomBox Radial Probe - LiveContainer IPA
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'BloomBoxRadialProbe/**'
+      - '.github/workflows/radial-probe.yml'
   push:
     branches:
       - experiments/radial-control-probe
