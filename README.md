@@ -1,50 +1,26 @@
-# Strata
+# BloomBox 🌸
 
-> **Session navigation preview:** compilación Xcode y paquete con SideStore verificados; pendiente prueba en iPhone. Ver [estado](docs/SESSION-NAVIGATION.md). Las verificaciones históricas de abajo corresponden al autor original.
+**BloomBox** is an independently maintained iOS launcher and application container, evolved from Manzana. It includes an iPhone-style desktop, Liquid Glass, customizable app icons, pages and widgets, video/GIF wallpapers, file management, experimental guest-app JIT, and SideStore expiration alerts in the Dynamic Island.
 
-A customizable launcher built on [LiveContainer](https://github.com/LiveContainer/LiveContainer), with three interface modes and bundled SideStore support.
+## Features
 
-<p align="center"><img src="Resources/Assets.xcassets/AppIcon.appiconset/AppIcon1024.png" width="160" alt="Strata icon"></p>
+- Home screen with folders, widgets, drag-and-drop controls and page management
+- Liquid Glass panels, customizable icons, themes and a new bloom-and-box icon
+- Animated GIF and silent looping video wallpapers
+- Integrated app and file management, using LiveContainer technology
+- Experimental iOS 27 on-device JIT pairing for guest apps using LocalDevVPN
+- Eight-hour SideStore expiration Live Activity and a manual three-minute test
 
-## Three ways to browse your apps
+## Installation
 
-- **iOS Home Screen:** portrait layout, wallpaper, pages, folders, dock favorites, search, and glass controls.
-- **Cinematic:** landscape console interface with a horizontal app rail, backgrounds, and controller navigation.
-- **Big Picture:** landscape library with portrait artwork, categories, and adjustable cover sizes.
+Open [BloomBox Actions](https://github.com/adri23rep-stack/BloomBox/actions), select the latest successful **BloomBox - Build** run, and download the **BloomBox-SideStore-unsigned.ipa** artifact. Sign with SideStore, retaining app extensions and the same bundle ID, team and account if updating a compatible Manzana install. Back up app data before reinstalling or changing signing accounts.
 
-Rename apps, choose custom icons from Photos, manage categories, and hide or restore apps separately in each mode. Console modes have separate artwork and layout preferences, adjustable Play buttons, and movable launch controls. Guest apps continue to use LiveContainer's registry and execution engine.
+JIT compatibility and Live Activities still require tests on your physical iPhone; successful compilation does not prove on-device support.
 
-## Download and install
+## Source compatibility
 
-Find the latest IPA under [Releases](https://github.com/huzaifahshahid71-ops/Strata/releases). Revision 11 is an **experimental prerelease**.
+BloomBox is now developed in this repository, not the former Manzana fork. Legacy internal names such as `ManzanaExpiryWidget`, `Strata*` and `LiveContainer*` are retained **where necessary** so existing user preferences, signing setup and guest-app data can remain compatible. New app display branding is **BloomBox**.
 
-Sign and install the IPA with SideStore. When updating an existing compatible combined installation, keep the current app and choose **Keep App Extensions**. Use the same signing account and app identity to preserve the existing container. Back up important guest data before changing installations. The download does not include personal certificates or pairing records.
+## License and credits
 
-## JIT and 32-bit apps: current status
-
-The built-in JIT workflow uses StikJIT with an imported device pairing record, LocalDevVPN, Developer Mode, and suitable signing permissions. **Prepare device has passed on the test iPhone; actual guest JIT is not yet working in that test.** Revision 10 returned debugger attach error `E96`. Revision 11 requests a detailed error response to diagnose the rejection. It is not advertised as a working JIT fix.
-
-The bundled official LiveExec32 nightly runtime installs through LiveContainer's normal guest installation path when needed. **LiveExec32 still requires JIT.** Bundling it does not create a JIT-less 32-bit interpreter, and compatibility depends on the upstream runtime.
-
-## Build from source
-
-```sh
-git clone --recurse-submodules https://github.com/huzaifahshahid71-ops/Strata.git
-cd Strata
-python3 Scripts/fetch-bundled-dependencies.py
-xcodebuild -project LiveContainer.xcodeproj -scheme LiveContainer \
-  -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
-  CODE_SIGNING_ALLOWED=NO build
-```
-
-Use a compatible Xcode 26 or newer installation with the iPhoneOS SDK. The target remains named LiveContainer. The postbuild step assembles the dedicated JIT helper and copies the bundled runtime. An unsigned build must be signed before installation. The downloadable combined prerelease preserves the supplied LiveContainer 3.8.11 runtime and original SideStore extensions; a fresh source build is not byte-identical to that assembly.
-
-Automated upstream release workflows are retained for reference but are manual-only in this fork. They have not been validated for publishing Strata builds. See [upstream documentation](docs/LiveContainer-Upstream.md) for execution architecture and dependencies.
-
-## Verification
-
-The revision 11 arm64 release build and six debugger-script regression cases pass. Earlier targeted iPhone/iPad simulator checks cover Home editing, mode separation, rename persistence, cover and Play-button sizing, positioning, and persistent JIT status. These checks do not establish successful live guest JIT, universal 32-bit compatibility, or physical-controller performance.
-
-## Credits and licenses
-
-This is a community modification, not an official LiveContainer, SideStore, Apple, PlayStation, or Steam release. LiveContainer and Strata modifications retain the repository's [AGPL-3.0 license](LICENSE). See [third-party notices](THIRD_PARTY_NOTICES.md) for StikJIT, idevice, LiveExec32, and other upstream components. The Strata icon adapts the project owner's supplied design. Existing Apple Music artwork used by the ByeTunes presentation override remains attributable to Apple.
+BloomBox is a separate GitHub project, not code written from scratch. Its Git history and copyright notices are preserved from [Manzana](https://github.com/adri23rep-stack/Manzana), with original foundations from [Strata](https://github.com/huzaifahshahid71-ops/Strata) and [LiveContainer](https://github.com/LiveContainer/LiveContainer). It remains under the source [AGPL-3.0 license](LICENSE). Husk pairing components are under their stated GPL-2.0-or-later license. See [third-party notices](THIRD_PARTY_NOTICES.md).

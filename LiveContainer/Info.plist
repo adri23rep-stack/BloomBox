@@ -11,7 +11,7 @@
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDisplayName</key>
-	<string>Manzana</string>
+	<string>BloomBox</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -36,7 +36,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Manzana</string>
+	<string>BloomBox</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -176,7 +176,7 @@
 	<key>NSIdentityUsageDescription</key>
 	<string>The guest app is requesting for this permission.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Manzana utiliza la red local para emparejar este iPhone y habilitar JIT en aplicaciones ejecutadas dentro de Manzana.</string>
+	<string>BloomBox utiliza la red local para emparejar este iPhone y habilitar JIT en aplicaciones ejecutadas dentro de BloomBox.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>The guest app is requesting for this permission.</string>
 	<key>NSLocationDefaultAccuracyReduced</key>

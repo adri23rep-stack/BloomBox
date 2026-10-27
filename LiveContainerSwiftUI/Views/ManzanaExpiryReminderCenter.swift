@@ -28,7 +28,7 @@ final class ManzanaExpiryReminderCenter: ObservableObject {
 
     func startDemo() async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            demoMessage = "Las Actividades en vivo están desactivadas. Actívalas en Ajustes → Manzana → Actividades en vivo."
+            demoMessage = "Las Actividades en vivo están desactivadas. Actívalas en Ajustes → BloomBox → Actividades en vivo."
             demonstrationActive = false
             return
         }
@@ -36,7 +36,7 @@ final class ManzanaExpiryReminderCenter: ObservableObject {
         do {
             let expiry = Date().addingTimeInterval(180)
             let state = ManzanaExpiryAttributes.ContentState(
-                expiresAt: expiry, earliestAppName: "Prueba de Manzana", expiringAppCount: 1
+                expiresAt: expiry, earliestAppName: "Prueba de BloomBox", expiringAppCount: 1
             )
             _ = try Activity<ManzanaExpiryAttributes>.request(
                 attributes: ManzanaExpiryAttributes(source: "Manzana-demo"),
@@ -44,7 +44,7 @@ final class ManzanaExpiryReminderCenter: ObservableObject {
                 pushType: nil
             )
             demonstrationActive = true
-            demoMessage = "Prueba activa durante 3 minutos. Sal de Manzana para comprobar la Isla Dinámica; mantén pulsada la isla para expandirla."
+            demoMessage = "Prueba activa durante 3 minutos. Sal de BloomBox para comprobar la Isla Dinámica; mantén pulsada la isla para expandirla."
         } catch {
             demonstrationActive = false
             demoMessage = "No se pudo iniciar la prueba: \(error.localizedDescription)"
@@ -100,7 +100,7 @@ final class ManzanaExpiryReminderCenter: ObservableObject {
         }
 
         guard let snapshot = readSnapshot() else {
-            status = "SideStore aún no ha publicado widget_data.json en el App Group compartido. Abre SideStore, actualiza su información y vuelve a Manzana."
+            status = "SideStore aún no ha publicado widget_data.json en el App Group compartido. Abre SideStore, actualiza su información y vuelve a BloomBox."
             // Preserve existing reminders when the snapshot is temporarily unavailable.
             return
         }
@@ -151,14 +151,14 @@ final class ManzanaExpiryReminderCenter: ObservableObject {
                         content: content, pushType: nil
                     )
                 } else if #available(iOS 26.0, *) {
-                    // The OS will start this even if Manzana is no longer open.
+                    // The OS will start this even if BloomBox is no longer open.
                     _ = try Activity<ManzanaExpiryAttributes>.request(
                         attributes: ManzanaExpiryAttributes(source: "SideStore"),
                         content: content,
                         pushType: nil,
                         style: .standard,
                         alertConfiguration: AlertConfiguration(
-                            title: "Manzana · SideStore",
+                            title: "BloomBox · SideStore",
                             body: "Quedan 8 horas para renovar tus apps.",
                             sound: .default
                         ),
@@ -205,7 +205,7 @@ final class ManzanaExpiryReminderCenter: ObservableObject {
             let intended = expiry.addingTimeInterval(-offset)
             guard intended > now else { continue }
             let content = UNMutableNotificationContent()
-            content.title = "🍎 Manzana · SideStore"
+            content.title = "🍎 BloomBox · SideStore"
             content.body = identifier == "8h"
                 ? "Quedan 8 horas para que caduque \(appName). Abre SideStore y renueva."
                 : "¡Última hora! Refresca tus aplicaciones en SideStore."
@@ -218,7 +218,7 @@ final class ManzanaExpiryReminderCenter: ObservableObject {
                 content: content,
                 trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             )) { error in
-                if let error { NSLog("[Manzana expiry] Could not schedule reminder: %@", error.localizedDescription) }
+                if let error { NSLog("[BloomBox expiry] Could not schedule reminder: %@", error.localizedDescription) }
             }
         }
     }

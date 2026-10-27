@@ -20,13 +20,13 @@ struct LiveBoardJITSetup: View {
                 if provider == JITEnablerType.BuiltIn.rawValue {
                     if ManzanaOnDevicePairing.isSupported {
                         Section("Pair on this iPhone (iOS 27)") {
-                            Text("One-time setup. Manzana acts like a local computer so your iPhone can pair with it without a PC. Wi-Fi and Local Network permission are required.")
+                            Text("One-time setup. BloomBox acts like a local computer so your iPhone can pair with it without a PC. Wi-Fi and Local Network permission are required.")
                                 .font(.footnote)
-                            Text("1. Tap Start pairing.\n2. Open iPhone Settings → Privacy & Security → Developer Mode.\n3. Tap Pair with Manzana and enter the code shown here (also in a notification).\n4. Return to Manzana.")
+                            Text("1. Tap Start pairing.\n2. Open iPhone Settings → Privacy & Security → Developer Mode.\n3. Tap Pair with BloomBox and enter the code shown here (also in a notification).\n4. Return to BloomBox.")
                                 .font(.footnote)
                             switch pairing.phase {
                             case .idle:
-                                Button("Start pairing with Manzana") { pairing.start() }
+                                Button("Start pairing with BloomBox") { pairing.start() }
                             case .waiting:
                                 Label("Waiting for iOS to connect…", systemImage: "antenna.radiowaves.left.and.right")
                                 Button("Cancel pairing", role: .cancel) { pairing.cancel() }
@@ -44,7 +44,7 @@ struct LiveBoardJITSetup: View {
                                 Button("Retry pairing") { pairing.reset(); pairing.start() }
                             }
                             if pairing.backgroundLimited && pairing.active {
-                                Text("iOS limited background time for this installation. Open Settings right away before Manzana is suspended.")
+                                Text("iOS limited background time for this installation. Open Settings right away before BloomBox is suspended.")
                                     .font(.footnote).foregroundStyle(.orange)
                             }
                             Button("Open iPhone Settings") {
@@ -65,7 +65,7 @@ struct LiveBoardJITSetup: View {
                         }
                         Text("Enable Developer Mode in Settings. Connect your existing LocalDevVPN before Prepare device or Launch with JIT; SideStore can keep using the same VPN. The first launch may download a developer disk image.")
                         Label(LCUtils.strataCanDebug() ? "Debugging permission available" : "Re-signing required: debugging permission missing", systemImage: LCUtils.strataCanDebug() ? "checkmark.shield" : "exclamationmark.shield")
-                        Text("JIT applies only to guests installed inside Manzana, not other iPhone apps. It runs through LiveProcess, and some guest engines need a matching iOS 27 JIT script. Keep extensions when updating.").foregroundStyle(.secondary)
+                        Text("JIT applies only to guests installed inside BloomBox, not other iPhone apps. It runs through LiveProcess, and some guest engines need a matching iOS 27 JIT script. Keep extensions when updating.").foregroundStyle(.secondary)
                     }
                     Section("Connection check") {
                         Button("Prepare device") { perform("prepare") }.disabled(session.busy || !hasPairing)
@@ -81,7 +81,7 @@ struct LiveBoardJITSetup: View {
                         if !session.message.isEmpty { Text(session.message).font(.footnote).textSelection(.enabled).accessibilityIdentifier("jit.status") }
                     }
                     Section("Launch") {
-                        Text("Touch and hold an app, or open its console options, and choose Launch with JIT. Strata prepares the device and connects its helper automatically. Errors appear in the launch window.")
+                        Text("Touch and hold an app, or open its console options, and choose Launch with JIT. BloomBox prepares the device and connects its helper automatically. Errors appear in the launch window.")
                     }
                 } else {
                     Section("External provider") {

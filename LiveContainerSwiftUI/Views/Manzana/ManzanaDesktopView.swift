@@ -19,7 +19,7 @@ struct ManzanaDesktopView: View {
     }
     private var photoURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Manzana", isDirectory: true).appendingPathComponent("widget-photo.jpg")
+            .appendingPathComponent("BloomBox", isDirectory: true).appendingPathComponent("widget-photo.jpg")
     }
     var body: some View {
         Group {
@@ -28,7 +28,7 @@ struct ManzanaDesktopView: View {
             VStack(spacing: 16) {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Manzana").font(.largeTitle.bold())
+                        Text("BloomBox").font(.largeTitle.bold())
                         Text("Tu escritorio").font(.subheadline).foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -185,7 +185,7 @@ struct ManzanaWidgetGallery: View {
     }
     private var photoURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Manzana", isDirectory: true)
+            .appendingPathComponent("BloomBox", isDirectory: true)
             .appendingPathComponent("widget-photo.jpg")
     }
 

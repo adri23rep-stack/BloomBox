@@ -1,3 +1,5 @@
+BloomBox retains the original upstream copyright and third-party notices. This independent repository is a derivative of Manzana, Strata and LiveContainer under their respective licenses.
+
 # Third-party notices
 
 - LiveContainer: https://github.com/LiveContainer/LiveContainer — AGPL-3.0; source base bdc07ed9d0fce19f79db78a4a1015d67d4312597. The upstream license is retained; the source base is identified above.

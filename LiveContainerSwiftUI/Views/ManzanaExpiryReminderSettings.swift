@@ -16,7 +16,7 @@ struct ManzanaExpiryReminderSettings: View {
             } header: {
                 Text("SideStore")
             } footer: {
-                Text("Al activarlo, Manzana intenta programar una Live Activity que empezará cuando falten ocho horas para la caducidad de la primera app. iOS controla si la Isla Dinámica se muestra.")
+                Text("Al activarlo, BloomBox intenta programar una Live Activity que empezará cuando falten ocho horas para la caducidad de la primera app. iOS controla si la Isla Dinámica se muestra.")
             }
 
             Section("Probar Isla Dinámica") {
@@ -66,9 +66,9 @@ struct ManzanaExpiryReminderSettings: View {
             }
 
             Section {
-                Text("Las fechas proceden de widget_data.json, publicado por SideStore en el App Group compartido. Manzana no modifica su base de datos ni refresca las firmas automáticamente.")
+                Text("Las fechas proceden de widget_data.json, publicado por SideStore en el App Group compartido. BloomBox no modifica su base de datos ni refresca las firmas automáticamente.")
                     .font(.footnote)
-                Text("Al refrescar tus apps, vuelve a Manzana para sincronizar la nueva fecha y cancelar el contador anterior. Si faltan datos, la función no inventará fechas.")
+                Text("Al refrescar tus apps, vuelve a BloomBox para sincronizar la nueva fecha y cancelar el contador anterior. Si faltan datos, la función no inventará fechas.")
                     .font(.footnote)
             }
         }

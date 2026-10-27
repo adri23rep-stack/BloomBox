@@ -16,7 +16,7 @@ struct ManzanaExpiryLiveActivity: Widget {
             HStack(spacing: 12) {
                 Image(systemName: "apple.logo").font(.title2).foregroundStyle(.orange)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Manzana · SideStore").font(.headline)
+                    Text("BloomBox · SideStore").font(.headline)
                     Text("Renueva tus apps antes de que caduquen")
                         .font(.caption).foregroundStyle(.secondary)
                     if context.state.expiringAppCount > 1 {
@@ -35,7 +35,7 @@ struct ManzanaExpiryLiveActivity: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Label("Manzana", systemImage: "apple.logo").font(.headline)
+                    Label("BloomBox", systemImage: "apple.logo").font(.headline)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     Text(context.state.expiresAt, style: .timer)

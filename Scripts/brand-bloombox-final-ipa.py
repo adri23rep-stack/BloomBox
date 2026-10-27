@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Brand an entirely NEW Manzana IPA, preserving the latest native JIT + WidgetKit.
+"""Brand an entirely NEW BloomBox IPA, preserving the latest native JIT + WidgetKit.
 
 This post-processing step does not overlay an old Strata donor app. It modifies
 only localized display names and icon PNGs inside the freshly compiled app.
@@ -19,8 +19,8 @@ ICON_FILES = ("AppIcon60x60@2x.png", "AppIcon76x76@2x~ipad.png")
 def translated_name(data: bytes) -> bytes:
     binary = data.startswith(b"bplist00")
     values = plistlib.loads(data)
-    values["CFBundleName"] = "Manzana"
-    values["CFBundleDisplayName"] = "Manzana"
+    values["CFBundleName"] = "BloomBox"
+    values["CFBundleDisplayName"] = "BloomBox"
     return plistlib.dumps(values, fmt=plistlib.FMT_BINARY if binary else plistlib.FMT_XML)
 
 
@@ -30,7 +30,7 @@ def brand(ipa: pathlib.Path, assets: pathlib.Path):
         icon = assets / name
         data = icon.read_bytes()
         if not data.startswith(b"\x89PNG\r\n\x1a\n"):
-            raise ValueError(f"Manzana RGB icon missing/invalid: {icon}")
+            raise ValueError(f"BloomBox RGB icon missing/invalid: {icon}")
         new_icons[ROOT + name] = data
     fd, tmp = tempfile.mkstemp(prefix="manzana-build-", suffix=".ipa", dir=str(ipa.parent))
     os.close(fd)
@@ -54,15 +54,15 @@ def brand(ipa: pathlib.Path, assets: pathlib.Path):
             if check.testzip() is not None:
                 raise ValueError("Corrupt branded IPA")
             info = plistlib.loads(check.read(ROOT + "Info.plist"))
-            if info.get("CFBundleDisplayName") != "Manzana" or info.get("CFBundleName") != "Manzana":
-                raise ValueError("Strata branding unexpectedly remained in the IPA")
+            if info.get("CFBundleDisplayName") != "BloomBox" or info.get("CFBundleName") != "BloomBox":
+                raise ValueError("BloomBox branding is missing in the IPA")
             if not info.get("NSSupportsLiveActivities"):
                 raise ValueError("ActivityKit disabled in final host Info.plist")
             for name, data in new_icons.items():
                 if name in check.namelist() and check.read(name) != data:
-                    raise ValueError("Manzana RGB icon missing in final app")
+                    raise ValueError("BloomBox RGB icon missing in final app")
         os.replace(tmp, ipa)
-        print("Verified Manzana display name, localized names, RGB icon, live activities and original compiled app.")
+        print("Verified BloomBox display name, localized names, RGB icon, live activities and original compiled app.")
     finally:
         if os.path.exists(tmp):
             os.unlink(tmp)

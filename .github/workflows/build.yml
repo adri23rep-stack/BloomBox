@@ -1,11 +1,10 @@
-name: Xcode - Build
+name: BloomBox - Build
 
 on:
   push:
     branches:
-      - feature/jit-ios27-localdevvpn-pairing
-      - feature/dynamic-island-sidestore-8h
-      - feature/manzana-v011-jit-expiry-8h
+      - main
+      - migration/import-full-source
   workflow_dispatch:
     inputs: 
       release__nightly:
@@ -39,10 +38,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-ios
-      - name: Compile Manzana on-device pairing library
+      - name: Compile BloomBox on-device pairing library
         run: bash Scripts/build-ondevice-pairing.sh
-      - name: Render Manzana RGB icon before compiling
-        run: swift Scripts/generate-manzana-icon.swift
+      - name: Render BloomBox icon before compiling
+        run: swift Scripts/generate-bloombox-icon.swift
       - name: Set Scheme
         id: scheme
         run: |
@@ -83,12 +82,12 @@ jobs:
         run: |
           sh .github/build_github.sh
 
-      - name: Preserve Manzana branding in freshly compiled IPA
+      - name: Preserve BloomBox branding in freshly compiled IPA
         run: |
-          python3 Scripts/brand-manzana-final-ipa.py "LiveContainer+SideStore.ipa"
-          python3 Scripts/brand-manzana-final-ipa.py "LiveContainer.ipa"
+          python3 Scripts/brand-bloombox-final-ipa.py "LiveContainer+SideStore.ipa"
+          python3 Scripts/brand-bloombox-final-ipa.py "LiveContainer.ipa"
       - name: Verify Dynamic Island + SideStore IPA contents
-        run: python3 Scripts/verify-manzana-ipa.py "LiveContainer+SideStore.ipa"
+        run: python3 Scripts/verify-bloombox-ipa.py "LiveContainer+SideStore.ipa"
 
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v7
@@ -96,6 +95,13 @@ jobs:
           name: ${{ env.scheme }}.ipa
           path: ${{ env.scheme }}.ipa
       
+      - name: Prepare BloomBox installer artifact
+        run: cp LiveContainer+SideStore.ipa BloomBox-SideStore-unsigned.ipa
+      - name: Upload BloomBox IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: BloomBox-SideStore-unsigned.ipa
+          path: BloomBox-SideStore-unsigned.ipa
       - name: Upload LiveContainer+SideStore
         uses: actions/upload-artifact@v7
         with:
@@ -106,7 +112,7 @@ jobs:
     name: Nightly Release
     permissions:
       contents: write
-    if: inputs.release__nightly || github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    if: inputs.release__nightly
     runs-on: ubuntu-latest
     needs: [build]
     concurrency:

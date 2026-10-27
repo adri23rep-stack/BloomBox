@@ -193,7 +193,7 @@ struct LCSettingsView: View {
                 }
                 
                 if #available(iOS 16.2, *) {
-                    Section("Manzana · SideStore") {
+                    Section("BloomBox · SideStore") {
                         NavigationLink {
                             ManzanaExpiryReminderSettings()
                         } label: {
