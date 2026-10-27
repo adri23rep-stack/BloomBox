@@ -55,7 +55,7 @@ struct ShareExtensionRootView: View {
             } message: {
                 Text(viewModel.errorMessage ?? "")
             }
-            .navigationTitle(Text("LiveContainer"))
+            .navigationTitle(Text("BloomBox"))
             .navigationBarTitleDisplayMode(.inline)
         }
     }
@@ -66,7 +66,8 @@ struct ShareExtensionRootView: View {
                 .font(.headline)
             LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
                 if showsInstallAction {
-                    ShareInstallGridEntry(viewModel: viewModel, extensionContext: extensionContext)
+                    ShareInstallGridEntry(viewModel: viewModel, extensionContext: extensionContext, sideStore: false)
+                    ShareInstallGridEntry(viewModel: viewModel, extensionContext: extensionContext, sideStore: true)
                 }
                 if apps.isEmpty && !showsInstallAction {
                     ShareSuggestedPlaceholderLabel()
@@ -190,19 +191,26 @@ private struct ShareAppGridLabel: View {
 private struct ShareInstallGridEntry: View {
     @ObservedObject var viewModel: ShareExtensionViewModel
     let extensionContext: NSExtensionContext?
+    let sideStore: Bool
 
     var body: some View {
         Button {
-            Task { await viewModel.installSharedFileInLiveContainer(context: extensionContext) }
+            Task {
+                if sideStore {
+                    await viewModel.installSharedFileInSideStore(context: extensionContext)
+                } else {
+                    await viewModel.installSharedFileInLiveContainer(context: extensionContext)
+                }
+            }
         } label: {
             VStack(spacing: 7) {
-                Image(systemName: "square.and.arrow.down")
+                Image(systemName: sideStore ? "iphone.gen3" : "square.and.arrow.down")
                     .font(.system(size: 25, weight: .semibold))
                     .frame(width: 52, height: 52)
                     .foregroundStyle(.primary)
                     .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 52 * 0.2667, style: .continuous))
-                Text("lc.common.install".loc)
+                Text(sideStore ? "SideStore" : "BloomBox")
                     .font(.caption)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
