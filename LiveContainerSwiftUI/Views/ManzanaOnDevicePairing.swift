@@ -48,6 +48,9 @@ import UserNotifications
     @Published private(set) var backgroundLimited = false
     /// Explain whether iOS actually accepted the background protection.
     @Published private(set) var backgroundStatus = "Not started"
+    // iOS may expire a background job even while the pairing listener is alive.
+    // A user-initiated retry can request a fresh job without rebuilding the host.
+    @Published private(set) var protectionRetryAvailable = false
 
     static var isSupported: Bool {
         ProcessInfo.processInfo.isOperatingSystemAtLeast(
@@ -70,6 +73,7 @@ import UserNotifications
     private var registration: DNSServiceRef?
     private var continued: AnyObject?            // BGContinuedProcessingTask (iOS 26+)
     private var registered: String?
+    private var continuedRequestPending = false
     private var grace: UIBackgroundTaskIdentifier = .invalid
     private var deadline: Timer?
 
@@ -87,6 +91,7 @@ import UserNotifications
         self.session = session
         phase = .waiting
         backgroundLimited = true
+        protectionRetryAvailable = false
         backgroundStatus = "Preparing background pairing protection…"
         log("started")
         requestNotifications()
@@ -127,7 +132,11 @@ import UserNotifications
         guard let session else { return }
         husk_rppairing_cancel(session)
         stopAdvertising()
+        deadline?.invalidate()
+        deadline = nil
         phase = reason.map(Phase.failed) ?? .idle
+        protectionRetryAvailable = false
+        endBackground(success: false)
         log(reason == nil ? "cancelled" : "stopped")
     }
 
@@ -246,6 +255,19 @@ import UserNotifications
         return String(wildcard.dropLast()) + "session"
     }
 
+    /// Allows retrying only when the previous request was refused or expired.
+    /// A fresh request is made in the foreground in direct response to a tap.
+    func retryBackgroundProtection() {
+        guard active, protectionRetryAvailable, UIApplication.shared.applicationState == .active else { return }
+        guard continued == nil && !continuedRequestPending else { return }
+        if #available(iOS 26.0, *) {
+            protectionRetryAvailable = false
+            backgroundLimited = true
+            backgroundStatus = "Requesting background protection again…"
+            submitContinued()
+        }
+    }
+
     private func beginBackground() {
         grace = UIApplication.shared.beginBackgroundTask(withName: "BloomBox pairing") {
             MainActor.assumeIsolated {
@@ -266,6 +288,7 @@ import UserNotifications
     private func submitContinued() {
         guard let identifier = taskIdentifier else {
             backgroundLimited = true
+            protectionRetryAvailable = true
             backgroundStatus = "Background task identifier is unavailable after signing."
             log("missing background task identifier")
             return
@@ -278,6 +301,7 @@ import UserNotifications
             guard ok else {
                 log("register refused")
                 backgroundLimited = true
+                protectionRetryAvailable = true
                 backgroundStatus = "iOS refused to register background pairing."
                 return
             }
@@ -285,14 +309,21 @@ import UserNotifications
         }
         let request = BGContinuedProcessingTaskRequest(identifier: identifier, title: "Pairing with BloomBox",
                                                        subtitle: "Settings › Privacy & Security › Developer Mode")
-        request.strategy = .fail
+        // .fail can reject immediately when the device is temporarily busy.
+        // The default .queue strategy lets iOS grant this user-initiated job
+        // when resources are available. The UI must wait for attach(), not submit().
+        request.strategy = .queue
         do {
             try BGTaskScheduler.shared.submit(request)
+            continuedRequestPending = true
             log("continued-processing submitted")
+            backgroundLimited = true
             backgroundStatus = "Waiting for iOS to activate background protection…"
         } catch {
+            continuedRequestPending = false
             log("continued-processing refused: \(error.localizedDescription)")
             backgroundLimited = true
+            protectionRetryAvailable = true
             backgroundStatus = "iOS refused background protection: \(error.localizedDescription)"
         }
     }
@@ -301,6 +332,8 @@ import UserNotifications
     private func attach(_ task: BGContinuedProcessingTask) {
         guard active else { task.setTaskCompleted(success: false); return }
         continued = task
+        continuedRequestPending = false
+        protectionRetryAvailable = false
         backgroundLimited = false
         backgroundStatus = "Background protection active. Open iPhone Settings and select Pair with BloomBox."
         // Host listening + Bonjour advertising are already complete.
@@ -317,8 +350,10 @@ import UserNotifications
                 // The short UIKit background allowance may still be valid:
                 // do not cancel a handshake while that grace period remains.
                 pairing.continued = nil
+                pairing.continuedRequestPending = false
                 pairing.backgroundLimited = true
-                pairing.backgroundStatus = "iOS ended the continuous task; using the short background grace period."
+                pairing.protectionRetryAvailable = UIApplication.shared.applicationState == .active
+                pairing.backgroundStatus = "iOS ended the continuous task. If you are in BloomBox, tap Retry background protection before opening Settings."
                 task.setTaskCompleted(success: false)
                 if pairing.grace == .invalid && pairing.active {
                     pairing.cancel(reason: "iOS stopped background pairing before a PIN arrived. "
@@ -330,6 +365,13 @@ import UserNotifications
     }
 
     private func endBackground(success: Bool) {
+        if #available(iOS 26.0, *) {
+            if continuedRequestPending, let identifier = taskIdentifier {
+                BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier)
+            }
+        }
+        continuedRequestPending = false
+        protectionRetryAvailable = false
         if #available(iOS 26.0, *), let task = continued as? BGContinuedProcessingTask {
             if success {
                 task.progress.completedUnitCount = task.progress.totalUnitCount
