@@ -67,7 +67,7 @@
     UIImageConfiguration *minimizeConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightMedium];
     minimizeImage = [minimizeImage imageWithConfiguration:minimizeConfig];
     UIBarButtonItem *minimizeButton = [[UIBarButtonItem alloc] initWithImage:minimizeImage style:UIBarButtonItemStylePlain target:self action:@selector(returnToLauncher)];
-    minimizeButton.tintColor = [UIColor systemYellowColor];
+    minimizeButton.tintColor = [UIColor labelColor];
     
     NSString *maximizeImageName = _isMaximized ? @"arrow.down.right.and.arrow.up.left.circle" : @"arrow.up.left.and.arrow.down.right.circle";
     UIImage *maximizeImage = [UIImage systemImageNamed:maximizeImageName];
@@ -126,7 +126,18 @@
     navigationBar.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     UINavigationItem *navigationItem = [[UINavigationItem alloc] initWithTitle:self.title];
     navigationBar.items = @[navigationItem];
-    
+
+    // Keep the host controls light and translucent over dark or light guest apps.
+    UINavigationBarAppearance *glassAppearance = [[UINavigationBarAppearance alloc] init];
+    [glassAppearance configureWithTransparentBackground];
+    glassAppearance.backgroundEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterial];
+    glassAppearance.backgroundColor = [UIColor systemBackgroundColor];
+    glassAppearance.backgroundColor = [glassAppearance.backgroundColor colorWithAlphaComponent:0.25];
+    glassAppearance.shadowColor = [UIColor clearColor];
+    navigationBar.standardAppearance = glassAppearance;
+    navigationBar.scrollEdgeAppearance = glassAppearance;
+    navigationBar.compactAppearance = glassAppearance;
+
     self.view.axis = UILayoutConstraintAxisVertical;
     self.view.backgroundColor = UIColor.systemBackgroundColor;
     self.view.layer.cornerRadius = 10;
