@@ -137,19 +137,25 @@ struct LiveBoardHomeScreen: View {
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .blur(radius: openFolder == nil ? 0 : 18)
-                    // Preserve layout height when entering App Library; removing the
-                    // dock's entire VStack made the TabView suddenly jump.
+                    // Keep the space reserved to avoid jumping into App Library.
+                    // On the Widgets page only the page navigation remains visible:
+                    // the four app icons in the Dock should disappear completely.
                     VStack(spacing: 0) {
-                        pageControl.padding(.bottom, 18)
+                        pageControl
+                            .padding(.bottom, 18)
+                            .opacity(page == libraryPageIndex ? 0 : 1)
+                            .allowsHitTesting(page != libraryPageIndex)
+                            .accessibilityHidden(page == libraryPageIndex)
                         dock(width: geometry.size.width)
                             .padding(.horizontal, 12)
                             .padding(.bottom, -22)
                             .blur(radius: openFolder == nil ? 0 : 18)
+                            .opacity((page == 0 || page == libraryPageIndex) ? 0 : 1)
+                            .allowsHitTesting(page > 0 && page < libraryPageIndex)
+                            .accessibilityHidden(page == 0 || page == libraryPageIndex)
                     }
-                    .opacity(page == libraryPageIndex ? 0 : 1)
-                    .allowsHitTesting(page != libraryPageIndex)
-                    .accessibilityHidden(page == libraryPageIndex)
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.38), value: page == libraryPageIndex)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: page == 0)
                 }
                 .blur(radius: searching ? 14 : 0)
                 .allowsHitTesting(!searching)
