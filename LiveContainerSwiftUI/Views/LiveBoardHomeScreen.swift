@@ -126,20 +126,37 @@ struct LiveBoardHomeScreen: View {
                 background
                     .blur(radius: (searching || page == libraryPageIndex) ? 14 : 0)
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.38), value: page == libraryPageIndex)
-                VStack(spacing: 0) {
+                // Render every page in the full GeometryReader. The old VStack
+                // permanently reserved ~140pt for a Dock that is hidden on
+                // Widgets and App Library, leaving a blank strip and clipping
+                // the bottom rows of the library.
+                ZStack(alignment: .bottom) {
                     TabView(selection: $page) {
-                        ManzanaDesktopView(openSettings: { desktopSettings = true }).tag(0)
+                        ManzanaDesktopView(openSettings: { desktopSettings = true })
+                            .safeAreaInset(edge: .bottom, spacing: 0) {
+                                // Keep the last widget reachable above page controls.
+                                Color.clear.frame(height: 54)
+                            }
+                            .tag(0)
                         ForEach(visiblePageIndices, id: \.self) { index in
-                            homePage(index, width: geometry.size.width, height: max(400, geometry.size.height - 126)).tag(index + 1)
+                            homePage(index,
+                                     width: geometry.size.width,
+                                     height: max(400, geometry.size.height - 146))
+                                // Home pages still reserve space for their Dock;
+                                // Widgets and App Library use the full viewport.
+                                .padding(.bottom, 146)
+                                .tag(index + 1)
                         }
                         appLibrary(width: geometry.size.width)
                             .tag(libraryPageIndex)
                     }
+                    .frame(width: geometry.size.width, height: geometry.size.height)
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .blur(radius: openFolder == nil ? 0 : 18)
-                    // Keep the space reserved to avoid jumping into App Library.
-                    // On the Widgets page only the page navigation remains visible:
-                    // the four app icons in the Dock should disappear completely.
+
+                    // Overlay instead of taking height away from the pages.
+                    // Widgets: keep navigation, hide only the app Dock.
+                    // Library: hide both controls to maximize scrolling space.
                     VStack(spacing: 0) {
                         pageControl
                             .padding(.bottom, 18)
@@ -154,9 +171,13 @@ struct LiveBoardHomeScreen: View {
                             .allowsHitTesting(page > 0 && page < libraryPageIndex)
                             .accessibilityHidden(page == 0 || page == libraryPageIndex)
                     }
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.38), value: page == libraryPageIndex)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: page == 0)
+                    .padding(.bottom, 8)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.38),
+                               value: page == libraryPageIndex)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.28),
+                               value: page == 0)
                 }
+                .frame(width: geometry.size.width, height: geometry.size.height)
                 .blur(radius: searching ? 14 : 0)
                 .allowsHitTesting(!searching)
                 .accessibilityHidden(searching)
