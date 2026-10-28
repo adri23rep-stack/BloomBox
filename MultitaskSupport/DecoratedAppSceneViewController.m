@@ -20,6 +20,15 @@
 @property(nonatomic, strong) UIView *immersiveMenuCluster;
 @property(nonatomic, strong) NSArray<UIButton *> *immersiveMenuButtons;
 @property(nonatomic) NSUInteger immersiveMenuGeneration;
+@property(nonatomic, strong) UIView *immersiveHandleMark;
+@property(nonatomic, strong) NSLayoutConstraint *immersiveHandleCenterX;
+@property(nonatomic, strong) NSLayoutConstraint *immersiveHandleCenterY;
+@property(nonatomic, strong) NSLayoutConstraint *immersiveHandleWidth;
+@property(nonatomic, strong) NSLayoutConstraint *immersiveHandleHeight;
+@property(nonatomic) NSInteger immersiveHandleEdge; // 0 bottom, 1 right, 2 top, 3 left
+@property(nonatomic) CGFloat immersiveHandleFraction;
+@property(nonatomic) BOOL immersiveHandleDragging;
+@property(nonatomic) CGPoint immersiveHandleTouchOffset;
 @end
 
 @implementation DecoratedAppSceneViewController
@@ -120,11 +129,23 @@
 }
 
 - (void)setupImmersiveMenuControls {
+    NSUserDefaults *defaults = NSUserDefaults.lcSharedDefaults;
+    NSInteger edge = [defaults objectForKey:@"LCImmersiveHandleEdge"] ? [defaults integerForKey:@"LCImmersiveHandleEdge"] : 0;
+    self.immersiveHandleEdge = MAX(0, MIN(3, edge));
+    self.immersiveHandleFraction = [defaults objectForKey:@"LCImmersiveHandleFraction"]
+        ? MIN(1.0, MAX(0.0, [defaults doubleForKey:@"LCImmersiveHandleFraction"])) : .5;
+
     UIButton *handle = [UIButton buttonWithType:UIButtonTypeCustom];
     handle.translatesAutoresizingMaskIntoConstraints = NO;
-    handle.accessibilityLabel = @"Mostrar controles de BloomBox";
+    handle.accessibilityLabel = @"Mostrar controles de BloomBox. Mantén presionado para mover la barrita.";
     handle.backgroundColor = UIColor.clearColor;
     [handle addTarget:self action:@selector(toggleImmersiveMenu) forControlEvents:UIControlEventTouchUpInside];
+    UILongPressGestureRecognizer *drag = [[UILongPressGestureRecognizer alloc]
+        initWithTarget:self action:@selector(dragImmersiveHandle:)];
+    drag.minimumPressDuration = .38;
+    drag.allowableMovement = 16;
+    drag.cancelsTouchesInView = YES;
+    [handle addGestureRecognizer:drag];
     self.immersiveMenuHandle = handle;
 
     UIView *mark = [UIView new];
@@ -132,26 +153,145 @@
     mark.backgroundColor = [UIColor colorWithWhite:1 alpha:.58];
     mark.layer.cornerRadius = 3.5;
     mark.userInteractionEnabled = NO;
+    self.immersiveHandleMark = mark;
     [handle addSubview:mark];
     [self.view addSubview:handle];
+
+    self.immersiveHandleCenterX = [handle.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
+    self.immersiveHandleCenterY = [handle.centerYAnchor constraintEqualToAnchor:self.view.centerYAnchor];
+    self.immersiveHandleWidth = [handle.widthAnchor constraintEqualToConstant:86];
+    self.immersiveHandleHeight = [handle.heightAnchor constraintEqualToConstant:48];
     [NSLayoutConstraint activateConstraints:@[
-        [handle.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
-        [handle.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor constant:-1],
-        [handle.widthAnchor constraintEqualToConstant:86],
-        [handle.heightAnchor constraintEqualToConstant:48],
+        self.immersiveHandleCenterX, self.immersiveHandleCenterY,
+        self.immersiveHandleWidth, self.immersiveHandleHeight,
         [mark.centerXAnchor constraintEqualToAnchor:handle.centerXAnchor],
         [mark.centerYAnchor constraintEqualToAnchor:handle.centerYAnchor constant:-4],
         [mark.widthAnchor constraintEqualToConstant:38],
         [mark.heightAnchor constraintEqualToConstant:7]
     ]];
+    [self positionImmersiveHandleAnimated:NO];
     [self updateImmersiveMenuVisibility];
+}
+
+- (CGFloat)immersiveClamp:(CGFloat)value minimum:(CGFloat)min maximum:(CGFloat)max {
+    return MAX(min, MIN(MAX(min, max), value));
+}
+
+- (CGPoint)immersiveHandleTarget {
+    CGRect bounds = self.view.bounds;
+    if (CGRectIsEmpty(bounds)) return CGPointZero;
+    UIEdgeInsets safe = self.view.safeAreaInsets;
+    CGFloat width = bounds.size.width;
+    CGFloat height = bounds.size.height;
+    CGFloat minX = MIN(105.0, width * .28);
+    CGFloat minY = MIN(safe.top + 105.0, height * .40);
+    CGFloat maxY = MAX(minY, height - safe.bottom - 105.0);
+    CGFloat fraction = [self immersiveClamp:self.immersiveHandleFraction minimum:0 maximum:1];
+
+    switch (self.immersiveHandleEdge) {
+        case 1: return CGPointMake(width - 24, minY + (maxY - minY) * fraction);
+        case 2: return CGPointMake(minX + (width - 2 * minX) * fraction, safe.top + 24);
+        case 3: return CGPointMake(24, minY + (maxY - minY) * fraction);
+        default: return CGPointMake(minX + (width - 2 * minX) * fraction, height - 24);
+    }
+}
+
+- (void)positionImmersiveHandleAnimated:(BOOL)animated {
+    if (!self.immersiveMenuHandle || self.immersiveHandleDragging || CGRectIsEmpty(self.view.bounds)) return;
+    CGPoint point = [self immersiveHandleTarget];
+    BOOL side = self.immersiveHandleEdge == 1 || self.immersiveHandleEdge == 3;
+    CGFloat offsetX = point.x - CGRectGetMidX(self.view.bounds);
+    CGFloat offsetY = point.y - CGRectGetMidY(self.view.bounds);
+    if (fabs(self.immersiveHandleCenterX.constant - offsetX) < .1 &&
+        fabs(self.immersiveHandleCenterY.constant - offsetY) < .1 &&
+        fabs(self.immersiveHandleWidth.constant - (side ? 48 : 86)) < .1) return;
+    void (^updates)(void) = ^{
+        self.immersiveHandleCenterX.constant = offsetX;
+        self.immersiveHandleCenterY.constant = offsetY;
+        self.immersiveHandleWidth.constant = side ? 48 : 86;
+        self.immersiveHandleHeight.constant = side ? 86 : 48;
+        self.immersiveHandleMark.transform = side ? CGAffineTransformMakeRotation(M_PI_2) : CGAffineTransformIdentity;
+        [self.view layoutIfNeeded];
+    };
+    if (animated && !UIAccessibilityIsReduceMotionEnabled()) {
+        [UIView animateWithDuration:.35 delay:0 usingSpringWithDamping:.76
+              initialSpringVelocity:.4 options:UIViewAnimationOptionCurveEaseOut
+                         animations:updates completion:nil];
+    } else {
+        updates();
+    }
+}
+
+- (void)dragImmersiveHandle:(UILongPressGestureRecognizer *)gesture {
+    if (!self.isMaximized || ![self immersiveMenuEnabled] || self.view.hidden) return;
+    CGPoint touch = [gesture locationInView:self.view];
+    if (gesture.state == UIGestureRecognizerStateBegan) {
+        [self hideImmersiveMenuImmediately];
+        [self.view layoutIfNeeded];
+        self.immersiveHandleDragging = YES;
+        self.immersiveHandleTouchOffset = CGPointMake(self.immersiveMenuHandle.center.x - touch.x,
+                                                      self.immersiveMenuHandle.center.y - touch.y);
+        [[[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium] impactOccurred];
+    } else if (gesture.state == UIGestureRecognizerStateChanged && self.immersiveHandleDragging) {
+        CGFloat halfWidth = self.immersiveHandleWidth.constant * .5;
+        CGFloat halfHeight = self.immersiveHandleHeight.constant * .5;
+        CGFloat x = [self immersiveClamp:(touch.x + self.immersiveHandleTouchOffset.x)
+                                minimum:halfWidth maximum:self.view.bounds.size.width - halfWidth];
+        CGFloat y = [self immersiveClamp:(touch.y + self.immersiveHandleTouchOffset.y)
+                                minimum:MAX(halfHeight, self.view.safeAreaInsets.top)
+                                maximum:self.view.bounds.size.height - halfHeight];
+        self.immersiveHandleCenterX.constant = x - CGRectGetMidX(self.view.bounds);
+        self.immersiveHandleCenterY.constant = y - CGRectGetMidY(self.view.bounds);
+        // Only the small tappable bar moves; no dock or overlay obscures a game.
+    } else if (gesture.state == UIGestureRecognizerStateEnded ||
+               gesture.state == UIGestureRecognizerStateCancelled ||
+               gesture.state == UIGestureRecognizerStateFailed) {
+        if (!self.immersiveHandleDragging) return;
+        self.immersiveHandleDragging = NO;
+        [self.view layoutIfNeeded];
+        CGPoint point = self.immersiveMenuHandle.center;
+        CGSize size = self.view.bounds.size;
+        CGFloat safeTop = self.view.safeAreaInsets.top;
+        CGFloat distances[] = { size.height - point.y, size.width - point.x,
+                                MAX(0, point.y - safeTop), point.x };
+        NSInteger closest = 0;
+        for (NSInteger edge = 1; edge < 4; edge++) {
+            if (distances[edge] < distances[closest]) closest = edge;
+        }
+        self.immersiveHandleEdge = closest;
+
+        CGFloat low, high, position;
+        if (closest == 0 || closest == 2) {
+            low = MIN(105.0, size.width * .28);
+            high = size.width - low;
+            position = point.x;
+        } else {
+            low = MIN(safeTop + 105.0, size.height * .40);
+            high = MAX(low, size.height - self.view.safeAreaInsets.bottom - 105.0);
+            position = point.y;
+        }
+        self.immersiveHandleFraction = high > low
+            ? [self immersiveClamp:(position - low) / (high - low) minimum:0 maximum:1] : .5;
+        [NSUserDefaults.lcSharedDefaults setInteger:closest forKey:@"LCImmersiveHandleEdge"];
+        [NSUserDefaults.lcSharedDefaults setDouble:self.immersiveHandleFraction forKey:@"LCImmersiveHandleFraction"];
+        [self positionImmersiveHandleAnimated:YES];
+        [[[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight] impactOccurred];
+    }
+}
+
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+    [self positionImmersiveHandleAnimated:NO];
 }
 
 - (void)updateImmersiveMenuVisibility {
     BOOL enabled = self.isMaximized && [self immersiveMenuEnabled];
     if (!enabled && self.immersiveMenuBackdrop) [self hideImmersiveMenuImmediately];
     self.immersiveMenuHandle.hidden = !enabled;
-    if (enabled && self.immersiveMenuHandle != nil) [self.view bringSubviewToFront:self.immersiveMenuHandle];
+    if (enabled && self.immersiveMenuHandle != nil) {
+        [self positionImmersiveHandleAnimated:NO];
+        [self.view bringSubviewToFront:self.immersiveMenuHandle];
+    }
 }
 
 - (UIButton *)immersiveBubble:(NSString *)symbol diameter:(CGFloat)diameter
