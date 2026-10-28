@@ -115,7 +115,10 @@ struct LCTweakFolderView : View {
                         Button {
                             itemToRename = tweakItem
                             namePromptText = tweakItem.displayName
-                            showingNamePrompt = true
+                            // Let the context menu dismiss before presenting the alert.
+                            DispatchQueue.main.asyncAfter(deadline: .now() + .2) {
+                                showingNamePrompt = true
+                            }
                         } label: {
                             Label("lc.common.rename".loc, systemImage: "pencil")
                         }
@@ -158,7 +161,11 @@ struct LCTweakFolderView : View {
                 if !isTweakSigning {
                     Menu {
                         Button {
-                            choosingTweak = true
+                            // A picker presented before the toolbar Menu dismisses
+                            // may be silently ignored on iOS 26/27.
+                            DispatchQueue.main.asyncAfter(deadline: .now() + .2) {
+                                choosingTweak = true
+                            }
                         } label: {
                             Label("lc.tweakView.importTweak".loc, systemImage: "square.and.arrow.down")
                         }
@@ -166,7 +173,9 @@ struct LCTweakFolderView : View {
                         Button {
                             itemToRename = nil
                             namePromptText = ""
-                            showingNamePrompt = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + .2) {
+                                showingNamePrompt = true
+                            }
                         } label: {
                             Label("lc.tweakView.newFolder".loc, systemImage: "folder.badge.plus")
                         }
