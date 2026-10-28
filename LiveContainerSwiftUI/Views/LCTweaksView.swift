@@ -373,7 +373,7 @@ struct LCTweakFolderView : View {
                 }
                 let destination = baseUrl.appendingPathComponent(fileName)
                 guard !fm.fileExists(atPath: destination.path) else {
-                    throw "Ya existe un archivo o carpeta con el nombre \\(fileName)."
+                    throw "Ya existe un archivo o carpeta con el nombre \(fileName)."
                 }
                 // The Files picker may return a security-scoped, temporary copy.
                 // Never move/delete the user's original file in Files.
