@@ -130,7 +130,8 @@
 
 - (void)setupImmersiveMenuControls {
     NSUserDefaults *defaults = NSUserDefaults.lcSharedDefaults;
-    NSInteger edge = [defaults objectForKey:@"LCImmersiveHandleEdge"] ? [defaults integerForKey:@"LCImmersiveHandleEdge"] : 0;
+    // First launch defaults below the Dynamic Island, away from the Home gesture.
+    NSInteger edge = [defaults objectForKey:@"LCImmersiveHandleEdge"] ? [defaults integerForKey:@"LCImmersiveHandleEdge"] : 2;
     self.immersiveHandleEdge = MAX(0, MIN(3, edge));
     self.immersiveHandleFraction = [defaults objectForKey:@"LCImmersiveHandleFraction"]
         ? MIN(1.0, MAX(0.0, [defaults doubleForKey:@"LCImmersiveHandleFraction"])) : .5;
@@ -193,7 +194,7 @@
 
     switch (self.immersiveHandleEdge) {
         case 1: return CGPointMake(width - safe.right - 24, minY + (maxY - minY) * fraction);
-        case 2: return CGPointMake(minX + (maxX - minX) * fraction, safe.top + 24);
+        case 2: return CGPointMake(minX + (maxX - minX) * fraction, safe.top + 38);
         case 3: return CGPointMake(safe.left + 24, minY + (maxY - minY) * fraction);
         default: return CGPointMake(minX + (maxX - minX) * fraction, height - 24);
     }
