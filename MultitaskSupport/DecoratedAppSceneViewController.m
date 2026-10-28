@@ -15,6 +15,11 @@
 @property(nonatomic) CGRect originalFrame;
 @property(nonatomic) UIBarButtonItem *maximizeButton;
 @property(nonatomic) bool isAppTerminationRequested;
+@property(nonatomic, strong) UIControl *immersiveMenuBackdrop;
+@property(nonatomic, strong) UIButton *immersiveMenuHandle;
+@property(nonatomic, strong) UIView *immersiveMenuCluster;
+@property(nonatomic, strong) NSArray<UIButton *> *immersiveMenuButtons;
+@property(nonatomic) NSUInteger immersiveMenuGeneration;
 @end
 
 @implementation DecoratedAppSceneViewController
@@ -33,6 +38,7 @@
     _appSceneVC = [[AppSceneViewController alloc] initWithBundleId:bundleId dataUUID:dataUUID delegate:self];
     self.title = windowName;
     [self setupDecoratedView];
+    [self setupImmersiveMenuControls];
     
     [MultitaskDockManager.shared addRunningApp:windowName appUUID:dataUUID view:self.view];
     
@@ -67,7 +73,7 @@
     UIImageConfiguration *minimizeConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightMedium];
     minimizeImage = [minimizeImage imageWithConfiguration:minimizeConfig];
     UIBarButtonItem *minimizeButton = [[UIBarButtonItem alloc] initWithImage:minimizeImage style:UIBarButtonItemStylePlain target:self action:@selector(returnToLauncher)];
-    minimizeButton.tintColor = [UIColor systemYellowColor];
+    minimizeButton.tintColor = [UIColor labelColor];
     
     NSString *maximizeImageName = _isMaximized ? @"arrow.down.right.and.arrow.up.left.circle" : @"arrow.up.left.and.arrow.down.right.circle";
     UIImage *maximizeImage = [UIImage systemImageNamed:maximizeImageName];
@@ -104,6 +110,248 @@
     return self;
 }
 
+
+// MARK: - Approved BloomBox Radial Probe 1.5 controls
+// These controls are attached to the real guest window, not a demo app.
+// A small tap target works without interfering with iOS Home gestures.
+- (BOOL)immersiveMenuEnabled {
+    id setting = [NSUserDefaults.lcSharedDefaults objectForKey:@"LCImmersiveRadialMenu"];
+    return setting == nil ? YES : [setting boolValue];
+}
+
+- (void)setupImmersiveMenuControls {
+    UIButton *handle = [UIButton buttonWithType:UIButtonTypeCustom];
+    handle.translatesAutoresizingMaskIntoConstraints = NO;
+    handle.accessibilityLabel = @"Mostrar controles de BloomBox";
+    handle.backgroundColor = UIColor.clearColor;
+    [handle addTarget:self action:@selector(toggleImmersiveMenu) forControlEvents:UIControlEventTouchUpInside];
+    self.immersiveMenuHandle = handle;
+
+    UIView *mark = [UIView new];
+    mark.translatesAutoresizingMaskIntoConstraints = NO;
+    mark.backgroundColor = [UIColor colorWithWhite:1 alpha:.58];
+    mark.layer.cornerRadius = 3.5;
+    mark.userInteractionEnabled = NO;
+    [handle addSubview:mark];
+    [self.view addSubview:handle];
+    [NSLayoutConstraint activateConstraints:@[
+        [handle.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
+        [handle.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor constant:-1],
+        [handle.widthAnchor constraintEqualToConstant:86],
+        [handle.heightAnchor constraintEqualToConstant:48],
+        [mark.centerXAnchor constraintEqualToAnchor:handle.centerXAnchor],
+        [mark.centerYAnchor constraintEqualToAnchor:handle.centerYAnchor constant:-4],
+        [mark.widthAnchor constraintEqualToConstant:38],
+        [mark.heightAnchor constraintEqualToConstant:7]
+    ]];
+    [self updateImmersiveMenuVisibility];
+}
+
+- (void)updateImmersiveMenuVisibility {
+    BOOL enabled = self.isMaximized && [self immersiveMenuEnabled];
+    if (!enabled && self.immersiveMenuBackdrop) [self hideImmersiveMenuImmediately];
+    self.immersiveMenuHandle.hidden = !enabled;
+    if (enabled && self.immersiveMenuHandle != nil) [self.view bringSubviewToFront:self.immersiveMenuHandle];
+}
+
+- (UIButton *)immersiveBubble:(NSString *)symbol diameter:(CGFloat)diameter
+                        label:(NSString *)label action:(SEL)action {
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
+    button.translatesAutoresizingMaskIntoConstraints = NO;
+    button.accessibilityLabel = label;
+    button.backgroundColor = UIColor.clearColor;
+    button.layer.cornerRadius = diameter / 2.0;
+    button.layer.masksToBounds = YES;
+    button.layer.borderWidth = .85;
+    button.layer.borderColor = [UIColor colorWithWhite:1 alpha:.29].CGColor;
+
+    UIVisualEffect *material = nil;
+    if (@available(iOS 26.0, *)) {
+        // Clear glass is installed after the buttons enter the view hierarchy.
+        material = nil;
+    } else {
+        material = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterial];
+    }
+    UIVisualEffectView *glassView = [[UIVisualEffectView alloc] initWithEffect:material];
+    glassView.translatesAutoresizingMaskIntoConstraints = NO;
+    glassView.tag = 7415;
+    glassView.layer.cornerRadius = diameter / 2.0;
+    glassView.layer.masksToBounds = YES;
+    glassView.userInteractionEnabled = NO;
+    [button addSubview:glassView];
+    [NSLayoutConstraint activateConstraints:@[
+        [glassView.topAnchor constraintEqualToAnchor:button.topAnchor],
+        [glassView.bottomAnchor constraintEqualToAnchor:button.bottomAnchor],
+        [glassView.leadingAnchor constraintEqualToAnchor:button.leadingAnchor],
+        [glassView.trailingAnchor constraintEqualToAnchor:button.trailingAnchor]
+    ]];
+
+    UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:24 weight:UIImageSymbolWeightMedium];
+    UIImageView *image = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:symbol withConfiguration:config]];
+    image.translatesAutoresizingMaskIntoConstraints = NO;
+    image.tintColor = UIColor.labelColor;
+    image.contentMode = UIViewContentModeScaleAspectFit;
+    image.userInteractionEnabled = NO;
+    [glassView.contentView addSubview:image];
+    [NSLayoutConstraint activateConstraints:@[
+        [image.centerXAnchor constraintEqualToAnchor:glassView.contentView.centerXAnchor],
+        [image.centerYAnchor constraintEqualToAnchor:glassView.contentView.centerYAnchor],
+        [image.widthAnchor constraintLessThanOrEqualToConstant:diameter * .46],
+        [image.heightAnchor constraintLessThanOrEqualToConstant:diameter * .46]
+    ]];
+    if (action != NULL) [button addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
+    [NSLayoutConstraint activateConstraints:@[
+        [button.widthAnchor constraintEqualToConstant:diameter],
+        [button.heightAnchor constraintEqualToConstant:diameter]
+    ]];
+    return button;
+}
+
+- (void)activateImmersiveGlass:(UIView *)container {
+    if (@available(iOS 26.0, *)) {
+        for (UIView *child in container.subviews) {
+            if ([child isKindOfClass:UIVisualEffectView.class]) {
+                UIVisualEffectView *v = (UIVisualEffectView *)child;
+                if (v.tag == 7415 && v.effect == nil) {
+                    UIGlassEffect *glass = [UIGlassEffect effectWithStyle:UIGlassEffectStyleClear];
+                    glass.interactive = YES;
+                    v.effect = glass;
+                }
+                continue;
+            }
+            [self activateImmersiveGlass:child];
+        }
+    }
+}
+
+- (void)toggleImmersiveMenu {
+    if (self.immersiveMenuBackdrop) [self hideImmersiveMenu];
+    else [self showImmersiveMenu];
+}
+
+- (void)showImmersiveMenu {
+    if (!self.isMaximized || ![self immersiveMenuEnabled] || self.view.hidden || !self.immersiveMenuHandle) return;
+    if (self.immersiveMenuBackdrop) {
+        [self scheduleImmersiveMenuDismissal];
+        return;
+    }
+    [self.view layoutIfNeeded];
+    UIControl *backdrop = [[UIControl alloc] initWithFrame:self.view.bounds];
+    backdrop.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    backdrop.backgroundColor = UIColor.clearColor;
+    [backdrop addTarget:self action:@selector(hideImmersiveMenu) forControlEvents:UIControlEventTouchUpInside];
+    self.immersiveMenuBackdrop = backdrop;
+    [self.view insertSubview:backdrop belowSubview:self.immersiveMenuHandle];
+
+    UIView *cluster = [UIView new];
+    cluster.translatesAutoresizingMaskIntoConstraints = NO;
+    self.immersiveMenuCluster = cluster;
+    [backdrop addSubview:cluster];
+    [NSLayoutConstraint activateConstraints:@[
+        [cluster.centerXAnchor constraintEqualToAnchor:self.immersiveMenuHandle.centerXAnchor],
+        [cluster.bottomAnchor constraintEqualToAnchor:self.immersiveMenuHandle.topAnchor constant:-2],
+        [cluster.widthAnchor constraintEqualToConstant:224],
+        [cluster.heightAnchor constraintEqualToConstant:155]
+    ]];
+
+    UIButton *home = [self immersiveBubble:@"house.fill" diameter:60 label:@"Escritorio de BloomBox" action:@selector(immersiveGoHome)];
+    UIButton *resize = [self immersiveBubble:@"arrow.up.left.and.arrow.down.right" diameter:62 label:@"Cambiar tamaño" action:@selector(immersiveRestoreWindow)];
+    UIButton *apps = [self immersiveBubble:@"square.stack.3d.up.fill" diameter:62 label:@"Apps abiertas" action:NULL];
+    // Existing sessionMenu contains functional open/close actions for the host.
+    apps.menu = [MultitaskDockManager.shared sessionMenu];
+    apps.showsMenuAsPrimaryAction = YES;
+
+    self.immersiveMenuButtons = @[home, resize, apps];
+    for (UIButton *button in self.immersiveMenuButtons) [cluster addSubview:button];
+    [NSLayoutConstraint activateConstraints:@[
+        [home.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor],
+        [home.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:3],
+        [resize.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor constant:-66],
+        [resize.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:77],
+        [apps.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor constant:66],
+        [apps.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:77]
+    ]];
+    [backdrop layoutIfNeeded];
+    [cluster layoutIfNeeded];
+    [self activateImmersiveGlass:cluster];
+
+    BOOL reduceMotion = UIAccessibilityIsReduceMotionEnabled();
+    CGPoint origin = [cluster convertPoint:self.immersiveMenuHandle.center fromView:self.view];
+    for (UIButton *button in self.immersiveMenuButtons) {
+        CGAffineTransform birth = CGAffineTransformMakeScale(.14, .14);
+        birth.tx = origin.x - button.center.x;
+        birth.ty = origin.y - button.center.y;
+        button.transform = birth;
+        button.userInteractionEnabled = NO;
+    }
+    [self.immersiveMenuButtons enumerateObjectsUsingBlock:^(UIButton *button, NSUInteger index, BOOL *stop) {
+        [UIView animateWithDuration:reduceMotion ? .18 : .46
+                              delay:reduceMotion ? 0 : index * .055
+             usingSpringWithDamping:reduceMotion ? 1.0 : .62
+              initialSpringVelocity:reduceMotion ? 0 : .78
+                            options:UIViewAnimationOptionCurveEaseOut
+                         animations:^{ button.transform = CGAffineTransformIdentity; }
+                         completion:^(__unused BOOL finished) {
+            if (self.immersiveMenuBackdrop == backdrop) button.userInteractionEnabled = YES;
+        }];
+    }];
+    [[[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight] impactOccurred];
+    [self scheduleImmersiveMenuDismissal];
+}
+
+- (void)scheduleImmersiveMenuDismissal {
+    NSUInteger generation = ++self.immersiveMenuGeneration;
+    __weak typeof(self) weakSelf = self;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        if (weakSelf && weakSelf.immersiveMenuGeneration == generation) [weakSelf hideImmersiveMenu];
+    });
+}
+
+- (void)hideImmersiveMenuImmediately {
+    ++self.immersiveMenuGeneration;
+    UIControl *backdrop = self.immersiveMenuBackdrop;
+    self.immersiveMenuBackdrop = nil;
+    self.immersiveMenuCluster = nil;
+    self.immersiveMenuButtons = nil;
+    [backdrop removeFromSuperview];
+}
+
+- (void)hideImmersiveMenu {
+    ++self.immersiveMenuGeneration;
+    UIControl *backdrop = self.immersiveMenuBackdrop;
+    if (!backdrop) return;
+    self.immersiveMenuBackdrop = nil;
+    backdrop.userInteractionEnabled = NO;
+    UIView *cluster = self.immersiveMenuCluster;
+    NSArray<UIButton *> *buttons = [self.immersiveMenuButtons copy];
+    self.immersiveMenuCluster = nil;
+    self.immersiveMenuButtons = nil;
+    BOOL reduceMotion = UIAccessibilityIsReduceMotionEnabled();
+    CGPoint origin = [cluster convertPoint:self.immersiveMenuHandle.center fromView:self.view];
+    [buttons enumerateObjectsUsingBlock:^(UIButton *button, NSUInteger index, BOOL *stop) {
+        CGAffineTransform inverse = CGAffineTransformMakeScale(.13, .13);
+        inverse.tx = origin.x - button.center.x;
+        inverse.ty = origin.y - button.center.y;
+        [UIView animateWithDuration:reduceMotion ? .12 : .21
+                              delay:reduceMotion ? 0 : (buttons.count - 1 - index) * .025
+                            options:UIViewAnimationOptionCurveEaseIn
+                         animations:^{ button.transform = inverse; }
+                         completion:nil];
+    }];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)((reduceMotion ? .13 : .29) * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{ [backdrop removeFromSuperview]; });
+}
+
+- (void)immersiveGoHome {
+    [self hideImmersiveMenuImmediately];
+    [self returnToLauncher];
+}
+
+- (void)immersiveRestoreWindow {
+    [self hideImmersiveMenuImmediately];
+    if (self.isMaximized) [self maximizeWindow];
+}
+
 - (void)setupDecoratedView {
     CGFloat navBarHeight = 44;
     BOOL isLandscape = UIInterfaceOrientationIsLandscape(UIApp.statusBarOrientation);
@@ -126,7 +374,18 @@
     navigationBar.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     UINavigationItem *navigationItem = [[UINavigationItem alloc] initWithTitle:self.title];
     navigationBar.items = @[navigationItem];
-    
+
+    // Keep the host controls light and translucent over dark or light guest apps.
+    UINavigationBarAppearance *glassAppearance = [[UINavigationBarAppearance alloc] init];
+    [glassAppearance configureWithTransparentBackground];
+    glassAppearance.backgroundEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterial];
+    glassAppearance.backgroundColor = [UIColor systemBackgroundColor];
+    glassAppearance.backgroundColor = [glassAppearance.backgroundColor colorWithAlphaComponent:0.25];
+    glassAppearance.shadowColor = [UIColor clearColor];
+    navigationBar.standardAppearance = glassAppearance;
+    navigationBar.scrollEdgeAppearance = glassAppearance;
+    navigationBar.compactAppearance = glassAppearance;
+
     self.view.axis = UILayoutConstraintAxisVertical;
     self.view.backgroundColor = UIColor.systemBackgroundColor;
     self.view.layer.cornerRadius = 10;
@@ -255,6 +514,7 @@
 }
 
 - (void)closeWindow {
+    [self hideImmersiveMenu];
     _isAppTerminationRequested = true;
     if([_appSceneVC isAppRunning]) {
         [_appSceneVC terminate];
@@ -264,6 +524,7 @@
 }
 
 - (void)minimizeWindow {
+    [self hideImmersiveMenu];
     if (self.view.hidden) return;
     [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
         self.view.alpha = 0;
@@ -292,6 +553,7 @@
 }
 
 - (void)maximizeWindow {
+    [self hideImmersiveMenu];
     void (^updateSettingsBlock)(UIMutableApplicationSceneSettings *settings);
     
     [self.view layoutIfNeeded];
@@ -311,6 +573,8 @@
             [self.view layoutIfNeeded];
         } completion:^(BOOL finished) {
             self.isMaximized = NO;
+            [self updateVerticalConstraints];
+            [self updateImmersiveMenuVisibility];
             UIImage *maximizeImage = [UIImage systemImageNamed:@"arrow.up.left.and.arrow.down.right.circle"];
             UIImageConfiguration *maximizeConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightMedium];
             self.maximizeButton.image = [maximizeImage imageWithConfiguration:maximizeConfig];
@@ -334,11 +598,13 @@
             UIImage *restoreImage = [UIImage systemImageNamed:@"arrow.down.right.and.arrow.up.left.circle"];
             UIImageConfiguration *restoreConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightMedium];
             self.maximizeButton.image = [restoreImage imageWithConfiguration:restoreConfig];
+            [self updateImmersiveMenuVisibility];
         }];
     }
 }
 
 - (void)appSceneVCAppDidExit:(AppSceneViewController*)vc {
+    [self hideImmersiveMenu];
     BOOL skipTerminationScreen = [NSUserDefaults.lcSharedDefaults boolForKey:@"LCSkipTerminatedScreen"];
     BOOL isManual = _isAppTerminationRequested;
     if(isManual || skipTerminationScreen) {
@@ -506,8 +772,8 @@
     [self.view layoutIfNeeded];
     [UIView animateWithDuration:0.3 animations:^{
         BOOL bottomWindowBar = [NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"];
-        // Session navigation remains available even when the floating dock is collapsed.
-        BOOL hideWindowBar = NO;
+        // Immersive mode keeps the hosted app edge-to-edge; a swipe opens the radial menu.
+        BOOL hideWindowBar = self.isMaximized && [self immersiveMenuEnabled];
         CGFloat navBarHeight = hideWindowBar ? 0 : 44;
         self.navigationBar.alpha = hideWindowBar ? 0 : 1;
         self.navigationBar.hidden = hideWindowBar;
@@ -538,6 +804,7 @@
         [NSLayoutConstraint activateConstraints:self.activatedVerticalConstraints];
 
         [self.view layoutIfNeeded];
+        [self updateImmersiveMenuVisibility];
     }];
 }
 

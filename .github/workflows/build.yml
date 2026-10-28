@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - migration/import-full-source
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
     inputs: 
       release__nightly:
