@@ -56,7 +56,7 @@
 
     UILabel *title = [self text:@"BloomBox" size:35];
     title.font = [UIFont systemFontOfSize:35 weight:UIFontWeightBold];
-    UILabel *subtitle = [self text:@"Radial Probe 1.2" size:15];
+    UILabel *subtitle = [self text:@"Radial Probe 1.3" size:15];
     subtitle.textColor = [UIColor colorWithWhite:.74 alpha:1];
     UILabel *instruction = [self text:@"Toca la bolita de cristal de abajo.\nEl menú aparecerá sin ningún gesto." size:18];
     self.state = [self text:@"PANTALLA LIBRE · MENÚ CERRADO" size:12];
@@ -94,11 +94,11 @@
     ]];
 
     // Only this single compact control remains above the running app.
-    self.orb = [self bubble:@"circle.grid.2x2.fill" label:@"Abrir controles de BloomBox" diameter:58 action:@selector(toggleMenu)];
+    self.orb = [self bubble:@"circle.grid.2x2.fill" label:@"Abrir controles de BloomBox" diameter:56 action:@selector(toggleMenu)];
     [self.view addSubview:self.orb];
     [NSLayoutConstraint activateConstraints:@[
         [self.orb.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
-        [self.orb.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-6]
+        [self.orb.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor constant:-5]
     ]];
 }
 
@@ -180,30 +180,30 @@
     [background addSubview:cluster];
     [NSLayoutConstraint activateConstraints:@[
         [cluster.centerXAnchor constraintEqualToAnchor:self.orb.centerXAnchor],
-        [cluster.bottomAnchor constraintEqualToAnchor:self.orb.topAnchor constant:-6],
-        [cluster.widthAnchor constraintEqualToConstant:290],
-        [cluster.heightAnchor constraintEqualToConstant:252]
+        [cluster.bottomAnchor constraintEqualToAnchor:self.orb.topAnchor constant:-2],
+        [cluster.widthAnchor constraintEqualToConstant:240],
+        [cluster.heightAnchor constraintEqualToConstant:192]
     ]];
 
-    UIButton *home = [self bubble:@"house.fill" label:@"Inicio simulado" diameter:68 action:@selector(homeAction)];
-    UIButton *window = [self bubble:@"arrow.up.left.and.arrow.down.right" label:@"Cambiar tamaño simulado" diameter:68 action:@selector(resizeAction)];
-    UIButton *apps = [self bubble:@"square.stack.3d.up.fill" label:@"Apps simuladas" diameter:68 action:@selector(appsAction)];
-    UIButton *close = [self bubble:@"face.smiling" label:@"Cerrar menú" diameter:86 action:@selector(hideMenu)];
+    UIButton *home = [self bubble:@"house.fill" label:@"Inicio simulado" diameter:60 action:@selector(homeAction)];
+    UIButton *window = [self bubble:@"arrow.up.left.and.arrow.down.right" label:@"Cambiar tamaño simulado" diameter:62 action:@selector(resizeAction)];
+    UIButton *apps = [self bubble:@"square.stack.3d.up.fill" label:@"Apps simuladas" diameter:62 action:@selector(appsAction)];
+    UIButton *close = [self bubble:@"face.smiling" label:@"Cerrar menú" diameter:80 action:@selector(hideMenu)];
     for (UIButton *b in @[home,window,apps,close]) {
         [cluster addSubview:b];
     }
     [NSLayoutConstraint activateConstraints:@[
         [home.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor],
-        [home.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:1],
-        [window.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor constant:-98],
-        [window.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:97],
-        [apps.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor constant:98],
-        [apps.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:97],
+        [home.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:15],
+        [window.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor constant:-72],
+        [window.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:64],
+        [apps.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor constant:72],
+        [apps.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:64],
         [close.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor],
         [close.bottomAnchor constraintEqualToAnchor:cluster.bottomAnchor]
     ]];
 
-    self.state.text = @"MENÚ ABIERTO · TOCA FUERA PARA CERRAR";
+    self.state.hidden = YES; // Do not show diagnostic text behind glass buttons.
     self.orb.accessibilityLabel = @"Cerrar controles de BloomBox";
     background.alpha = 0;
     cluster.transform = CGAffineTransformMakeScale(.85,.85);
@@ -232,6 +232,7 @@
     self.overlay = nil;
     self.cluster = nil;
     self.orb.accessibilityLabel = @"Abrir controles de BloomBox";
+    self.state.hidden = NO;
     self.state.text = @"PANTALLA LIBRE · MENÚ CERRADO";
     [UIView animateWithDuration:.18 animations:^{
         background.alpha=0;
