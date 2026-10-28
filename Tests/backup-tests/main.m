@@ -33,9 +33,10 @@ int main(void) { @autoreleasepool {
     check([[NSData dataWithContentsOfURL:[output URLByAppendingPathComponent:@"Library/Preferences/.ajustes"]] isEqual:prefs], @"hidden data roundtrip");
     check([fm fileExistsAtPath:[output URLByAppendingPathComponent:@"Documents/Empty"].path], @"empty folder roundtrip");
     check(![BloomBoxArchive unpackFile:zip toURL:output error:&error], @"reject existing target");
-    NSArray *paths = @[@"../escape", @"/absolute", @"safe/../../escape", @"back\\slash"];
+    NSArray *paths = @[@"../escape", @"/absolute", @"safe/../../escape", @"back\\..\\..\\escape"];
     for (NSString *path in paths) {
         NSURL *bad = [root URLByAppendingPathComponent:@"bad.zip"];
+        // libarchive may normalize ZIP backslashes to slashes. Test traversal through both forms.
         hostile(bad, path.UTF8String, AE_IFREG, 0);
         NSURL *dest = [root URLByAppendingPathComponent:@"rejected"];
         check(![BloomBoxArchive unpackFile:bad toURL:dest error:&error], @"reject unsafe path");
