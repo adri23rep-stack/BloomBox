@@ -25,6 +25,7 @@ void NSURLSCGuestHooksInit(void) {
 // This is NOT an iOS firewall. A network daemon, a native Network.framework
 // path or another guest sharing this process can behave differently.
 #include <errno.h>
+#include <string.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include "../../litehook/src/litehook.h"
