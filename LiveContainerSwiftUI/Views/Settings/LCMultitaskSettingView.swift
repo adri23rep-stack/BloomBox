@@ -60,7 +60,7 @@ struct LCMultitaskSettingView: View {
                     }
                     Toggle("Menú circular a pantalla completa", isOn: $immersiveRadialMenu)
                     if immersiveRadialMenu {
-                        Text("Desliza hacia arriba desde el borde inferior para mostrar el menú. Alternativa: doble toque con dos dedos. Se oculta al tocar fuera o después de 5 segundos.")
+                        Text("Toca la barrita de cristal inferior para desplegar Inicio, tamaño y apps abiertas. Los botones nacen con rebote y regresan al cerrarse. Toca fuera o espera 5 segundos para ocultarlos.")
                             .font(.footnote)
                             .foregroundColor(.secondary)
                     }
