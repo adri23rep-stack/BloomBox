@@ -9,6 +9,8 @@
 @property(nonatomic,strong) UIView *content;
 @property(nonatomic,strong) UIView *fake;
 @property(nonatomic,strong) UIScreenEdgePanGestureRecognizer *edge;
+@property(nonatomic,strong) UIPanGestureRecognizer *zonePan;
+@property(nonatomic,strong) UILabel *zoneLabel;
 @property(nonatomic) BOOL compact;
 @property(nonatomic) NSUInteger generation;
 @end
@@ -45,14 +47,41 @@
         [self.content.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
     ]];
     UILabel *title=[self text:@"BloomBox · Radial Probe" size:29];
-    UILabel *info=[self text:@"Desliza hacia arriba desde abajo.\nSi LiveContainer reserva el gesto:\ndoble toque con dos dedos." size:16];
-    self.state=[self text:@"PANTALLA COMPLETA · SIN BARRAS" size:12];
+    UILabel *info=[self text:@"Prueba 1.1: abre el menú con el botón\no desliza desde la franja inferior.\nLuego probamos el gesto del sistema." size:16];
+    self.state=[self text:@"PRUEBA 1.1 · EL MENÚ DEBE ABRIR" size:12];
     self.state.textColor=[UIColor colorWithRed:.63 green:.95 blue:1 alpha:1];
     UIView *demo=[UIView new]; demo.translatesAutoresizingMaskIntoConstraints=NO;
     demo.backgroundColor=[UIColor colorWithRed:.12 green:.17 blue:.28 alpha:1];
     demo.layer.cornerRadius=26; demo.layer.borderWidth=.8;
     demo.layer.borderColor=[UIColor colorWithWhite:1 alpha:.17].CGColor;
     UILabel *card=[self text:@"♪\n\nApp de prueba\n\nPrueba el menú, toca fuera\no espera 5 segundos." size:20];
+
+    UIButton *openButton=[UIButton buttonWithType:UIButtonTypeSystem];
+    openButton.translatesAutoresizingMaskIntoConstraints=NO;
+    [openButton setTitle:@"ABRIR MENÚ CIRCULAR" forState:UIControlStateNormal];
+    openButton.titleLabel.font=[UIFont systemFontOfSize:18 weight:UIFontWeightBold];
+    openButton.tintColor=UIColor.whiteColor;
+    openButton.backgroundColor=[UIColor colorWithRed:.25 green:.38 blue:.69 alpha:1];
+    openButton.layer.cornerRadius=22;
+    openButton.accessibilityLabel=@"Abrir menú circular de prueba";
+    [openButton addTarget:self action:@selector(manualMenu) forControlEvents:UIControlEventTouchUpInside];
+    UIView *gestureZone=[UIView new];
+    gestureZone.translatesAutoresizingMaskIntoConstraints=NO;
+    gestureZone.backgroundColor=[UIColor colorWithRed:.2 green:.26 blue:.39 alpha:.75];
+    gestureZone.layer.cornerRadius=17;
+    gestureZone.layer.borderWidth=.8;
+    gestureZone.layer.borderColor=[UIColor colorWithWhite:1 alpha:.3].CGColor;
+    self.zoneLabel=[self text:@"↑  DESLIZA DESDE AQUÍ O TOCA" size:13];
+    [gestureZone addSubview:self.zoneLabel];
+    self.zonePan=[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(internalPan:)];
+    self.zonePan.cancelsTouchesInView=NO;
+    self.zonePan.delegate=self;
+    [gestureZone addGestureRecognizer:self.zonePan];
+    UITapGestureRecognizer *zoneTap=[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(manualMenu)];
+    zoneTap.cancelsTouchesInView=NO;
+    [gestureZone addGestureRecognizer:zoneTap];
+    [self.content addSubview:gestureZone];
+    [self.content addSubview:openButton];
     [self.content addSubview:title]; [self.content addSubview:info];
     [self.content addSubview:demo]; [self.content addSubview:self.state];
     [demo addSubview:card];
@@ -69,7 +98,17 @@
         [card.centerYAnchor constraintEqualToAnchor:demo.centerYAnchor],
         [card.leadingAnchor constraintEqualToAnchor:demo.leadingAnchor constant:18],
         [card.trailingAnchor constraintEqualToAnchor:demo.trailingAnchor constant:-18],
-        [self.state.bottomAnchor constraintEqualToAnchor:self.content.safeAreaLayoutGuide.bottomAnchor constant:-48],
+        [openButton.leadingAnchor constraintEqualToAnchor:self.content.leadingAnchor constant:32],
+        [openButton.trailingAnchor constraintEqualToAnchor:self.content.trailingAnchor constant:-32],
+        [openButton.heightAnchor constraintEqualToConstant:55],
+        [openButton.bottomAnchor constraintEqualToAnchor:gestureZone.topAnchor constant:-17],
+        [gestureZone.leadingAnchor constraintEqualToAnchor:self.content.leadingAnchor constant:24],
+        [gestureZone.trailingAnchor constraintEqualToAnchor:self.content.trailingAnchor constant:-24],
+        [gestureZone.heightAnchor constraintEqualToConstant:50],
+        [gestureZone.bottomAnchor constraintEqualToAnchor:self.content.safeAreaLayoutGuide.bottomAnchor constant:-16],
+        [self.zoneLabel.centerXAnchor constraintEqualToAnchor:gestureZone.centerXAnchor],
+        [self.zoneLabel.centerYAnchor constraintEqualToAnchor:gestureZone.centerYAnchor],
+        [self.state.bottomAnchor constraintEqualToAnchor:openButton.topAnchor constant:-16],
         [self.state.centerXAnchor constraintEqualToAnchor:self.content.centerXAnchor]
     ]];
     self.edge=[[UIScreenEdgePanGestureRecognizer alloc] initWithTarget:self action:@selector(edgeMoved:)];
@@ -86,10 +125,30 @@
     [self setNeedsUpdateOfScreenEdgesDeferringSystemGestures];
 }
 - (void)edgeMoved:(UIScreenEdgePanGestureRecognizer *)g {
-    if (g.state==UIGestureRecognizerStateBegan) [self openMenu];
+    if (g.state==UIGestureRecognizerStateBegan) {
+        [self notify:@"GESTO BORDE DETECTADO"];
+        [self openMenu];
+    }
 }
 - (void)twoTapped:(UITapGestureRecognizer *)g {
-    if (g.state==UIGestureRecognizerStateRecognized) [self openMenu];
+    if (g.state==UIGestureRecognizerStateRecognized) {
+        [self notify:@"DOS DEDOS DETECTADOS"];
+        [self openMenu];
+    }
+}
+
+- (void)manualMenu {
+    [self notify:@"TOQUE MANUAL DETECTADO"];
+    [self openMenu];
+}
+- (void)internalPan:(UIPanGestureRecognizer *)pan {
+    if (pan.state==UIGestureRecognizerStateChanged) {
+        CGFloat delta=[pan translationInView:self.view].y;
+        if (delta < -24 && !self.overlay) {
+            [self notify:@"GESTO INTERIOR DETECTADO"];
+            [self openMenu];
+        }
+    }
 }
 - (UIButton *)bubble:(NSString *)icon label:(NSString *)label diameter:(CGFloat)d action:(SEL)selector {
     UIButton *b=[UIButton buttonWithType:UIButtonTypeCustom];
@@ -248,7 +307,17 @@
 @property(strong,nonatomic) UIWindow *window;
 @end
 @implementation BBProbeDelegate
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)opts {return YES;}
+
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)opts {
+    // LiveContainer launchers vary in how they forward UIKit scenes.
+    // Provide a legacy fallback window; UIWindowScene will replace it if connected.
+    if (!self.window) {
+        self.window=[[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
+        self.window.rootViewController=[RadialProbe new];
+        [self.window makeKeyAndVisible];
+    }
+    return YES;
+}
 - (UISceneConfiguration *)application:(UIApplication *)app configurationForConnectingSceneSession:(UISceneSession *)session options:(UISceneConnectionOptions *)opts {
     UISceneConfiguration *config=[[UISceneConfiguration alloc] initWithName:@"Default Configuration" sessionRole:session.role];
     config.delegateClass=[BBProbeScene class];
