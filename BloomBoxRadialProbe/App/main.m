@@ -161,11 +161,12 @@
         for (UIView *child in view.subviews) {
             if ([child isKindOfClass:UIVisualEffectView.class]) {
                 UIVisualEffectView *glassView = (UIVisualEffectView *)child;
-                if (glassView.effect == nil) {
+                if (glassView.tag == 7414 && glassView.effect == nil) {
                     UIGlassEffect *glass = [UIGlassEffect effectWithStyle:UIGlassEffectStyleClear];
                     glass.interactive = YES;
                     glassView.effect = glass;
                 }
+                continue; // Do not modify UIKit's private effect-view children.
             }
             [self activateGlassInView:child];
         }
@@ -194,6 +195,7 @@
     }
     UIVisualEffectView *glassView = [[UIVisualEffectView alloc] initWithEffect:effect];
     glassView.translatesAutoresizingMaskIntoConstraints = NO;
+    glassView.tag = 7414;
     glassView.userInteractionEnabled = NO;
     glassView.layer.cornerRadius = diameter * .5;
     glassView.layer.masksToBounds = YES;
