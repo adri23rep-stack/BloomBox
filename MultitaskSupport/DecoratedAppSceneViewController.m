@@ -151,7 +151,7 @@
     BOOL enabled = self.isMaximized && [self immersiveMenuEnabled];
     if (!enabled && self.immersiveMenuBackdrop) [self hideImmersiveMenuImmediately];
     self.immersiveMenuHandle.hidden = !enabled;
-    if (enabled) [self.view bringSubviewToFront:self.immersiveMenuHandle];
+    if (enabled && self.immersiveMenuHandle != nil) [self.view bringSubviewToFront:self.immersiveMenuHandle];
 }
 
 - (UIButton *)immersiveBubble:(NSString *)symbol diameter:(CGFloat)diameter
