@@ -7,9 +7,8 @@
 @interface RadialProbe : UIViewController
 @property(nonatomic,strong) UIControl *overlay;
 @property(nonatomic,strong) UIView *cluster;
-@property(nonatomic,strong) UIButton *orb;
 @property(nonatomic,strong) UIButton *handle;
-@property(nonatomic) NSUInteger orbGeneration;
+@property(nonatomic,strong) NSArray<UIButton *> *menuButtons;
 @property(nonatomic,strong) UILabel *state;
 @property(nonatomic,strong) UIView *content;
 @property(nonatomic,strong) UIView *fake;
@@ -58,9 +57,9 @@
 
     UILabel *title = [self text:@"BloomBox" size:35];
     title.font = [UIFont systemFontOfSize:35 weight:UIFontWeightBold];
-    UILabel *subtitle = [self text:@"Radial Probe 1.4" size:15];
+    UILabel *subtitle = [self text:@"Radial Probe 1.5" size:15];
     subtitle.textColor = [UIColor colorWithWhite:.74 alpha:1];
-    UILabel *instruction = [self text:@"La bolita se oculta sola.\nToca la pequeña pestaña inferior para abrir el menú." size:18];
+    UILabel *instruction = [self text:@"Toca la barrita de abajo.\nLos botones salen con un pequeño rebote." size:18];
     self.state = [self text:@"PANTALLA LIBRE · MENÚ CERRADO" size:12];
     self.state.textColor = [UIColor colorWithRed:.66 green:.9 blue:1 alpha:1];
     UIView *demo = [UIView new];
@@ -95,21 +94,13 @@
         [self.state.bottomAnchor constraintEqualToAnchor:self.content.safeAreaLayoutGuide.bottomAnchor constant:-104]
     ]];
 
-    // Only this single compact control remains above the running app.
-    self.orb = [self bubble:@"circle.grid.2x2.fill" label:@"Abrir controles de BloomBox" diameter:56 action:@selector(toggleMenu)];
-    [self.view addSubview:self.orb];
-    [NSLayoutConstraint activateConstraints:@[
-        [self.orb.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
-        [self.orb.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor constant:-5]
-    ]];
-
     // A small visible 38-pt pull-tab with a generous 86x48 tap target.
     // No gesture recognizer / home-gesture interception.
     self.handle = [UIButton buttonWithType:UIButtonTypeCustom];
     self.handle.translatesAutoresizingMaskIntoConstraints = NO;
     self.handle.backgroundColor = UIColor.clearColor;
     self.handle.accessibilityLabel = @"Mostrar controles de BloomBox";
-    [self.handle addTarget:self action:@selector(openMenu) forControlEvents:UIControlEventTouchUpInside];
+    [self.handle addTarget:self action:@selector(toggleMenu) forControlEvents:UIControlEventTouchUpInside];
     UIView *mark = [UIView new];
     mark.translatesAutoresizingMaskIntoConstraints = NO;
     mark.userInteractionEnabled = NO;
@@ -127,32 +118,12 @@
         [mark.centerXAnchor constraintEqualToAnchor:self.handle.centerXAnchor],
         [mark.centerYAnchor constraintEqualToAnchor:self.handle.centerYAnchor constant:-4]
     ]];
-    self.handle.hidden = YES;
+    self.handle.hidden = NO;
 }
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
     [self.view layoutIfNeeded];
     [self activateGlassInView:self.view];
-    NSUInteger token = ++self.orbGeneration;
-    __weak typeof(self) weakSelf = self;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.2 * NSEC_PER_SEC)),
-                   dispatch_get_main_queue(), ^{
-        if (weakSelf && weakSelf.orbGeneration == token && !weakSelf.overlay) {
-            [weakSelf collapseOrb];
-        }
-    });
-}
-- (void)collapseOrb {
-    if (self.overlay || self.orb.hidden) return;
-    [UIView animateWithDuration:.22 animations:^{
-        self.orb.alpha = 0;
-    } completion:^(__unused BOOL finished) {
-        if (self.overlay) return;
-        self.orb.hidden = YES;
-        self.handle.hidden = NO;
-        self.handle.alpha = 0;
-        [UIView animateWithDuration:.18 animations:^{ self.handle.alpha = 1; }];
-    }];
 }
 - (void)activateGlassInView:(UIView *)view {
     // UIKit may silently skip glass effects installed before the view is visible.
@@ -241,15 +212,12 @@
     if (self.overlay) return;
     [self.view layoutIfNeeded];
 
-    ++self.orbGeneration;
-    self.orb.hidden = YES;
-    self.handle.hidden = YES;
     UIControl *background = [[UIControl alloc] initWithFrame:self.view.bounds];
     background.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
     background.backgroundColor = UIColor.clearColor;
     [background addTarget:self action:@selector(hideMenu) forControlEvents:UIControlEventTouchUpInside];
     self.overlay = background;
-    [self.view insertSubview:background belowSubview:self.orb];
+    [self.view insertSubview:background belowSubview:self.handle];
 
     UIView *cluster = [UIView new];
     cluster.translatesAutoresizingMaskIntoConstraints = NO;
@@ -257,50 +225,80 @@
     cluster.backgroundColor = UIColor.clearColor;
     [background addSubview:cluster];
     [NSLayoutConstraint activateConstraints:@[
-        [cluster.centerXAnchor constraintEqualToAnchor:self.orb.centerXAnchor],
-        [cluster.bottomAnchor constraintEqualToAnchor:self.orb.topAnchor constant:-2],
-        [cluster.widthAnchor constraintEqualToConstant:240],
-        [cluster.heightAnchor constraintEqualToConstant:192]
+        [cluster.centerXAnchor constraintEqualToAnchor:self.handle.centerXAnchor],
+        [cluster.bottomAnchor constraintEqualToAnchor:self.handle.topAnchor constant:-2],
+        [cluster.widthAnchor constraintEqualToConstant:224],
+        [cluster.heightAnchor constraintEqualToConstant:155]
     ]];
 
     UIButton *home = [self bubble:@"house.fill" label:@"Inicio simulado" diameter:60 action:@selector(homeAction)];
     UIButton *window = [self bubble:@"arrow.up.left.and.arrow.down.right" label:@"Cambiar tamaño simulado" diameter:62 action:@selector(resizeAction)];
     UIButton *apps = [self bubble:@"square.stack.3d.up.fill" label:@"Apps simuladas" diameter:62 action:@selector(appsAction)];
-    UIButton *close = [self bubble:@"face.smiling" label:@"Cerrar menú" diameter:80 action:@selector(hideMenu)];
-    for (UIButton *b in @[home,window,apps,close]) {
+    self.menuButtons = @[home, window, apps];
+    for (UIButton *b in self.menuButtons) {
         [cluster addSubview:b];
     }
     [NSLayoutConstraint activateConstraints:@[
         [home.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor],
-        [home.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:15],
-        [window.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor constant:-72],
-        [window.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:64],
-        [apps.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor constant:72],
-        [apps.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:64],
-        [close.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor],
-        [close.bottomAnchor constraintEqualToAnchor:cluster.bottomAnchor]
+        [home.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:3],
+        [window.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor constant:-66],
+        [window.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:77],
+        [apps.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor constant:66],
+        [apps.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:77]
     ]];
 
-    self.state.hidden = YES; // Do not show diagnostic text behind glass buttons.
-    self.orb.accessibilityLabel = @"Cerrar controles de BloomBox";
-    // Keep the background at alpha 1 so Liquid Glass will render.
-    // Animate the positions/scale instead of fading the glass views.
-    background.alpha = 1;
+    self.state.hidden = YES;
+    self.handle.accessibilityLabel = @"Cerrar controles de BloomBox";
+    // Preserve real transparent Liquid Glass without animating ancestor alpha.
     [background layoutIfNeeded];
+    [cluster layoutIfNeeded];
     [self activateGlassInView:background];
-    cluster.transform = CGAffineTransformMakeScale(.87,.87);
-    [UIView animateWithDuration:.29 delay:0 usingSpringWithDamping:.8
-          initialSpringVelocity:.5 options:UIViewAnimationOptionCurveEaseOut animations:^{
-        cluster.transform=CGAffineTransformIdentity;
-    } completion:nil];
+    [self animateMenuButtonsOpening];
+
     [[[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight] impactOccurred];
     [self resetTimer];
+}
+
+// All three circles physically start at the center of the bottom bar.
+// Their springs finish with a short overshoot, like droplets of glass.
+- (CGAffineTransform)birthTransformForButton:(UIButton *)button {
+    CGPoint origin = [self.cluster convertPoint:[self.view convertPoint:self.handle.center toView:self.overlay]
+                                      fromView:self.overlay];
+    CGAffineTransform transform = CGAffineTransformMakeScale(.14, .14);
+    transform.tx = origin.x - button.center.x;
+    transform.ty = origin.y - button.center.y;
+    return transform;
+}
+
+- (void)animateMenuButtonsOpening {
+    BOOL reduceMotion = UIAccessibilityIsReduceMotionEnabled();
+    NSArray<NSNumber *> *order = @[@0, @1, @2];
+    for (NSNumber *index in order) {
+        UIButton *button = self.menuButtons[index.integerValue];
+        button.transform = [self birthTransformForButton:button];
+        button.alpha = 1.0;
+        button.userInteractionEnabled = NO;
+    }
+    [self.cluster layoutIfNeeded];
+    [self.menuButtons enumerateObjectsUsingBlock:^(UIButton *button, NSUInteger index, BOOL *stop) {
+        NSTimeInterval delay = reduceMotion ? 0.0 : index * 0.055;
+        [UIView animateWithDuration:reduceMotion ? .18 : .46
+                              delay:delay
+             usingSpringWithDamping:reduceMotion ? 1.0 : .62
+              initialSpringVelocity:reduceMotion ? 0.0 : .78
+                            options:UIViewAnimationOptionCurveEaseOut
+                         animations:^{
+            button.transform = CGAffineTransformIdentity;
+        } completion:^(__unused BOOL finished) {
+            if (self.overlay) button.userInteractionEnabled = YES;
+        }];
+    }];
 }
 
 - (void)resetTimer {
     NSUInteger token = ++self.generation;
     __weak typeof(self) weakSelf = self;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(5*NSEC_PER_SEC)),
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5 * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
         if (weakSelf && weakSelf.generation == token) [weakSelf hideMenu];
     });
@@ -310,19 +308,35 @@
     ++self.generation;
     UIControl *background = self.overlay;
     if (!background) return;
+    [self.view layoutIfNeeded];
     self.overlay = nil;
-    self.cluster = nil;
-    self.orb.accessibilityLabel = @"Abrir controles de BloomBox";
-    self.orb.hidden = YES;
-    self.handle.hidden = NO;
-    self.handle.alpha = 1;
+    self.handle.accessibilityLabel = @"Mostrar controles de BloomBox";
     self.state.hidden = NO;
     self.state.text = @"PANTALLA LIBRE · MENÚ CERRADO";
-    [UIView animateWithDuration:.18 animations:^{
-        background.alpha=0;
-    } completion:^(__unused BOOL done) {
-        [background removeFromSuperview];
+    background.userInteractionEnabled = NO;
+
+    BOOL reduceMotion = UIAccessibilityIsReduceMotionEnabled();
+    // Reverse the birth animation: the circles fly back into the bottom bar.
+    NSArray<UIButton *> *buttons = [self.menuButtons copy];
+    self.menuButtons = nil;
+    [buttons enumerateObjectsUsingBlock:^(UIButton *button, NSUInteger idx, BOOL *stop) {
+        CGFloat delay = reduceMotion ? 0 : (buttons.count - 1 - idx) * .025;
+        CGPoint origin = [self.cluster convertPoint:[self.view convertPoint:self.handle.center toView:background]
+                                          fromView:background];
+        CGAffineTransform transform = CGAffineTransformMakeScale(.13, .13);
+        transform.tx = origin.x - button.center.x;
+        transform.ty = origin.y - button.center.y;
+        [UIView animateWithDuration:reduceMotion ? .12 : .21
+                              delay:delay
+                            options:UIViewAnimationOptionCurveEaseIn
+                         animations:^{ button.transform = transform; }
+                         completion:^(__unused BOOL finished) {
+            if (idx == 0) {
+                [background removeFromSuperview];
+            }
+        }];
     }];
+    self.cluster = nil;
 }
 - (void)notify:(NSString *)text {
     self.state.text=text;
