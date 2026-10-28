@@ -8,6 +8,8 @@
 @property(nonatomic,strong) UIControl *overlay;
 @property(nonatomic,strong) UIView *cluster;
 @property(nonatomic,strong) UIButton *orb;
+@property(nonatomic,strong) UIButton *handle;
+@property(nonatomic) NSUInteger orbGeneration;
 @property(nonatomic,strong) UILabel *state;
 @property(nonatomic,strong) UIView *content;
 @property(nonatomic,strong) UIView *fake;
@@ -56,9 +58,9 @@
 
     UILabel *title = [self text:@"BloomBox" size:35];
     title.font = [UIFont systemFontOfSize:35 weight:UIFontWeightBold];
-    UILabel *subtitle = [self text:@"Radial Probe 1.3" size:15];
+    UILabel *subtitle = [self text:@"Radial Probe 1.4" size:15];
     subtitle.textColor = [UIColor colorWithWhite:.74 alpha:1];
-    UILabel *instruction = [self text:@"Toca la bolita de cristal de abajo.\nEl menú aparecerá sin ningún gesto." size:18];
+    UILabel *instruction = [self text:@"La bolita se oculta sola.\nToca la pequeña pestaña inferior para abrir el menú." size:18];
     self.state = [self text:@"PANTALLA LIBRE · MENÚ CERRADO" size:12];
     self.state.textColor = [UIColor colorWithRed:.66 green:.9 blue:1 alpha:1];
     UIView *demo = [UIView new];
@@ -100,24 +102,95 @@
         [self.orb.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
         [self.orb.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor constant:-5]
     ]];
+
+    // A small visible 38-pt pull-tab with a generous 86x48 tap target.
+    // No gesture recognizer / home-gesture interception.
+    self.handle = [UIButton buttonWithType:UIButtonTypeCustom];
+    self.handle.translatesAutoresizingMaskIntoConstraints = NO;
+    self.handle.backgroundColor = UIColor.clearColor;
+    self.handle.accessibilityLabel = @"Mostrar controles de BloomBox";
+    [self.handle addTarget:self action:@selector(openMenu) forControlEvents:UIControlEventTouchUpInside];
+    UIView *mark = [UIView new];
+    mark.translatesAutoresizingMaskIntoConstraints = NO;
+    mark.userInteractionEnabled = NO;
+    mark.backgroundColor = [UIColor colorWithWhite:1 alpha:.52];
+    mark.layer.cornerRadius = 3.5;
+    [self.handle addSubview:mark];
+    [self.view addSubview:self.handle];
+    [NSLayoutConstraint activateConstraints:@[
+        [self.handle.widthAnchor constraintEqualToConstant:86],
+        [self.handle.heightAnchor constraintEqualToConstant:48],
+        [self.handle.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
+        [self.handle.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor constant:-1],
+        [mark.widthAnchor constraintEqualToConstant:38],
+        [mark.heightAnchor constraintEqualToConstant:7],
+        [mark.centerXAnchor constraintEqualToAnchor:self.handle.centerXAnchor],
+        [mark.centerYAnchor constraintEqualToAnchor:self.handle.centerYAnchor constant:-4]
+    ]];
+    self.handle.hidden = YES;
 }
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    [self.view layoutIfNeeded];
+    [self activateGlassInView:self.view];
+    NSUInteger token = ++self.orbGeneration;
+    __weak typeof(self) weakSelf = self;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.2 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        if (weakSelf && weakSelf.orbGeneration == token && !weakSelf.overlay) {
+            [weakSelf collapseOrb];
+        }
+    });
+}
+- (void)collapseOrb {
+    if (self.overlay || self.orb.hidden) return;
+    [UIView animateWithDuration:.22 animations:^{
+        self.orb.alpha = 0;
+    } completion:^(__unused BOOL finished) {
+        if (self.overlay) return;
+        self.orb.hidden = YES;
+        self.handle.hidden = NO;
+        self.handle.alpha = 0;
+        [UIView animateWithDuration:.18 animations:^{ self.handle.alpha = 1; }];
+    }];
+}
+- (void)activateGlassInView:(UIView *)view {
+    // UIKit may silently skip glass effects installed before the view is visible.
+    // Attach clear glass only after layout and a non-transparent window.
+    if (@available(iOS 26.0, *)) {
+        for (UIView *child in view.subviews) {
+            if ([child isKindOfClass:UIVisualEffectView.class]) {
+                UIVisualEffectView *glassView = (UIVisualEffectView *)child;
+                if (glassView.effect == nil) {
+                    UIGlassEffect *glass = [UIGlassEffect effectWithStyle:UIGlassEffectStyleClear];
+                    glass.interactive = YES;
+                    glassView.effect = glass;
+                }
+            }
+            [self activateGlassInView:child];
+        }
+    }
+}
+
 
 - (UIButton *)bubble:(NSString *)icon label:(NSString *)label diameter:(CGFloat)diameter action:(SEL)selector {
     UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
     button.translatesAutoresizingMaskIntoConstraints = NO;
     button.accessibilityLabel = label;
     button.accessibilityTraits = UIAccessibilityTraitButton;
-    button.backgroundColor = [UIColor colorWithWhite:1 alpha:.09];
+    button.backgroundColor = UIColor.clearColor;
     button.layer.cornerRadius = diameter * .5;
     button.layer.masksToBounds = YES;
-    button.layer.borderWidth = 1;
-    button.layer.borderColor = [UIColor colorWithWhite:1 alpha:.37].CGColor;
+    button.layer.borderWidth = .85;
+    button.layer.borderColor = [UIColor colorWithWhite:1 alpha:.29].CGColor;
 
-    UIVisualEffect *effect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterial];
+    // On iOS 26+, create the effect view without glass until it is on screen.
+    // Clear Liquid Glass displays more of the underlying app than regular material.
+    UIVisualEffect *effect = nil;
     if (@available(iOS 26.0,*)) {
-        UIGlassEffect *glass = [UIGlassEffect new];
-        glass.interactive = NO;
-        effect = glass;
+        effect = nil;
+    } else {
+        effect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterial];
     }
     UIVisualEffectView *glassView = [[UIVisualEffectView alloc] initWithEffect:effect];
     glassView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -138,13 +211,13 @@
     UIImage *symbol = [UIImage systemImageNamed:icon withConfiguration:config];
     UIImageView *image = [[UIImageView alloc] initWithImage:symbol];
     image.translatesAutoresizingMaskIntoConstraints = NO;
-    image.tintColor = UIColor.whiteColor;
+    image.tintColor = UIColor.labelColor;
     image.contentMode = UIViewContentModeScaleAspectFit;
     image.userInteractionEnabled = NO;
-    [button addSubview:image];
+    [glassView.contentView addSubview:image];
     [NSLayoutConstraint activateConstraints:@[
-        [image.centerXAnchor constraintEqualToAnchor:button.centerXAnchor],
-        [image.centerYAnchor constraintEqualToAnchor:button.centerYAnchor],
+        [image.centerXAnchor constraintEqualToAnchor:glassView.contentView.centerXAnchor],
+        [image.centerYAnchor constraintEqualToAnchor:glassView.contentView.centerYAnchor],
         [image.widthAnchor constraintLessThanOrEqualToConstant:diameter*.45],
         [image.heightAnchor constraintLessThanOrEqualToConstant:diameter*.45]
     ]];
@@ -166,6 +239,9 @@
     if (self.overlay) return;
     [self.view layoutIfNeeded];
 
+    ++self.orbGeneration;
+    self.orb.hidden = YES;
+    self.handle.hidden = YES;
     UIControl *background = [[UIControl alloc] initWithFrame:self.view.bounds];
     background.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
     background.backgroundColor = UIColor.clearColor;
@@ -205,11 +281,14 @@
 
     self.state.hidden = YES; // Do not show diagnostic text behind glass buttons.
     self.orb.accessibilityLabel = @"Cerrar controles de BloomBox";
-    background.alpha = 0;
-    cluster.transform = CGAffineTransformMakeScale(.85,.85);
+    // Keep the background at alpha 1 so Liquid Glass will render.
+    // Animate the positions/scale instead of fading the glass views.
+    background.alpha = 1;
+    [background layoutIfNeeded];
+    [self activateGlassInView:background];
+    cluster.transform = CGAffineTransformMakeScale(.87,.87);
     [UIView animateWithDuration:.29 delay:0 usingSpringWithDamping:.8
           initialSpringVelocity:.5 options:UIViewAnimationOptionCurveEaseOut animations:^{
-        background.alpha=1;
         cluster.transform=CGAffineTransformIdentity;
     } completion:nil];
     [[[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight] impactOccurred];
@@ -232,6 +311,9 @@
     self.overlay = nil;
     self.cluster = nil;
     self.orb.accessibilityLabel = @"Abrir controles de BloomBox";
+    self.orb.hidden = YES;
+    self.handle.hidden = NO;
+    self.handle.alpha = 1;
     self.state.hidden = NO;
     self.state.text = @"PANTALLA LIBRE · MENÚ CERRADO";
     [UIView animateWithDuration:.18 animations:^{
