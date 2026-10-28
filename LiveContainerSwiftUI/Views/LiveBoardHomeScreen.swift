@@ -21,6 +21,7 @@ struct LiveBoardHomeScreen: View {
     let installProgress: Double
     let secondaryInstance: Bool
     var launchWithJIT: ((LCAppModel) -> Void)? = nil
+    @EnvironmentObject private var sharedModel: SharedModel
     @ObservedObject private var appCustomization = LiveBoardAppCustomization.shared
     @State private var appearanceApp: LiveBoardAppearanceSelection?
     @State private var jitSetup = false
