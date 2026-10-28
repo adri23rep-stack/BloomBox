@@ -658,12 +658,12 @@ struct LiveBoardHomeScreen: View {
     /// glass previews. A miniature is material, not another wallpaper image.
     // MARK: - App Library: final page of Manzana's Home
     // Only guests installed in LiveContainer are listed, not unrelated iOS apps.
-    private func libraryCategory(for key: String, assigned: [String: String]) -> String {
+    private func libraryCategory(for key: String, assigned: [String: String], appsByKey: [String: LCAppModel]) -> String {
         if let custom = assigned[key], !custom.isEmpty {
             return custom
         }
         if key == Self.sideStoreKey || key == Self.installKey { return "Utilidades" }
-        let hint = "\(title(key)) \(appMap[key]?.bundleIdentifier ?? "")".lowercased()
+        let hint = "\(title(key, appsByKey: appsByKey)) \(appsByKey[key]?.bundleIdentifier ?? "")".lowercased()
         func containsAny(_ words: [String]) -> Bool { words.contains { hint.contains($0) } }
         if containsAny(["youtube", "tiktok", "instagram", "whatsapp", "discord", "facebook",
                          "twitter", "threads", "telegram", "reddit", "messenger", "social"]) {
@@ -690,15 +690,17 @@ struct LiveBoardHomeScreen: View {
 
     private var librarySections: [LibrarySection] {
         let keys = appKeys
+        let appsByKey = appMap
+        let keySet = Set(keys)
         let assigned = (try? JSONDecoder().decode([String: String].self, from: Data(categories.utf8))) ?? [:]
-        let favorites = favoriteKeys.filter { keys.contains($0) }
+        let favorites = favoriteKeys.filter { keySet.contains($0) }
         var suggestions = favorites
         suggestions.append(contentsOf: keys.filter { !suggestions.contains($0) })
-        let stored = recentLibraryKeys.filter { keys.contains($0) }
+        let stored = recentLibraryKeys.filter { keySet.contains($0) }
         let recent = Array((stored + keys.reversed().filter { !stored.contains($0) }).prefix(8))
         var groups: [String: [String]] = [:]
         for key in keys {
-            groups[libraryCategory(for: key, assigned: assigned), default: []].append(key)
+            groups[libraryCategory(for: key, assigned: assigned, appsByKey: appsByKey), default: []].append(key)
         }
         let categoryNames = ["Social", "Productividad", "Utilidades", "Juegos", "Creatividad", "Otras apps"]
         let otherNames = groups.keys.filter { !categoryNames.contains($0) }.sorted()
@@ -711,11 +713,15 @@ struct LiveBoardHomeScreen: View {
     }
 
     private var librarySearchMatches: [String] {
-        appKeys.filter {
+        let appsByKey = appMap
+        // Resolve each display name once, instead of decoding preferences during sorting.
+        let entries = appKeys.map { (key: $0, name: title($0, appsByKey: appsByKey)) }
+        return entries.filter {
             libraryQuery.isEmpty ||
-            title($0).localizedCaseInsensitiveContains(libraryQuery) ||
-            (appMap[$0]?.bundleIdentifier.localizedCaseInsensitiveContains(libraryQuery) ?? false)
-        }.sorted { title($0).localizedStandardCompare(title($1)) == .orderedAscending }
+            $0.name.localizedCaseInsensitiveContains(libraryQuery) ||
+            (appsByKey[$0.key]?.bundleIdentifier.localizedCaseInsensitiveContains(libraryQuery) ?? false)
+        }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            .map { $0.key }
     }
 
     private func appLibrary(width: CGFloat) -> some View {
@@ -1814,6 +1820,7 @@ struct LiveBoardHomeScreen: View {
     }
 
     private func reconcile() {
+        let appsByKey = appMap
         let hadSavedLayout = layout.initialized
         let knownKeys = Set(layout.pages.flatMap { $0.compactMap { $0 } }
             + layout.dock + layout.folders.flatMap { $0.apps } + layout.hidden)
@@ -1821,7 +1828,7 @@ struct LiveBoardHomeScreen: View {
             .filter { !knownKeys.contains($0) }
         // Only installed guest apps not seen before, never icons the user hid.
         let newGuestKeys = hadSavedLayout
-            ? appKeys.filter { appMap[$0] != nil && !knownKeys.contains($0) }
+            ? appKeys.filter { appsByKey[$0] != nil && !knownKeys.contains($0) }
             : []
         layout.reconcile(appKeys, favorites: favoriteKeys)
         for key in needsShortcuts.reversed() {
@@ -1846,11 +1853,11 @@ struct LiveBoardHomeScreen: View {
             }
         }
     }
-    private func title(_ key: String) -> String {
+    private func title(_ key: String, appsByKey: [String: LCAppModel]? = nil) -> String {
         if key == Self.sideStoreKey { return "SideStore" }
         if key == Self.installKey { return "Instalar app" }
         if let folder = layout.folders.first(where: { $0.id == key }) { return folder.name }
-        return appMap[key].map { appCustomization.name($0) } ?? "App"
+        return (appsByKey ?? appMap)[key].map { appCustomization.name($0) } ?? "App"
     }
     private func addPage() { layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity)); page = layout.pages.count }
     private func setCategory(_ value: String?, key: String) {
