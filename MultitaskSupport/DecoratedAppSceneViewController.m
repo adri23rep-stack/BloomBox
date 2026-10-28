@@ -247,9 +247,10 @@
                gesture.state == UIGestureRecognizerStateCancelled ||
                gesture.state == UIGestureRecognizerStateFailed) {
         if (!self.immersiveHandleDragging) return;
+        // Read the live drag position before allowing layout to snap the handle.
+        CGPoint point = CGPointMake(CGRectGetMidX(self.view.bounds) + self.immersiveHandleCenterX.constant,
+                                    CGRectGetMidY(self.view.bounds) + self.immersiveHandleCenterY.constant);
         self.immersiveHandleDragging = NO;
-        [self.view layoutIfNeeded];
-        CGPoint point = self.immersiveMenuHandle.center;
         CGSize size = self.view.bounds.size;
         CGFloat safeTop = self.view.safeAreaInsets.top;
         CGFloat distances[] = { size.height - point.y, size.width - point.x,
