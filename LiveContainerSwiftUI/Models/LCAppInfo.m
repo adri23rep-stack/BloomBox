@@ -143,6 +143,15 @@
     return _info[@"LCTweakFolder"];
 }
 
+- (bool)networkBlocked {
+    return [_info[@"LCNetworkBlocked"] boolValue];
+}
+
+- (void)setNetworkBlocked:(bool)networkBlocked {
+    _info[@"LCNetworkBlocked"] = @(networkBlocked);
+    [self save];
+}
+
 - (void)setDataUUID:(NSString *)uuid {
     _info[@"LCDataUUID"] = uuid;
     [self save];
