@@ -57,6 +57,8 @@ struct LiveBoardHomeScreen: View {
     @State private var pendingTweakApp: LCAppModel?
     @State private var choosingAppTweak = false
     @State private var appTweakError: String?
+    @State private var networkNoticeText: String?
+    @State private var networkNoticeToken = UUID()
     @State private var removedIcon: String?
     @State private var pageManager = false
     @State private var pendingPageRemoval: Int?
@@ -269,6 +271,37 @@ struct LiveBoardHomeScreen: View {
             }
         }
         .overlay { if importingMotionWallpaper { ProgressView("Preparando fondo…").padding(20).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20)) } }
+        .overlay(alignment: .top) {
+            if let networkNoticeText {
+                HStack(spacing: 12) {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(.white)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(networkNoticeText)
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Se aplica al reiniciar BloomBox. Algunas conexiones de iCloud pueden continuar.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.white.opacity(0.78))
+                    }
+                    Spacer(minLength: 0)
+                    Button {
+                        withAnimation(.easeOut(duration: 0.2)) { self.networkNoticeText = nil }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                    }
+                    .accessibilityLabel("Cerrar aviso")
+                }
+                .foregroundStyle(.white)
+                .padding(14)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(.white.opacity(0.25)))
+                .padding(.horizontal, 18)
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(99)
+            }
+        }
         .background(LiveBoardOrientationLock(mask: .portrait))
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .confirmationDialog("Desinstalar aplicación", isPresented: Binding(
@@ -1280,6 +1313,14 @@ struct LiveBoardHomeScreen: View {
         Button(app.uiNetworkBlocked ? "Permitir Internet" : "Bloquear Internet (experimental)",
                systemImage: app.uiNetworkBlocked ? "wifi" : "wifi.slash") {
             app.uiNetworkBlocked.toggle()
+            let blocked = app.uiNetworkBlocked
+            let name = title(key)
+            // A context menu must dismiss before its in-app notice can be shown.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                showNetworkNotice(blocked
+                    ? "«\(name)» ya no contará con acceso a Internet."
+                    : "«\(name)» volverá a tener acceso a Internet.")
+            }
         }
         .disabled(app.isAppRunning)
         Button("Añadir Tweak", systemImage: "square.and.arrow.down.on.square") {
@@ -1299,6 +1340,21 @@ struct LiveBoardHomeScreen: View {
         .disabled(app.isAppRunning || app.isSigningInProgress)
         Button("Quitar del escritorio", systemImage: "minus.circle", role: .destructive) {
             removeFromHome(key)
+        }
+    }
+
+    private func showNetworkNotice(_ message: String) {
+        let token = UUID()
+        networkNoticeToken = token
+        withAnimation(reduceMotion ? nil : .spring(response: 0.33, dampingFraction: 0.85)) {
+            networkNoticeText = message
+        }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            guard networkNoticeToken == token else { return }
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
+                networkNoticeText = nil
+            }
         }
     }
 
@@ -1883,6 +1939,25 @@ struct LiveBoardIconImage: View {
             }
         }.aspectRatio(1, contentMode: .fit)
             .modifier(ManzanaIconTreatment())
+            .overlay(alignment: .bottomTrailing) {
+                if app.uiNetworkBlocked {
+                    GeometryReader { geometry in
+                        let diameter = min(23, max(12, geometry.size.width * 0.30))
+                        if geometry.size.width >= 32 {
+                            Image(systemName: "wifi.slash")
+                                .font(.system(size: diameter * 0.56, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: diameter, height: diameter)
+                                .background(Color.black.opacity(0.88), in: Circle())
+                                .overlay(Circle().strokeBorder(.white.opacity(0.88), lineWidth: 1))
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                                .padding(2)
+                        }
+                    }
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                }
+            }
     }
 }
 
