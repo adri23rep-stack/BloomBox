@@ -13,6 +13,8 @@ final class LCAppBannerRootView: UIView {
 
     private let visualBackgroundView = UIView()
     private let iconImageView = UIImageView()
+    private let offlineIconBadge = UIImageView(image: UIImage(systemName: "wifi.slash",
+        withConfiguration: UIImage.SymbolConfiguration(pointSize: 10, weight: .bold)))
     private let nameLabel = UILabel()
     private let versionLabel = UILabel()
     private let remarkLabel = UILabel()
@@ -56,6 +58,16 @@ final class LCAppBannerRootView: UIView {
         iconImageView.layer.cornerCurve = .continuous
         iconImageView.clipsToBounds = true
         iconImageView.isAccessibilityElement = false
+        offlineIconBadge.translatesAutoresizingMaskIntoConstraints = false
+        offlineIconBadge.contentMode = .center
+        offlineIconBadge.tintColor = .white
+        offlineIconBadge.backgroundColor = UIColor.black.withAlphaComponent(0.88)
+        offlineIconBadge.layer.cornerRadius = 11
+        offlineIconBadge.layer.borderColor = UIColor.white.withAlphaComponent(0.9).cgColor
+        offlineIconBadge.layer.borderWidth = 1
+        offlineIconBadge.clipsToBounds = true
+        offlineIconBadge.isHidden = true
+        offlineIconBadge.isAccessibilityElement = false
 
         configureLabel(nameLabel, font: .systemFont(ofSize: 16, weight: .bold))
         configureLabel(versionLabel, font: .systemFont(ofSize: 12))
@@ -92,6 +104,7 @@ final class LCAppBannerRootView: UIView {
         runControl.translatesAutoresizingMaskIntoConstraints = false
         addSubview(visualBackgroundView)
         addSubview(iconImageView)
+        addSubview(offlineIconBadge)
         addSubview(detailStack)
         addSubview(runControl)
 
@@ -105,6 +118,11 @@ final class LCAppBannerRootView: UIView {
             iconImageView.centerYAnchor.constraint(equalTo: centerYAnchor),
             iconImageView.widthAnchor.constraint(equalToConstant: 60),
             iconImageView.heightAnchor.constraint(equalToConstant: 60),
+
+            offlineIconBadge.widthAnchor.constraint(equalToConstant: 22),
+            offlineIconBadge.heightAnchor.constraint(equalToConstant: 22),
+            offlineIconBadge.centerXAnchor.constraint(equalTo: iconImageView.trailingAnchor, constant: -5),
+            offlineIconBadge.centerYAnchor.constraint(equalTo: iconImageView.bottomAnchor, constant: -5),
 
             detailStack.leadingAnchor.constraint(equalTo: iconImageView.trailingAnchor, constant: 10),
             detailStack.trailingAnchor.constraint(lessThanOrEqualTo: runControl.leadingAnchor, constant: -10),
@@ -137,6 +155,7 @@ final class LCAppBannerRootView: UIView {
         let textColor = Self.readableTextColor(for: accentColor, traitCollection: traitCollection)
 
         iconImageView.image = icon
+        offlineIconBadge.isHidden = !model.uiNetworkBlocked
         nameLabel.text = model.displayName
         nameLabel.textColor = .label
         versionLabel.text = "\(model.version) - \(model.bundleIdentifier)"
@@ -169,6 +188,9 @@ final class LCAppBannerRootView: UIView {
         var accessibilityParts = [model.displayName, "\(model.version) - \(model.bundleIdentifier)"]
         if !model.uiRemark.isEmpty {
             accessibilityParts.append(model.uiRemark)
+        }
+        if model.uiNetworkBlocked {
+            accessibilityParts.append("Internet experimentalmente bloqueado")
         }
         accessibilityParts.append(model.uiSelectedContainer?.name ?? "lc.appBanner.noDataFolder".loc)
         detailStack.accessibilityLabel = accessibilityParts.joined(separator: ", ")
