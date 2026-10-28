@@ -383,40 +383,55 @@
     self.immersiveMenuBackdrop = backdrop;
     [self.view insertSubview:backdrop belowSubview:self.immersiveMenuHandle];
 
-    UIView *cluster = [UIView new];
-    cluster.translatesAutoresizingMaskIntoConstraints = NO;
+    // Host buttons fan toward the inside of the screen from the selected edge.
+    // Buttons belong directly to the backdrop, so tapping elsewhere dismisses it.
+    UIView *cluster = backdrop;
     self.immersiveMenuCluster = cluster;
-    [backdrop addSubview:cluster];
-    [NSLayoutConstraint activateConstraints:@[
-        [cluster.centerXAnchor constraintEqualToAnchor:self.immersiveMenuHandle.centerXAnchor],
-        [cluster.bottomAnchor constraintEqualToAnchor:self.immersiveMenuHandle.topAnchor constant:-2],
-        [cluster.widthAnchor constraintEqualToConstant:224],
-        [cluster.heightAnchor constraintEqualToConstant:155]
-    ]];
-
     UIButton *home = [self immersiveBubble:@"house.fill" diameter:60 label:@"Escritorio de BloomBox" action:@selector(immersiveGoHome)];
     UIButton *resize = [self immersiveBubble:@"arrow.up.left.and.arrow.down.right" diameter:62 label:@"Cambiar tamaño" action:@selector(immersiveRestoreWindow)];
     UIButton *apps = [self immersiveBubble:@"square.stack.3d.up.fill" diameter:62 label:@"Apps abiertas" action:NULL];
-    // Existing sessionMenu contains functional open/close actions for the host.
     apps.menu = [MultitaskDockManager.shared sessionMenu];
     apps.showsMenuAsPrimaryAction = YES;
 
     self.immersiveMenuButtons = @[home, resize, apps];
-    for (UIButton *button in self.immersiveMenuButtons) [cluster addSubview:button];
-    [NSLayoutConstraint activateConstraints:@[
-        [home.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor],
-        [home.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:3],
-        [resize.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor constant:-66],
-        [resize.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:77],
-        [apps.centerXAnchor constraintEqualToAnchor:cluster.centerXAnchor constant:66],
-        [apps.topAnchor constraintEqualToAnchor:cluster.topAnchor constant:77]
-    ]];
+    CGPoint handle = [backdrop convertPoint:self.immersiveMenuHandle.center fromView:self.view];
+    CGFloat maxX = CGRectGetWidth(backdrop.bounds);
+    CGFloat maxY = CGRectGetHeight(backdrop.bounds);
+    UIEdgeInsets insets = self.view.safeAreaInsets;
+    for (NSUInteger i = 0; i < self.immersiveMenuButtons.count; i++) {
+        UIButton *button = self.immersiveMenuButtons[i];
+        CGFloat dx = 0, dy = 0;
+        switch (self.immersiveHandleEdge) {
+            case 1: // Right edge, fan toward the left
+                dx = i == 0 ? -148 : -78;
+                dy = i == 0 ? 0 : (i == 1 ? -66 : 66);
+                break;
+            case 2: // Top edge, fan downward
+                dx = i == 0 ? 0 : (i == 1 ? -66 : 66);
+                dy = i == 0 ? 148 : 78;
+                break;
+            case 3: // Left edge, fan toward the right
+                dx = i == 0 ? 148 : 78;
+                dy = i == 0 ? 0 : (i == 1 ? -66 : 66);
+                break;
+            default: // Bottom edge, fan upward
+                dx = i == 0 ? 0 : (i == 1 ? -66 : 66);
+                dy = i == 0 ? -148 : -78;
+                break;
+        }
+        CGFloat centerX = [self immersiveClamp:handle.x + dx minimum:34 maximum:maxX - 34];
+        CGFloat centerY = [self immersiveClamp:handle.y + dy minimum:insets.top + 34 maximum:maxY - insets.bottom - 34];
+        [backdrop addSubview:button];
+        [NSLayoutConstraint activateConstraints:@[
+            [button.centerXAnchor constraintEqualToAnchor:backdrop.leadingAnchor constant:centerX],
+            [button.centerYAnchor constraintEqualToAnchor:backdrop.topAnchor constant:centerY]
+        ]];
+    }
     [backdrop layoutIfNeeded];
-    [cluster layoutIfNeeded];
-    [self activateImmersiveGlass:cluster];
+    [self activateImmersiveGlass:backdrop];
 
     BOOL reduceMotion = UIAccessibilityIsReduceMotionEnabled();
-    CGPoint origin = [cluster convertPoint:self.immersiveMenuHandle.center fromView:self.view];
+    CGPoint origin = [backdrop convertPoint:self.immersiveMenuHandle.center fromView:self.view];
     for (UIButton *button in self.immersiveMenuButtons) {
         CGAffineTransform birth = CGAffineTransformMakeScale(.14, .14);
         birth.tx = origin.x - button.center.x;
@@ -467,7 +482,7 @@
     self.immersiveMenuCluster = nil;
     self.immersiveMenuButtons = nil;
     BOOL reduceMotion = UIAccessibilityIsReduceMotionEnabled();
-    CGPoint origin = [cluster convertPoint:self.immersiveMenuHandle.center fromView:self.view];
+    CGPoint origin = [backdrop convertPoint:self.immersiveMenuHandle.center fromView:self.view];
     [buttons enumerateObjectsUsingBlock:^(UIButton *button, NSUInteger index, BOOL *stop) {
         CGAffineTransform inverse = CGAffineTransformMakeScale(.13, .13);
         inverse.tx = origin.x - button.center.x;
