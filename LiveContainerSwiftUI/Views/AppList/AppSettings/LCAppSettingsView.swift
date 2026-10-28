@@ -36,6 +36,8 @@ struct LCAppSettingsView: View {
     
     @State private var errorShow = false
     @State private var errorInfo = ""
+    @State private var networkNoticeVisible = false
+    @State private var networkNoticeText = ""
     @State private var selectUnusedContainerSheetShow = false
     
     @EnvironmentObject private var sharedModel : SharedModel
@@ -351,8 +353,16 @@ struct LCAppSettingsView: View {
                     Label("Bloquear Internet (experimental)", systemImage: "wifi.slash")
                 }
                 .disabled(model.appInfo is BuiltInSideStoreAppInfo)
+                .disabled(model.isAppRunning)
+                .onChange(of: model.uiNetworkBlocked) { blocked in
+                    networkNoticeText = blocked
+                        ? "Esta app ya no contará con acceso a Internet cuando reinicies BloomBox."
+                        : "Esta app volverá a tener acceso a Internet cuando reinicies BloomBox."
+                    networkNoticeVisible = true
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                }
             } footer: {
-                Text("Intenta bloquear conexiones de red y DNS de esta app invitada. Reinicia la app para aplicar cambios. No es un firewall completo: algunos servicios de iOS pueden seguir conectándose y otras apps invitadas dentro del mismo proceso podrían verse afectadas.")
+                Text("Los cambios necesitan reiniciar BloomBox completamente: ciérralo desde el selector de apps y vuelve a abrirlo. iOS no permite un reinicio automático del proceso. El filtro es experimental y algunas conexiones, incluidas las de iCloud, pueden continuar.")
             }
 
             if #available(iOS 16.0, *) {
@@ -411,6 +421,11 @@ struct LCAppSettingsView: View {
         }
         .navigationTitle(appInfo.displayName())
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Acceso a Internet actualizado", isPresented: $networkNoticeVisible) {
+            Button("Entendido", role: .cancel) { }
+        } message: {
+            Text(networkNoticeText + "\n\nCierra y vuelve a abrir BloomBox para aplicar el cambio.")
+        }
         .alert("lc.common.error".loc, isPresented: $errorShow) {
             Button("lc.common.ok".loc, action: {
             })
