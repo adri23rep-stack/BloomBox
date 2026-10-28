@@ -715,15 +715,16 @@ class AppInfoProvider {
         DispatchQueue.main.async {
             self.apps.append(appModel)
             
-            // Immersive sessions open the circular overlay via a bottom-edge gesture.
-            // Do not create a persistent floating dock above the guest's controls.
+            // A maximized guest shows the approved three-button glass menu,
+            // not the old floating dock. Windowed guests retain their normal dock.
             let setting = LCUtils.appGroupUserDefault.object(forKey: "LCImmersiveRadialMenu") as? Bool ?? true
-            if !setting {
-                if self.apps.count == 1 {
-                    self.showDock()
-                } else if self.isVisible {
-                    self.updateDockFrame()
-                }
+            let maximized = (view?._viewDelegate() as? DecoratedAppSceneViewController)?.isMaximized ?? false
+            if setting && maximized {
+                self.hideDock()
+            } else if self.apps.count == 1 {
+                self.showDock()
+            } else if self.isVisible {
+                self.updateDockFrame()
             }
         }
     }
