@@ -182,6 +182,9 @@
     CGRect bounds = self.view.bounds;
     if (CGRectIsEmpty(bounds)) return CGPointZero;
     UIEdgeInsets safe = self.view.safeAreaInsets;
+    // The guest may zero its safe area while maximized. Respect the actual
+    // host window safe inset so the default bar sits BELOW Dynamic Island.
+    safe.top = MAX(safe.top, self.view.window.safeAreaInsets.top);
     CGFloat width = bounds.size.width;
     CGFloat height = bounds.size.height;
     CGFloat horizontalRoom = MAX(100.0, width - safe.left - safe.right);
@@ -240,11 +243,12 @@
         CGFloat halfWidth = self.immersiveHandleWidth.constant * .5;
         CGFloat halfHeight = self.immersiveHandleHeight.constant * .5;
         UIEdgeInsets safe = self.view.safeAreaInsets;
+        safe.top = MAX(safe.top, self.view.window.safeAreaInsets.top);
         CGFloat x = [self immersiveClamp:(touch.x + self.immersiveHandleTouchOffset.x)
                                 minimum:safe.left + halfWidth
                                 maximum:self.view.bounds.size.width - safe.right - halfWidth];
         CGFloat y = [self immersiveClamp:(touch.y + self.immersiveHandleTouchOffset.y)
-                                minimum:MAX(halfHeight, self.view.safeAreaInsets.top)
+                                minimum:MAX(halfHeight, safe.top)
                                 maximum:self.view.bounds.size.height - halfHeight];
         self.immersiveHandleCenterX.constant = x - CGRectGetMidX(self.view.bounds);
         self.immersiveHandleCenterY.constant = y - CGRectGetMidY(self.view.bounds);
@@ -258,7 +262,7 @@
                                     CGRectGetMidY(self.view.bounds) + self.immersiveHandleCenterY.constant);
         self.immersiveHandleDragging = NO;
         CGSize size = self.view.bounds.size;
-        CGFloat safeTop = self.view.safeAreaInsets.top;
+        CGFloat safeTop = MAX(self.view.safeAreaInsets.top, self.view.window.safeAreaInsets.top);
         CGFloat distances[] = { size.height - point.y,
                                 size.width - self.view.safeAreaInsets.right - point.x,
                                 MAX(0, point.y - safeTop),
@@ -410,6 +414,7 @@
     CGFloat maxX = CGRectGetWidth(backdrop.bounds);
     CGFloat maxY = CGRectGetHeight(backdrop.bounds);
     UIEdgeInsets insets = self.view.safeAreaInsets;
+    insets.top = MAX(insets.top, self.view.window.safeAreaInsets.top);
     for (NSUInteger i = 0; i < self.immersiveMenuButtons.count; i++) {
         UIButton *button = self.immersiveMenuButtons[i];
         CGFloat dx = 0, dy = 0;
