@@ -116,7 +116,7 @@ struct LCTweakFolderView : View {
                             itemToRename = tweakItem
                             namePromptText = tweakItem.displayName
                             // Let the context menu dismiss before presenting the alert.
-                            DispatchQueue.main.asyncAfter(deadline: .now() + .2) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                 showingNamePrompt = true
                             }
                         } label: {
@@ -163,7 +163,7 @@ struct LCTweakFolderView : View {
                         Button {
                             // A picker presented before the toolbar Menu dismisses
                             // may be silently ignored on iOS 26/27.
-                            DispatchQueue.main.asyncAfter(deadline: .now() + .2) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                 choosingTweak = true
                             }
                         } label: {
@@ -173,7 +173,7 @@ struct LCTweakFolderView : View {
                         Button {
                             itemToRename = nil
                             namePromptText = ""
-                            DispatchQueue.main.asyncAfter(deadline: .now() + .2) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                 showingNamePrompt = true
                             }
                         } label: {
