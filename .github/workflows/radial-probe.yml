@@ -47,8 +47,8 @@ jobs:
             <key>CFBundleDisplayName</key><string>Radial Probe</string>
             <key>CFBundleExecutable</key><string>BloomBoxRadialProbe</string>
             <key>CFBundlePackageType</key><string>APPL</string>
-            <key>CFBundleVersion</key><string>5</string>
-            <key>CFBundleShortVersionString</key><string>1.4.0</string>
+            <key>CFBundleVersion</key><string>6</string>
+            <key>CFBundleShortVersionString</key><string>1.5.0</string>
             <key>MinimumOSVersion</key><string>16.0</string>
             <key>LSRequiresIPhoneOS</key><true/>
             <key>UIRequiresFullScreen</key><true/>
