@@ -119,6 +119,7 @@ enum BloomBoxAppBackup {
     /// Guest bootstrap always links top-level tmp to the host temporary folder.
     /// Never copy that shared runtime directory; all other links fail explicitly.
     private static func copyData(_ source: URL, to target: URL, omitRuntimeTempLink: Bool = false) throws {
+        let source = source.resolvingSymlinksInPath().standardizedFileURL
         let attrs = try fm.attributesOfItem(atPath: source.path)
         try require(attrs[.type] as? FileAttributeType == .typeDirectory, "La carpeta de datos no está disponible.")
         try fm.createDirectory(at: target, withIntermediateDirectories: false)
@@ -127,7 +128,10 @@ enum BloomBoxAppBackup {
             throw Failure(message: "No se pudieron leer los datos de la app.")
         }
         for case let url as URL in walk {
-            let relative = String(url.path.dropFirst(source.path.count + 1))
+            let parts = url.standardizedFileURL.pathComponents
+            let base = source.pathComponents
+            try require(parts.count > base.count && Array(parts.prefix(base.count)) == base, "Una ruta no pertenece al perfil de datos.")
+            let relative = parts.dropFirst(base.count).joined(separator: "/")
             let type = try fm.attributesOfItem(atPath: url.path)[.type] as? FileAttributeType
             if type == .typeSymbolicLink && omitRuntimeTempLink && relative == "tmp" {
                 walk.skipDescendants()

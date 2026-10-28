@@ -23,6 +23,7 @@ static BOOL safePath(NSString *path) {
 @implementation BloomBoxArchive
 + (BOOL)packDirectory:(NSURL *)source toURL:(NSURL *)destination error:(NSError **)error {
     NSFileManager *fm = NSFileManager.defaultManager;
+    source = source.URLByResolvingSymlinksInPath.URLByStandardizingPath;
     struct archive *a = archive_write_new();
     archive_write_set_format_zip(a);
     if (archive_write_open_filename(a, destination.fileSystemRepresentation) != ARCHIVE_OK) {
@@ -34,10 +35,15 @@ static BOOL safePath(NSString *path) {
     NSString *message = @"No se pudo leer la carpeta de datos.";
     for (NSURL *url in walk) {
         @autoreleasepool {
-            NSString *relative = [url.path substringFromIndex:source.path.length + 1];
+            NSArray<NSString *> *base = source.pathComponents;
+            NSArray<NSString *> *parts = url.URLByStandardizingPath.pathComponents;
+            if (parts.count <= base.count || ![[parts subarrayWithRange:NSMakeRange(0, base.count)] isEqual:base]) {
+                success = NO; message = @"La ruta de un archivo no pertenece a la carpeta de datos."; break;
+            }
+            NSString *relative = [[parts subarrayWithRange:NSMakeRange(base.count, parts.count - base.count)] componentsJoinedByString:@"/"];
             struct stat st;
             if (!safePath(relative) || lstat(url.fileSystemRepresentation, &st) != 0 || (!S_ISREG(st.st_mode) && !S_ISDIR(st.st_mode))) {
-                success = NO; message = @"La copia contiene un enlace o archivo especial no compatible."; break;
+                success = NO; message = [NSString stringWithFormat:@"La copia contiene una ruta, enlace o archivo especial no compatible: %@", relative]; break;
             }
             struct archive_entry *entry = archive_entry_new();
             archive_entry_set_pathname(entry, relative.UTF8String);
