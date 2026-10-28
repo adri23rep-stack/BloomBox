@@ -68,6 +68,11 @@ class LCAppModel: ObservableObject, Hashable {
             appInfo.hideLiveContainer = uiHideLiveContainer
         }
     }
+    @Published var uiNetworkBlocked: Bool {
+        didSet {
+            appInfo.networkBlocked = uiNetworkBlocked
+        }
+    }
     @Published var uiTweakLoaderInjectFailed : Bool
     @Published var uiDontInjectTweakLoader : Bool {
         didSet {
@@ -183,6 +188,7 @@ class LCAppModel: ObservableObject, Hashable {
         self.uiFixFilePickerNew = appInfo.fixFilePickerNew
         self.uiFixLocalNotification = appInfo.fixLocalNotification
         self.uiHideLiveContainer = appInfo.hideLiveContainer
+        self.uiNetworkBlocked = appInfo.networkBlocked
         self.uiDontInjectTweakLoader = appInfo.dontInjectTweakLoader
         self.uiTweakLoaderInjectFailed = appInfo.info()["LCTweakLoaderCantInject"] as? Bool ?? false
         self.uiDontLoadTweakLoader = appInfo.dontLoadTweakLoader
