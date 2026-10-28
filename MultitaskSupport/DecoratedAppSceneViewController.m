@@ -183,16 +183,19 @@
     UIEdgeInsets safe = self.view.safeAreaInsets;
     CGFloat width = bounds.size.width;
     CGFloat height = bounds.size.height;
-    CGFloat minX = MIN(105.0, width * .28);
+    CGFloat horizontalRoom = MAX(100.0, width - safe.left - safe.right);
+    CGFloat edgeX = MIN(105.0, horizontalRoom * .28);
+    CGFloat minX = safe.left + edgeX;
+    CGFloat maxX = MAX(minX, width - safe.right - edgeX);
     CGFloat minY = MIN(safe.top + 105.0, height * .40);
     CGFloat maxY = MAX(minY, height - safe.bottom - 105.0);
     CGFloat fraction = [self immersiveClamp:self.immersiveHandleFraction minimum:0 maximum:1];
 
     switch (self.immersiveHandleEdge) {
-        case 1: return CGPointMake(width - 24, minY + (maxY - minY) * fraction);
-        case 2: return CGPointMake(minX + (width - 2 * minX) * fraction, safe.top + 24);
-        case 3: return CGPointMake(24, minY + (maxY - minY) * fraction);
-        default: return CGPointMake(minX + (width - 2 * minX) * fraction, height - 24);
+        case 1: return CGPointMake(width - safe.right - 24, minY + (maxY - minY) * fraction);
+        case 2: return CGPointMake(minX + (maxX - minX) * fraction, safe.top + 24);
+        case 3: return CGPointMake(safe.left + 24, minY + (maxY - minY) * fraction);
+        default: return CGPointMake(minX + (maxX - minX) * fraction, height - safe.bottom - 24);
     }
 }
 
@@ -235,11 +238,13 @@
     } else if (gesture.state == UIGestureRecognizerStateChanged && self.immersiveHandleDragging) {
         CGFloat halfWidth = self.immersiveHandleWidth.constant * .5;
         CGFloat halfHeight = self.immersiveHandleHeight.constant * .5;
+        UIEdgeInsets safe = self.view.safeAreaInsets;
         CGFloat x = [self immersiveClamp:(touch.x + self.immersiveHandleTouchOffset.x)
-                                minimum:halfWidth maximum:self.view.bounds.size.width - halfWidth];
+                                minimum:safe.left + halfWidth
+                                maximum:self.view.bounds.size.width - safe.right - halfWidth];
         CGFloat y = [self immersiveClamp:(touch.y + self.immersiveHandleTouchOffset.y)
                                 minimum:MAX(halfHeight, self.view.safeAreaInsets.top)
-                                maximum:self.view.bounds.size.height - halfHeight];
+                                maximum:self.view.bounds.size.height - safe.bottom - halfHeight];
         self.immersiveHandleCenterX.constant = x - CGRectGetMidX(self.view.bounds);
         self.immersiveHandleCenterY.constant = y - CGRectGetMidY(self.view.bounds);
         // Only the small tappable bar moves; no dock or overlay obscures a game.
@@ -253,8 +258,10 @@
         self.immersiveHandleDragging = NO;
         CGSize size = self.view.bounds.size;
         CGFloat safeTop = self.view.safeAreaInsets.top;
-        CGFloat distances[] = { size.height - point.y, size.width - point.x,
-                                MAX(0, point.y - safeTop), point.x };
+        CGFloat distances[] = { size.height - self.view.safeAreaInsets.bottom - point.y,
+                                size.width - self.view.safeAreaInsets.right - point.x,
+                                MAX(0, point.y - safeTop),
+                                point.x - self.view.safeAreaInsets.left };
         NSInteger closest = 0;
         for (NSInteger edge = 1; edge < 4; edge++) {
             if (distances[edge] < distances[closest]) closest = edge;
@@ -263,8 +270,11 @@
 
         CGFloat low, high, position;
         if (closest == 0 || closest == 2) {
-            low = MIN(105.0, size.width * .28);
-            high = size.width - low;
+            UIEdgeInsets safe = self.view.safeAreaInsets;
+            CGFloat horizontalRoom = MAX(100.0, size.width - safe.left - safe.right);
+            CGFloat edgeX = MIN(105.0, horizontalRoom * .28);
+            low = safe.left + edgeX;
+            high = size.width - safe.right - edgeX;
             position = point.x;
         } else {
             low = MIN(safeTop + 105.0, size.height * .40);
@@ -420,7 +430,8 @@
                 dy = i == 0 ? -148 : -78;
                 break;
         }
-        CGFloat centerX = [self immersiveClamp:handle.x + dx minimum:34 maximum:maxX - 34];
+        CGFloat centerX = [self immersiveClamp:handle.x + dx
+                                          minimum:insets.left + 34 maximum:maxX - insets.right - 34];
         CGFloat centerY = [self immersiveClamp:handle.y + dy minimum:insets.top + 34 maximum:maxY - insets.bottom - 34];
         [backdrop addSubview:button];
         [NSLayoutConstraint activateConstraints:@[
