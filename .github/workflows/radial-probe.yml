@@ -1,0 +1,80 @@
+name: BloomBox Radial Probe - LiveContainer IPA
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'BloomBoxRadialProbe/**'
+      - '.github/workflows/radial-probe.yml'
+  push:
+    branches:
+      - experiments/radial-control-probe
+    paths:
+      - 'BloomBoxRadialProbe/**'
+      - '.github/workflows/radial-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.2'
+      - name: Compile standalone iOS app
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/probe"
+          APP="$OUT/Payload/BloomBoxRadialProbe.app"
+          mkdir -p "$APP"
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          xcrun --sdk iphoneos clang -x objective-c -fobjc-arc -fmodules -arch arm64 \
+            -miphoneos-version-min=16.0 -isysroot "$SDK" \
+            BloomBoxRadialProbe/App/main.m -framework UIKit -framework Foundation \
+            -framework QuartzCore -o "$APP/BloomBoxRadialProbe"
+          cat > "$APP/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>CFBundleIdentifier</key><string>org.nikaido.bloombox.radialprobe</string>
+            <key>CFBundleName</key><string>BloomBox Radial Probe</string>
+            <key>CFBundleDisplayName</key><string>Radial Probe</string>
+            <key>CFBundleExecutable</key><string>BloomBoxRadialProbe</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleVersion</key><string>6</string>
+            <key>CFBundleShortVersionString</key><string>1.5.0</string>
+            <key>MinimumOSVersion</key><string>16.0</string>
+            <key>LSRequiresIPhoneOS</key><true/>
+            <key>UIRequiresFullScreen</key><true/>
+            <key>UISupportedInterfaceOrientations</key><array>
+              <string>UIInterfaceOrientationPortrait</string>
+            </array>
+            <key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>
+            <key>UIApplicationSceneManifest</key><dict>
+              <key>UIApplicationSupportsMultipleScenes</key><false/>
+              <key>UISceneConfigurations</key><dict>
+                <key>UIWindowSceneSessionRoleApplication</key><array>
+                  <dict><key>UISceneConfigurationName</key><string>Default Configuration</string>
+                  <key>UISceneDelegateClassName</key><string>BBProbeScene</string></dict>
+                </array>
+              </dict>
+            </dict>
+          </dict></plist>
+          PLIST
+          plutil -lint "$APP/Info.plist"
+          codesign --force --sign - --timestamp=none "$APP"
+          cd "$OUT"
+          zip -qr "$GITHUB_WORKSPACE/BloomBoxRadialProbe-LiveContainer-unsigned.ipa" Payload
+          unzip -l "$GITHUB_WORKSPACE/BloomBoxRadialProbe-LiveContainer-unsigned.ipa" | head -30
+      - name: Upload LiveContainer IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: BloomBoxRadialProbe-LiveContainer-IPA
+          path: BloomBoxRadialProbe-LiveContainer-unsigned.ipa
+          retention-days: 30
