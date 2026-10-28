@@ -111,6 +111,14 @@ struct LCAppSettingsView: View {
             }
             
             Section {
+                NavigationLink {
+                    BloomBoxBackupView(model: model)
+                } label: {
+                    Label("Exportar / importar datos", systemImage: "externaldrive")
+                }
+            }
+
+            Section {
                 List{
                     ForEach(model.uiContainers.indices, id:\.self) { i in
                         NavigationLink {

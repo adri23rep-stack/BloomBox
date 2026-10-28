@@ -14,6 +14,7 @@ class LCAppModel: ObservableObject, Hashable {
     @Published var appInfo : LCAppInfo
     
     @Published var isAppRunning = false
+    @Published var isDataBackupInProgress = false
     @Published var isSigningInProgress = false
     @Published var signProgress = 0.0
     private var observer : NSKeyValueObservation?
@@ -217,6 +218,9 @@ class LCAppModel: ObservableObject, Hashable {
     
     // You should let LCAppModel.runApp to decide whether to run in multitask mode, but you may override the multitask parameter if necessary
     func runApp(multitask: Bool? = nil, containerFolderName : String? = nil, bundleIdOverride : String? = nil, urlStr : String? = nil, forceJIT: Bool? = nil) async throws{
+        if isDataBackupInProgress {
+            throw "Espera a que termine la copia de datos antes de abrir esta app."
+        }
         if isAppRunning {
             return
         }

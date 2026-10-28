@@ -35,6 +35,10 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: recursive
+      - name: Test backup archive roundtrip and unsafe inputs
+        run: |
+          clang -fobjc-arc -framework Foundation -larchive -I LiveContainerSwiftUI/Utilities Tests/backup-tests/main.m LiveContainerSwiftUI/Utilities/BloomBoxArchive.m -o "$RUNNER_TEMP/bloombox-backup-tests"
+          "$RUNNER_TEMP/bloombox-backup-tests"
       - name: Restore pinned StikJIT and runtime dependencies
         run: python3 Scripts/fetch-bundled-dependencies.py
       - name: Install Rust toolchain for on-device pairing
