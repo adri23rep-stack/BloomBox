@@ -1,0 +1,87 @@
+name: BloomBox - First Official Release
+
+on:
+  workflow_run:
+    workflows: ["BloomBox - Build"]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish-v1:
+    name: Publish BloomBox v1.0.0
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check whether first release exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "v1.0.0" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download verified BloomBox SideStore IPA
+        if: steps.existing.outputs.exists == 'false'
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: BloomBox-SideStore-unsigned.ipa
+          path: release-assets
+
+      - name: Verify IPA payload
+        if: steps.existing.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          test -s release-assets/BloomBox-SideStore-unsigned.ipa
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          ipa = "release-assets/BloomBox-SideStore-unsigned.ipa"
+          with ZipFile(ipa) as bundle:
+              names = set(bundle.namelist())
+              assert "Payload/LiveContainer.app/Info.plist" in names, "Missing app payload"
+              assert bundle.testzip() is None, "Corrupt IPA"
+          print("Verified release IPA archive and app payload.")
+          PY
+
+      - name: Publish first stable release
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/bloombox-v1-notes.md <<'NOTES'
+          # BloomBox 1.0.0
+
+          Primera versión oficial de BloomBox para instalar con SideStore.
+
+          - Escritorio tipo iPhone, biblioteca de aplicaciones y páginas personalizables.
+          - Widgets, fondos de pantalla y controles Liquid Glass.
+          - Menú compacto de tres botones (Inicio, cambiar tamaño y apps abiertas).
+          - Barrita móvil que se acopla a los bordes; posición inicial bajo la Isla Dinámica.
+          - Transiciones suavizadas, temblor más lento en la vista previa de páginas y Dock oculto en la página de Widgets.
+          - Importación de Tweaks .dylib y .framework, carpetas y opción Añadir Tweak en el menú de cada app.
+
+          Instalación: descarga BloomBox-SideStore-unsigned.ipa e impórtala en SideStore. La IPA necesita la firma habitual del instalador. Conserva una copia de tus datos antes de actualizar.
+
+          Nota: las opciones de Tweaks dependen de la compatibilidad de cada app y pueden requerir reiniciarla; no todos los tweaks funcionan en iOS 27.
+          NOTES
+          gh release create "v1.0.0" \
+            release-assets/BloomBox-SideStore-unsigned.ipa \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_SHA" \
+            --title "BloomBox 1.0.0 — Primera versión oficial" \
+            --notes-file /tmp/bloombox-v1-notes.md \
+            --latest

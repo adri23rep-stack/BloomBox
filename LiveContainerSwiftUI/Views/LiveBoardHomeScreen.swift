@@ -21,6 +21,7 @@ struct LiveBoardHomeScreen: View {
     let installProgress: Double
     let secondaryInstance: Bool
     var launchWithJIT: ((LCAppModel) -> Void)? = nil
+    @EnvironmentObject private var sharedModel: SharedModel
     @ObservedObject private var appCustomization = LiveBoardAppCustomization.shared
     @State private var appearanceApp: LiveBoardAppearanceSelection?
     @State private var jitSetup = false
@@ -53,6 +54,9 @@ struct LiveBoardHomeScreen: View {
     @AppStorage("ManzanaPageWidgets", store: LCUtils.appGroupUserDefault) private var pageWidgetsJSON = "{}"
     @State private var pendingRemovalKey: String?
     @State private var pendingUninstall: LCAppModel?
+    @State private var pendingTweakApp: LCAppModel?
+    @State private var choosingAppTweak = false
+    @State private var appTweakError: String?
     @State private var removedIcon: String?
     @State private var pageManager = false
     @State private var pendingPageRemoval: Int?
@@ -119,7 +123,9 @@ struct LiveBoardHomeScreen: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                background.blur(radius: (searching || page == libraryPageIndex) ? 14 : 0)
+                background
+                    .blur(radius: (searching || page == libraryPageIndex) ? 14 : 0)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.38), value: page == libraryPageIndex)
                 VStack(spacing: 0) {
                     TabView(selection: $page) {
                         ManzanaDesktopView(openSettings: { desktopSettings = true }).tag(0)
@@ -131,16 +137,25 @@ struct LiveBoardHomeScreen: View {
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .blur(radius: openFolder == nil ? 0 : 18)
-                    if page != libraryPageIndex {
-                        pageControl.padding(.bottom, 18)
+                    // Keep the space reserved to avoid jumping into App Library.
+                    // On the Widgets page only the page navigation remains visible:
+                    // the four app icons in the Dock should disappear completely.
+                    VStack(spacing: 0) {
+                        pageControl
+                            .padding(.bottom, 18)
+                            .opacity(page == libraryPageIndex ? 0 : 1)
+                            .allowsHitTesting(page != libraryPageIndex)
+                            .accessibilityHidden(page == libraryPageIndex)
                         dock(width: geometry.size.width)
                             .padding(.horizontal, 12)
                             .padding(.bottom, -22)
                             .blur(radius: openFolder == nil ? 0 : 18)
+                            .opacity((page == 0 || page == libraryPageIndex) ? 0 : 1)
+                            .allowsHitTesting(page > 0 && page < libraryPageIndex)
+                            .accessibilityHidden(page == 0 || page == libraryPageIndex)
                     }
-                    else {
-                        Color.clear.frame(height: 20)
-                    }
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.38), value: page == libraryPageIndex)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: page == 0)
                 }
                 .blur(radius: searching ? 14 : 0)
                 .allowsHitTesting(!searching)
@@ -181,7 +196,12 @@ struct LiveBoardHomeScreen: View {
                                 Button("Personalizar", systemImage: "paintbrush") { iconCustomization = true }
                                 Button("Añadir página", systemImage: "plus") { addPage() }
                                 Button("Gestionar páginas", systemImage: "square.grid.2x2") { pageManager = true }
-                                Button("Biblioteca de apps", systemImage: "square.grid.2x2") { finishEditing(); page = libraryPageIndex }
+                                Button("Biblioteca de apps", systemImage: "square.grid.2x2") {
+                                    finishEditing()
+                                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.4)) {
+                                        page = libraryPageIndex
+                                    }
+                                }
                             } label: { Text("Edit").font(.system(size: 16, weight: .semibold)).padding(.horizontal, 18).padding(.vertical, 8) }
                             .liveBoardGlass(radius: 18)
                             Spacer()
@@ -535,6 +555,27 @@ struct LiveBoardHomeScreen: View {
         .alert("Wallpaper", isPresented: Binding(get: { wallpaperError != nil }, set: { if !$0 { wallpaperError = nil } })) {
             Button("OK") { wallpaperError = nil }
         } message: { Text(wallpaperError ?? "") }
+        .fileImporter(isPresented: $choosingAppTweak,
+                      allowedContentTypes: [.dylib, .lcFramework],
+                      allowsMultipleSelection: true) { result in
+            guard let app = pendingTweakApp else { return }
+            switch result {
+            case .success(let urls):
+                installTweakFiles(urls, for: app)
+            case .failure(let error):
+                if (error as NSError).code != NSUserCancelledError {
+                    appTweakError = error.localizedDescription
+                }
+            }
+            pendingTweakApp = nil
+        }
+        .alert("No se pudo añadir el Tweak",
+               isPresented: Binding(get: { appTweakError != nil },
+                                    set: { if !$0 { appTweakError = nil } })) {
+            Button("Aceptar") { appTweakError = nil }
+        } message: {
+            Text(appTweakError ?? "")
+        }
     }
 
     private var background: some View { wallpaperBackground(paused: pageManager) }
@@ -771,6 +812,11 @@ struct LiveBoardHomeScreen: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            if let app = appMap[key] {
+                appMenu(key, app: app)
+            }
+        }
         .onDrag { NSItemProvider(object: key as NSString) }
         .accessibilityLabel("Abrir \(title(key))")
     }
@@ -838,7 +884,8 @@ struct LiveBoardHomeScreen: View {
             }
         }
         .aspectRatio(0.54, contentMode: .fit)
-        .modifier(LiveBoardEditWobble(active: pageManager && !reduceMotion, phase: 0.4))
+        .modifier(LiveBoardEditWobble(active: pageManager && !reduceMotion,
+                                     phase: 0.4, speed: 7, amplitude: 0.85))
     }
 
     private func widgetPageMiniature() -> some View {
@@ -909,7 +956,8 @@ struct LiveBoardHomeScreen: View {
             }
         }
         .aspectRatio(0.54, contentMode: .fit)
-        .modifier(LiveBoardEditWobble(active: pageManager && !reduceMotion, phase: 0.4))
+        .modifier(LiveBoardEditWobble(active: pageManager && !reduceMotion,
+                                     phase: 0.4, speed: 7, amplitude: 0.85))
     }
 
     @ViewBuilder private func miniatureIcon(_ key: String, size: CGFloat) -> some View {
@@ -1208,6 +1256,13 @@ struct LiveBoardHomeScreen: View {
             Button("New Category…") { categoryApp = key; categoryName = ""; addingCategory = true }
             Button("Uncategorized") { setCategory(nil, key: key) }
         }
+        Button("Añadir Tweak", systemImage: "square.and.arrow.down.on.square") {
+            pendingTweakApp = app
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                if pendingTweakApp === app { choosingAppTweak = true }
+            }
+        }
+        .disabled(app.isSigningInProgress)
         Button("Ajustes de LiveContainer", systemImage: "gearshape") {
             searching = false
             manage(app)
@@ -1218,6 +1273,60 @@ struct LiveBoardHomeScreen: View {
         .disabled(app.isAppRunning || app.isSigningInProgress)
         Button("Quitar del escritorio", systemImage: "minus.circle", role: .destructive) {
             removeFromHome(key)
+        }
+    }
+
+    /// Import selected dylibs into this app's assigned tweak folder.
+    /// Existing associations stay unchanged, and Files originals remain intact.
+    private func installTweakFiles(_ urls: [URL], for app: LCAppModel) {
+        guard !urls.isEmpty else { return }
+        let fm = FileManager.default
+        let folderName = app.uiTweakFolder ?? ("BloomBox-" + String(UUID().uuidString.prefix(12)))
+        let root = app.uiIsShared ? LCPath.lcGroupTweakPath : LCPath.tweakPath
+        let folder = root.appendingPathComponent(folderName, isDirectory: true)
+        var imported = 0
+        var failures: [String] = []
+
+        for url in urls {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            do {
+                let name = url.lastPathComponent
+                guard url.isFileURL, !name.isEmpty, name != ".", name != "..",
+                      !name.contains("/"), !name.contains("\\") else {
+                    throw CocoaError(.fileReadInvalidFileName)
+                }
+                let dylib = name.lowercased().hasSuffix(".dylib")
+                let framework = name.lowercased().hasSuffix(".framework")
+                guard dylib || framework else {
+                    throw NSError(domain: "BloomBox.Tweaks", code: 1,
+                                  userInfo: [NSLocalizedDescriptionKey: "Solo admite .dylib y .framework"])
+                }
+                try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+                let destination = folder.appendingPathComponent(name)
+                guard !fm.fileExists(atPath: destination.path) else {
+                    throw NSError(domain: "BloomBox.Tweaks", code: 2,
+                                  userInfo: [NSLocalizedDescriptionKey: "Ya existe \(name) en la carpeta de la app"])
+                }
+                try fm.copyItem(at: url, to: destination)
+                if dylib {
+                    LCParseMachO((destination.path as NSString).utf8String, false) { path, header, _, _ in
+                        LCPatchAddRPath(path, header)
+                    }
+                }
+                imported += 1
+            } catch {
+                failures.append("\(url.lastPathComponent): \(error.localizedDescription)")
+            }
+        }
+        if imported > 0 {
+            if app.uiTweakFolder == nil { app.uiTweakFolder = folderName }
+            if !app.uiIsShared && !sharedModel.tweakFolderNames.contains(folderName) {
+                sharedModel.tweakFolderNames.append(folderName)
+            }
+        }
+        if !failures.isEmpty {
+            appTweakError = failures.joined(separator: "\n")
         }
     }
 
@@ -1274,7 +1383,11 @@ struct LiveBoardHomeScreen: View {
                     }
                 })
             }
-            Button { page = libraryPageIndex } label: {
+            Button {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.4)) {
+                    page = libraryPageIndex
+                }
+            } label: {
                 Image(systemName: "square.grid.2x2.fill")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white.opacity(page == libraryPageIndex ? 1 : 0.55))
@@ -1711,10 +1824,12 @@ private struct LiveBoardHomeIcon: View {
 private struct LiveBoardEditWobble: ViewModifier {
     let active: Bool
     var phase: Double = 0
+    var speed: Double = 22
+    var amplitude: Double = 1.5
     @ViewBuilder func body(content: Content) -> some View {
         if active {
             TimelineView(.animation(minimumInterval: 1.0 / 30)) { time in
-                content.rotationEffect(.degrees(sin(time.date.timeIntervalSinceReferenceDate * 22 + phase) * 1.5))
+                content.rotationEffect(.degrees(sin(time.date.timeIntervalSinceReferenceDate * speed + phase) * amplitude))
             }
         } else {
             content.rotationEffect(.zero).transaction { $0.animation = nil; $0.disablesAnimations = true }
