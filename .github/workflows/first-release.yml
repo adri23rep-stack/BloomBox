@@ -45,8 +45,15 @@ jobs:
         run: |
           set -euo pipefail
           test -s release-assets/BloomBox-SideStore-unsigned.ipa
-          unzip -t release-assets/BloomBox-SideStore-unsigned.ipa | tail -1
-          unzip -Z1 release-assets/BloomBox-SideStore-unsigned.ipa | grep -q '^Payload/.*\.app/Info\.plist$'
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          ipa = "release-assets/BloomBox-SideStore-unsigned.ipa"
+          with ZipFile(ipa) as bundle:
+              names = set(bundle.namelist())
+              assert "Payload/LiveContainer.app/Info.plist" in names, "Missing app payload"
+              assert bundle.testzip() is None, "Corrupt IPA"
+          print("Verified release IPA archive and app payload.")
+          PY
 
       - name: Publish first stable release
         if: steps.existing.outputs.exists == 'false'
