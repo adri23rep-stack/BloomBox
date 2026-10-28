@@ -195,7 +195,7 @@
         case 1: return CGPointMake(width - safe.right - 24, minY + (maxY - minY) * fraction);
         case 2: return CGPointMake(minX + (maxX - minX) * fraction, safe.top + 24);
         case 3: return CGPointMake(safe.left + 24, minY + (maxY - minY) * fraction);
-        default: return CGPointMake(minX + (maxX - minX) * fraction, height - safe.bottom - 24);
+        default: return CGPointMake(minX + (maxX - minX) * fraction, height - 24);
     }
 }
 
@@ -244,7 +244,7 @@
                                 maximum:self.view.bounds.size.width - safe.right - halfWidth];
         CGFloat y = [self immersiveClamp:(touch.y + self.immersiveHandleTouchOffset.y)
                                 minimum:MAX(halfHeight, self.view.safeAreaInsets.top)
-                                maximum:self.view.bounds.size.height - safe.bottom - halfHeight];
+                                maximum:self.view.bounds.size.height - halfHeight];
         self.immersiveHandleCenterX.constant = x - CGRectGetMidX(self.view.bounds);
         self.immersiveHandleCenterY.constant = y - CGRectGetMidY(self.view.bounds);
         // Only the small tappable bar moves; no dock or overlay obscures a game.
@@ -258,7 +258,7 @@
         self.immersiveHandleDragging = NO;
         CGSize size = self.view.bounds.size;
         CGFloat safeTop = self.view.safeAreaInsets.top;
-        CGFloat distances[] = { size.height - self.view.safeAreaInsets.bottom - point.y,
+        CGFloat distances[] = { size.height - point.y,
                                 size.width - self.view.safeAreaInsets.right - point.x,
                                 MAX(0, point.y - safeTop),
                                 point.x - self.view.safeAreaInsets.left };
