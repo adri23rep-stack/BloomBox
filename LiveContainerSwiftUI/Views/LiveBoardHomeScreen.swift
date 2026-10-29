@@ -2927,6 +2927,7 @@ private struct BloomBoxAppListing: Decodable, Identifiable {
     let bundleID: String?
     let appStoreID: Int?
     let appIconURL: String?
+    let aliases: [String]?
 
     private static func safeWebsite(_ value: String) -> URL? {
         guard value.count <= 2048, let url = URL(string: value),
@@ -2990,6 +2991,54 @@ private final class BloomBoxAppCatalog: ObservableObject {
     private static let syncKey = "BloomBoxAppStoreCatalogueLastSync-v1"
     private static let source = URL(string:
         "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/apps.json")!
+    private static let githubContents = URL(string:
+        "https://api.github.com/repos/adri23rep-stack/BloomBox/contents/catalog/apps.json?ref=store-catalog")!
+
+    private struct GitHubFile: Decodable {
+        let content: String
+        let encoding: String
+    }
+
+    /// Prefer GitHub's branch-aware Contents API; raw.githubusercontent.com is
+    /// an independent fallback for rate limits or temporary API outages.
+    private static func fetchCatalogue(at source: URL, githubAPI: Bool) async throws -> Data {
+        var components = URLComponents(url: source, resolvingAgainstBaseURL: false)!
+        var queryItems = components.queryItems ?? []
+        queryItems.append(URLQueryItem(
+            name: "_refresh", value: String(Int64(Date().timeIntervalSince1970 * 1000))
+        ))
+        components.queryItems = queryItems
+
+        var request = URLRequest(url: components.url ?? source)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("no-cache, no-store, max-age=0", forHTTPHeaderField: "Cache-Control")
+        request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+        request.setValue("BloomBox/1.2 (App Store catalogue)", forHTTPHeaderField: "User-Agent")
+        if githubAPI {
+            request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        }
+        request.timeoutInterval = 15
+
+        let config = URLSessionConfiguration.ephemeral
+        config.urlCache = nil
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        let session = URLSession(configuration: config)
+        defer { session.invalidateAndCancel() }
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse,
+              (200...299).contains(http.statusCode),
+              !data.isEmpty, data.count < 700_000 else {
+            throw "No se pudo descargar el catálogo remoto de apps."
+        }
+        guard githubAPI else { return data }
+        let file = try JSONDecoder().decode(GitHubFile.self, from: data)
+        guard file.encoding.lowercased() == "base64",
+              let decoded = Data(base64Encoded: file.content, options: .ignoreUnknownCharacters) else {
+            throw "La respuesta de GitHub no contiene un catálogo válido."
+        }
+        return decoded
+    }
 
     private init() {
         lastSync = UserDefaults.standard.object(forKey: Self.syncKey) as? Date
@@ -3006,19 +3055,17 @@ private final class BloomBoxAppCatalog: ObservableObject {
         if !force, let refreshedAt, Date().timeIntervalSince(refreshedAt) < 90 { return }
         refreshing = true
         defer { refreshing = false }
+
         do {
-            var components = URLComponents(url: Self.source, resolvingAgainstBaseURL: false)!
-            components.queryItems = [URLQueryItem(
-                name: "refresh", value: String(Int64(Date().timeIntervalSince1970 * 1000))
-            )]
-            var request = URLRequest(url: components.url ?? Self.source)
-            request.cachePolicy = .reloadIgnoringLocalCacheData
-            request.setValue("no-cache, max-age=0", forHTTPHeaderField: "Cache-Control")
-            request.timeoutInterval = 12
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse,
-                  (200...299).contains(http.statusCode),
-                  data.count < 300_000 else { throw "No se pudo descargar el catálogo de apps." }
+            let data: Data
+            do {
+                data = try await Self.fetchCatalogue(at: Self.githubContents, githubAPI: true)
+            } catch {
+                data = try await Self.fetchCatalogue(at: Self.source, githubAPI: false)
+            }
+            guard data.count < 300_000 else {
+                throw "La tienda recibió un catálogo demasiado grande."
+            }
             let decoded = try JSONDecoder().decode(BloomBoxAppCatalogResponse.self, from: data)
             guard decoded.schemaVersion == 1, decoded.apps.count <= 120,
                   decoded.apps.allSatisfy(\.isValid) else {
@@ -3032,9 +3079,9 @@ private final class BloomBoxAppCatalog: ObservableObject {
             UserDefaults.standard.set(now, forKey: Self.syncKey)
             lastError = nil
         } catch {
-            refreshedAt = Date()
+            // Keep the last verified catalogue. Do not throttle the next retry
+            // after a network failure; the user may have just reconnected.
             lastError = error.localizedDescription
-            // Failed network requests must not erase the last valid catalogue.
         }
     }
 }
@@ -3113,14 +3160,37 @@ private struct BloomBoxAppStore: View {
         }
     }
 
+    /// MeloCafé and MeloCafe (or apps renamed during sideloading) should
+    /// resolve to the same app without confusing unrelated bundle IDs.
+    private func normalizedAppName(_ value: String) -> String {
+        let folded = value.folding(
+            options: [.caseInsensitive, .diacriticInsensitive],
+            locale: Locale(identifier: "en_US_POSIX")
+        )
+        return folded.lowercased().filter { $0.isLetter || $0.isNumber }
+    }
+
     private func installed(_ listing: BloomBoxAppListing) -> Bool {
         let installedApps = apps + sharedModel.apps +
             (sharedModel.isHiddenAppUnlocked ? sharedModel.hiddenApps : [])
+        let expectedBundle = listing.bundleID?.lowercased()
+        let expectedNames = Set(([listing.name, listing.id] + (listing.aliases ?? []))
+            .map(normalizedAppName)
+            .filter { !$0.isEmpty })
+
         return installedApps.contains { guest in
-            if let id = listing.bundleID, id.caseInsensitiveCompare(guest.bundleIdentifier) == .orderedSame {
+            guard !(guest.appInfo is BuiltInSideStoreAppInfo) else { return false }
+            if let expectedBundle,
+               expectedBundle.caseInsensitiveCompare(guest.bundleIdentifier) == .orderedSame {
                 return true
             }
-            return listing.name.caseInsensitiveCompare(guest.displayName) == .orderedSame
+            let bundleTail = guest.bundleIdentifier.split(separator: ".").last.map(String.init) ?? ""
+            let installationName = URL(fileURLWithPath:
+                guest.appInfo.relativeBundlePath ?? ""
+            ).deletingPathExtension().lastPathComponent
+            return [guest.displayName, bundleTail, installationName].contains {
+                expectedNames.contains(normalizedAppName($0))
+            }
         }
     }
 
@@ -3170,6 +3240,16 @@ private struct BloomBoxAppStore: View {
                         Text("Ports").tag(2)
                     }.pickerStyle(.segmented)
 
+                    HStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("Buscar apps, autores, categorías", text: $query)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+
                     if visibleListings.isEmpty && !catalog.refreshing {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("No se encontraron aplicaciones").font(.headline)
@@ -3204,8 +3284,7 @@ private struct BloomBoxAppStore: View {
                     Button("Cerrar") { dismiss() }
                 }
             }
-            .searchable(text: $query, prompt: "Buscar apps, autores, categorías")
-            .task { await catalog.refreshIfNeeded() }
+            .task { await catalog.refreshIfNeeded(force: true) }
             .confirmationDialog("Instalar IPA en BloomBox",
                                 isPresented: $confirmInstall,
                                 titleVisibility: .visible) {
