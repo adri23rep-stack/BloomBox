@@ -31,62 +31,6 @@
       "maxAppVersion": null,
       "officialSourceURL": "https://github.com/adri23rep-stack/Samba-iOS-Fix",
       "appStoreID": 1641321225
-    },
-    {
-      "id": "sambafix-v3-test-level2",
-      "name": "SambaFix · Prueba nivel 2",
-      "developer": "BloomBox / SambaFix",
-      "version": "3",
-      "priority": "important",
-      "description": "Ficha experimental de nivel 2. Misma descarga oficial de SambaFix v3; sirve para probar el catálogo remoto.",
-      "bundleID": "com.sega.samba.app",
-      "downloadURL": "https://github.com/adri23rep-stack/BloomBox/releases/download/sambafix-v3/SambaFix.dylib",
-      "sha256": "4c60b88b2379ba56f854b7091abb5910ca03d41f22553875171da355a4a23dea",
-      "fileType": "dylib",
-      "minIOS": "15.0",
-      "testedInBloomBox": false,
-      "notes": "La nube de iCloud queda desactivada; los datos del juego son locales.",
-      "alertLevel": 2,
-      "alertTitle": "Prueba nivel 2",
-      "alertMessage": "Entrada de prueba de compatibilidad importante. Usa el mismo archivo oficial SambaFix v3.",
-      "fileName": "SambaFix.dylib",
-      "supportedApps": [
-        {
-          "bundleID": "com.sega.samba.app"
-        }
-      ],
-      "minAppVersion": null,
-      "maxAppVersion": null,
-      "officialSourceURL": "https://github.com/adri23rep-stack/Samba-iOS-Fix",
-      "appStoreID": 1641321225
-    },
-    {
-      "id": "sambafix-v3-test-level1",
-      "name": "SambaFix · Prueba nivel 1",
-      "developer": "BloomBox / SambaFix",
-      "version": "3",
-      "priority": "informational",
-      "description": "Ficha experimental de nivel 1. Misma descarga oficial de SambaFix v3; sirve para probar el catálogo remoto.",
-      "bundleID": "com.sega.samba.app",
-      "downloadURL": "https://github.com/adri23rep-stack/BloomBox/releases/download/sambafix-v3/SambaFix.dylib",
-      "sha256": "4c60b88b2379ba56f854b7091abb5910ca03d41f22553875171da355a4a23dea",
-      "fileType": "dylib",
-      "minIOS": "15.0",
-      "testedInBloomBox": false,
-      "notes": "La nube de iCloud queda desactivada; los datos del juego son locales.",
-      "alertLevel": 1,
-      "alertTitle": "Prueba nivel 1",
-      "alertMessage": "Entrada informativa de prueba. Usa el mismo archivo oficial SambaFix v3.",
-      "fileName": "SambaFix.dylib",
-      "supportedApps": [
-        {
-          "bundleID": "com.sega.samba.app"
-        }
-      ],
-      "minAppVersion": null,
-      "maxAppVersion": null,
-      "officialSourceURL": "https://github.com/adri23rep-stack/Samba-iOS-Fix",
-      "appStoreID": 1641321225
     }
   ],
   "entrySchema": {
