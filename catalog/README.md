@@ -1,6 +1,6 @@
 # BloomBox — Tienda remota (prototipo de catálogo)
 
-> Estado: **solo catálogo remoto y diseño**, todavía no está conectado a la interfaz instalada de BloomBox. No publicar en main sin terminar el importador, las validaciones y las pruebas en iOS 27.
+> Estado: catálogo en rama independiente. La nueva versión experimental de BloomBox lee `tweaks.json` en directo, descarga archivos `.dylib`, verifica el SHA-256 y genera alertas antes de abrir apps. **Sin pruebas de usuario en el iPhone todavía; no fusionar a main hasta verificarlas.**
 
 ## Arquitectura
 
@@ -9,7 +9,7 @@ Dos catálogos JSON mantenidos en la rama separada `store-catalog`, no en `main`
 - Apps: https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/apps.json
 - Tweaks: https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/tweaks.json
 
-Modificar este branch no cambia el ejecutable de BloomBox ni dispara su build de `main`. La futura interfaz consultará estos JSON por HTTPS, conservará la última copia válida, mostrará la fecha de sincronización, hará actualización manual y revalidación periódica con ETag. Todo catálogo entrante debe validar esquema, tamaño máximo y URLs antes de sustituir el caché.
+Modificar este branch no cambia el ejecutable de BloomBox ni dispara su build de `main`. La interfaz de Tweak Store consulta `tweaks.json` por HTTPS, valida el esquema y cada entrada, conserva la última lista verificada y ofrece sincronización al abrirla o al pulsar Actualizar. Antes de iniciar una app desde el escritorio sincroniza si el catálogo está desactualizado. Si falla Internet, conserva la última lista válida; no ofrece datos desconocidos como si estuvieran verificados.
 
 ## Tienda de apps
 
@@ -22,18 +22,29 @@ Modificar este branch no cambia el ejecutable de BloomBox ni dispara su build de
 
 MeloNX: fuente actual https://starforgejo.dev/projects/MeloNX/releases. La ficha puede mostrarse ya; el enlace binario directo debe resolverse dinámicamente y validarse antes de habilitar instalación rápida. MeloCafe: https://github.com/stossy11/MeloCafe/releases; se confirmó `MeloCafe.ipa` para release `1.0`. La publicación puede cambiar en adelante.
 
-## Tienda de tweaks
+## Tweak Store: cómo publicar nuevos tweaks sin recompilar BloomBox
 
-Catálogo independiente con entradas moderadas y revisadas. Aceptar `.dylib` y `.framework`, más archivos ZIP que contengan únicamente esos formatos. Validar versión exacta o rango del app destino, iOS, arquitectura, dependencias e incompatibilidades. El bundle ID **se verifica contra el IPA real**; no inferirlo del nombre visible.
+Modifica únicamente `catalog/tweaks.json` en la rama `store-catalog`. Los campos mínimos para una nueva entrada en `tweakEntries` son `id`, `name`, `version`, `developer`, `description`, `downloadURL` (GitHub Releases oficial, HTTPS, archivo .dylib), `sha256` (calculado del binario publicado), `fileType: "dylib"`, `fileName` (estable entre versiones), y `supportedApps` (con `bundleID` y versiones compatibles opcionales). Nunca almacenes el binario dentro de BloomBox ni incrustes enlaces inventados.
 
-Cada versión debe tener:
-- Autor y URL originales, versión, formato y SHA-256 validado.
-- `supportedApps` con `bundleID`, `minVersion`, `maxVersion`; restricciones de iOS.
-- Estado probado/no probado y changelog.
-- Instalación **solo en carpeta de tweaks de la app seleccionada**, sin usar Global Tweaks por defecto.
-- Respaldo previo, firma del tweak, opción desactivar, revertir versión y recuperar si el invitado falla.
+El campo `alertLevel` gobierna los avisos de compatibilidad:
 
-No cargar scripts remotos ni ejecutar órdenes enviadas por JSON. Los tweaks son código nativo que puede acceder a los datos del invitado; deben mostrarse con una advertencia clara y autorización explícita antes de instalar. La lista de tweaks arranca vacía hasta la revisión de las primeras versiones concretas.
+- `3` **máximo**: antes de abrir una app afectada, si no está instalada **y activa** la corrección, muestra un recuadro con `alertMessage`, y opciones **Instalar corrección**, **Abrir de todas formas** y **Cancelar**. No bloquea la apertura para siempre.
+- `2` importante y `1` informativo: visibles en la tienda, sin aviso obligatorio al iniciar en esta versión.
+- `0` o ausente: tweak opcional y silencioso.
+
+**Samba de Amigo** está registrado con `bundleID: "com.sega.samba.app"`, `alertLevel: 3`, `SambaFix.dylib`. El UUID de sus contenedores de datos **no** aparece en el catálogo: el parche se asigna a su instalación de app y su carpeta de tweaks.
+
+### Alta de un nuevo tweak
+
+1. Verifica el origen y permisos del desarrollador, y prueba el archivo en tu propio dispositivo.
+2. Sube el `.dylib` a GitHub Releases en su repositorio oficial. Calcula su SHA-256 exacto.
+3. Añade una ficha JSON en `tweakEntries` con `supportedApps`, `fileName` y `alertLevel` elegido, revisa el JSON y confirma en `store-catalog`.
+4. Abre Tweak Store y pulsa **Actualizar**: el cliente experimental muestra nuevas fichas sin actualizar la IPA. Los avisos de nivel 3 también se consultan desde el catálogo al iniciar apps.
+5. Si eliminas la entrada del JSON, dejará de anunciarse, pero no borra un tweak ya instalado del iPhone.
+
+Por ahora acepta únicamente bibliotecas `arm64 .dylib` individuales desde `github.com/<owner>/<repo>/releases/download/<tag>/<file>.dylib`, con extensión, tamaño y digest validados. Los ZIP/frameworks/scripts no están permitidos en el instalador genérico. Las apps solo se comparan por su Bundle ID original o la carpeta de instalación; los UUID de datos son independientes. Un tweak se aplica al app seleccionado, no a otros juegos.
+
+No permitas que el catálogo ejecute JavaScript, comandos, scripts u operaciones de shell. Los tweaks son código nativo con acceso a datos del invitado: autoriza la instalación manualmente y revisa las aportaciones de terceros antes de publicar su URL y SHA. No marques un tweak como verificado solo porque haya compilado.
 
 ## JIT y compatibilidad con iOS 26/27
 
@@ -45,10 +56,10 @@ MeloCafe indica `universal.js` en su release. MeloNX documenta StikDebug como re
 
 ## Próximo trabajo en el cliente
 
-- Añadir una pantalla `BloomBox Store` con pestañas **Apps** / **Tweaks** (o dos accesos directos), reutilizando el diseño Liquid Glass.
-- Cliente de catálogo HTTPS con validación, caché, versión de esquema y consulta periódica.
+- La mini Tweak Store aparece como un icono de app en el escritorio de la rama experimental, con soporte para fichas remotas.
+- Catálogo HTTPS con validación, último caché correcto y actualización manual/periódica: implementado en rama experimental.
 - Resolver releases oficiales y compartir descarga con el instalador.
-- Comprobaciones de seguridad, autorizaciones y filtros de tweaks antes de instalar.
+- Instalación de `.dylib` ARM64 con SHA-256 y consentimiento: implementada en rama experimental. Falta prueba real y revisión de seguridad.
 - Diagnóstico de JIT por proceso y matriz de compatibilidad probada.
 
-Este prototipo no instala todavía nuevas apps/tweaks: solo deja listo el origen remoto de sus listados para que la tienda de futuras builds pueda sincronizarse sin actualizar BloomBox.
+La tienda de **apps/IPAs** continúa como diseño, no implementada; la **tienda de tweaks** ya tiene lector e instalador remoto en la rama experimental, no en main. La primera IPA que contenga el motor genérico requiere una compilación única; los cambios futuros del catálogo JSON no.
