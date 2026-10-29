@@ -218,12 +218,44 @@
       "useAtOwnRisk": true,
       "releaseResolution": "verified-recipe-requires-personal-game-build",
       "buildTool": "https://github.com/chrissotraidis/padmint",
-      "notes": "El archivo ios-for-padmint.ipa del release no es el juego completo. PadMint construye tu copia personal con datos de Mario Kart Wii PAL RMCP01 rev. 0.",
+      "notes": "El archivo ios-for-padmint.ipa del release no es el juego completo. PadMint construye tu copia personal con datos de Mario Kart Wii PAL RMCP01 rev. 0. Existe una ficha independiente de la IPA completa 0.7.13 para instalación experimental; la 0.8.6 sigue requiriendo PadMint.",
       "installsInsideBloomBox": "not-tested",
       "warnings": [
         "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
         "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
         "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "kartpad-legacy-0713",
+      "name": "KartPad — IPA instalable (0.7.13)",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Versión anterior de KartPad para iPhone/iPad: IPA completa con motor de juego. Se instala primero y después permite importar los datos de tu propia copia de Mario Kart Wii. La versión 0.8.6 es más reciente pero necesita PadMint.",
+      "officialWebsite": "https://github.com/chrissotraidis/kartpad",
+      "officialReleases": "https://github.com/chrissotraidis/kartpad/releases/tag/v0.7.13",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "kartpad",
+        "assetFileName": "KartPad-v0.7.13-ios.ipa"
+      },
+      "currentOfficialRelease": "0.7.13 (IPA completa anterior; última versión 0.8.6 requiere PadMint)",
+      "directDownloadURL": "https://github.com/chrissotraidis/kartpad/releases/download/v0.7.13/KartPad-v0.7.13-ios.ipa",
+      "fileName": "KartPad-v0.7.13-ios.ipa",
+      "sha256": "c71742372241a12235af24667d99c4155ee35e79b8c5bd8f8c73c186981f053e",
+      "releaseResolution": "verified-upstream-asset",
+      "installMode": "guest",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "installsInsideBloomBox": "not-tested",
+      "notes": "El release oficial 0.7.13 describe KartPad-v0.7.13-ios.ipa como listo para instalar; no confundir con KartPad-v0.7.13-ios-for-padmint.ipa (base incompleta). Tras instalar, importa tus propios datos de Mario Kart Wii mediante la opción Import Game. Versión anterior: puede tener fallos ya corregidos en versiones más nuevas. Sin ROMs incluidas.",
+      "warnings": [
+        "Versión antigua (0.7.13); existe una 0.8.6 que necesita PadMint. No se garantiza compatibilidad con iOS 27 ni ejecución como invitada en BloomBox.",
+        "Solo instalar la IPA completa de 64.5 MB, no la IPA de PadMint de 8.6 MB.",
+        "Requiere los datos de tu propia copia autorizada de Mario Kart Wii; no incluye ROM, ISO o WBFS.",
+        "Instalación experimental dentro de BloomBox: haz copia de tus partidas antes de actualizar y no sobrescribas una instalación más reciente."
       ]
     },
     {
