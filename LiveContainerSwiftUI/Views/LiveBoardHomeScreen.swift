@@ -2284,16 +2284,16 @@ private final class BloomBoxTweakCatalog: ObservableObject {
     @Published private(set) var refreshing = false
     @Published private(set) var lastSuccessfulSync: Date?
     private var refreshedAt: Date?
-    private static let lastSyncKey = "BloomBoxTweakCatalogLastSuccessfulSync-v1"
-    private static let cacheKey = "BloomBoxTweakCatalogVerifiedCache-v1"
+    private static let lastSyncKey = "BloomBoxTweakCatalogLastSuccessfulSync-v2"
+    private static let cacheKey = "BloomBoxTweakCatalogVerifiedCache-v2"
     private static let catalogURL = URL(string:
-        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/tweaks.json")!
+        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/tweaks-v2.json")!
 
     private init() {
         lastSuccessfulSync = UserDefaults.standard.object(forKey: Self.lastSyncKey) as? Date
         if let data = UserDefaults.standard.data(forKey: Self.cacheKey),
            let parsed = try? JSONDecoder().decode(BloomBoxTweakIndex.self, from: data),
-           parsed.schemaVersion == 1 {
+           parsed.schemaVersion == 2 {
             entries = parsed.tweakEntries.filter(\.isValid)
         }
     }
@@ -2325,7 +2325,7 @@ private final class BloomBoxTweakCatalog: ObservableObject {
                 throw "No se pudo descargar el catálogo remoto de tweaks."
             }
             let index = try JSONDecoder().decode(BloomBoxTweakIndex.self, from: data)
-            guard index.schemaVersion == 1,
+            guard index.schemaVersion == 2,
                   index.tweakEntries.count <= 150,
                   index.tweakEntries.allSatisfy(\.isValid) else {
                 throw "El catálogo remoto contiene entradas incompatibles."
