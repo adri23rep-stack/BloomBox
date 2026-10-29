@@ -68,7 +68,6 @@ struct LiveBoardHomeScreen: View {
     @State private var appTweakError: String?
     @State private var networkNoticeText: String?
     @State private var networkNoticeToken = UUID()
-    @State private var removedIcon: String?
     @State private var pageManager = false
     @State private var pendingPageRemoval: Int?
     @State private var desktopAction: DesktopAction?
