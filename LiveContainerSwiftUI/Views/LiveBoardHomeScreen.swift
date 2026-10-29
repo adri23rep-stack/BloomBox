@@ -2133,6 +2133,9 @@ private struct BloomBoxTweakEntry: Codable, Identifiable {
     let name: String
     let version: String
     let developer: String?
+    // Optional original author repository or official website; display only.
+    // Never use this URL as a tweak download source.
+    let officialSourceURL: String?
     let description: String?
     let priority: String?
     let alertLevel: Int?
@@ -2150,6 +2153,27 @@ private struct BloomBoxTweakEntry: Codable, Identifiable {
     let appStoreID: Int?
     let downloadURL: String
     let sha256: String
+
+    var officialProjectURL: URL? {
+        guard let officialSourceURL, officialSourceURL.count <= 2048,
+              let link = URL(string: officialSourceURL),
+              link.scheme == "https", link.host != nil,
+              link.user == nil, link.password == nil else { return nil }
+        return link
+    }
+
+    var projectLinkLabel: String {
+        guard let url = officialProjectURL else { return "Sitio del autor" }
+        return url.host?.lowercased() == "github.com"
+            ? "Ver repositorio" : "Sitio oficial"
+    }
+
+    var creditedAuthor: String {
+        guard let developer, !developer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return "Autor no especificado"
+        }
+        return developer
+    }
 
     var officialIconURL: URL? {
         guard let appIconURL, let url = URL(string: appIconURL),
@@ -2515,8 +2539,35 @@ private struct BloomBoxTweakStore: View {
                             Text("Bundle: \(match.app.bundleIdentifier) · Carpeta: \(match.app.appInfo.relativeBundlePath ?? "?")")
                                 .font(.caption2).foregroundStyle(.secondary)
                                 .textSelection(.enabled)
-                            Text("Versión \(match.entry.version) · Autor: \(match.entry.developer ?? "Comunidad")")
+                            Text("Versión \(match.entry.version)")
                                 .font(.caption2).foregroundStyle(.secondary)
+                            HStack(alignment: .center, spacing: 10) {
+                                Image(systemName: "person.crop.circle")
+                                    .font(.system(size: 22))
+                                    .foregroundStyle(.secondary)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("Desarrollado por")
+                                        .font(.caption2).foregroundStyle(.secondary)
+                                    Text(match.entry.creditedAuthor)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(.primary)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            if let originalURL = match.entry.officialProjectURL {
+                                Link(destination: originalURL) {
+                                    Label(match.entry.projectLinkLabel, systemImage: "arrow.up.right.square")
+                                        .font(.footnote.weight(.medium))
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(Color.accentColor)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 11)
+                                .background(Color.accentColor.opacity(0.09),
+                                            in: RoundedRectangle(cornerRadius: 12))
+                                .accessibilityHint("Abrir sitio del autor en el navegador")
+                            }
                             if match.entry.isActive(for: match.app) {
                                 Label("Instalado y habilitado", systemImage: "checkmark.shield.fill")
                                     .font(.footnote).foregroundStyle(.green)
