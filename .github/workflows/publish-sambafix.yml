@@ -1,0 +1,81 @@
+name: BloomBox - Publish SambaFix v3 test asset
+
+on:
+  push:
+    branches: [store-catalog]
+    paths:
+      - 'catalog/sambafix-src/**'
+      - '.github/workflows/publish-sambafix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release-sambafix:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: store-catalog
+      - name: Compile original SambaFix v3 for arm64
+        run: |
+          set -euo pipefail
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          clang -arch arm64 -isysroot "$SDK" -miphoneos-version-min=15.0 \
+            -dynamiclib -fobjc-arc -Wno-deprecated-declarations \
+            -framework Foundation -framework CloudKit -framework UIKit \
+            -install_name @rpath/SambaFix.dylib \
+            -o SambaFix.dylib catalog/sambafix-src/SambaFix.m catalog/sambafix-src/SambaFixNet.m
+          codesign -f -s - SambaFix.dylib
+          file SambaFix.dylib
+      - name: Publish downloadable tweak asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view sambafix-v3 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload sambafix-v3 SambaFix.dylib --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create sambafix-v3 SambaFix.dylib \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "SambaFix v3 - BloomBox tweak test" \
+              --notes "CloudKit compatibility correction for Samba de Amigo. No game files are distributed. For testing in LiveContainer and BloomBox only." \
+              --prerelease
+          fi
+      - name: Publish pinned binary SHA-256 to remote catalog
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,pathlib
+          path=pathlib.Path('catalog/tweaks.json')
+          data=json.loads(path.read_text())
+          digest=hashlib.sha256(pathlib.Path('SambaFix.dylib').read_bytes()).hexdigest()
+          entries=data.setdefault('tweakEntries',[])
+          entries[:]=[e for e in entries if e.get('id') != 'sambafix-v3']
+          entries.append({
+            "id":"sambafix-v3",
+            "name":"SambaFix",
+            "developer":"BloomBox / SambaFix",
+            "version":"3",
+            "priority":"full",
+            "description":"Corrige el inicio de Samba de Amigo sin usar CloudKit real.",
+            "bundleID":"com.sega.samba.app",
+            "downloadURL":"https://github.com/adri23rep-stack/BloomBox/releases/download/sambafix-v3/SambaFix.dylib",
+            "sha256":digest,
+            "fileType":"dylib",
+            "minIOS":"15.0",
+            "testedInBloomBox":False,
+            "notes":"La nube de iCloud queda desactivada; los datos del juego son locales."
+          })
+          path.write_text(json.dumps(data,indent=2,ensure_ascii=False)+'\n')
+          print('SambaFix SHA-256:',digest)
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add catalog/tweaks.json
+          if ! git diff --cached --quiet; then
+            git commit -m "catalog(tweaks): pin published SambaFix v3 release SHA-256"
+            git push origin HEAD:store-catalog
+          fi
