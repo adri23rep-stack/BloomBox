@@ -4,7 +4,13 @@ import SwiftUI
 @MainActor final class LiveBoardAppCustomization: ObservableObject {
     static let shared = LiveBoardAppCustomization()
     @Published private(set) var revision = 0
-    private let cache = NSCache<NSString, UIImage>()
+    private let cache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.totalCostLimit = 24 * 1024 * 1024
+        return cache
+    }()
+    private var cachedLayoutJSON: String?
+    private var cachedAliases: [String: String] = [:]
     private let defaults = LCUtils.appGroupUserDefault
     private var names: [String: String] { defaults.dictionary(forKey: "StrataAppNames") as? [String: String] ?? [:] }
     private var icons: [String: String] { defaults.dictionary(forKey: "StrataAppIcons") as? [String: String] ?? [:] }
@@ -12,8 +18,12 @@ import SwiftUI
     func name(_ app: LCAppModel) -> String {
         let key = liveBoardAppKey(app)
         if let name = names[key] { return name }
-        let legacy = LiveBoardHomeLayout.decode(defaults.string(forKey: "LiveBoardHomeLayout") ?? "")
-        return legacy.aliases[key] ?? app.displayName
+        let layoutJSON = defaults.string(forKey: "LiveBoardHomeLayout") ?? ""
+        if cachedLayoutJSON != layoutJSON {
+            cachedAliases = LiveBoardHomeLayout.decode(layoutJSON).aliases
+            cachedLayoutJSON = layoutJSON
+        }
+        return cachedAliases[key] ?? app.displayName
     }
     func rename(_ app: LCAppModel, to value: String) {
         let key = liveBoardAppKey(app); var map = names
@@ -25,11 +35,15 @@ import SwiftUI
         if layout.aliases.removeValue(forKey: key) != nil { defaults.set(layout.encoded, forKey: "LiveBoardHomeLayout") }
         revision += 1
     }
+    // Filenames are unique for each saved icon; renaming an app does not change its artwork.
+    func iconCacheIdentifier(_ app: LCAppModel) -> String {
+        icons[liveBoardAppKey(app)] ?? "original"
+    }
     func image(_ app: LCAppModel) -> UIImage? {
         guard let file = icons[liveBoardAppKey(app)] else { return nil }
         if let image = cache.object(forKey: file as NSString) { return image }
         guard let image = UIImage(contentsOfFile: directory.appendingPathComponent(file).path) else { return nil }
-        cache.setObject(image, forKey: file as NSString)
+        cache.setObject(image, forKey: file as NSString, cost: (image.cgImage?.bytesPerRow ?? 0) * (image.cgImage?.height ?? 0))
         return image
     }
     func saveIcon(_ image: UIImage, app: LCAppModel) throws {
@@ -47,13 +61,19 @@ import SwiftUI
         try data.write(to: directory.appendingPathComponent(file), options: .atomic)
         var map = icons; let old = map.updateValue(file, forKey: liveBoardAppKey(app))
         defaults.set(map, forKey: "StrataAppIcons")
-        if let old { try? FileManager.default.removeItem(at: directory.appendingPathComponent(old)) }
-        cache.setObject(result, forKey: file as NSString)
+        if let old {
+            cache.removeObject(forKey: old as NSString)
+            try? FileManager.default.removeItem(at: directory.appendingPathComponent(old))
+        }
+        cache.setObject(result, forKey: file as NSString, cost: (result.cgImage?.bytesPerRow ?? 0) * (result.cgImage?.height ?? 0))
         revision += 1
     }
     func resetIcon(_ app: LCAppModel) {
         var map = icons
-        if let file = map.removeValue(forKey: liveBoardAppKey(app)) { try? FileManager.default.removeItem(at: directory.appendingPathComponent(file)) }
+        if let file = map.removeValue(forKey: liveBoardAppKey(app)) {
+            cache.removeObject(forKey: file as NSString)
+            try? FileManager.default.removeItem(at: directory.appendingPathComponent(file))
+        }
         defaults.set(map, forKey: "StrataAppIcons"); revision += 1
     }
 }

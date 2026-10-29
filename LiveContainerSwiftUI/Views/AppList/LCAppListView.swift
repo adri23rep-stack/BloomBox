@@ -589,9 +589,9 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 guard app.appInfo.defaultClassicMode == 0 else {
                     throw "Desactiva Classic Mode en los ajustes de esta app para mantener abierto el launcher."
                 }
-                guard app.uiIsShared else {
-                    throw "Abre los ajustes de esta app y selecciona Convert to Shared App antes de usarla en esta sesión."
-                }
+                // BloomBox's own LiveProcess supports private guest bundles through
+                // scoped bookmarks to the app and its data container. Only cross-host
+                // LiveContainer handoff requires converting the app to Shared.
                 let defaults = LCUtils.appGroupUserDefault
                 // The Home session uses in-app windows, never a replacement host process.
                 defaults.set(MultitaskMode.virtualWindow.rawValue, forKey: "LCMultitaskMode")

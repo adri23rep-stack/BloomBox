@@ -1,0 +1,13 @@
+# Experimental app data backups
+
+App Settings → Exportar / importar datos. Use the same guest app/version when restoring. Keep guests closed and BloomBox foregrounded until the operation finishes.
+
+The `.bloomboxbackup` file is a streaming ZIP with a versioned manifest, every attached data profile (including hidden files), isolated app groups, shared groups identified by the main executable's entitlements, and readable generic/internet password records tagged to those profiles. The main profile and spoofed IDFV are recorded. The guest executable, host launch/JIT settings and external providers are not a portable part of this backup. Runtime `tmp` is a link to the host's shared temporary directory and is deliberately excluded; bootstrap recreates it.
+
+Import checks the app identifier, schema, profile capacity, credential classes and file structure before confirmation. It creates fresh UUID profiles, keeps existing profiles, rewrites only destination container metadata/keychain routing and selects the restored default profile. Shared files are restored into isolated app groups, never over other apps' shared files. Available per-app keychain slots limit how many profiles can be restored together. Credential collisions keep the existing entry and produce a warning; other keychain failures roll back inserted references and new profile directories.
+
+No guarantee of preserving cloud sessions, purchases, device-bound keys, protected credentials, absolute paths stored by guests, undeclared shared groups, or external files. Other symbolic links/special files cause export to fail instead of silently producing an incomplete copy. Backups contain private data and accessible credentials, are not password encrypted, and must be stored privately. Temporary workspaces are removed after failure, cancellation or dismissal of the export share sheet; an OS kill can leave temporary files for iOS to reclaim.
+
+Archive reads/writes use 64 KiB buffers. Imports reject absolute/traversal paths, links, duplicate paths, special files, truncated streams and oversized archives (64 GiB / 250,000 entries). Files are created only in a fresh staging directory with no imported ownership, ACLs or executable permissions. Ordinary persistent documents and databases are kept at full fidelity.
+
+CI runs `Tests/backup-tests/main.m`: binary/hidden-file/empty-directory roundtrip, traversal, symlinks, truncated input, existing destinations and cleanup. Device QA still required: export a closed guest with preferences/save games; reinstall its IPA; restore and launch; compare data; test offline/online sessions, iCloud files, shared groups, low disk space, external containers, cancellation and free keychain-slot exhaustion.

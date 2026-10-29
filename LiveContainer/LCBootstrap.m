@@ -519,6 +519,11 @@ static NSString* invokeAppMain(NSString *selectedApp, NSString *selectedContaine
     if(isLiveProcess) {
         NSURLSCGuestHooksInit();
     }
+    // Per-guest opt-in; never enable this hook in the SideStore/host process.
+    // Because socket rebinding is process-wide, this is intentionally experimental.
+    if(!isSideStore && [guestAppInfo[@"LCNetworkBlocked"] boolValue]) {
+        LCNetworkBlockInit();
+    }
     // ignore setting handler from guest app
     litehook_rebind_symbol(LITEHOOK_REBIND_GLOBAL, NSSetUncaughtExceptionHandler, hook_do_nothing, nil);
     

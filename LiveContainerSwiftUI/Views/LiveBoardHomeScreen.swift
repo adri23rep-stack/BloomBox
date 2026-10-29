@@ -57,6 +57,8 @@ struct LiveBoardHomeScreen: View {
     @State private var pendingTweakApp: LCAppModel?
     @State private var choosingAppTweak = false
     @State private var appTweakError: String?
+    @State private var networkNoticeText: String?
+    @State private var networkNoticeToken = UUID()
     @State private var removedIcon: String?
     @State private var pageManager = false
     @State private var pendingPageRemoval: Int?
@@ -126,20 +128,37 @@ struct LiveBoardHomeScreen: View {
                 background
                     .blur(radius: (searching || page == libraryPageIndex) ? 14 : 0)
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.38), value: page == libraryPageIndex)
-                VStack(spacing: 0) {
+                // Render every page in the full GeometryReader. The old VStack
+                // permanently reserved ~140pt for a Dock that is hidden on
+                // Widgets and App Library, leaving a blank strip and clipping
+                // the bottom rows of the library.
+                ZStack(alignment: .bottom) {
                     TabView(selection: $page) {
-                        ManzanaDesktopView(openSettings: { desktopSettings = true }).tag(0)
+                        ManzanaDesktopView(openSettings: { desktopSettings = true })
+                            .safeAreaInset(edge: .bottom, spacing: 0) {
+                                // Keep the last widget reachable above page controls.
+                                Color.clear.frame(height: 54)
+                            }
+                            .tag(0)
                         ForEach(visiblePageIndices, id: \.self) { index in
-                            homePage(index, width: geometry.size.width, height: max(400, geometry.size.height - 126)).tag(index + 1)
+                            homePage(index,
+                                     width: geometry.size.width,
+                                     height: max(400, geometry.size.height - 146))
+                                // Home pages still reserve space for their Dock;
+                                // Widgets and App Library use the full viewport.
+                                .padding(.bottom, 146)
+                                .tag(index + 1)
                         }
                         appLibrary(width: geometry.size.width)
                             .tag(libraryPageIndex)
                     }
+                    .frame(width: geometry.size.width, height: geometry.size.height)
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .blur(radius: openFolder == nil ? 0 : 18)
-                    // Keep the space reserved to avoid jumping into App Library.
-                    // On the Widgets page only the page navigation remains visible:
-                    // the four app icons in the Dock should disappear completely.
+
+                    // Overlay instead of taking height away from the pages.
+                    // Widgets: keep navigation, hide only the app Dock.
+                    // Library: hide both controls to maximize scrolling space.
                     VStack(spacing: 0) {
                         pageControl
                             .padding(.bottom, 18)
@@ -154,9 +173,13 @@ struct LiveBoardHomeScreen: View {
                             .allowsHitTesting(page > 0 && page < libraryPageIndex)
                             .accessibilityHidden(page == 0 || page == libraryPageIndex)
                     }
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.38), value: page == libraryPageIndex)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: page == 0)
+                    .padding(.bottom, 8)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.38),
+                               value: page == libraryPageIndex)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.28),
+                               value: page == 0)
                 }
+                .frame(width: geometry.size.width, height: geometry.size.height)
                 .blur(radius: searching ? 14 : 0)
                 .allowsHitTesting(!searching)
                 .accessibilityHidden(searching)
@@ -248,6 +271,37 @@ struct LiveBoardHomeScreen: View {
             }
         }
         .overlay { if importingMotionWallpaper { ProgressView("Preparando fondo…").padding(20).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20)) } }
+        .overlay(alignment: .top) {
+            if let networkNoticeText {
+                HStack(spacing: 12) {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(.white)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(networkNoticeText)
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Se aplica al reiniciar BloomBox. Algunas conexiones de iCloud pueden continuar.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.white.opacity(0.78))
+                    }
+                    Spacer(minLength: 0)
+                    Button {
+                        withAnimation(.easeOut(duration: 0.2)) { self.networkNoticeText = nil }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                    }
+                    .accessibilityLabel("Cerrar aviso")
+                }
+                .foregroundStyle(.white)
+                .padding(14)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(.white.opacity(0.25)))
+                .padding(.horizontal, 18)
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(99)
+            }
+        }
         .background(LiveBoardOrientationLock(mask: .portrait))
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .confirmationDialog("Desinstalar aplicación", isPresented: Binding(
@@ -604,12 +658,12 @@ struct LiveBoardHomeScreen: View {
     /// glass previews. A miniature is material, not another wallpaper image.
     // MARK: - App Library: final page of Manzana's Home
     // Only guests installed in LiveContainer are listed, not unrelated iOS apps.
-    private func libraryCategory(for key: String, assigned: [String: String]) -> String {
+    private func libraryCategory(for key: String, assigned: [String: String], appsByKey: [String: LCAppModel]) -> String {
         if let custom = assigned[key], !custom.isEmpty {
             return custom
         }
         if key == Self.sideStoreKey || key == Self.installKey { return "Utilidades" }
-        let hint = "\(title(key)) \(appMap[key]?.bundleIdentifier ?? "")".lowercased()
+        let hint = "\(title(key, appsByKey: appsByKey)) \(appsByKey[key]?.bundleIdentifier ?? "")".lowercased()
         func containsAny(_ words: [String]) -> Bool { words.contains { hint.contains($0) } }
         if containsAny(["youtube", "tiktok", "instagram", "whatsapp", "discord", "facebook",
                          "twitter", "threads", "telegram", "reddit", "messenger", "social"]) {
@@ -636,15 +690,17 @@ struct LiveBoardHomeScreen: View {
 
     private var librarySections: [LibrarySection] {
         let keys = appKeys
+        let appsByKey = appMap
+        let keySet = Set(keys)
         let assigned = (try? JSONDecoder().decode([String: String].self, from: Data(categories.utf8))) ?? [:]
-        let favorites = favoriteKeys.filter { keys.contains($0) }
+        let favorites = favoriteKeys.filter { keySet.contains($0) }
         var suggestions = favorites
         suggestions.append(contentsOf: keys.filter { !suggestions.contains($0) })
-        let stored = recentLibraryKeys.filter { keys.contains($0) }
+        let stored = recentLibraryKeys.filter { keySet.contains($0) }
         let recent = Array((stored + keys.reversed().filter { !stored.contains($0) }).prefix(8))
         var groups: [String: [String]] = [:]
         for key in keys {
-            groups[libraryCategory(for: key, assigned: assigned), default: []].append(key)
+            groups[libraryCategory(for: key, assigned: assigned, appsByKey: appsByKey), default: []].append(key)
         }
         let categoryNames = ["Social", "Productividad", "Utilidades", "Juegos", "Creatividad", "Otras apps"]
         let otherNames = groups.keys.filter { !categoryNames.contains($0) }.sorted()
@@ -657,11 +713,15 @@ struct LiveBoardHomeScreen: View {
     }
 
     private var librarySearchMatches: [String] {
-        appKeys.filter {
+        let appsByKey = appMap
+        // Resolve each display name once, instead of decoding preferences during sorting.
+        let entries = appKeys.map { (key: $0, name: title($0, appsByKey: appsByKey)) }
+        return entries.filter {
             libraryQuery.isEmpty ||
-            title($0).localizedCaseInsensitiveContains(libraryQuery) ||
-            (appMap[$0]?.bundleIdentifier.localizedCaseInsensitiveContains(libraryQuery) ?? false)
-        }.sorted { title($0).localizedStandardCompare(title($1)) == .orderedAscending }
+            $0.name.localizedCaseInsensitiveContains(libraryQuery) ||
+            (appsByKey[$0.key]?.bundleIdentifier.localizedCaseInsensitiveContains(libraryQuery) ?? false)
+        }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            .map { $0.key }
     }
 
     private func appLibrary(width: CGFloat) -> some View {
@@ -1256,6 +1316,19 @@ struct LiveBoardHomeScreen: View {
             Button("New Category…") { categoryApp = key; categoryName = ""; addingCategory = true }
             Button("Uncategorized") { setCategory(nil, key: key) }
         }
+        Button(app.uiNetworkBlocked ? "Permitir Internet" : "Bloquear Internet (experimental)",
+               systemImage: app.uiNetworkBlocked ? "wifi" : "wifi.slash") {
+            app.uiNetworkBlocked.toggle()
+            let blocked = app.uiNetworkBlocked
+            let name = title(key)
+            // A context menu must dismiss before its in-app notice can be shown.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                showNetworkNotice(blocked
+                    ? "«\(name)» ya no contará con acceso a Internet."
+                    : "«\(name)» volverá a tener acceso a Internet.")
+            }
+        }
+        .disabled(app.isAppRunning)
         Button("Añadir Tweak", systemImage: "square.and.arrow.down.on.square") {
             pendingTweakApp = app
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
@@ -1273,6 +1346,21 @@ struct LiveBoardHomeScreen: View {
         .disabled(app.isAppRunning || app.isSigningInProgress)
         Button("Quitar del escritorio", systemImage: "minus.circle", role: .destructive) {
             removeFromHome(key)
+        }
+    }
+
+    private func showNetworkNotice(_ message: String) {
+        let token = UUID()
+        networkNoticeToken = token
+        withAnimation(reduceMotion ? nil : .spring(response: 0.33, dampingFraction: 0.85)) {
+            networkNoticeText = message
+        }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            guard networkNoticeToken == token else { return }
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
+                networkNoticeText = nil
+            }
         }
     }
 
@@ -1732,6 +1820,7 @@ struct LiveBoardHomeScreen: View {
     }
 
     private func reconcile() {
+        let appsByKey = appMap
         let hadSavedLayout = layout.initialized
         let knownKeys = Set(layout.pages.flatMap { $0.compactMap { $0 } }
             + layout.dock + layout.folders.flatMap { $0.apps } + layout.hidden)
@@ -1739,7 +1828,7 @@ struct LiveBoardHomeScreen: View {
             .filter { !knownKeys.contains($0) }
         // Only installed guest apps not seen before, never icons the user hid.
         let newGuestKeys = hadSavedLayout
-            ? appKeys.filter { appMap[$0] != nil && !knownKeys.contains($0) }
+            ? appKeys.filter { appsByKey[$0] != nil && !knownKeys.contains($0) }
             : []
         layout.reconcile(appKeys, favorites: favoriteKeys)
         for key in needsShortcuts.reversed() {
@@ -1764,11 +1853,11 @@ struct LiveBoardHomeScreen: View {
             }
         }
     }
-    private func title(_ key: String) -> String {
+    private func title(_ key: String, appsByKey: [String: LCAppModel]? = nil) -> String {
         if key == Self.sideStoreKey { return "SideStore" }
         if key == Self.installKey { return "Instalar app" }
         if let folder = layout.folders.first(where: { $0.id == key }) { return folder.name }
-        return appMap[key].map { appCustomization.name($0) } ?? "App"
+        return (appsByKey ?? appMap)[key].map { appCustomization.name($0) } ?? "App"
     }
     private func addPage() { layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity)); page = layout.pages.count }
     private func setCategory(_ value: String?, key: String) {
@@ -1857,6 +1946,25 @@ struct LiveBoardIconImage: View {
             }
         }.aspectRatio(1, contentMode: .fit)
             .modifier(ManzanaIconTreatment())
+            .overlay(alignment: .bottomTrailing) {
+                if app.uiNetworkBlocked {
+                    GeometryReader { geometry in
+                        let diameter = min(23, max(12, geometry.size.width * 0.30))
+                        if geometry.size.width >= 32 {
+                            Image(systemName: "wifi.slash")
+                                .font(.system(size: diameter * 0.56, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: diameter, height: diameter)
+                                .background(Color.black.opacity(0.88), in: Circle())
+                                .overlay(Circle().strokeBorder(.white.opacity(0.88), lineWidth: 1))
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                                .padding(2)
+                        }
+                    }
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                }
+            }
     }
 }
 
