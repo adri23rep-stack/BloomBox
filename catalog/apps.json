@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "catalogID": "bloombox.official-community.apps",
+  "updatedAt": "2026-10-28",
+  "purpose": "Community app listings. App binaries remain hosted by their verified original publishers.",
+  "apps": [
+    {
+      "id": "melonx",
+      "name": "MeloNX",
+      "creator": "Stossy11 / MeloNX contributors",
+      "category": "emulation",
+      "description": "Emulador de Nintendo Switch para iPhone y iPad.",
+      "officialWebsite": "https://melonx.org/",
+      "officialReleases": "https://starforgejo.dev/projects/MeloNX/releases",
+      "releaseSource": {
+        "type": "forgejo-releases",
+        "owner": "projects",
+        "repo": "MeloNX",
+        "assetFileName": "MeloNX.ipa"
+      },
+      "currentOfficialRelease": "2.7",
+      "directDownloadURL": null,
+      "releaseResolution": "pending-live-upstream-asset-check",
+      "jit": {
+        "externalHelper": "StikDebug",
+        "script": null,
+        "scriptStatus": "needs-guest-PID-verification",
+        "bloomboxTested": false
+      },
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Puede requerir JIT y prestaciones de memoria no disponibles en el host de BloomBox.",
+        "La versión y la IPA deben confirmarse en la fuente oficial antes de instalar."
+      ]
+    },
+    {
+      "id": "melocafe",
+      "name": "MeloCafe",
+      "creator": "Stossy11 / MeloCafe contributors",
+      "category": "emulation",
+      "description": "Emulador de Wii U para iPhone y iPad.",
+      "officialWebsite": "https://melo.cafe/",
+      "officialReleases": "https://github.com/stossy11/MeloCafe/releases",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "stossy11",
+        "repo": "MeloCafe",
+        "assetFileName": "MeloCafe.ipa"
+      },
+      "currentOfficialRelease": "1.0",
+      "directDownloadURL": "https://github.com/stossy11/MeloCafe/releases/download/1.0/MeloCafe.ipa",
+      "releaseResolution": "verified-upstream-asset",
+      "jit": {
+        "externalHelper": "StikDebug",
+        "script": "universal.js",
+        "scriptStatus": "recommended-by-upstream",
+        "bloomboxTested": false
+      },
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Requiere comprobar el funcionamiento de JIT dentro del LiveProcess de BloomBox.",
+        "Increased Memory Limit puede afectar el funcionamiento."
+      ]
+    }
+  ]
+}
