@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogID": "bloombox.official-community.tweaks",
-  "updatedAt": "2026-10-28",
+  "updatedAt": "2026-10-29",
   "safety": "Native code executes inside guest apps. Only owner-reviewed releases should be listed. A separate review is required for every new binary version.",
   "tweakEntries": [
     {
@@ -17,7 +17,19 @@
       "fileType": "dylib",
       "minIOS": "15.0",
       "testedInBloomBox": false,
-      "notes": "La nube de iCloud queda desactivada; los datos del juego son locales."
+      "notes": "La nube de iCloud queda desactivada; los datos del juego son locales.",
+      "alertLevel": 3,
+      "alertTitle": "Corrección imprescindible",
+      "alertMessage": "Samba de Amigo necesita SambaFix v3 para superar el problema de CloudKit. Sin este parche el juego puede cerrarse o no iniciar.",
+      "fileName": "SambaFix.dylib",
+      "supportedApps": [
+        {
+          "bundleID": "com.sega.samba.app"
+        }
+      ],
+      "minAppVersion": null,
+      "maxAppVersion": null,
+      "officialSourceURL": "https://github.com/adri23rep-stack/BloomBox/releases/tag/sambafix-v3"
     }
   ],
   "entrySchema": {
@@ -31,7 +43,7 @@
     "fileType": "dylib | framework | archive",
     "supportedApps": [
       {
-        "bundleID": "exact app bundle identifier",
+        "bundleID": "original bundle ID or installed bundle folder",
         "minVersion": "optional",
         "maxVersion": "optional"
       }
@@ -43,6 +55,12 @@
     "scope": "app-only",
     "warnings": [
       "string"
-    ]
+    ],
+    "alertLevel": "0=sin aviso, 1=informativo, 2=importante, 3=máximo antes de abrir",
+    "alertTitle": "optional text, shown before launch at level 3",
+    "alertMessage": "optional explanation, shown before launch at level 3",
+    "fileName": "stable filename ending in .dylib, no path separators",
+    "minAppVersion": "optional legacy version lower bound",
+    "maxAppVersion": "optional legacy version upper bound"
   }
 }
