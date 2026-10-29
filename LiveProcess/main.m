@@ -66,15 +66,54 @@ int LiveProcessMain(int argc, char *argv[]) {
     [lcUserDefaults setObject:appInfo[@"selected"] forKey:@"selected"];
     [lcUserDefaults setObject:appInfo[@"selectedContainer"] forKey:@"selectedContainer"];
     
-    bool access = false;
-    NSArray* bookmarks = appInfo[@"bookmarks"];
-    NSMutableArray<NSURL *>* bookmarkedUrls = [NSMutableArray array];
-    for(int i = 0; i < bookmarks.count; i++) {
-        bool isStale = false;
-        NSError* error = nil;
-        bookmarkedUrls[i] = [NSURL URLByResolvingBookmarkData:bookmarks[i] options:0 relativeToURL:nil bookmarkDataIsStale:&isStale error:&error];
-        access = [bookmarkedUrls[i] startAccessingSecurityScopedResource];
+    BOOL access = NO;
+    NSArray<NSData *> *bookmarks = appInfo[@"bookmarks"];
+    NSMutableArray<NSURL *> *bookmarkedUrls = [NSMutableArray array];
+    for (NSData *bookmark in bookmarks) {
+        BOOL isStale = NO;
+        NSError *error = nil;
+        NSURL *scopedURL = [NSURL URLByResolvingBookmarkData:bookmark options:0
+            relativeToURL:nil bookmarkDataIsStale:&isStale error:&error];
+        // A private bundle needs a valid bookmark before the guest's main()
+        // can initialize. Otherwise it may silently return code 0.
+        if (!scopedURL) {
+            NSString *description = [NSString stringWithFormat:
+                @"LiveProcess no pudo resolver el acceso privado (%@). Puedes probar 'Allow Private Data access from LiveProcess' en Ajustes de desarrollador de BloomBox.",
+                error.localizedDescription ?: @"bookmark inválido"];
+            NSLog(@"[BloomBox] %@", description);
+            NSError *launchError = [NSError errorWithDomain:@"BloomBox.LiveProcess"
+                code:103 userInfo:@{NSLocalizedDescriptionKey:description}];
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(100 * NSEC_PER_MSEC)),
+                dispatch_get_main_queue(), ^{
+                    [LiveProcessHandler.extensionContext cancelRequestWithError:launchError];
+                    exit(1);
+                });
+            CFRunLoopRun();
+            return 1;
+        }
+        BOOL started = [scopedURL startAccessingSecurityScopedResource];
+        access = access || started;
+        [bookmarkedUrls addObject:scopedURL];
+        if (!started && [appInfo[@"privateGuest"] boolValue] &&
+            ![NSFileManager.defaultManager fileExistsAtPath:scopedURL.path]) {
+            NSString *description = [NSString stringWithFormat:
+                @"LiveProcess no tiene permiso para acceder a %@. Prueba la opción de acceso a datos privados en Ajustes de desarrollador de BloomBox.",
+                scopedURL.lastPathComponent];
+            NSLog(@"[BloomBox] %@", description);
+            NSError *launchError = [NSError errorWithDomain:@"BloomBox.LiveProcess"
+                code:104 userInfo:@{NSLocalizedDescriptionKey:description}];
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(100 * NSEC_PER_MSEC)),
+                dispatch_get_main_queue(), ^{
+                    [LiveProcessHandler.extensionContext cancelRequestWithError:launchError];
+                    exit(1);
+                });
+            CFRunLoopRun();
+            return 1;
+        }
     }
+    NSLog(@"[BloomBox] LiveProcess: private=%@, scopedBookmarks=%lu, accessGranted=%@",
+        [appInfo[@"privateGuest"] boolValue] ? @"YES" : @"NO",
+        (unsigned long)bookmarkedUrls.count, access ? @"YES" : @"NO");
     
     if ([appInfo[@"selected"] isEqualToString:@"builtinSideStore"]) {
         if(access && bookmarkedUrls.count > 0) {
