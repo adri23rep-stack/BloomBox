@@ -654,6 +654,15 @@ static NSString* invokeAppMain(NSString *selectedApp, NSString *selectedContaine
         char *argv32[] = {(char*)appExecPath, (char*)*path, NULL};
         ret = appMain(sizeof(argv32)/sizeof(*argv32) - 1, argv32, environ);
     }
+    if (isLiveProcess && !isSharedBundle && ret == 0) {
+        // A normal-looking return can hide private-container permission
+        // problems as well as an invalid IPA. Distinguish this from a crash.
+        return @"La app terminó su función principal con código 0 sin abrirse. "
+               @"Si solo ocurre con apps privadas, revisa sus permisos en LiveProcess: "
+               @"Ajustes > toca 5 veces la versión > Developer Settings > "
+               @"Allow Private Data access from LiveProcess. "
+               @"Si sigue fallando, prueba ZSign + Force Sign y verifica la IPA original.";
+    }
     return [NSString stringWithFormat:@"App returned from its main function with code %d.", ret];
 }
 
