@@ -687,21 +687,6 @@ class AppInfoProvider {
         apps.first { $0.appUUID == uuid }?.view
     }
     
-    // Get view's dataUUID property through reflection
-    private func getDataUUID(from view: UIView) -> String? {
-        let mirror = Mirror(reflecting: view)
-        
-        if let child = (mirror.children.first { $0.label == "dataUUID" })?.value as? String {
-            return child
-        }
-        
-        if view.responds(to: NSSelectorFromString("dataUUID")) {
-            return view.value(forKey: "dataUUID") as? String
-        }
-        
-        return nil
-    }
-    
     @objc public func addRunningAppWithInfo(_ appInfo: LCAppInfo?, appUUID: String, view: UIView?) {
         guard isDockEnabled() else { return }
         
