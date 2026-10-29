@@ -41,7 +41,7 @@ El campo `alertLevel` gobierna los avisos de compatibilidad:
 
 ### Iconos de la App Store
 
-Cada ficha puede añadir `appStoreID` (identificador numérico público de la App Store) y, si existe un enlace directo verificable, `appIconURL` (HTTPS en `*.mzstatic.com`). BloomBox consulta la API pública de búsqueda de iTunes para obtener `artworkUrl512` cuando solo conoce `appStoreID`, o por `bundleID` si no hay ID. Si el juego ya no está listado o falla la red, muestra el icono local del paquete instalado sin impedir el uso de la tienda. El identificador del juego es independiente de los UUID de sus contenedores de datos. Para Samba de Amigo (Apple Arcade, ficha archivada), se registró `appStoreID: 1641321225` en las tres tarjetas experimentales. Usa esta imagen únicamente como representación de la app y respeta las condiciones de uso de materiales de Apple.
+Cada ficha puede añadir `appStoreID` (identificador numérico público de la App Store) y, si existe un enlace directo verificable, `appIconURL` (HTTPS en `*.mzstatic.com`). BloomBox consulta la API pública de búsqueda de iTunes para obtener `artworkUrl512` cuando solo conoce `appStoreID`, o por `bundleID` si no hay ID. Si el juego ya no está listado o falla la red, muestra el icono local del paquete instalado sin impedir el uso de la tienda. El identificador del juego es independiente de los UUID de sus contenedores de datos. Para Samba de Amigo (Apple Arcade, ficha archivada), se registró `appStoreID: 1641321225` en la única ficha oficial de SambaFix (nivel 3). Usa esta imagen únicamente como representación de la app y respeta las condiciones de uso de materiales de Apple.
 
 ### Alta de un nuevo tweak
 
