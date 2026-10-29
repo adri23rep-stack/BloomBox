@@ -34,6 +34,11 @@ El campo `alertLevel` gobierna los avisos de compatibilidad:
 
 **Samba de Amigo** está registrado con `bundleID: "com.sega.samba.app"`, `alertLevel: 3`, `SambaFix.dylib`. El UUID de sus contenedores de datos **no** aparece en el catálogo: el parche se asigna a su instalación de app y su carpeta de tweaks.
 
+
+### Iconos de la App Store
+
+Cada ficha puede añadir `appStoreID` (identificador numérico público de la App Store) y, si existe un enlace directo verificable, `appIconURL` (HTTPS en `*.mzstatic.com`). BloomBox consulta la API pública de búsqueda de iTunes para obtener `artworkUrl512` cuando solo conoce `appStoreID`, o por `bundleID` si no hay ID. Si el juego ya no está listado o falla la red, muestra el icono local del paquete instalado sin impedir el uso de la tienda. El identificador del juego es independiente de los UUID de sus contenedores de datos. Para Samba de Amigo (Apple Arcade, ficha archivada), se registró `appStoreID: 1641321225` en las tres tarjetas experimentales. Usa esta imagen únicamente como representación de la app y respeta las condiciones de uso de materiales de Apple.
+
 ### Alta de un nuevo tweak
 
 1. Verifica el origen y permisos del desarrollador, y prueba el archivo en tu propio dispositivo.
