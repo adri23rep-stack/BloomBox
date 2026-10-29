@@ -240,7 +240,7 @@
         "repo": "kartpad",
         "assetFileName": "KartPad-v0.7.13-ios.ipa"
       },
-      "currentOfficialRelease": "0.7.13 (IPA completa anterior; última versión 0.8.6 requiere PadMint)",
+      "currentOfficialRelease": "0.7.13",
       "directDownloadURL": "https://github.com/chrissotraidis/kartpad/releases/download/v0.7.13/KartPad-v0.7.13-ios.ipa",
       "fileName": "KartPad-v0.7.13-ios.ipa",
       "sha256": "c71742372241a12235af24667d99c4155ee35e79b8c5bd8f8c73c186981f053e",
