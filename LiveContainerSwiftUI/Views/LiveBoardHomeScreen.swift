@@ -2151,6 +2151,12 @@ private struct BloomBoxTweakEntry: Codable, Identifiable {
     // The iTunes lookup API is used when appIconURL is absent.
     let appIconURL: String?
     let appStoreID: Int?
+    // A listing may be visible for discovery even if its format or target is
+    // not currently supported by the automatic BloomBox installer.
+    let listingOnly: Bool?
+    let useAtOwnRisk: Bool?
+    let targetAppName: String?
+    let notes: String?
     let downloadURL: String
     let sha256: String
 
@@ -2189,7 +2195,18 @@ private struct BloomBoxTweakEntry: Codable, Identifiable {
         fileName ?? URL(string: downloadURL)?.lastPathComponent ?? ""
     }
 
+    var isInstallable: Bool {
+        listingOnly != true && isValid
+    }
+
     var isValid: Bool {
+        // Listings with no compatible on-device installer remain discoverable,
+        // but their assets cannot be automatically downloaded or injected.
+        guard !id.isEmpty, id.count <= 90, !name.isEmpty, name.count <= 120,
+              (0...3).contains(alertLevel ?? 0) else { return false }
+        if listingOnly == true {
+            return officialProjectURL != nil && !creditedAuthor.isEmpty
+        }
         guard !id.isEmpty, id.count <= 90, !name.isEmpty, name.count <= 120,
               !version.isEmpty, version.count <= 60,
               sha256.count == 64,
@@ -2400,7 +2417,7 @@ private actor BloomBoxAppStoreArtwork {
 }
 
 private struct BloomBoxTweakTargetIcon: View {
-    let app: LCAppModel
+    let app: LCAppModel?
     let entry: BloomBoxTweakEntry
     @State private var fetchedArtwork: URL?
 
@@ -2423,7 +2440,7 @@ private struct BloomBoxTweakTargetIcon: View {
         }
         .frame(width: 58, height: 58)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .accessibilityLabel("Icono de \(app.displayName)")
+        .accessibilityLabel("Icono de \(app?.displayName ?? entry.targetAppName ?? "aplicación")")
         .task(id: entry.id) {
             if entry.officialIconURL == nil {
                 fetchedArtwork = await BloomBoxAppStoreArtwork.shared.iconURL(
@@ -2434,8 +2451,17 @@ private struct BloomBoxTweakTargetIcon: View {
         }
     }
 
-    private var localIcon: some View {
-        LiveBoardIconImage(app: app, dark: false)
+    @ViewBuilder private var localIcon: some View {
+        if let app {
+            LiveBoardIconImage(app: app, dark: false)
+        } else {
+            ZStack {
+                Color(red: 0.31, green: 0.25, blue: 0.47)
+                Image(systemName: "puzzlepiece.extension.fill")
+                    .font(.system(size: 25))
+                    .foregroundStyle(.white)
+            }
+        }
     }
 }
 
@@ -2458,6 +2484,9 @@ private struct BloomBoxTweakStore: View {
     @State private var errorText: String?
     @State private var importMatch: BloomBoxTweakMatch?
     @State private var selectedLocalFile = false
+    @State private var selectedSection = 0
+    @State private var pendingRiskMatch: BloomBoxTweakMatch?
+    @State private var confirmRiskInstallation = false
 
     private var installedApps: [LCAppModel] {
         let provided = apps + sharedModel.apps
@@ -2525,17 +2554,74 @@ private struct BloomBoxTweakStore: View {
                         Label(errorText, systemImage: "exclamationmark.triangle.fill")
                             .font(.footnote).foregroundStyle(.red)
                     }
-                    if matches.isEmpty && !catalog.refreshing {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Sin correcciones compatibles").font(.headline)
-                            Text("No encontramos tweaks publicados para las apps visibles en BloomBox.")
-                                .font(.footnote).foregroundStyle(.secondary)
-                        }
-                        .padding(18)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+                    Picker("Tienda", selection: $selectedSection) {
+                        Text("Mis apps").tag(0)
+                        Text("Explorar").tag(1)
                     }
-                    ForEach(matches) { match in
+                    .pickerStyle(.segmented)
+                    if selectedSection == 0 {
+                        if matches.isEmpty && !catalog.refreshing {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Sin correcciones compatibles").font(.headline)
+                                Text("Explora todos los tweaks aunque todavía no tengas instaladas sus apps.")
+                                    .font(.footnote).foregroundStyle(.secondary)
+                                Button("Ir a Explorar") { selectedSection = 1 }
+                                    .buttonStyle(.bordered)
+                            }
+                            .padding(18)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+                        }
+                        ForEach(matches) { match in
+                            installedTweakCard(match)
+                        }
+                    } else {
+                        Text("Todos los tweaks · incluidos los de apps no instaladas")
+                            .font(.footnote).foregroundStyle(.secondary)
+                        ForEach(catalog.entries) { entry in
+                            if let match = matches.first(where: { $0.entry.id == entry.id }) {
+                                installedTweakCard(match)
+                            } else {
+                                availableTweakCard(entry)
+                            }
+                        }
+                    }
+                    Text("Los tweaks son código nativo: solo instala correcciones de autores confiables. La tienda no realiza instalaciones silenciosas ni distribuye juegos.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                .padding(20)
+            }
+            .navigationTitle("Tweak Store")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Cerrar") { dismiss() } } }
+            .task { await catalog.refreshIfNeeded() }
+            .confirmationDialog("Tweak no verificado en BloomBox",
+                                isPresented: $confirmRiskInstallation,
+                                titleVisibility: .visible) {
+                Button("Instalar bajo mi responsabilidad", role: .destructive) {
+                    if let match = pendingRiskMatch {
+                        Task { await install(match: match, localData: nil) }
+                    }
+                    pendingRiskMatch = nil
+                }
+                Button("Cancelar", role: .cancel) { pendingRiskMatch = nil }
+            } message: {
+                Text("Este tweak es de terceros y no ha sido probado en BloomBox. Puede cerrar la app, afectar sus datos o requerir funciones no disponibles. Haz un respaldo antes de continuar.")
+            }
+            .fileImporter(isPresented: $selectedLocalFile, allowedContentTypes: [.data, .item]) { result in
+                guard let match = importMatch else { return }
+                do {
+                    let fileURL = try result.get()
+                    Task { await importVerified(fileURL, match: match) }
+                } catch {
+                    errorText = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func installedTweakCard(_ match: BloomBoxTweakMatch) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack(alignment: .center, spacing: 13) {
                                 BloomBoxTweakTargetIcon(app: match.app, entry: match.entry)
@@ -2559,6 +2645,15 @@ private struct BloomBoxTweakStore: View {
                             }
                             Text(match.entry.description ?? "Corrección de compatibilidad")
                                 .font(.subheadline).foregroundStyle(.secondary)
+                            if match.entry.useAtOwnRisk == true {
+                                Label("Uso bajo tu propio riesgo · No verificado en BloomBox",
+                                      systemImage: "exclamationmark.triangle.fill")
+                                    .font(.caption.weight(.medium))
+                                    .foregroundStyle(.orange)
+                            }
+                            if let notes = match.entry.notes {
+                                Text(notes).font(.caption).foregroundStyle(.secondary)
+                            }
                             Text("\(match.app.displayName) · \(match.app.uiIsShared ? "Compartida" : "Privada")")
                                 .font(.footnote.bold())
                             Text("Bundle: \(match.app.bundleIdentifier) · Carpeta: \(match.app.appInfo.relativeBundlePath ?? "?")")
@@ -2593,7 +2688,11 @@ private struct BloomBoxTweakStore: View {
                                             in: RoundedRectangle(cornerRadius: 12))
                                 .accessibilityHint("Abrir sitio del autor en el navegador")
                             }
-                            if match.entry.isActive(for: match.app) {
+                            if match.entry.listingOnly == true {
+                                Label("Solo consulta · Instalación automática aún no compatible",
+                                      systemImage: "info.circle")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            } else if match.entry.isActive(for: match.app) {
                                 Label("Instalado y habilitado", systemImage: "checkmark.shield.fill")
                                     .font(.footnote).foregroundStyle(.green)
                             } else if match.entry.isInstalled(for: match.app) {
@@ -2606,13 +2705,18 @@ private struct BloomBoxTweakStore: View {
                                 }.buttonStyle(.borderedProminent)
                             } else {
                                 Button {
-                                    Task { await install(match: match, localData: nil) }
+                                    if match.entry.useAtOwnRisk == true {
+                                        pendingRiskMatch = match
+                                        confirmRiskInstallation = true
+                                    } else {
+                                        Task { await install(match: match, localData: nil) }
+                                    }
                                 } label: {
                                     Label(installingID == match.id ? "Instalando…" : "Instalar \(match.entry.name)",
                                           systemImage: "arrow.down.to.line")
                                         .frame(maxWidth: .infinity)
                                 }.buttonStyle(.borderedProminent)
-                                    .disabled(installingID != nil || !match.entry.isValid)
+                                    .disabled(installingID != nil || !match.entry.isInstallable)
                                 Button {
                                     importMatch = match
                                     selectedLocalFile = true
@@ -2622,29 +2726,58 @@ private struct BloomBoxTweakStore: View {
                                 .buttonStyle(.bordered)
                                 .disabled(installingID != nil)
                             }
-                        }
-                        .padding(17)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
-                    }
-                    Text("Los tweaks son código nativo: solo instala correcciones de autores confiables. La tienda no realiza instalaciones silenciosas ni distribuye juegos.")
-                        .font(.footnote).foregroundStyle(.secondary)
+        }
+        .padding(17)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
+    }
+
+    private func availableTweakCard(_ entry: BloomBoxTweakEntry) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                BloomBoxTweakTargetIcon(app: nil, entry: entry)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(entry.name).font(.headline)
+                    Text("Para: \(entry.targetAppName ?? entry.targetBundleID ?? "Varios juegos y apps")")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
-                .padding(20)
+                Spacer(minLength: 0)
             }
-            .navigationTitle("Tweak Store")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Cerrar") { dismiss() } } }
-            .task { await catalog.refreshIfNeeded() }
-            .fileImporter(isPresented: $selectedLocalFile, allowedContentTypes: [.data, .item]) { result in
-                guard let match = importMatch else { return }
-                do {
-                    let fileURL = try result.get()
-                    Task { await importVerified(fileURL, match: match) }
-                } catch {
-                    errorText = error.localizedDescription
+            Text(entry.description ?? "Tweak disponible en GitHub")
+                .font(.subheadline).foregroundStyle(.secondary)
+            if entry.useAtOwnRisk == true {
+                Label("Uso bajo tu propio riesgo · No verificado en BloomBox",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.orange)
+            }
+            if entry.listingOnly == true {
+                Label("Solo consulta · Instalación automática aún no compatible",
+                      systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Label("App compatible no instalada o versión no reconocida",
+                      systemImage: "square.and.arrow.down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if let notes = entry.notes {
+                Text(notes).font(.caption).foregroundStyle(.secondary)
+            }
+            Text("Versión \(entry.version) · Autor: \(entry.creditedAuthor)")
+                .font(.caption).foregroundStyle(.secondary)
+            if let original = entry.officialProjectURL {
+                Link(destination: original) {
+                    Label(entry.projectLinkLabel, systemImage: "arrow.up.right.square")
+                        .font(.footnote.weight(.medium))
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .foregroundStyle(Color.accentColor)
             }
         }
+        .padding(17)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
     }
 
     @MainActor
@@ -2669,7 +2802,7 @@ private struct BloomBoxTweakStore: View {
         defer { installingID = nil }
         do {
             let app = match.app, entry = match.entry
-            guard entry.isValid, entry.applies(to: app), !app.isAppRunning else {
+            guard entry.isInstallable, entry.applies(to: app), !app.isAppRunning else {
                 throw "La app no coincide con el tweak o está en ejecución."
             }
             let data: Data
