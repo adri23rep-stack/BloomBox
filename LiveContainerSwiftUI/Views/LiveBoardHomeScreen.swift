@@ -2917,6 +2917,7 @@ private struct BloomBoxAppListing: Decodable, Identifiable {
     let fileName: String?
     let sha256: String?
     let installMode: String?
+    let buildTool: String?
     let sourceVerified: Bool?
     let featured: Bool?
     let useAtOwnRisk: Bool?
@@ -2936,6 +2937,10 @@ private struct BloomBoxAppListing: Decodable, Identifiable {
 
     var officialURL: URL? { Self.safeWebsite(officialWebsite) }
     var releasesURL: URL? { Self.safeWebsite(officialReleases) }
+    var buildToolURL: URL? {
+        guard let buildTool else { return nil }
+        return Self.safeWebsite(buildTool)
+    }
 
     var isValid: Bool {
         !id.isEmpty && id.count < 100 &&
@@ -2966,6 +2971,7 @@ private struct BloomBoxAppListing: Decodable, Identifiable {
     var categoryTitle: String {
         switch category {
         case "emulation": return "Emuladores"
+        case "ports": return "Ports de juegos"
         case "tools": return "Herramientas"
         case "utilities": return "Utilidades"
         default: return "Aplicaciones"
@@ -3093,8 +3099,12 @@ private struct BloomBoxAppStore: View {
     @State private var confirmInstall = false
 
     private var visibleListings: [BloomBoxAppListing] {
-        let base = section == 0 ? catalog.listings.filter { $0.featured == true }
-                                : catalog.listings
+        let base: [BloomBoxAppListing]
+        switch section {
+        case 0: base = catalog.listings.filter { $0.featured == true }
+        case 2: base = catalog.listings.filter { $0.category == "ports" }
+        default: base = catalog.listings
+        }
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !needle.isEmpty else { return base }
         return base.filter {
@@ -3157,6 +3167,7 @@ private struct BloomBoxAppStore: View {
                     Picker("Explorar apps", selection: $section) {
                         Text("Destacadas").tag(0)
                         Text("Explorar").tag(1)
+                        Text("Ports").tag(2)
                     }.pickerStyle(.segmented)
 
                     if visibleListings.isEmpty && !catalog.refreshing {
@@ -3280,6 +3291,11 @@ private struct BloomBoxAppStore: View {
                 if let releases = item.releasesURL {
                     Link(destination: releases) {
                         Label("Releases", systemImage: "arrow.up.right.square")
+                    }
+                }
+                if let builder = item.buildToolURL {
+                    Link(destination: builder) {
+                        Label("PadMint", systemImage: "hammer.fill")
                     }
                 }
             }
