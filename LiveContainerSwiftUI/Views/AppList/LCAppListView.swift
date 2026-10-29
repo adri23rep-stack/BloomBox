@@ -589,9 +589,19 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 guard app.appInfo.defaultClassicMode == 0 else {
                     throw "Desactiva Classic Mode en los ajustes de esta app para mantener abierto el launcher."
                 }
-                // BloomBox's own LiveProcess supports private guest bundles through
-                // scoped bookmarks to the app and its data container. Only cross-host
-                // LiveContainer handoff requires converting the app to Shared.
+                // Private apps must remain private. LiveProcess virtual-window
+                // sandbox permissions are not equivalent to Shared App conversion.
+                // Unless the user has explicitly enabled private access to LiveProcess,
+                // use the working same-host guest launch, never an unsupported window.
+                // This keeps the desktop icon functional without moving app data to
+                // the shared App Group. The desktop yields to the app until it exits.
+                if !app.uiIsShared &&
+                    !UserDefaults.standard.bool(forKey: "LCSharePrivateDataWithLiveProcess") {
+                    try await app.launchFromLibrary(multitask: false, forceJIT: forceJIT)
+                    return
+                }
+                // Shared apps, and private apps with LiveProcess access explicitly
+                // permitted in Developer Settings, can use the virtual-window path.
                 let defaults = LCUtils.appGroupUserDefault
                 // The Home session uses in-app windows, never a replacement host process.
                 defaults.set(MultitaskMode.virtualWindow.rawValue, forKey: "LCMultitaskMode")
