@@ -2622,7 +2622,6 @@ private struct BloomBoxTweakStore: View {
 
     private func installedTweakCard(_ match: BloomBoxTweakMatch) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 12) {
                             HStack(alignment: .center, spacing: 13) {
                                 BloomBoxTweakTargetIcon(app: match.app, entry: match.entry)
                                 VStack(alignment: .leading, spacing: 4) {
