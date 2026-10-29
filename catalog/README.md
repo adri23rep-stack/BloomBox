@@ -11,6 +11,19 @@ Dos catálogos JSON mantenidos en la rama separada `store-catalog`, no en `main`
 
 Modificar este branch no cambia el ejecutable de BloomBox ni dispara su build de `main`. La interfaz de Tweak Store consulta `tweaks.json` por HTTPS, valida el esquema y cada entrada, conserva la última lista verificada y ofrece sincronización al abrirla o al pulsar Actualizar. Antes de iniciar una app desde el escritorio sincroniza si el catálogo está desactualizado. Si falla Internet, conserva la última lista válida; no ofrece datos desconocidos como si estuvieran verificados.
 
+## Explorar tweaks de terceros (catálogo v2)
+
+La versión experimental incorpora dos vistas en **Tweak Store**:
+
+- **Mis apps:** solo los tweaks aplicables a apps y versiones instaladas.
+- **Explorar:** todas las fichas del catálogo, incluidas las de juegos aún no instalados. Si no hay app compatible, solo se muestra información y un enlace al proyecto original, sin instalar nada.
+
+Los clientes anteriores siguen leyendo [`catalog/tweaks.json`](./tweaks.json) (schema 1; SambaFix únicamente). El cliente nuevo utiliza [`catalog/tweaks-v2.json`](./tweaks-v2.json) con `schemaVersion: 2`, por lo que los nuevos campos no rompen versiones anteriores. Actualizar listados no vuelve a compilar ninguna de las dos versiones.
+
+Las entradas nuevas de GitHub muestran **«Uso bajo tu propio riesgo · No verificado en BloomBox»**. `useAtOwnRisk: true` exige confirmación explícita antes de instalar un tweak de terceros cuando existe un instalador compatible. `listingOnly: true` muestra un proyecto solo para consulta y deshabilita la instalación automática cuando faltan formatos, recursos, requisitos especiales o un ejecutable verificado. La advertencia no debe ocultar incompatibilidades conocidas. Las fichas originales de SambaFix siguen como estaban, con prioridad nivel 3.
+
+**Proyectos publicados para exploración** (29 de octubre de 2026): MarketplaceAdBlock (un único `.dylib` con instalador experimental y confirmación), Isaac External Item Descriptions (LiveContainer requiere framework ZIP), AIUpscaleTweak (hace falta elegir app compatible), InstaPlus (requiere Sideload Spoofer) y iOS-App-Dylib-Patches (repositorio fuente sin binario universal). No se ha verificado ninguno en el iPhone del usuario. No redistribuir binarios sin revisar licencias; se enlazan los releases originales.
+
 ## Tienda de apps
 
 1. Mostrar fichas con desarrollador, versión, changelog, compatibilidad e hipervínculo a la publicación original. Nunca espejar IPAs ajenas.
