@@ -26,6 +26,10 @@ MeloNX: fuente actual https://starforgejo.dev/projects/MeloNX/releases. La ficha
 
 Modifica únicamente `catalog/tweaks.json` en la rama `store-catalog`. Los campos mínimos para una nueva entrada en `tweakEntries` son `id`, `name`, `version`, `developer`, `description`, `downloadURL` (GitHub Releases oficial, HTTPS, archivo .dylib), `sha256` (calculado del binario publicado), `fileType: "dylib"`, `fileName` (estable entre versiones), y `supportedApps` (con `bundleID` y versiones compatibles opcionales). Nunca almacenes el binario dentro de BloomBox ni incrustes enlaces inventados.
 
+### Créditos y enlaces del autor
+
+Cada entrada debe incluir `developer` con el nombre real del autor, equipo o proyecto que publicó el tweak. El campo opcional `officialSourceURL` apunta por **HTTPS** al repositorio de código original o al sitio oficial del desarrollador. La Tweak Store muestra **Desarrollado por** y un enlace visible (**Ver repositorio** o **Sitio oficial**), separados del enlace de descarga de la biblioteca. El enlace de créditos nunca se utiliza para descargar ni ejecutar código. No se debe atribuir un tweak al catálogo o a BloomBox si fue creado por terceros; conserva siempre la atribución y las licencias de origen.
+
 El campo `alertLevel` gobierna los avisos de compatibilidad:
 
 - `3` **máximo**: antes de abrir una app afectada, si no está instalada **y activa** la corrección, muestra un recuadro con `alertMessage`, y opciones **Instalar corrección**, **Abrir de todas formas** y **Cancelar**. No bloquea la apertura para siempre.
