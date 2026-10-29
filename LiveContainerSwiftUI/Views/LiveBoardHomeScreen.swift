@@ -2276,8 +2276,7 @@ private struct SambaFixMiniStore: View {
     private func validEntry(_ entry: SambaFixStoreEntry) -> Bool {
         guard entry.name == "SambaFix", entry.version == "3",
               entry.sha256.count == 64,
-              entry.sha256.utf8.allSatisfy({ ("0"..."9").contains(String(UnicodeScalar($0))) ||
-                                           ("a"..."f").contains(String(UnicodeScalar($0))) }),
+              entry.sha256.unicodeScalars.allSatisfy({ CharacterSet(charactersIn: "0123456789abcdef").contains($0) }),
               let url = URL(string: entry.downloadURL), url.scheme == "https",
               url.host == "github.com" else { return false }
         return url.path == "/adri23rep-stack/BloomBox/releases/download/sambafix-v3/SambaFix.dylib"
