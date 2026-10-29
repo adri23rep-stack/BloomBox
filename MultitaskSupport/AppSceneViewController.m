@@ -72,22 +72,48 @@
     }
     
     NSURL *docURL = [NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].lastObject;
-    if ([NSUserDefaults.standardUserDefaults boolForKey:@"LCSharePrivateDataWithLiveProcess"]) {
-        NSData* bookmarkData = [docURL bookmarkDataWithOptions:(1<<11) includingResourceValuesForKeys:0 relativeToURL:0 error:0];
-        [bookmarks addObject:bookmarkData];
-    } else {
-        bool isSharedApp = false;
-        NSBundle* bundle = [LCSharedUtils findBundleWithBundleId:bundleId isSharedAppOut:&isSharedApp];
-        // when mutlitask with private app, we can restrict its sandbox to only its own container
-        if (!isSharedApp) {
+    // Private guests require access to their own bundle and data from the
+    // LiveProcess extension. Do not silently widen this to all Documents.
+    bool isSharedApp = false;
+    NSBundle *guestBundle = [LCSharedUtils findBundleWithBundleId:bundleId isSharedAppOut:&isSharedApp];
+    userInfo[@"privateGuest"] = @(!isSharedApp);
+    if (!isSharedApp) {
+        if (!guestBundle || !docURL || !dataUUID.length) {
+            NSError *permissionError = [NSError errorWithDomain:@"BloomBox.LiveProcess"
+                code:101 userInfo:@{NSLocalizedDescriptionKey:
+                    @"No se encontró el paquete o contenedor privado de la app. Revisa su instalación y el perfil de datos."}];
+            [delegate appSceneVC:self didInitializeWithError:permissionError];
+            return nil;
+        }
+        NSError *bookmarkError = nil;
+        BOOL allowAllPrivateData = [NSUserDefaults.standardUserDefaults boolForKey:@"LCSharePrivateDataWithLiveProcess"];
+        if (allowAllPrivateData) {
+            NSData *bookmark = [docURL bookmarkDataWithOptions:(1<<11)
+                includingResourceValuesForKeys:nil relativeToURL:nil error:&bookmarkError];
+            if (bookmark) [bookmarks addObject:bookmark];
+        } else {
             NSURL *dataURL = [docURL URLByAppendingPathComponent:[NSString stringWithFormat:@"Data/Application/%@", dataUUID]];
             NSURL *tweaksURL = [docURL URLByAppendingPathComponent:@"Tweaks"];
-            [bookmarks addObject:[bundle.bundleURL bookmarkDataWithOptions:(1<<11) includingResourceValuesForKeys:0 relativeToURL:0 error:0]];
-            NSData* containerBookmark = [dataURL bookmarkDataWithOptions:(1<<11) includingResourceValuesForKeys:0 relativeToURL:0 error:0];
-            if(containerBookmark) {
-                [bookmarks addObject:containerBookmark];
+            // Bookmark creation requires the target path to exist.
+            [NSFileManager.defaultManager createDirectoryAtURL:dataURL
+                withIntermediateDirectories:YES attributes:nil error:nil];
+            [NSFileManager.defaultManager createDirectoryAtURL:tweaksURL
+                withIntermediateDirectories:YES attributes:nil error:nil];
+            for (NSURL *target in @[guestBundle.bundleURL, dataURL, tweaksURL]) {
+                NSData *bookmark = [target bookmarkDataWithOptions:(1<<11)
+                    includingResourceValuesForKeys:nil relativeToURL:nil error:&bookmarkError];
+                if (!bookmark) break;
+                [bookmarks addObject:bookmark];
             }
-            [bookmarks addObject:[tweaksURL bookmarkDataWithOptions:(1<<11) includingResourceValuesForKeys:0 relativeToURL:0 error:0]];
+        }
+        NSUInteger expectedCount = allowAllPrivateData ? 1 : 3;
+        if (bookmarks.count != expectedCount) {
+            NSError *permissionError = [NSError errorWithDomain:@"BloomBox.LiveProcess"
+                code:102 userInfo:@{NSLocalizedDescriptionKey:
+                    [NSString stringWithFormat:@"No se pudieron compartir los archivos privados con LiveProcess (%@). Revisa la app, su contenedor y el acceso a Archivos.",
+                        bookmarkError.localizedDescription ?: @"bookmark no disponible"]}];
+            [delegate appSceneVC:self didInitializeWithError:permissionError];
+            return nil;
         }
     }
     item.userInfo = userInfo;
