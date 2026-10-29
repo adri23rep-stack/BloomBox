@@ -1,6 +1,6 @@
 # Candidatos de GitHub para BloomBox Tweak Store — 29/10/2026
 
-> **Investigación; NO publicadas en `catalog/tweaks.json`.** No se ha probado ninguno en el iPhone del usuario con iOS 27 ni en BloomBox. El repositorio original y las URL de sus autores se conservan. La presencia de `.dylib` y de hash SHA-256 en GitHub **no implica** compatibilidad ni auditoría de seguridad. No agregar entradas instalables hasta seleccionar la app destino, revisar dependencias/licencias y probar en un contenedor desechable.
+> **Investigación y publicación experimental:** el índice compatible con BloomBox clásico `catalog/tweaks.json` sigue solo con SambaFix, mientras que cinco fichas de terceros ya están publicadas en `catalog/tweaks-v2.json` para la pestaña **Explorar**. Solo MarketplaceAdBlock ofrece instalación experimental directa con confirmación de riesgo; las demás son fichas de solo consulta. Ninguna se ha probado aún en el iPhone del usuario con iOS 27 ni en BloomBox. Publicar un `.dylib` y hash SHA-256 de GitHub no significa auditoría o compatibilidad. Verifica origen, permisos, versiones y respaldo antes de intentar instalar.
 
 ## Candidatos con lanzamientos verificables
 
@@ -56,4 +56,4 @@
 4. Probar en modo privado/compartido según corresponda, verificar que el juego abre y que su información y nube se mantienen.
 5. Publicar inicialmente con nivel **0 (opcional/no probado)**, sin afirmar compatibilidad hasta probarla. Preferir estado "En revisión" como un listado separado hasta que BloomBox admita fichas no instalables.
 
-**Resultado:** búsqueda y metadatos documentados sin alterar la tienda pública, `main` ni las IPAs instaladas.
+**Resultado:** referencias y metadatos añadidos a la tienda experimental v2, con riesgo visible; el catálogo v1 y `main` permanecen sin cambios. Las fichas de consulta no ejecutan código ni instalan automáticamente.
