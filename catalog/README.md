@@ -46,6 +46,14 @@ Las fichas separan *descarga del archivo original* y *compatibilidad con el host
 
 La tienda no distribuye apps ajenas, no ejecuta código del JSON y **nunca instala nada automáticamente**. Para habilitar un botón de instalación local, la ficha requiere `installMode: "guest"`, `sourceVerified: true`, una URL HTTPS de GitHub Releases cuyo nombre termine en `.ipa`, y un SHA-256 de 64 caracteres. Antes de modificar datos el instalador comprueba que el archivo recibido coincida con el SHA-256. Los demás elementos mantienen enlaces de visita y advertencias de riesgo.
 
+### Colección de ports GalaxyPad / PadMint (29 oct. 2026)
+
+La pestaña **Ports** del cliente experimental filtra `category: "ports"`. Se añadieron **18 proyectos** oficiales de la comunidad [chrissotraidis](https://github.com/chrissotraidis): GalaxyPad, KartPad, BlueWake, SunPad, MeleePad, GoldenPad, HarkinianPad, MaskPad, PaperPad, BellPad, StarshipPad, SpaghettiPad, CTRPad, BallPad, BrawlerPad, BarrelPad, F0X y HaloPad.
+
+Se verificaron repositorios y últimas etiquetas de GitHub. Son fichas de **consulta externa**: `installMode: "external"`, `directDownloadURL: null`, y `buildTool` apunta al [PadMint original](https://github.com/chrissotraidis/padmint), sin replicar contenido de juegos ni ofrecer una IPA precompilada. Los releases de KartPad, BlueWake, SunPad y MeleePad incluyen paquetes de iOS **incompletos** (sin código del juego), útiles únicamente para PadMint; nunca anunciarlos como apps jugables listas. El resto incluye recetas de compilación y suma de comprobación. Solo usar archivos de juegos obtenidos legalmente por el usuario. Los proyectos no se han verificado dentro de BloomBox.
+
+El PadMint de escritorio ofrece compilación personal en Mac o, para los proyectos compatibles, GitHub Cloud Build desde otros sistemas. No instalarlo como app invitada en iPhone. Las URL enlazan al repositorio original y a la etiqueta de release exacta, no a discos, ROM, copias protegidas ni assets ajenos.
+
 **No mezclar con la tienda de tweaks ni con la App Store de Apple:** se trata de una lista comunitaria de aplicaciones que pueden importarse al contenedor. No añade derechos de firma, JIT ni permisos que iOS no concede.
 
 ## Tweak Store: cómo publicar nuevos tweaks sin recompilar BloomBox
