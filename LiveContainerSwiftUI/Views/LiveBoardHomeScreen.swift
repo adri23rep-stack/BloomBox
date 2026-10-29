@@ -2061,3 +2061,310 @@ private struct LiveBoardMoveDropDelegate: DropDelegate {
         accept(info.itemProviders(for: [UTType.text.identifier]))
     }
 }
+
+
+// MARK: - BloomBox Tweak Store (SambaFix-only field trial)
+// The catalog is hosted independently of the BloomBox executable on store-catalog.
+// Never fetch or execute arbitrary instructions from catalog JSON.
+private struct SambaFixStoreCatalog: Decodable {
+    let schemaVersion: Int
+    let tweakEntries: [SambaFixStoreEntry]
+}
+
+private struct SambaFixStoreEntry: Decodable {
+    let id: String
+    let name: String
+    let version: String
+    let priority: String
+    let bundleID: String
+    let downloadURL: String
+    let sha256: String
+}
+
+private struct SambaFixMiniStore: View {
+    let apps: [LCAppModel]
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var sharedModel: SharedModel
+    @State private var catalogEntry: SambaFixStoreEntry?
+    @State private var loading = false
+    @State private var installing = false
+    @State private var notice: String?
+    @State private var errorText: String?
+    @State private var selectedLocalFile = false
+    @State private var installedInThisSession = false
+
+    private static let supportedBundle = "com.sega.samba.app"
+    private static let originalSambaFixSHA256 = "4c60b88b2379ba56f854b7091abb5910ca03d41f22553875171da355a4a23dea"
+    private static let indexURL = URL(string: "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/tweaks.json")!
+
+    private var samba: LCAppModel? {
+        apps.first { !($0.appInfo is BuiltInSideStoreAppInfo) &&
+            $0.bundleIdentifier.caseInsensitiveCompare(Self.supportedBundle) == .orderedSame }
+    }
+
+    private func tweakURL(for app: LCAppModel) -> URL? {
+        guard let tweakFolder = app.uiTweakFolder else { return nil }
+        let root = app.uiIsShared ? LCPath.lcGroupTweakPath : LCPath.tweakPath
+        return root.appendingPathComponent(tweakFolder, isDirectory: true)
+            .appendingPathComponent("SambaFix.dylib", isDirectory: false)
+    }
+
+    private var hasSambaFix: Bool {
+        installedInThisSession ||
+            (samba.flatMap(tweakURL(for:)).map { FileManager.default.fileExists(atPath: $0.path) } ?? false)
+    }
+    private var tweakEnabled: Bool {
+        guard let app = samba else { return false }
+        return hasSambaFix && !app.uiDontInjectTweakLoader && !app.uiDontLoadTweakLoader
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    HStack(spacing: 15) {
+                        Image(systemName: "puzzlepiece.extension.fill")
+                            .font(.system(size: 35, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 72, height: 72)
+                            .background(LinearGradient(colors: [
+                                Color(red: 0.65, green: 0.48, blue: 0.88),
+                                Color(red: 0.33, green: 0.23, blue: 0.60)
+                            ], startPoint: .topLeading, endPoint: .bottomTrailing),
+                            in: RoundedRectangle(cornerRadius: 20))
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("BloomBox Tweaks").font(.title2.bold())
+                            Text("Prueba de compatibilidad • SambaFix")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Samba de Amigo").font(.headline)
+                            Spacer()
+                            Text("FULL").font(.caption.bold())
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                                .background(.orange.opacity(0.20), in: Capsule())
+                        }
+                        Text("Corrección CloudKit · SambaFix v3")
+                            .font(.subheadline).foregroundStyle(.secondary)
+
+                        if let samba {
+                            Label("Juego detectado", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            Text("Bundle: \(samba.bundleIdentifier) · versión \(samba.appInfo.version() ?? "?")")
+                                .font(.caption).foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+
+                            if tweakEnabled {
+                                Label("SambaFix instalado y activado", systemImage: "checkmark.shield.fill")
+                                    .foregroundStyle(.green)
+                                Text("Reinicia el juego para aplicar el cambio.")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            } else if hasSambaFix {
+                                Label("SambaFix existe, pero el cargador de tweaks está desactivado.", systemImage: "exclamationmark.triangle")
+                                    .foregroundStyle(.orange)
+                                Button("Activar SambaFix para este juego") {
+                                    samba.uiDontInjectTweakLoader = false
+                                    samba.uiDontLoadTweakLoader = false
+                                    notice = "Cargador habilitado. Cierra el juego y vuelve a abrirlo."
+                                }
+                                .buttonStyle(.borderedProminent)
+                            } else {
+                                Label("Corrección obligatoria pendiente", systemImage: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                if let entry = catalogEntry {
+                                    Button {
+                                        Task { await installFromOfficialCatalog(entry, for: samba) }
+                                    } label: {
+                                        Label(installing ? "Instalando…" : "Instalar SambaFix", systemImage: "arrow.down.to.line")
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .disabled(installing)
+                                } else if loading {
+                                    ProgressView("Consultando catálogo remoto…")
+                                } else {
+                                    Text("La descarga directa aún no está disponible. Puedes importar tu SambaFix.dylib original.")
+                                        .font(.footnote).foregroundStyle(.secondary)
+                                    Button("Reintentar consulta") { Task { await refreshCatalog() } }
+                                        .disabled(installing)
+                                }
+
+                                Button {
+                                    selectedLocalFile = true
+                                } label: {
+                                    Label("Importar mi SambaFix.dylib", systemImage: "doc.badge.plus")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.bordered)
+                                .disabled(installing)
+                            }
+                        } else {
+                            Label("Samba de Amigo no está instalado en BloomBox", systemImage: "magnifyingglass")
+                                .foregroundStyle(.secondary)
+                            Text("Importa tu propia copia del juego en BloomBox. Esta tienda de prueba no distribuye el juego.")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(18)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
+
+                    if let notice {
+                        Label(notice, systemImage: "checkmark.circle")
+                            .font(.footnote).foregroundStyle(.green)
+                    }
+                    if let errorText {
+                        Label(errorText, systemImage: "exclamationmark.circle")
+                            .font(.footnote).foregroundStyle(.red)
+                    }
+
+                    Text("Solo instalaremos SambaFix en la carpeta de tweaks de Samba de Amigo. No se instalarán otros plugins ni se ejecutará código remoto del catálogo. El parche desactiva el guardado de iCloud del juego.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(20)
+            }
+            .navigationTitle("Tweak Store")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Cerrar") { dismiss() }
+                }
+            }
+            .task { await refreshCatalog() }
+            .fileImporter(isPresented: $selectedLocalFile, allowedContentTypes: [.data, .item]) { result in
+                guard let samba else { return }
+                do {
+                    let fileURL = try result.get()
+                    Task { await installLocalFile(fileURL, for: samba) }
+                } catch {
+                    errorText = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func refreshCatalog() async {
+        guard samba != nil else { return }
+        loading = true
+        defer { loading = false }
+        catalogEntry = nil
+        do {
+            var request = URLRequest(url: Self.indexURL)
+            request.cachePolicy = .reloadRevalidatingCacheData
+            request.timeoutInterval = 15
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode),
+                  data.count < 128_000 else { throw "Catálogo no disponible." }
+            let index = try JSONDecoder().decode(SambaFixStoreCatalog.self, from: data)
+            guard index.schemaVersion == 1 else { throw "Versión de catálogo no compatible." }
+            if let entry = index.tweakEntries.first(where: { $0.id == "sambafix-v3" &&
+                $0.bundleID == Self.supportedBundle && $0.priority == "full" }) {
+                guard validEntry(entry) else { throw "La ficha remota de SambaFix no superó la validación." }
+                catalogEntry = entry
+            }
+            errorText = nil
+        } catch {
+            errorText = "No se pudo actualizar la tienda: \(error.localizedDescription)"
+        }
+    }
+
+    private func validEntry(_ entry: SambaFixStoreEntry) -> Bool {
+        guard entry.name == "SambaFix", entry.version == "3",
+              entry.sha256.count == 64,
+              entry.sha256.utf8.allSatisfy({ ("0"..."9").contains(String(UnicodeScalar($0))) ||
+                                           ("a"..."f").contains(String(UnicodeScalar($0))) }),
+              let url = URL(string: entry.downloadURL), url.scheme == "https",
+              url.host == "github.com" else { return false }
+        return url.path == "/adri23rep-stack/BloomBox/releases/download/sambafix-v3/SambaFix.dylib"
+    }
+
+    @MainActor
+    private func installFromOfficialCatalog(_ entry: SambaFixStoreEntry, for app: LCAppModel) async {
+        guard validEntry(entry), let url = URL(string: entry.downloadURL) else { return }
+        guard !installing else { return }
+        installing = true
+        errorText = nil
+        defer { installing = false }
+        do {
+            guard !app.isAppRunning else { throw "Cierra el juego antes de instalar un tweak." }
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 30
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode),
+                  (8_192...4_000_000).contains(data.count) else {
+                throw "La descarga de SambaFix no es válida."
+            }
+            let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+            guard hash == entry.sha256 else { throw "El archivo no coincide con el hash SHA-256 aprobado." }
+            try await installVerified(data, for: app)
+        } catch {
+            errorText = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func installLocalFile(_ url: URL, for app: LCAppModel) async {
+        guard !installing else { return }
+        installing = true
+        errorText = nil
+        defer { installing = false }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do {
+            guard !app.isAppRunning, url.lastPathComponent == "SambaFix.dylib" else {
+                throw "Selecciona SambaFix.dylib y cierra el juego primero."
+            }
+            let data = try Data(contentsOf: url)
+            let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+            guard hash == Self.originalSambaFixSHA256 || hash == catalogEntry?.sha256 else {
+                throw "Este SambaFix.dylib no coincide con la versión v3 verificada."
+            }
+            try await installVerified(data, for: app)
+        } catch {
+            errorText = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func installVerified(_ data: Data, for app: LCAppModel) async throws {
+        guard app.bundleIdentifier.caseInsensitiveCompare(Self.supportedBundle) == .orderedSame,
+              !app.isAppRunning else { throw "No se puede modificar esta app mientras está abierta." }
+        guard data.count >= 32, Array(data.prefix(8)) ==
+            [0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0x00, 0x00, 0x01] else {
+            throw "El archivo no es una biblioteca Mach-O ARM64 válida."
+        }
+        let folderName = app.uiTweakFolder ?? ("BloomBox-Samba-" + String(UUID().uuidString.prefix(12)))
+        let root = app.uiIsShared ? LCPath.lcGroupTweakPath : LCPath.tweakPath
+        let folder = root.appendingPathComponent(folderName, isDirectory: true)
+        let dest = folder.appendingPathComponent("SambaFix.dylib")
+        let fm = FileManager.default
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        var created = false
+        do {
+            if !fm.fileExists(atPath: dest.path) {
+                try data.write(to: dest, options: .atomic)
+                created = true
+                LCParseMachO((dest.path as NSString).utf8String, false) { path, header, _, _ in
+                    LCPatchAddRPath(path, header)
+                }
+            }
+            try await LCUtils.signTweaks(tweakFolderUrl: folder, force: true) { _ in }
+            app.uiTweakFolder = folderName
+            app.uiDontInjectTweakLoader = false
+            app.uiDontLoadTweakLoader = false
+            if !app.uiIsShared && !sharedModel.tweakFolderNames.contains(folderName) {
+                sharedModel.tweakFolderNames.append(folderName)
+            }
+            installedInThisSession = true
+            notice = "SambaFix instalado para Samba de Amigo. Cierra y abre el juego para probar."
+        } catch {
+            if created { try? fm.removeItem(at: dest) }
+            throw error
+        }
+    }
+}
