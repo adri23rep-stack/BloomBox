@@ -28,6 +28,8 @@ struct LiveBoardHomeScreen: View {
     @State private var jitSetup = false
     @State private var tweakStorePresented = false
     @State private var appStorePresented = false
+    @State private var modulesPresented = false
+    @State private var pendingModuleDestination: BloomBoxModulesPanel.Destination?
     @State private var storeFocusedApp: LCAppModel?
     @State private var pendingAlertApp: LCAppModel?
     @State private var pendingAlertTweak: BloomBoxTweakEntry?
@@ -105,11 +107,12 @@ struct LiveBoardHomeScreen: View {
     private static let installKey = "manzana:install"
     private static let tweakStoreKey = "manzana:tweakstore"
     private static let appStoreKey = "manzana:appstore"
+    private static let modulesKey = "manzana:modules"
     private enum DesktopAction { case interface, sources, tweaks, wallpaper, apps, settings, jit }
 
     private var appKeys: [String] {
         apps.filter { !($0.appInfo is BuiltInSideStoreAppInfo) }.map(liveBoardAppKey)
-            + [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey]
+            + [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey]
     }
     private var appMap: [String: LCAppModel] {
         Dictionary(apps.filter { !($0.appInfo is BuiltInSideStoreAppInfo) }.map {
@@ -561,6 +564,12 @@ struct LiveBoardHomeScreen: View {
                 openTab(.sources)
             })
         }
+        .sheet(isPresented: $modulesPresented, onDismiss: performModuleAction) {
+            BloomBoxModulesPanel { destination in
+                pendingModuleDestination = destination
+                modulesPresented = false
+            }
+        }
         .alert("Compatibilidad · Nivel 3 (máximo)", isPresented: $showTweakLevel3Alert) {
             Button("Instalar corrección") {
                 storeFocusedApp = pendingAlertApp
@@ -705,7 +714,7 @@ struct LiveBoardHomeScreen: View {
         if let custom = assigned[key], !custom.isEmpty {
             return custom
         }
-        if key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey { return "Utilidades" }
+        if key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey || key == Self.modulesKey { return "Utilidades" }
         let hint = "\(title(key, appsByKey: appsByKey)) \(appsByKey[key]?.bundleIdentifier ?? "")".lowercased()
         func containsAny(_ words: [String]) -> Bool { words.contains { hint.contains($0) } }
         if containsAny(["youtube", "tiktok", "instagram", "whatsapp", "discord", "facebook",
@@ -952,6 +961,7 @@ struct LiveBoardHomeScreen: View {
         else if key == Self.installKey { openInstall() }
         else if key == Self.tweakStoreKey { storeFocusedApp = nil; tweakStorePresented = true }
         else if key == Self.appStoreKey { appStorePresented = true }
+        else if key == Self.modulesKey { modulesPresented = true }
         else if let app = appMap[key] { requestLaunch(app) }
     }
 
@@ -1114,6 +1124,8 @@ struct LiveBoardHomeScreen: View {
                 Image(systemName: "square.stack.fill")
                     .frame(width: size, height: size)
             }
+        } else if key == Self.modulesKey {
+            BloomBoxModulesIcon(size: size)
         } else if key == Self.appStoreKey {
             Image(systemName: "bag.fill")
                 .font(.system(size: size * 0.46, weight: .semibold))
@@ -1270,7 +1282,7 @@ struct LiveBoardHomeScreen: View {
         Group {
             if let folder = layout.folders.first(where: { $0.id == key }) {
                 folderIcon(folder, showLabel: showLabel)
-            } else if key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey {
+            } else if key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey || key == Self.modulesKey {
                 shortcutIcon(key, showLabel: showLabel)
             } else if let app = appMap[key] {
                 LiveBoardHomeIcon(app: app, title: title(key), size: largeIcons ? 76 : 64,
@@ -1307,27 +1319,33 @@ struct LiveBoardHomeScreen: View {
         let isSideStore = key == Self.sideStoreKey
         let isTweakStore = key == Self.tweakStoreKey
         let isAppStore = key == Self.appStoreKey
+        let isModules = key == Self.modulesKey
         return Button {
             guard !editing else { return }
             if isSideStore { openSideStore() }
             else if isTweakStore { tweakStorePresented = true }
             else if isAppStore { appStorePresented = true }
+            else if isModules { modulesPresented = true }
             else { openInstall() }
         } label: {
             VStack(spacing: 5) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
-                        .fill(isSideStore ? Color(red: 0.14, green: 0.26, blue: 0.69)
-                                           : isTweakStore ? Color(red: 0.48, green: 0.32, blue: 0.76)
-                                           : isAppStore ? Color(red: 0.20, green: 0.55, blue: 0.77)
-                                           : Color(red: 0.12, green: 0.58, blue: 0.76))
-                    if isSideStore, let icon = BuiltInSideStoreAppInfo.shared.iconIsDarkIcon(darkIcons) {
-                        Image(uiImage: icon).resizable().scaledToFill()
-                            .clipShape(RoundedRectangle(cornerRadius: size * 0.23, style: .continuous))
+                    if isModules {
+                        BloomBoxModulesIcon(size: size)
                     } else {
-                        Image(systemName: isSideStore ? "square.stack.3d.up.fill" : isTweakStore ? "puzzlepiece.extension.fill" : isAppStore ? "bag.fill" : "square.and.arrow.down.fill")
-                            .font(.system(size: size * 0.44, weight: .semibold))
-                            .foregroundStyle(.white)
+                        RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
+                            .fill(isSideStore ? Color(red: 0.14, green: 0.26, blue: 0.69)
+                                               : isTweakStore ? Color(red: 0.48, green: 0.32, blue: 0.76)
+                                               : isAppStore ? Color(red: 0.20, green: 0.55, blue: 0.77)
+                                               : Color(red: 0.12, green: 0.58, blue: 0.76))
+                        if isSideStore, let icon = BuiltInSideStoreAppInfo.shared.iconIsDarkIcon(darkIcons) {
+                            Image(uiImage: icon).resizable().scaledToFill()
+                                .clipShape(RoundedRectangle(cornerRadius: size * 0.23, style: .continuous))
+                        } else {
+                            Image(systemName: isSideStore ? "square.stack.3d.up.fill" : isTweakStore ? "puzzlepiece.extension.fill" : isAppStore ? "bag.fill" : "square.and.arrow.down.fill")
+                                .font(.system(size: size * 0.44, weight: .semibold))
+                                .foregroundStyle(.white)
+                        }
                     }
                 }
                 .frame(width: size, height: size)
@@ -1336,7 +1354,7 @@ struct LiveBoardHomeScreen: View {
                 .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
                          phase: isSideStore ? 0.7 : 2.1))
                 if showLabel {
-                    Text(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : "Instalar app")
+                    Text(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : isModules ? "Módulos" : "Instalar app")
                         .font(.system(size: 12))
                         .lineLimit(1)
                         .foregroundStyle(.white)
@@ -1840,6 +1858,18 @@ struct LiveBoardHomeScreen: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { customizing = false } } }
         }.navigationViewStyle(.stack)
     }
+    private func performModuleAction() {
+        guard let destination = pendingModuleDestination else { return }
+        pendingModuleDestination = nil
+        switch destination {
+        case .jit: jitSetup = true
+        case .desktop: desktopSettings = true
+        case .apps: openManagement()
+        case .settings: openTab(.settings)
+        case .tweaks: storeFocusedApp = nil; tweakStorePresented = true
+        }
+    }
+
     private func performDesktopAction() {
         guard let action = desktopAction else { return }
         desktopAction = nil
@@ -1912,7 +1942,7 @@ struct LiveBoardHomeScreen: View {
         let hadSavedLayout = layout.initialized
         let knownKeys = Set(layout.pages.flatMap { $0.compactMap { $0 } }
             + layout.dock + layout.folders.flatMap { $0.apps } + layout.hidden)
-        let needsShortcuts = [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey]
+        let needsShortcuts = [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey]
             .filter { !knownKeys.contains($0) }
         // Only installed guest apps not seen before, never icons the user hid.
         let newGuestKeys = hadSavedLayout
@@ -1946,6 +1976,7 @@ struct LiveBoardHomeScreen: View {
         if key == Self.installKey { return "Instalar app" }
         if key == Self.tweakStoreKey { return "Tweak Store" }
         if key == Self.appStoreKey { return "App Store" }
+        if key == Self.modulesKey { return "Módulos" }
         if let folder = layout.folders.first(where: { $0.id == key }) { return folder.name }
         return (appsByKey ?? appMap)[key].map { appCustomization.name($0) } ?? "App"
     }
@@ -1961,12 +1992,276 @@ struct LiveBoardHomeScreen: View {
             guard let key = value as? String else { return }
             DispatchQueue.main.async {
                 guard appMap[key] != nil ||
-                      key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey ||
+                      key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey || key == Self.modulesKey ||
                       layout.folders.contains(where: { $0.id == key }) else { return }
                 apply(key)
             }
         }
         return true
+    }
+}
+
+
+private struct BloomBoxModulesIcon: View {
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [Color(red: 0.29, green: 0.48, blue: 1),
+                             Color(red: 0.27, green: 0.18, blue: 0.85),
+                             Color(red: 0.42, green: 0.23, blue: 0.91)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing))
+            Image(systemName: "square.stack.3d.up.fill")
+                .font(.system(size: size * 0.47, weight: .medium))
+                .foregroundStyle(.white)
+                .shadow(color: .white.opacity(0.38), radius: size * 0.08)
+        }
+        .frame(width: size, height: size)
+        .overlay {
+            RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
+                .strokeBorder(.white.opacity(0.32), lineWidth: 1.1)
+        }
+        .accessibilityLabel("Módulos de BloomBox")
+    }
+}
+
+/// System modules are only navigation and status UI. RAM+ is deliberately inert:
+/// Apple's capability, refreshed provisioning profile, and installed signature
+/// must all be verified before an actual activation can be offered.
+private struct BloomBoxModulesPanel: View {
+    enum Destination { case jit, desktop, apps, settings, tweaks }
+    enum Module: String, CaseIterable, Identifiable {
+        case ram, jit, desktop, connectivity, privacy, experimental
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .ram: return "RAM+"
+            case .jit: return "JIT"
+            case .desktop: return "Escritorio"
+            case .connectivity: return "Conectividad"
+            case .privacy: return "Privacidad"
+            case .experimental: return "Experimental"
+            }
+        }
+        var subtitle: String {
+            switch self {
+            case .ram: return "Memoria ampliada"
+            case .jit: return "Setup y proveedores"
+            case .desktop: return "Personalización"
+            case .connectivity: return "Internet y red"
+            case .privacy: return "Aislamiento y permisos"
+            case .experimental: return "Funciones avanzadas"
+            }
+        }
+        var symbol: String {
+            switch self {
+            case .ram: return "cpu"
+            case .jit: return "bolt.fill"
+            case .desktop: return "display"
+            case .connectivity: return "wifi"
+            case .privacy: return "shield.lefthalf.filled"
+            case .experimental: return "flask.fill"
+            }
+        }
+        var tint: Color {
+            switch self {
+            case .ram: return Color(red: 0.80, green: 0.48, blue: 1)
+            case .jit: return Color(red: 1, green: 0.73, blue: 0.43)
+            case .desktop: return Color(red: 0.31, green: 0.78, blue: 1)
+            case .connectivity: return Color(red: 0.35, green: 0.92, blue: 0.68)
+            case .privacy: return Color(red: 1, green: 0.48, blue: 0.75)
+            case .experimental: return Color(red: 0.72, green: 0.45, blue: 1)
+            }
+        }
+    }
+
+    let onSelect: (Destination) -> Void
+    @Environment(\.dismiss) private var dismiss
+    private let columns = [GridItem(.flexible(), spacing: 12),
+                           GridItem(.flexible(), spacing: 12)]
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 23) {
+                    HStack(spacing: 16) {
+                        BloomBoxModulesIcon(size: 55)
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("Módulos")
+                                .font(.system(size: 31, weight: .bold, design: .rounded))
+                            Text("Funciones y herramientas de BloomBox")
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                    }
+                    .padding(.top, 16)
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(Module.allCases) { module in
+                            NavigationLink(destination: detail(for: module)) {
+                                tile(module)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("bloombox.modules.\(module.rawValue)")
+                        }
+                    }
+                    Text("Los módulos existentes abren sus herramientas actuales. RAM+ permanece pendiente hasta verificar su activación y firma.")
+                        .font(.footnote)
+                        .foregroundStyle(.white.opacity(0.66))
+                        .padding(.horizontal, 4)
+                }
+                .padding(18)
+            }
+            .background {
+                ZStack {
+                    Color(red: 0.05, green: 0.07, blue: 0.19)
+                    LinearGradient(colors: [
+                        Color(red: 0.23, green: 0.16, blue: 0.70).opacity(0.63),
+                        Color(red: 0.09, green: 0.19, blue: 0.57).opacity(0.48),
+                        Color(red: 0.19, green: 0.07, blue: 0.34).opacity(0.62)
+                    ], startPoint: .topLeading, endPoint: .bottomTrailing)
+                }.ignoresSafeArea()
+            }
+            .foregroundStyle(.white)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Listo") { dismiss() }.fontWeight(.semibold)
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.dark)
+    }
+
+    private func tile(_ module: Module) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Image(systemName: module.symbol)
+                .font(.system(size: 25, weight: .semibold))
+                .foregroundStyle(module.tint)
+                .frame(width: 49, height: 49)
+                .background(module.tint.opacity(0.18),
+                            in: RoundedRectangle(cornerRadius: 14))
+            Spacer(minLength: 0)
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(module.title)
+                    .font(.system(size: 17, weight: .bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.80)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.65))
+            }
+            Text(module.subtitle)
+                .font(.system(size: 12))
+                .foregroundStyle(.white.opacity(0.72))
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 165)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24)
+                .strokeBorder(LinearGradient(colors: [module.tint.opacity(0.72), .white.opacity(0.13)],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing),
+                              lineWidth: 1)
+        }
+    }
+
+    @ViewBuilder private func detail(for module: Module) -> some View {
+        if module == .ram {
+            ramDetail
+        } else {
+            moduleDetail(module)
+        }
+    }
+
+    private var ramDetail: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                Label("Memoria ampliada", systemImage: "cpu")
+                    .font(.title2.bold())
+                Label("Pendiente de implementación", systemImage: "clock.badge.exclamationmark")
+                    .font(.subheadline)
+                    .foregroundStyle(.orange)
+                Text("Esta opción usará en el futuro la sesión autorizada de SideStore para solicitar el permiso Increased Memory Limit y renovar la firma de BloomBox.")
+                    .font(.body)
+                Text("Antes de marcar RAM+ como activa, se deberá comprobar que la capacidad esté aprobada, que el perfil la incluya y que el permiso esté presente en la aplicación instalada.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Button("Activar RAM+") { }
+                    .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity)
+                    .disabled(true)
+                    .accessibilityIdentifier("bloombox.modules.ram.activate")
+                Text("El botón está preparado, pero no realiza ninguna modificación ni solicita credenciales.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(24)
+        }
+        .navigationTitle("RAM+")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func moduleDetail(_ module: Module) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Label(module.title, systemImage: module.symbol)
+                .font(.title2.bold())
+                Text(detailDescription(module))
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            Button {
+                switch module {
+                case .jit: onSelect(.jit)
+                case .desktop: onSelect(.desktop)
+                case .connectivity, .privacy: onSelect(.apps)
+                case .experimental: onSelect(.settings)
+                case .ram: break
+                }
+            } label: {
+                Label(detailButton(module), systemImage: "arrow.up.right.square")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("bloombox.modules.\(module.rawValue).open")
+            if module == .experimental {
+                Button("Abrir Tweak Store") { onSelect(.tweaks) }
+                    .buttonStyle(.bordered)
+            }
+            Spacer()
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .navigationTitle(module.title)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func detailDescription(_ module: Module) -> String {
+        switch module {
+        case .jit: return "Accede a los proveedores JIT y a su configuración existente."
+        case .desktop: return "Abre los controles de escritorio: apariencia, widgets, páginas y personalización."
+        case .connectivity: return "El acceso a internet se configura por aplicación desde su administración. No se cambia la conectividad de todo el iPhone."
+        case .privacy: return "Revisa las opciones de aislamiento disponibles en cada aplicación instalada. Estas funciones no modifican permisos de iOS."
+        case .experimental: return "Consulta las herramientas y opciones avanzadas que ya están disponibles en BloomBox."
+        case .ram: return ""
+        }
+    }
+
+    private func detailButton(_ module: Module) -> String {
+        switch module {
+        case .jit: return "Configurar JIT"
+        case .desktop: return "Abrir controles del escritorio"
+        case .connectivity, .privacy: return "Administrar aplicaciones"
+        case .experimental: return "Abrir ajustes avanzados"
+        case .ram: return ""
+        }
     }
 }
 
