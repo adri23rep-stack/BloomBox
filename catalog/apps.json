@@ -132,9 +132,9 @@
     {
       "id": "madeira",
       "name": "Madeira",
-      "creator": "Will Faust / Madeira contributors",
+      "creator": "Will Faust y colaboradores de Madeira",
       "category": "emulation",
-      "description": "Ejecuta juegos de Windows x86 y x86-64 en iPhone mediante FEX-Emu, Wine y traducción gráfica a Metal. Proyecto experimental.",
+      "description": "Ejecuta juegos de PC Windows x86/x86-64 en iPhone mediante FEX-Emu, Wine y Metal (DXMT). Incluye biblioteca de juegos y soporte de Steam.",
       "officialWebsite": "https://github.com/willfaust/Madeira",
       "officialReleases": "https://github.com/willfaust/Madeira/releases/tag/v0.1.3",
       "releaseSource": {
@@ -145,26 +145,26 @@
       },
       "currentOfficialRelease": "0.1.3",
       "directDownloadURL": "https://github.com/willfaust/Madeira/releases/download/v0.1.3/Madeira-0.1.3.ipa",
+      "releaseResolution": "verified-upstream-asset",
       "sha256": "71e900cbc140778bd6fa67c1062821981ed98e6bfb674d853cfeefd6d242e1c0",
       "fileName": "Madeira-0.1.3.ipa",
-      "releaseResolution": "verified-upstream-asset",
       "installMode": "external",
       "sourceVerified": true,
       "featured": true,
       "useAtOwnRisk": true,
-      "license": "GPL-3.0-or-later (Madeira Converter Exception)",
       "jit": {
-        "externalHelper": "StikDebug o StikJIT integrado",
+        "externalHelper": "StikDebug o JIT integrado StikJIT",
         "script": null,
-        "scriptStatus": "upstream-JIT-requires-debugger",
+        "scriptStatus": "JIT integrado en iOS 27 requiere emparejamiento y LocalDevVPN",
         "bloomboxTested": false
       },
-      "installsInsideBloomBox": "not-tested",
-      "notes": "Requiere iOS 26+, JIT activo y Memory+; el autor indica instalar la IPA como app independiente con SideStore/AltStore. No se ha comprobado que funcione dentro del sandbox de BloomBox.",
+      "installsInsideBloomBox": "not-compatible-with-required-ios-extensions-as-guest-unverified",
+      "notes": "Solo instalación externa en iOS mediante SideStore u otro sideloader. Requiere iOS 26+, JIT, Memory+ y conservar las extensiones de la IPA. En iOS 27 el JIT integrado puede emparejar el iPhone desde Ajustes de Madeira. No se ha probado como app invitada de BloomBox.",
       "warnings": [
-        "Uso bajo tu propio riesgo: proyecto experimental, compatibilidad y rendimiento variables.",
-        "Requiere JIT y Memory+; instalar directamente en iOS, no como app invitada de BloomBox.",
-        "Los juegos, guardados y acceso a Steam requieren precauciones y copias de seguridad."
+        "Uso bajo tu propio riesgo. Proyecto experimental: compatibilidad y rendimiento de juegos varían.",
+        "No instalar como app invitada de BloomBox: depende de entitlements, Memory+ y extensiones propias.",
+        "En iOS 27 puede requerir LocalDevVPN, emparejamiento en Developer Mode y acceso a red para iniciar JIT.",
+        "El autor recomienda conservar las extensiones de la IPA al instalar mediante SideStore."
       ]
     }
   ],
