@@ -1,4 +1,5 @@
 import SwiftUI
+import CryptoKit
 import PhotosUI
 import UniformTypeIdentifiers
 
@@ -25,6 +26,7 @@ struct LiveBoardHomeScreen: View {
     @ObservedObject private var appCustomization = LiveBoardAppCustomization.shared
     @State private var appearanceApp: LiveBoardAppearanceSelection?
     @State private var jitSetup = false
+    @State private var tweakStorePresented = false
     @AppStorage("LiveBoardHomeCategories", store: LCUtils.appGroupUserDefault) private var homeCategories = "[\"Games\",\"Ports\",\"Tools\"]"
     @State private var addingCategory = false
     @State private var categoryName = ""
@@ -94,11 +96,12 @@ struct LiveBoardHomeScreen: View {
 
     private static let sideStoreKey = "manzana:sidestore"
     private static let installKey = "manzana:install"
+    private static let tweakStoreKey = "manzana:tweakstore"
     private enum DesktopAction { case interface, sources, tweaks, wallpaper, apps, settings, jit }
 
     private var appKeys: [String] {
         apps.filter { !($0.appInfo is BuiltInSideStoreAppInfo) }.map(liveBoardAppKey)
-            + [Self.sideStoreKey, Self.installKey]
+            + [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey]
     }
     private var appMap: [String: LCAppModel] {
         Dictionary(apps.filter { !($0.appInfo is BuiltInSideStoreAppInfo) }.map {
@@ -540,6 +543,7 @@ struct LiveBoardHomeScreen: View {
             .navigationViewStyle(.stack)
         }
         .sheet(isPresented: $jitSetup) { LiveBoardJITSetup() }
+        .sheet(isPresented: $tweakStorePresented) { SambaFixMiniStore(apps: apps) }
         .sheet(isPresented: $customizing) { customizeSheet }
         .sheet(isPresented: $iconCustomization) { iconCustomizationSheet }
         .sheet(isPresented: $showWidgetGallery) {
@@ -662,7 +666,7 @@ struct LiveBoardHomeScreen: View {
         if let custom = assigned[key], !custom.isEmpty {
             return custom
         }
-        if key == Self.sideStoreKey || key == Self.installKey { return "Utilidades" }
+        if key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey { return "Utilidades" }
         let hint = "\(title(key, appsByKey: appsByKey)) \(appsByKey[key]?.bundleIdentifier ?? "")".lowercased()
         func containsAny(_ words: [String]) -> Bool { words.contains { hint.contains($0) } }
         if containsAny(["youtube", "tiktok", "instagram", "whatsapp", "discord", "facebook",
@@ -884,6 +888,7 @@ struct LiveBoardHomeScreen: View {
     private func launchLibraryKey(_ key: String) {
         if key == Self.sideStoreKey { openSideStore() }
         else if key == Self.installKey { openInstall() }
+        else if key == Self.tweakStoreKey { tweakStorePresented = true }
         else if let app = appMap[key] { launch(app) }
     }
 
@@ -1046,6 +1051,13 @@ struct LiveBoardHomeScreen: View {
                 Image(systemName: "square.stack.fill")
                     .frame(width: size, height: size)
             }
+        } else if key == Self.tweakStoreKey {
+            Image(systemName: "puzzlepiece.extension.fill")
+                .font(.system(size: size * 0.46, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: size, height: size)
+                .background(Color(red: 0.48, green: 0.32, blue: 0.76),
+                            in: RoundedRectangle(cornerRadius: size * 0.23))
         } else if key == Self.installKey {
             Image(systemName: "square.and.arrow.down.fill")
                 .font(.system(size: size * 0.5))
@@ -1188,7 +1200,7 @@ struct LiveBoardHomeScreen: View {
         Group {
             if let folder = layout.folders.first(where: { $0.id == key }) {
                 folderIcon(folder, showLabel: showLabel)
-            } else if key == Self.sideStoreKey || key == Self.installKey {
+            } else if key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey {
                 shortcutIcon(key, showLabel: showLabel)
             } else if let app = appMap[key] {
                 LiveBoardHomeIcon(app: app, title: title(key), size: largeIcons ? 76 : 64,
@@ -1223,21 +1235,24 @@ struct LiveBoardHomeScreen: View {
     private func shortcutIcon(_ key: String, showLabel: Bool) -> some View {
         let size: CGFloat = largeIcons ? 76 : 64
         let isSideStore = key == Self.sideStoreKey
+        let isTweakStore = key == Self.tweakStoreKey
         return Button {
             guard !editing else { return }
             if isSideStore { openSideStore() }
+            else if isTweakStore { tweakStorePresented = true }
             else { openInstall() }
         } label: {
             VStack(spacing: 5) {
                 ZStack {
                     RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
                         .fill(isSideStore ? Color(red: 0.14, green: 0.26, blue: 0.69)
-                                          : Color(red: 0.12, green: 0.58, blue: 0.76))
+                                           : isTweakStore ? Color(red: 0.48, green: 0.32, blue: 0.76)
+                                           : Color(red: 0.12, green: 0.58, blue: 0.76))
                     if isSideStore, let icon = BuiltInSideStoreAppInfo.shared.iconIsDarkIcon(darkIcons) {
                         Image(uiImage: icon).resizable().scaledToFill()
                             .clipShape(RoundedRectangle(cornerRadius: size * 0.23, style: .continuous))
                     } else {
-                        Image(systemName: isSideStore ? "square.stack.3d.up.fill" : "square.and.arrow.down.fill")
+                        Image(systemName: isSideStore ? "square.stack.3d.up.fill" : isTweakStore ? "puzzlepiece.extension.fill" : "square.and.arrow.down.fill")
                             .font(.system(size: size * 0.44, weight: .semibold))
                             .foregroundStyle(.white)
                     }
@@ -1248,7 +1263,7 @@ struct LiveBoardHomeScreen: View {
                 .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
                          phase: isSideStore ? 0.7 : 2.1))
                 if showLabel {
-                    Text(isSideStore ? "SideStore" : "Instalar app")
+                    Text(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : "Instalar app")
                         .font(.system(size: 12))
                         .lineLimit(1)
                         .foregroundStyle(.white)
@@ -1824,7 +1839,7 @@ struct LiveBoardHomeScreen: View {
         let hadSavedLayout = layout.initialized
         let knownKeys = Set(layout.pages.flatMap { $0.compactMap { $0 } }
             + layout.dock + layout.folders.flatMap { $0.apps } + layout.hidden)
-        let needsShortcuts = [Self.sideStoreKey, Self.installKey]
+        let needsShortcuts = [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey]
             .filter { !knownKeys.contains($0) }
         // Only installed guest apps not seen before, never icons the user hid.
         let newGuestKeys = hadSavedLayout
@@ -1856,6 +1871,7 @@ struct LiveBoardHomeScreen: View {
     private func title(_ key: String, appsByKey: [String: LCAppModel]? = nil) -> String {
         if key == Self.sideStoreKey { return "SideStore" }
         if key == Self.installKey { return "Instalar app" }
+        if key == Self.tweakStoreKey { return "Tweak Store" }
         if let folder = layout.folders.first(where: { $0.id == key }) { return folder.name }
         return (appsByKey ?? appMap)[key].map { appCustomization.name($0) } ?? "App"
     }
@@ -1871,7 +1887,7 @@ struct LiveBoardHomeScreen: View {
             guard let key = value as? String else { return }
             DispatchQueue.main.async {
                 guard appMap[key] != nil ||
-                      key == Self.sideStoreKey || key == Self.installKey ||
+                      key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey ||
                       layout.folders.contains(where: { $0.id == key }) else { return }
                 apply(key)
             }
