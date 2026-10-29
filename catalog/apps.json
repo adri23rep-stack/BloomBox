@@ -165,6 +165,546 @@
         "Madeira necesita JIT y la capacidad Memory+; su instalador integrado de JIT utiliza una extensión que debe conservarse.",
         "Es una aplicación que se firma e instala directamente en iOS, no dentro de BloomBox."
       ]
+    },
+    {
+      "id": "galaxypad",
+      "name": "GalaxyPad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de Super Mario Galaxy para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/galaxypad",
+      "officialReleases": "https://github.com/chrissotraidis/galaxypad/releases/tag/v0.2.2",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "galaxypad",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.2.2",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": true,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "Receta PadMint sin IPA precompilada. Usa su importador de datos del juego tras generar tu propia IPA. Requiere una copia USA RMGE01 rev. 0 en WBFS.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "kartpad",
+      "name": "KartPad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de Mario Kart Wii / Retro Rewind para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/kartpad",
+      "officialReleases": "https://github.com/chrissotraidis/kartpad/releases/tag/v0.8.6",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "kartpad",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.8.6",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": true,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "El archivo ios-for-padmint.ipa del release no es el juego completo. PadMint construye tu copia personal con datos de Mario Kart Wii PAL RMCP01 rev. 0.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "bluewake",
+      "name": "BlueWake",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de The Legend of Zelda: The Wind Waker para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/bluewake",
+      "officialReleases": "https://github.com/chrissotraidis/bluewake/releases/tag/v0.9.0",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "bluewake",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.9.0",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": true,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "La IPA iOS publicada no incluye el código del juego. Usa PadMint y tu imagen autorizada de Wind Waker USA GZLE01.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "sunpad",
+      "name": "SunPad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de Super Mario Sunshine para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/sunpad",
+      "officialReleases": "https://github.com/chrissotraidis/sunpad/releases/tag/v0.2.2",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "sunpad",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.2.2",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": true,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "La IPA de lanzamiento es una base para PadMint, no una descarga jugable por sí sola. Aporta tus propios datos del juego.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "meleepad",
+      "name": "MeleePad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de Super Smash Bros. Melee para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/meleepad",
+      "officialReleases": "https://github.com/chrissotraidis/meleepad/releases/tag/v0.2.4",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "meleepad",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.2.4",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "IPA iOS de base y receta PadMint; no se considera instalación jugable sin preparar los datos de tu propio juego.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "goldenpad",
+      "name": "GoldenPad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de GoldenEye 007 (N64) para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/goldenpad",
+      "officialReleases": "https://github.com/chrissotraidis/goldenpad/releases/tag/v0.2.2",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "goldenpad",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.2.2",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "Release de receta PadMint sin IPA pública completa; genera una copia personal con tu propio juego.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "harkinianpad",
+      "name": "HarkinianPad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de The Legend of Zelda: Ocarina of Time para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/harkinianpad",
+      "officialReleases": "https://github.com/chrissotraidis/harkinianpad/releases/tag/v0.2.2",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "harkinianpad",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.2.2",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "Port basado en Ship of Harkinian; receta para crear tu instalación personal con una copia autorizada.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "maskpad",
+      "name": "MaskPad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de The Legend of Zelda: Majora's Mask para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/maskpad",
+      "officialReleases": "https://github.com/chrissotraidis/maskpad/releases/tag/v0.2.1",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "maskpad",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.2.1",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "Port basado en 2 Ship 2 Harkinian; se distribuye receta PadMint, no una IPA jugable ya montada.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "paperpad",
+      "name": "PaperPad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de Paper Mario (Nintendo 64) para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/paperpad",
+      "officialReleases": "https://github.com/chrissotraidis/paperpad/releases/tag/v0.2.3",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "paperpad",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.2.3",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "Solo receta PadMint y checksums en el release; requiere juego propio para la compilación personal.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "bellpad",
+      "name": "BellPad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de Animal Crossing (GameCube) para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/bellpad",
+      "officialReleases": "https://github.com/chrissotraidis/bellpad/releases/tag/v0.2.2",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "bellpad",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.2.2",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "Proyecto experimental; receta PadMint sin juego ni IPA lista para instalar.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "starshippad",
+      "name": "StarshipPad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de Star Fox 64 para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/starshippad",
+      "officialReleases": "https://github.com/chrissotraidis/starshippad/releases/tag/v0.2.1",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "starshippad",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.2.1",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "Port basado en Starship; compila con PadMint usando tus propios datos del juego.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "spaghettipad",
+      "name": "SpaghettiPad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de Mario Kart 64 para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/spaghettipad",
+      "officialReleases": "https://github.com/chrissotraidis/spaghettipad/releases/tag/v0.2.1",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "spaghettipad",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.2.1",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "Port basado en SpaghettiKart; publica receta PadMint para crear tu propia app.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "ctrpad",
+      "name": "CTRPad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de Crash Team Racing (PS1) para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/ctrpad",
+      "officialReleases": "https://github.com/chrissotraidis/ctrpad/releases/tag/v0.2.4",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "ctrpad",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.2.4",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "Port nativo experimental; release con receta PadMint y no con un juego precompilado listo.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "ballpad",
+      "name": "BallPad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de Super Mario Strikers para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/ballpad",
+      "officialReleases": "https://github.com/chrissotraidis/ballpad/releases/tag/v1.1.1",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "ballpad",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "1.1.1",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "Port experimental para iPhone/iPad; la release solo contiene receta PadMint y checksums.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "brawlerpad",
+      "name": "BrawlerPad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de Super Smash Bros. (N64) para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/brawlerpad",
+      "officialReleases": "https://github.com/chrissotraidis/brawlerpad/releases/tag/v0.2.2",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "brawlerpad",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.2.2",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "Port experimental para iOS; compilación personal con PadMint y datos del juego aportados por ti.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "barrelpad",
+      "name": "BarrelPad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de Diddy Kong Racing para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/barrelpad",
+      "officialReleases": "https://github.com/chrissotraidis/barrelpad/releases/tag/v0.2.1",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "barrelpad",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.2.1",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "Port experimental; receta PadMint, sin IPA de juego precompilada.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "f0x",
+      "name": "F0X",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de F-Zero X para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/f0x",
+      "officialReleases": "https://github.com/chrissotraidis/f0x/releases/tag/v0.1.1",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "f0x",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.1.1",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "Port nativo basado en G-Diffuser, para iOS/Mac; receta PadMint sin IPA jugable pública.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
+    },
+    {
+      "id": "halopad",
+      "name": "HaloPad",
+      "creator": "Chris Sotraidis y colaboradores del port",
+      "category": "ports",
+      "description": "Port comunitario de Halo: Combat Evolved para dispositivos Apple, basado en recompilación o motores nativos según el proyecto.",
+      "officialWebsite": "https://github.com/chrissotraidis/projectreach",
+      "officialReleases": "https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.13",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "chrissotraidis",
+        "repo": "projectreach",
+        "assetFileName": null
+      },
+      "currentOfficialRelease": "0.3.13",
+      "directDownloadURL": null,
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "releaseResolution": "verified-recipe-requires-personal-game-build",
+      "buildTool": "https://github.com/chrissotraidis/padmint",
+      "notes": "Port experimental. La edición Xbox tiene su propio flujo de compilación GitHub; puede requerir cuenta de desarrollador de pago, JIT y recursos propios. Consulta instrucciones del proyecto.",
+      "installsInsideBloomBox": "not-tested",
+      "warnings": [
+        "Uso bajo tu propio riesgo. Port comunitario no verificado dentro de BloomBox.",
+        "Consulta el release original y PadMint; no hay botón de instalación directa de juego precompilado.",
+        "Aporta únicamente tu propia copia autorizada del juego; no se incluyen ROM, ISO, WBFS ni archivos con derechos de terceros."
+      ]
     }
   ],
   "safety": "Curated app listings point to official upstream publishers. Native IPA files execute code; no automatic installs without an HTTPS original release asset, SHA-256, user consent, and verified guest-app installer capability.",
@@ -172,7 +712,7 @@
     "id": "unique string",
     "name": "display name",
     "creator": "credited original author",
-    "category": "emulation | utilities | tools",
+    "category": "emulation | utilities | tools | ports",
     "officialWebsite": "HTTPS creator website/repository",
     "officialReleases": "HTTPS official releases",
     "directDownloadURL": "optional HTTPS URL to original release IPA",
@@ -182,6 +722,7 @@
     "sourceVerified": "true when release metadata/asset verified; not BloomBox compatibility",
     "featured": "optional featured section",
     "useAtOwnRisk": "shows warning for untested installations",
-    "notes": "specific compatibility warnings"
+    "notes": "specific compatibility warnings",
+    "buildTool": "optional original build-tool repository; PadMint for personal ports; not an iOS installer"
   }
 }
