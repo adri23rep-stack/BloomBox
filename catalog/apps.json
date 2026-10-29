@@ -128,6 +128,44 @@
       "featured": false,
       "useAtOwnRisk": true,
       "notes": "Requiere instalación real en iOS con firmado y permisos correspondientes. No instalar dentro de BloomBox."
+    },
+    {
+      "id": "madeira",
+      "name": "Madeira",
+      "creator": "Will Faust / Madeira contributors",
+      "category": "emulation",
+      "description": "Ejecuta juegos de Windows x86 y x86-64 en iPhone mediante FEX-Emu, Wine y traducción gráfica a Metal. Proyecto experimental.",
+      "officialWebsite": "https://github.com/willfaust/Madeira",
+      "officialReleases": "https://github.com/willfaust/Madeira/releases/tag/v0.1.3",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "willfaust",
+        "repo": "Madeira",
+        "assetFileName": "Madeira-0.1.3.ipa"
+      },
+      "currentOfficialRelease": "0.1.3",
+      "directDownloadURL": "https://github.com/willfaust/Madeira/releases/download/v0.1.3/Madeira-0.1.3.ipa",
+      "sha256": "71e900cbc140778bd6fa67c1062821981ed98e6bfb674d853cfeefd6d242e1c0",
+      "fileName": "Madeira-0.1.3.ipa",
+      "releaseResolution": "verified-upstream-asset",
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": true,
+      "useAtOwnRisk": true,
+      "license": "GPL-3.0-or-later (Madeira Converter Exception)",
+      "jit": {
+        "externalHelper": "StikDebug o StikJIT integrado",
+        "script": null,
+        "scriptStatus": "upstream-JIT-requires-debugger",
+        "bloomboxTested": false
+      },
+      "installsInsideBloomBox": "not-tested",
+      "notes": "Requiere iOS 26+, JIT activo y Memory+; el autor indica instalar la IPA como app independiente con SideStore/AltStore. No se ha comprobado que funcione dentro del sandbox de BloomBox.",
+      "warnings": [
+        "Uso bajo tu propio riesgo: proyecto experimental, compatibilidad y rendimiento variables.",
+        "Requiere JIT y Memory+; instalar directamente en iOS, no como app invitada de BloomBox.",
+        "Los juegos, guardados y acceso a Steam requieren precauciones y copias de seguridad."
+      ]
     }
   ],
   "safety": "Curated app listings point to official upstream publishers. Native IPA files execute code; no automatic installs without an HTTPS original release asset, SHA-256, user consent, and verified guest-app installer capability.",
