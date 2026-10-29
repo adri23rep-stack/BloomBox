@@ -53,22 +53,11 @@ jobs:
           data=json.loads(path.read_text())
           digest=hashlib.sha256(pathlib.Path('SambaFix.dylib').read_bytes()).hexdigest()
           entries=data.setdefault('tweakEntries',[])
-          entries[:]=[e for e in entries if e.get('id') != 'sambafix-v3']
-          entries.append({
-            "id":"sambafix-v3",
-            "name":"SambaFix",
-            "developer":"BloomBox / SambaFix",
-            "version":"3",
-            "priority":"full",
-            "description":"Corrige el inicio de Samba de Amigo sin usar CloudKit real.",
-            "bundleID":"com.sega.samba.app",
-            "downloadURL":"https://github.com/adri23rep-stack/BloomBox/releases/download/sambafix-v3/SambaFix.dylib",
-            "sha256":digest,
-            "fileType":"dylib",
-            "minIOS":"15.0",
-            "testedInBloomBox":False,
-            "notes":"La nube de iCloud queda desactivada; los datos del juego son locales."
-          })
+          entry=next((e for e in entries if e.get('id') == 'sambafix-v3'), None)
+          if entry is None:
+            raise SystemExit('Missing curated SambaFix listing; refusing to recreate metadata')
+          # Preserve alert level, target versions and author-reviewed fields.
+          entry['sha256']=digest
           path.write_text(json.dumps(data,indent=2,ensure_ascii=False)+'\n')
           print('SambaFix SHA-256:',digest)
           PY
