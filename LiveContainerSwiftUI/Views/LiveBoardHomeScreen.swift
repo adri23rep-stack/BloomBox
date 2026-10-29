@@ -2265,12 +2265,15 @@ private final class BloomBoxTweakCatalog: ObservableObject {
     @Published private(set) var entries: [BloomBoxTweakEntry] = []
     @Published private(set) var lastError: String?
     @Published private(set) var refreshing = false
+    @Published private(set) var lastSuccessfulSync: Date?
     private var refreshedAt: Date?
+    private static let lastSyncKey = "BloomBoxTweakCatalogLastSuccessfulSync-v1"
     private static let cacheKey = "BloomBoxTweakCatalogVerifiedCache-v1"
     private static let catalogURL = URL(string:
         "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/tweaks.json")!
 
     private init() {
+        lastSuccessfulSync = UserDefaults.standard.object(forKey: Self.lastSyncKey) as? Date
         if let data = UserDefaults.standard.data(forKey: Self.cacheKey),
            let parsed = try? JSONDecoder().decode(BloomBoxTweakIndex.self, from: data),
            parsed.schemaVersion == 1 {
@@ -2285,9 +2288,19 @@ private final class BloomBoxTweakCatalog: ObservableObject {
         refreshing = true
         defer { refreshing = false }
         do {
-            var request = URLRequest(url: Self.catalogURL)
-            request.cachePolicy = .reloadRevalidatingCacheData
-            request.timeoutInterval = 7
+            // URLSession's conditional-cache policy can serve a stale catalog
+            // even after the JSON was removed from GitHub. A distinct query
+            // string also bypasses stale raw.githubusercontent.com CDN entries.
+            var urlParts = URLComponents(url: Self.catalogURL, resolvingAgainstBaseURL: false)!
+            urlParts.queryItems = [URLQueryItem(
+                name: "refresh",
+                value: String(Int64(Date().timeIntervalSince1970 * 1000))
+            )]
+            var request = URLRequest(url: urlParts.url ?? Self.catalogURL)
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            request.setValue("no-cache, no-store, max-age=0", forHTTPHeaderField: "Cache-Control")
+            request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+            request.timeoutInterval = 12
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let response = response as? HTTPURLResponse,
                   (200...299).contains(response.statusCode),
@@ -2303,6 +2316,8 @@ private final class BloomBoxTweakCatalog: ObservableObject {
             entries = index.tweakEntries
             UserDefaults.standard.set(data, forKey: Self.cacheKey)
             refreshedAt = Date()
+            lastSuccessfulSync = refreshedAt
+            UserDefaults.standard.set(lastSuccessfulSync, forKey: Self.lastSyncKey)
             lastError = nil
         } catch {
             // Keep the previously verified catalog for offline launches.
@@ -2487,6 +2502,16 @@ private struct BloomBoxTweakStore: View {
                     }
                     if catalog.refreshing {
                         ProgressView("Sincronizando catálogo...")
+                    } else if let lastSuccess = catalog.lastSuccessfulSync {
+                        Label("Catálogo sincronizado: \(lastSuccess.formatted(date: .abbreviated, time: .shortened))",
+                              systemImage: "checkmark.arrow.trianglehead.clockwise")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    } else if !catalog.entries.isEmpty {
+                        Label("Datos locales: pendientes de verificación en línea",
+                              systemImage: "externaldrive")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                     if let lastError = catalog.lastError {
                         Text("Sin conexión o catálogo no disponible. Se conserva la última lista válida. \(lastError)")
