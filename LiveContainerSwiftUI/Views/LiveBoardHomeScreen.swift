@@ -2128,7 +2128,7 @@ private struct BloomBoxModulesPanel: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Listo") { dismiss() }.fontWeight(.semibold)
+                    Button("Listo") { dismiss() }.font(.system(size: 16, weight: .semibold))
                 }
             }
         }
