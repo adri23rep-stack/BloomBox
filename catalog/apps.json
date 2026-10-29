@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogID": "bloombox.official-community.apps",
-  "updatedAt": "2026-10-28",
+  "updatedAt": "2026-10-29",
   "purpose": "Community app listings. App binaries remain hosted by their verified original publishers.",
   "apps": [
     {
@@ -31,14 +31,19 @@
       "warnings": [
         "Puede requerir JIT y prestaciones de memoria no disponibles en el host de BloomBox.",
         "La versión y la IPA deben confirmarse en la fuente oficial antes de instalar."
-      ]
+      ],
+      "installMode": "external",
+      "sourceVerified": false,
+      "featured": true,
+      "useAtOwnRisk": true,
+      "notes": "Releases alojados en Forgejo. Sin descarga IPA confirmada desde GitHub; consulta siempre la web oficial antes de instalar."
     },
     {
       "id": "melocafe",
       "name": "MeloCafe",
       "creator": "Stossy11 / MeloCafe contributors",
       "category": "emulation",
-      "description": "Emulador de Wii U para iPhone y iPad.",
+      "description": "Emulador Wii U basado en Cemu para iOS. La compatibilidad de ejecución dentro de BloomBox y JIT requiere pruebas.",
       "officialWebsite": "https://melo.cafe/",
       "officialReleases": "https://github.com/stossy11/MeloCafe/releases",
       "releaseSource": {
@@ -60,7 +65,86 @@
       "warnings": [
         "Requiere comprobar el funcionamiento de JIT dentro del LiveProcess de BloomBox.",
         "Increased Memory Limit puede afectar el funcionamiento."
-      ]
+      ],
+      "sha256": "e87c6faa44746fab019deba31a1d58757c449b7ddbd5bd0673e20a9f09be89e3",
+      "fileName": "MeloCafe.ipa",
+      "installMode": "guest",
+      "sourceVerified": true,
+      "featured": true,
+      "useAtOwnRisk": true,
+      "notes": "Requiere comprobar JIT y memoria del contenedor; la IPA se instala dentro de BloomBox, no directamente en iOS."
+    },
+    {
+      "id": "delta",
+      "name": "Delta",
+      "creator": "Riley Testut / Delta contributors",
+      "category": "emulation",
+      "description": "Emulador clásico para iOS. Se ofrece el enlace oficial; compatibilidad como invitado de BloomBox sin verificar.",
+      "officialWebsite": "https://github.com/rileytestut/Delta",
+      "officialReleases": "https://github.com/rileytestut/Delta/releases/tag/v1.6",
+      "currentOfficialRelease": "1.6",
+      "directDownloadURL": null,
+      "releaseResolution": "upstream-ipa-no-published-sha256",
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": true,
+      "useAtOwnRisk": true,
+      "notes": "La última IPA pública encontrada no tiene SHA-256 publicado en GitHub API. Abrir lanzamiento oficial; no iniciar instalación automática sin hash."
+    },
+    {
+      "id": "utm-se",
+      "name": "UTM SE",
+      "creator": "UTM / UTM contributors",
+      "category": "utilities",
+      "description": "Máquinas virtuales y emulación sin JIT para iOS; compatibilidad en BloomBox no confirmada.",
+      "officialWebsite": "https://github.com/utmapp/UTM",
+      "officialReleases": "https://github.com/utmapp/UTM/releases/tag/v5.0.8",
+      "currentOfficialRelease": "5.0.8",
+      "directDownloadURL": "https://github.com/utmapp/UTM/releases/download/v5.0.8/UTM-SE.ipa",
+      "sha256": "d547ceb6e5a4b5adc10b996a1952a16933a7f133da66a6d9113219a45d2c5fd8",
+      "fileName": "UTM-SE.ipa",
+      "releaseResolution": "verified-upstream-asset",
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "notes": "IPA de ~237 MB. Instalar fuera de BloomBox mediante herramientas compatibles; ejecución dentro de LiveContainer no verificada."
+    },
+    {
+      "id": "stikdebug",
+      "name": "StikDebug",
+      "creator": "StikDebug contributors",
+      "category": "tools",
+      "description": "Depurador y activador de JIT en el dispositivo. Es una app auxiliar de iOS, no una app invitada normal.",
+      "officialWebsite": "https://github.com/StikDebug/StikDebug",
+      "officialReleases": "https://github.com/StikDebug/StikDebug/releases/tag/3.1.15",
+      "currentOfficialRelease": "3.1.15",
+      "directDownloadURL": "https://github.com/StikDebug/StikDebug/releases/download/3.1.15/StikDebug-3.1.15.ipa",
+      "sha256": "060cbf9287be8e5ebacb45f31f7ce5e81ec9538f971c521badd9cefa4a970039",
+      "fileName": "StikDebug-3.1.15.ipa",
+      "releaseResolution": "verified-upstream-asset",
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "notes": "Requiere instalación real en iOS con firmado y permisos correspondientes. No instalar dentro de BloomBox."
     }
-  ]
+  ],
+  "safety": "Curated app listings point to official upstream publishers. Native IPA files execute code; no automatic installs without an HTTPS original release asset, SHA-256, user consent, and verified guest-app installer capability.",
+  "entrySchema": {
+    "id": "unique string",
+    "name": "display name",
+    "creator": "credited original author",
+    "category": "emulation | utilities | tools",
+    "officialWebsite": "HTTPS creator website/repository",
+    "officialReleases": "HTTPS official releases",
+    "directDownloadURL": "optional HTTPS URL to original release IPA",
+    "sha256": "optional lowercase SHA-256 verified from GitHub release asset",
+    "fileName": "optional exact IPA name",
+    "installMode": "guest (verified-download installer handoff) | external (only link to author)",
+    "sourceVerified": "true when release metadata/asset verified; not BloomBox compatibility",
+    "featured": "optional featured section",
+    "useAtOwnRisk": "shows warning for untested installations",
+    "notes": "specific compatibility warnings"
+  }
 }
