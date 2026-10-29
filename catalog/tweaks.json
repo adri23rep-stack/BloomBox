@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "catalogID": "bloombox.official-community.tweaks",
+  "updatedAt": "2026-10-28",
+  "safety": "Native code executes inside guest apps. Only owner-reviewed releases should be listed. A separate review is required for every new binary version.",
+  "tweakEntries": [],
+  "entrySchema": {
+    "id": "string / globally unique",
+    "name": "string",
+    "developer": "string",
+    "officialSourceURL": "https://...",
+    "version": "string",
+    "downloadURL": "https://... (direct trusted .dylib, .framework.zip, or reviewed archive)",
+    "sha256": "64-character lowercase hexadecimal digest of the actual release asset",
+    "fileType": "dylib | framework | archive",
+    "supportedApps": [
+      {
+        "bundleID": "exact app bundle identifier",
+        "minVersion": "optional",
+        "maxVersion": "optional"
+      }
+    ],
+    "minIOS": "optional",
+    "maxIOS": "optional",
+    "requiresJIT": false,
+    "verifiedInBloomBox": false,
+    "scope": "app-only",
+    "warnings": [
+      "string"
+    ]
+  }
+}
