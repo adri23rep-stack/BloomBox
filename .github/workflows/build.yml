@@ -39,6 +39,10 @@ jobs:
         run: |
           clang -fobjc-arc -framework Foundation -larchive -I LiveContainerSwiftUI/Utilities Tests/backup-tests/main.m LiveContainerSwiftUI/Utilities/BloomBoxArchive.m -o "$RUNNER_TEMP/bloombox-backup-tests"
           "$RUNNER_TEMP/bloombox-backup-tests"
+      - name: Test RAM+ validation
+        run: |
+          swiftc LiveContainerSwiftUI/Utilities/BloomBoxRAMValidation.swift Tests/ram-validation/main.swift -o "$RUNNER_TEMP/ram-validation-tests"
+          "$RUNNER_TEMP/ram-validation-tests"
       - name: Restore pinned StikJIT and runtime dependencies
         run: python3 Scripts/fetch-bundled-dependencies.py
       - name: Install Rust toolchain for on-device pairing

@@ -29,6 +29,7 @@ struct LiveBoardHomeScreen: View {
     @State private var tweakStorePresented = false
     @State private var appStorePresented = false
     @State private var modulesPresented = false
+    @ObservedObject private var ramPlus = BloomBoxRAMPlus.shared
     @State private var pendingModuleDestination: BloomBoxModulesPanel.Destination?
     @State private var storeFocusedApp: LCAppModel?
     @State private var pendingAlertApp: LCAppModel?
@@ -262,6 +263,7 @@ struct LiveBoardHomeScreen: View {
                 }
             })
             .onChange(of: scenePhase) { phase in
+                if phase == .active { ramPlus.refresh() }
                 if phase == .active, #available(iOS 16.2, *) {
                     Task { await ManzanaExpiryReminderCenter.shared.synchronize() }
                 }
@@ -272,6 +274,7 @@ struct LiveBoardHomeScreen: View {
                 page = min(page, libraryPageIndex)
             }
             .onAppear {
+                ramPlus.refresh()
                 Task { await tweakCatalog.refreshIfNeeded() }
                 layout = LiveBoardHomeLayout.decode(savedLayout)
                 reconcile()
@@ -283,6 +286,20 @@ struct LiveBoardHomeScreen: View {
                 if page > 0 && hiddenPageIndices.contains(page - 1) {
                     page = (visiblePageIndices.first ?? 0) + 1
                 }
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if ramPlus.needsAttention {
+                Button { modulesPresented = true } label: {
+                    Label("RAM+ solicitada, pero el permiso no está confirmado. Toca para revisar.", systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.orange)
+                        .padding(14)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+                }
+                .padding(.horizontal, 18)
+                .padding(.bottom, 100)
+                .accessibilityIdentifier("bloombox.ram.warning")
             }
         }
         .overlay { if importingMotionWallpaper { ProgressView("Preparando fondo…").padding(20).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20)) } }
@@ -1866,6 +1883,7 @@ struct LiveBoardHomeScreen: View {
         case .desktop: desktopSettings = true
         case .apps: openManagement()
         case .settings: openTab(.settings)
+        case .sidestore: openSideStore()
         case .tweaks: storeFocusedApp = nil; tweakStorePresented = true
         }
     }
@@ -2027,11 +2045,8 @@ private struct BloomBoxModulesIcon: View {
     }
 }
 
-/// System modules are only navigation and status UI. RAM+ is deliberately inert:
-/// Apple's capability, refreshed provisioning profile, and installed signature
-/// must all be verified before an actual activation can be offered.
 private struct BloomBoxModulesPanel: View {
-    enum Destination { case jit, desktop, apps, settings, tweaks }
+    enum Destination { case jit, desktop, apps, settings, tweaks, sidestore }
     enum Module: String, CaseIterable, Identifiable {
         case ram, jit, desktop, connectivity, privacy, experimental
         var id: String { rawValue }
@@ -2107,7 +2122,7 @@ private struct BloomBoxModulesPanel: View {
                             .accessibilityIdentifier("bloombox.modules.\(module.rawValue)")
                         }
                     }
-                    Text("Los módulos existentes abren sus herramientas actuales. RAM+ permanece pendiente hasta verificar su activación y firma.")
+                    Text("RAM+ comprueba el permiso de la instalación actual y te guía para completar su activación.")
                         .font(.footnote)
                         .foregroundStyle(.white.opacity(0.66))
                         .padding(.horizontal, 4)
@@ -2182,32 +2197,7 @@ private struct BloomBoxModulesPanel: View {
     }
 
     private var ramDetail: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                Label("Memoria ampliada", systemImage: "cpu")
-                    .font(.title2.bold())
-                Label("Pendiente de implementación", systemImage: "clock.badge.exclamationmark")
-                    .font(.subheadline)
-                    .foregroundStyle(.orange)
-                Text("Esta opción usará en el futuro la sesión autorizada de SideStore para solicitar el permiso Increased Memory Limit y renovar la firma de BloomBox.")
-                    .font(.body)
-                Text("Antes de marcar RAM+ como activa, se deberá comprobar que la capacidad esté aprobada, que el perfil la incluya y que el permiso esté presente en la aplicación instalada.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Button("Activar RAM+") { }
-                    .buttonStyle(.borderedProminent)
-                    .frame(maxWidth: .infinity)
-                    .disabled(true)
-                    .accessibilityIdentifier("bloombox.modules.ram.activate")
-                Text("El botón está preparado, pero no realiza ninguna modificación ni solicita credenciales.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(24)
-        }
-        .navigationTitle("RAM+")
-        .navigationBarTitleDisplayMode(.inline)
+        BloomBoxRAMPlusView { onSelect(.sidestore) }
     }
 
     private func moduleDetail(_ module: Module) -> some View {
