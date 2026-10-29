@@ -1,0 +1,100 @@
+name: BloomBox - Official Release 1.1
+
+on:
+  workflow_run:
+    workflows: ["BloomBox - Build"]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: bloombox-release-v1.1.0
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish BloomBox v1.1.0
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check whether release already exists
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "v1.1.0" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download IPA from successful main build
+        if: steps.release.outputs.exists == 'false'
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: BloomBox-SideStore-unsigned.ipa
+          path: release-assets
+
+      - name: Validate IPA and bundled components
+        if: steps.release.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import plistlib, zipfile
+          path = "release-assets/BloomBox-SideStore-unsigned.ipa"
+          with zipfile.ZipFile(path) as archive:
+              assert archive.testzip() is None, "Corrupt IPA"
+              root = "Payload/LiveContainer.app/"
+              files = set(archive.namelist())
+              for required in (
+                  root + "Info.plist",
+                  root + "Frameworks/LiveContainerSwiftUI.framework/LiveContainerSwiftUI",
+                  root + "PlugIns/LiveProcess.appex/LiveProcess",
+                  root + "PlugIns/ManzanaExpiryWidget.appex/ManzanaExpiryWidget",
+                  root + "PlugIns/JITHelper.appex/ShareExtension",
+              ):
+                  assert required in files, "Missing component: " + required
+              assert any("/SideStoreApp.framework/" in item for item in files), "Missing SideStore"
+              info = plistlib.loads(archive.read(root + "Info.plist"))
+              assert info.get("CFBundleDisplayName") == "BloomBox", "Wrong app branding"
+          print("Verified BloomBox IPA, LiveProcess, UI, SideStore and extensions.")
+          PY
+
+      - name: Publish BloomBox 1.1
+        if: steps.release.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/bloombox-1.1-notes.md <<'NOTES'
+          # BloomBox 1.1.0
+
+          Actualización para SideStore con las mejoras integradas sobre BloomBox 1.0.0:
+
+          - **Apps privadas en el escritorio:** las apps locales pueden abrirse en ventanas virtuales de BloomBox sin convertirlas a *Shared App*. La conversión sigue disponible para compartir con otras instalaciones de LiveContainer.
+          - **Copias de datos por app:** exportar e importar archivos, ajustes y partidas de los perfiles locales, junto a grupos y credenciales accesibles. La importación crea perfiles nuevos sin sobrescribir los anteriores.
+          - **Bloqueo de Internet experimental por app:** interruptor en ajustes, distintivo de Wi-Fi tachado y avisos al cambiar la opción.
+          - **Optimización de fluidez:** uso acotado de memoria en cachés de iconos/fondos y ajustes en las actualizaciones de la interfaz.
+          - Conserva el escritorio, Widgets, biblioteca, Dock, ventanas Liquid Glass, Tweaks y mejoras visuales de 1.0.
+
+          **Antes de instalar:** conserva una copia de tus datos actuales. Descarga `BloomBox-SideStore-unsigned.ipa` e impórtala en SideStore para firmarla e instalarla.
+
+          **Limitaciones:** las copias de datos no tienen cifrado ni contraseña, así que mantenlas privadas; sesiones de iCloud, compras y credenciales protegidas no están garantizadas. El bloqueo de Internet no es un firewall completo de iOS. La compilación se verificó en GitHub Actions, pero el funcionamiento de estas funciones nuevas aún requiere pruebas reales en el iPhone.
+          NOTES
+          gh release create "v1.1.0" \
+            release-assets/BloomBox-SideStore-unsigned.ipa \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_SHA" \
+            --title "BloomBox 1.1 — Apps privadas, respaldos y optimizaciones" \
+            --notes-file /tmp/bloombox-1.1-notes.md \
+            --latest
