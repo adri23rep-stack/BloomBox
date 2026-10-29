@@ -29,7 +29,7 @@
       ],
       "minAppVersion": null,
       "maxAppVersion": null,
-      "officialSourceURL": "https://github.com/adri23rep-stack/BloomBox/releases/tag/sambafix-v3",
+      "officialSourceURL": "https://github.com/adri23rep-stack/BloomBox/tree/store-catalog/catalog/sambafix-src",
       "appStoreID": 1641321225
     },
     {
@@ -57,7 +57,7 @@
       ],
       "minAppVersion": null,
       "maxAppVersion": null,
-      "officialSourceURL": "https://github.com/adri23rep-stack/BloomBox/releases/tag/sambafix-v3",
+      "officialSourceURL": "https://github.com/adri23rep-stack/BloomBox/tree/store-catalog/catalog/sambafix-src",
       "appStoreID": 1641321225
     },
     {
@@ -85,15 +85,15 @@
       ],
       "minAppVersion": null,
       "maxAppVersion": null,
-      "officialSourceURL": "https://github.com/adri23rep-stack/BloomBox/releases/tag/sambafix-v3",
+      "officialSourceURL": "https://github.com/adri23rep-stack/BloomBox/tree/store-catalog/catalog/sambafix-src",
       "appStoreID": 1641321225
     }
   ],
   "entrySchema": {
     "id": "string / globally unique",
     "name": "string",
-    "developer": "string",
-    "officialSourceURL": "https://...",
+    "developer": "name of the original tweak author or team; credit must match the actual published source",
+    "officialSourceURL": "optional HTTPS link to original developer repository or official website, displayed as a credit (never used to download executable code)",
     "version": "string",
     "downloadURL": "https://... (direct trusted .dylib, .framework.zip, or reviewed archive)",
     "sha256": "64-character lowercase hexadecimal digest of the actual release asset",
