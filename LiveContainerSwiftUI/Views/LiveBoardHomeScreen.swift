@@ -2097,9 +2097,30 @@ private struct SambaFixMiniStore: View {
     private static let originalSambaFixSHA256 = "4c60b88b2379ba56f854b7091abb5910ca03d41f22553875171da355a4a23dea"
     private static let indexURL = URL(string: "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/tweaks.json")!
 
+    /// Match either the original Bundle ID or the imported bundle folder.
+    /// Some installed IPAs rewrite CFBundleIdentifier, while App Settings
+    /// retains the original name in "Bundle Folder".
+    private func isSambaApp(_ app: LCAppModel) -> Bool {
+        guard !(app.appInfo is BuiltInSideStoreAppInfo) else { return false }
+        let identifiers: [String] = [
+            app.bundleIdentifier,
+            app.appInfo.relativeBundlePath ?? "",
+            app.appInfo.bundlePath().map { URL(fileURLWithPath: $0).lastPathComponent } ?? "",
+            app.appInfo.info()["LCOrignalBundleIdentifier"] as? String ?? ""
+        ]
+        return identifiers.contains {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                .caseInsensitiveCompare(Self.supportedBundle) == .orderedSame
+        }
+    }
+
     private var samba: LCAppModel? {
-        apps.first { !($0.appInfo is BuiltInSideStoreAppInfo) &&
-            $0.bundleIdentifier.caseInsensitiveCompare(Self.supportedBundle) == .orderedSame }
+        // The desktop list can omit an installed or shared guest. Consult the
+        // full app registry without disclosing locked hidden apps.
+        let installed = apps + sharedModel.apps
+        let candidates = sharedModel.isHiddenAppUnlocked
+            ? installed + sharedModel.hiddenApps : installed
+        return candidates.first(where: isSambaApp)
     }
 
     private func tweakURL(for app: LCAppModel) -> URL? {
@@ -2154,8 +2175,11 @@ private struct SambaFixMiniStore: View {
                         if let samba {
                             Label("Juego detectado", systemImage: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
-                            Text("Bundle: \(samba.bundleIdentifier) · versión \(samba.appInfo.version() ?? "?")")
+                            Text("Bundle ID: \(samba.bundleIdentifier) · versión \(samba.appInfo.version() ?? "?")")
                                 .font(.caption).foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                            Text("Carpeta: \(samba.appInfo.relativeBundlePath ?? "sin nombre") · \(samba.uiIsShared ? "Compartida" : "Privada")")
+                                .font(.caption2).foregroundStyle(.secondary)
                                 .textSelection(.enabled)
 
                             if tweakEnabled {
@@ -2205,8 +2229,19 @@ private struct SambaFixMiniStore: View {
                         } else {
                             Label("Samba de Amigo no está instalado en BloomBox", systemImage: "magnifyingglass")
                                 .foregroundStyle(.secondary)
-                            Text("Importa tu propia copia del juego en BloomBox. Esta tienda de prueba no distribuye el juego.")
+                            Text("No se encontró una app con Bundle ID o carpeta com.sega.samba.app.")
                                 .font(.footnote).foregroundStyle(.secondary)
+                            DisclosureGroup("Diagnóstico de detección") {
+                                let found = Array(Set((apps + sharedModel.apps).map { model in
+                                    "\(model.displayName) · \(model.bundleIdentifier) · \(model.appInfo.relativeBundlePath ?? "?")"
+                                })).sorted()
+                                ForEach(found, id: \.self) { item in
+                                    Text(item)
+                                        .font(.caption2)
+                                        .textSelection(.enabled)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }.font(.caption)
                         }
                     }
                     .padding(18)
@@ -2331,7 +2366,7 @@ private struct SambaFixMiniStore: View {
 
     @MainActor
     private func installVerified(_ data: Data, for app: LCAppModel) async throws {
-        guard app.bundleIdentifier.caseInsensitiveCompare(Self.supportedBundle) == .orderedSame,
+        guard isSambaApp(app),
               !app.isAppRunning else { throw "No se puede modificar esta app mientras está abierta." }
         guard data.count >= 32, Array(data.prefix(8)) ==
             [0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0x00, 0x00, 0x01] else {
