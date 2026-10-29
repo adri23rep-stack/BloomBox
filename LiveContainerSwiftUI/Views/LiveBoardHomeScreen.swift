@@ -27,6 +27,12 @@ struct LiveBoardHomeScreen: View {
     @State private var appearanceApp: LiveBoardAppearanceSelection?
     @State private var jitSetup = false
     @State private var tweakStorePresented = false
+    @State private var storeFocusedApp: LCAppModel?
+    @State private var pendingAlertApp: LCAppModel?
+    @State private var pendingAlertTweak: BloomBoxTweakEntry?
+    @State private var pendingAlertJIT = false
+    @State private var showTweakLevel3Alert = false
+    @ObservedObject private var tweakCatalog = BloomBoxTweakCatalog.shared
     @AppStorage("LiveBoardHomeCategories", store: LCUtils.appGroupUserDefault) private var homeCategories = "[\"Games\",\"Ports\",\"Tools\"]"
     @State private var addingCategory = false
     @State private var categoryName = ""
@@ -261,6 +267,7 @@ struct LiveBoardHomeScreen: View {
                 page = min(page, libraryPageIndex)
             }
             .onAppear {
+                Task { await tweakCatalog.refreshIfNeeded() }
                 layout = LiveBoardHomeLayout.decode(savedLayout)
                 reconcile()
                 homeHasAppeared = true
@@ -543,7 +550,31 @@ struct LiveBoardHomeScreen: View {
             .navigationViewStyle(.stack)
         }
         .sheet(isPresented: $jitSetup) { LiveBoardJITSetup() }
-        .sheet(isPresented: $tweakStorePresented) { SambaFixMiniStore(apps: apps) }
+        .sheet(isPresented: $tweakStorePresented, onDismiss: { storeFocusedApp = nil }) {
+            BloomBoxTweakStore(apps: apps, focusedApp: storeFocusedApp)
+        }
+        .alert("Compatibilidad · Nivel 3 (máximo)", isPresented: $showTweakLevel3Alert) {
+            Button("Instalar corrección") {
+                storeFocusedApp = pendingAlertApp
+                showTweakLevel3Alert = false
+                tweakStorePresented = true
+            }
+            Button("Abrir de todas formas") {
+                if let app = pendingAlertApp {
+                    if pendingAlertJIT, let launchWithJIT { launchWithJIT(app) }
+                    else { launch(app) }
+                }
+                pendingAlertApp = nil
+                pendingAlertTweak = nil
+            }
+            Button("Cancelar", role: .cancel) {
+                pendingAlertApp = nil
+                pendingAlertTweak = nil
+            }
+        } message: {
+            Text(pendingAlertTweak?.alertMessage ??
+                 "La app necesita una corrección de compatibilidad para abrir correctamente.")
+        }
         .sheet(isPresented: $customizing) { customizeSheet }
         .sheet(isPresented: $iconCustomization) { iconCustomizationSheet }
         .sheet(isPresented: $showWidgetGallery) {
@@ -885,11 +916,34 @@ struct LiveBoardHomeScreen: View {
         .accessibilityLabel("Abrir \(title(key))")
     }
 
+
+    private func requestLaunch(_ app: LCAppModel, jit: Bool = false) {
+        guard !(app.appInfo is BuiltInSideStoreAppInfo) else {
+            launch(app)
+            return
+        }
+        Task { @MainActor in
+            // Fetching the remote registry never executes code. If the network is
+            // unavailable, the last verified catalog is used.
+            await tweakCatalog.refreshIfNeeded()
+            if let tweak = tweakCatalog.criticalMissing(for: app) {
+                pendingAlertApp = app
+                pendingAlertTweak = tweak
+                pendingAlertJIT = jit
+                showTweakLevel3Alert = true
+            } else if jit, let launchWithJIT {
+                launchWithJIT(app)
+            } else {
+                launch(app)
+            }
+        }
+    }
+
     private func launchLibraryKey(_ key: String) {
         if key == Self.sideStoreKey { openSideStore() }
         else if key == Self.installKey { openInstall() }
-        else if key == Self.tweakStoreKey { tweakStorePresented = true }
-        else if let app = appMap[key] { launch(app) }
+        else if key == Self.tweakStoreKey { storeFocusedApp = nil; tweakStorePresented = true }
+        else if let app = appMap[key] { requestLaunch(app) }
     }
 
     private func pageMiniature(_ index: Int) -> some View {
@@ -1207,7 +1261,7 @@ struct LiveBoardHomeScreen: View {
                                   showLabel: showLabel, dark: darkIcons, editing: editing,
                                   reduceMotion: reduceMotion, action: {
                     if editing { return }
-                    launch(app)
+                    requestLaunch(app)
                 })
                 .contextMenu { appMenu(key, app: app) }
             }
@@ -1296,8 +1350,8 @@ struct LiveBoardHomeScreen: View {
     }
 
     @ViewBuilder private func appMenu(_ key: String, app: LCAppModel) -> some View {
-        Button("Launch", systemImage: "play.fill") { launch(app) }.disabled(app.isAppRunning || app.isSigningInProgress)
-        if let launchWithJIT { Button("Launch with JIT", systemImage: "bolt.fill") { launchWithJIT(app) }.disabled(app.appInfo is BuiltInSideStoreAppInfo) }
+        Button("Launch", systemImage: "play.fill") { requestLaunch(app) }.disabled(app.isAppRunning || app.isSigningInProgress)
+        if let launchWithJIT { Button("Launch with JIT", systemImage: "bolt.fill") { requestLaunch(app, jit: true) }.disabled(app.appInfo is BuiltInSideStoreAppInfo) }
         Button("Edit Home Screen", systemImage: "square.grid.3x3") { enterEditMode() }
         Button("Rename", systemImage: "pencil") { renameValue = title(key); renameKey = key }
         Button("Change app icon", systemImage: "photo") { appearanceApp = LiveBoardAppearanceSelection(app: app) }
@@ -1659,7 +1713,7 @@ struct LiveBoardHomeScreen: View {
                             .submitLabel(.search).focused($searchFocused)
                             .accessibilityIdentifier("home.search.field")
                             .onSubmit {
-                                if !query.isEmpty, let app = searchResults.first { closeSearch(); launch(app) }
+                                if !query.isEmpty, let app = searchResults.first { closeSearch(); requestLaunch(app) }
                             }
                         if !query.isEmpty {
                             Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.white.opacity(0.65)) }
@@ -1684,7 +1738,7 @@ struct LiveBoardHomeScreen: View {
                         LazyVStack(spacing: 0) {
                             ForEach(searchResults, id: \.self) { app in
                                 let key = liveBoardAppKey(app)
-                                Button { closeSearch(); launch(app) } label: {
+                                Button { closeSearch(); requestLaunch(app) } label: {
                                     HStack(spacing: 14) {
                                         LiveBoardIconImage(app: app, dark: darkIcons).frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
                                         Text(title(key)).font(.system(size: 17)).lineLimit(1)
@@ -1709,7 +1763,7 @@ struct LiveBoardHomeScreen: View {
     }
     private func searchIcon(_ app: LCAppModel) -> some View {
         let key = liveBoardAppKey(app)
-        return Button { closeSearch(); launch(app) } label: {
+        return Button { closeSearch(); requestLaunch(app) } label: {
             VStack(spacing: 6) {
                 LiveBoardIconImage(app: app, dark: darkIcons).frame(width: 60, height: 60).clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 Text(title(key)).font(.system(size: 12)).lineLimit(1)
