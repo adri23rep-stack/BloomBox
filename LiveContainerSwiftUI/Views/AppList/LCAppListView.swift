@@ -6,6 +6,7 @@
 //
 
 import Combine
+import CryptoKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -512,7 +513,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.InstallAppNotification)) { obj in
             if let obj2 = obj.object as? [String: Any], let installUrl = obj2["url"] as? URL {
-                Task { await installFromUrl(urlStr: installUrl.absoluteString) }
+                let expectedSHA = obj2["sha256"] as? String
+                Task { await installFromUrl(urlStr: installUrl.absoluteString, expectedSHA256: expectedSHA) }
             }
         }
         .modifier { content in
@@ -583,15 +585,21 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         do {
             if app.appInfo.is32bit { try await ensureBundled32BitRuntime(for: app) }
             if liveBoardMode == "ios" {
+                // Run a private guest in its original host process, before
+                // any virtual-window-only iOS/Classic Mode restrictions.
+                if !app.uiIsShared &&
+                    !UserDefaults.standard.bool(forKey: "LCSharePrivateDataWithLiveProcess") {
+                    try await app.launchFromLibrary(multitask: false, forceJIT: forceJIT)
+                    return
+                }
                 guard #available(iOS 16.0, *) else {
                     throw "La navegación de sesión requiere iOS 16 o posterior."
                 }
                 guard app.appInfo.defaultClassicMode == 0 else {
                     throw "Desactiva Classic Mode en los ajustes de esta app para mantener abierto el launcher."
                 }
-                // BloomBox's own LiveProcess supports private guest bundles through
-                // scoped bookmarks to the app and its data container. Only cross-host
-                // LiveContainer handoff requires converting the app to Shared.
+                // Shared apps, and private apps with LiveProcess access explicitly
+                // permitted in Developer Settings, can use the virtual-window path.
                 let defaults = LCUtils.appGroupUserDefault
                 // The Home session uses in-app windows, never a replacement host process.
                 defaults.set(MultitaskMode.virtualWindow.rawValue, forKey: "LCMultitaskMode")
@@ -1011,7 +1019,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
     }
     
-    func installFromUrl(urlStr: String) async {
+    func installFromUrl(urlStr: String, expectedSHA256: String? = nil) async {
         // ignore any install request if we are installing another app
         if self.installprogressVisible {
             return
@@ -1025,6 +1033,14 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         
         guard var installUrl = URL(string: urlStr) else {
             errorInfo = "lc.appList.urlInvalidError".loc
+            errorShow = true
+            return
+        }
+        if let expectedSHA256,
+           (expectedSHA256.count != 64 || !expectedSHA256.unicodeScalars.allSatisfy({
+               CharacterSet(charactersIn: "0123456789abcdef").contains($0)
+           })) {
+            errorInfo = "SHA-256 de la tienda inválido."
             errorShow = true
             return
         }
@@ -1114,6 +1130,21 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             try await downloadHelper.download(url: installUrl, to: destinationURL)
             if downloadHelper.cancelled {
                 return
+            }
+            if let expectedSHA256 {
+                // Verify the original binary before extraction or modification;
+                // read by chunks to avoid large memory allocations.
+                let handle = try FileHandle(forReadingFrom: destinationURL)
+                defer { try? handle.close() }
+                var hasher = SHA256()
+                while let chunk = try handle.read(upToCount: 1024 * 1024), !chunk.isEmpty {
+                    hasher.update(data: chunk)
+                }
+                let actual = hasher.finalize().map { String(format: "%02x", $0) }.joined()
+                guard actual == expectedSHA256 else {
+                    try? fileManager.removeItem(at: destinationURL)
+                    throw "La IPA descargada no coincide con el SHA-256 del catálogo. Instalación cancelada."
+                }
             }
             try await installIpaFile(destinationURL)
             try fileManager.removeItem(at: destinationURL)

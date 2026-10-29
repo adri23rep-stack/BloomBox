@@ -73,7 +73,7 @@ struct LiveBoardHomeLayout: Codable, Equatable {
         } else { place(key, on: p + 1) }
     }
     /// Built-in SideStore can move, but must never disappear from Manzana.
-    static let pinnedKeys: Set<String> = ["manzana:sidestore", "manzana:install"]
+    static let pinnedKeys: Set<String> = ["manzana:sidestore", "manzana:install", "manzana:tweakstore"]
     mutating func hide(_ key: String) {
         guard !Self.pinnedKeys.contains(key) else { return }
         removePlacement(key)
