@@ -29,7 +29,8 @@
       ],
       "minAppVersion": null,
       "maxAppVersion": null,
-      "officialSourceURL": "https://github.com/adri23rep-stack/BloomBox/releases/tag/sambafix-v3"
+      "officialSourceURL": "https://github.com/adri23rep-stack/BloomBox/releases/tag/sambafix-v3",
+      "appStoreID": 1641321225
     },
     {
       "id": "sambafix-v3-test-level2",
@@ -56,7 +57,8 @@
       ],
       "minAppVersion": null,
       "maxAppVersion": null,
-      "officialSourceURL": "https://github.com/adri23rep-stack/BloomBox/releases/tag/sambafix-v3"
+      "officialSourceURL": "https://github.com/adri23rep-stack/BloomBox/releases/tag/sambafix-v3",
+      "appStoreID": 1641321225
     },
     {
       "id": "sambafix-v3-test-level1",
@@ -83,7 +85,8 @@
       ],
       "minAppVersion": null,
       "maxAppVersion": null,
-      "officialSourceURL": "https://github.com/adri23rep-stack/BloomBox/releases/tag/sambafix-v3"
+      "officialSourceURL": "https://github.com/adri23rep-stack/BloomBox/releases/tag/sambafix-v3",
+      "appStoreID": 1641321225
     }
   ],
   "entrySchema": {
@@ -115,6 +118,8 @@
     "alertMessage": "optional explanation, shown before launch at level 3",
     "fileName": "stable filename ending in .dylib, no path separators",
     "minAppVersion": "optional legacy version lower bound",
-    "maxAppVersion": "optional legacy version upper bound"
+    "maxAppVersion": "optional legacy version upper bound",
+    "appStoreID": "optional numeric Apple App Store track ID; look up official artworkUrl512",
+    "appIconURL": "optional direct HTTPS official Apple CDN (mzstatic.com) icon URL; takes precedence over lookup; falls back to installed-app icon if missing/unavailable"
   }
 }
