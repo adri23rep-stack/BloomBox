@@ -2144,8 +2144,22 @@ private struct BloomBoxTweakEntry: Codable, Identifiable {
     let maxAppVersion: String?
     let fileName: String?
     let fileType: String?
+    // Optional direct URL of the target app's *official* App Store artwork.
+    // The iTunes lookup API is used when appIconURL is absent.
+    let appIconURL: String?
+    let appStoreID: Int?
     let downloadURL: String
     let sha256: String
+
+    var officialIconURL: URL? {
+        guard let appIconURL, let url = URL(string: appIconURL),
+              BloomBoxAppStoreArtwork.isTrustedArtwork(url) else { return nil }
+        return url
+    }
+
+    var targetBundleID: String? {
+        supportedApps?.first?.bundleID ?? bundleID
+    }
 
     var assetName: String {
         fileName ?? URL(string: downloadURL)?.lastPathComponent ?? ""
@@ -2279,6 +2293,113 @@ private final class BloomBoxTweakCatalog: ObservableObject {
     }
 }
 
+
+// Apple's public Search API exposes artworkUrl512 for App Store apps.
+// Cache by Apple ID or bundle ID, not a device's data-container UUID.
+private actor BloomBoxAppStoreArtwork {
+    static let shared = BloomBoxAppStoreArtwork()
+    private var resolved: [String: URL] = [:]
+    private var unavailable = Set<String>()
+
+    static func isTrustedArtwork(_ url: URL) -> Bool {
+        guard url.scheme == "https", url.user == nil, url.password == nil,
+              let host = url.host?.lowercased() else { return false }
+        return host == "mzstatic.com" || host.hasSuffix(".mzstatic.com")
+    }
+
+    private struct Lookup: Decodable {
+        let results: [Result]
+    }
+
+    private struct Result: Decodable {
+        let bundleId: String?
+        let artworkUrl512: String?
+        let artworkUrl100: String?
+    }
+
+    func iconURL(appStoreID: Int?, bundleID: String?) async -> URL? {
+        let id = appStoreID ?? 0
+        guard id > 0 || bundleID != nil else { return nil }
+        let key = id > 0 ? "id:\(id)" : "bundle:\(bundleID ?? "")"
+        if let url = resolved[key] { return url }
+        if unavailable.contains(key) { return nil }
+
+        var components = URLComponents(string: "https://itunes.apple.com/lookup")!
+        var queries = [URLQueryItem(name: "country", value: "us")]
+        if id > 0 {
+            queries.append(URLQueryItem(name: "id", value: String(id)))
+        } else if let bundleID, bundleID.count < 160 {
+            queries.append(URLQueryItem(name: "bundleId", value: bundleID))
+        } else {
+            return nil
+        }
+        components.queryItems = queries
+        guard let url = components.url else { return nil }
+        do {
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 6
+            request.cachePolicy = .returnCacheDataElseLoad
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse,
+                  (200...299).contains(http.statusCode), data.count < 100_000 else {
+                return nil
+            }
+            let responseData = try JSONDecoder().decode(Lookup.self, from: data)
+            if let app = responseData.results.first,
+               let str = app.artworkUrl512 ?? app.artworkUrl100,
+               let artwork = URL(string: str),
+               Self.isTrustedArtwork(artwork) {
+                resolved[key] = artwork
+                return artwork
+            }
+            unavailable.insert(key)
+        } catch {
+            // On offline requests, the installed-app icon remains visible.
+        }
+        return nil
+    }
+}
+
+private struct BloomBoxTweakTargetIcon: View {
+    let app: LCAppModel
+    let entry: BloomBoxTweakEntry
+    @State private var fetchedArtwork: URL?
+
+    var body: some View {
+        Group {
+            if let remote = entry.officialIconURL ?? fetchedArtwork {
+                AsyncImage(url: remote) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    case .empty, .failure:
+                        localIcon
+                    @unknown default:
+                        localIcon
+                    }
+                }
+            } else {
+                localIcon
+            }
+        }
+        .frame(width: 58, height: 58)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .accessibilityLabel("Icono de \(app.displayName)")
+        .task(id: entry.id) {
+            if entry.officialIconURL == nil {
+                fetchedArtwork = await BloomBoxAppStoreArtwork.shared.iconURL(
+                    appStoreID: entry.appStoreID,
+                    bundleID: entry.targetBundleID
+                )
+            }
+        }
+    }
+
+    private var localIcon: some View {
+        LiveBoardIconImage(app: app, dark: false)
+    }
+}
+
 private struct BloomBoxTweakMatch: Identifiable {
     let app: LCAppModel
     let entry: BloomBoxTweakEntry
@@ -2367,14 +2488,24 @@ private struct BloomBoxTweakStore: View {
                     }
                     ForEach(matches) { match in
                         VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Text(match.entry.name).font(.headline)
-                                Spacer()
+                            HStack(alignment: .center, spacing: 13) {
+                                BloomBoxTweakTargetIcon(app: match.app, entry: match.entry)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(match.entry.name).font(.headline)
+                                    Text("Para: \(match.app.displayName)")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: 4)
                                 if (match.entry.alertLevel ?? 0) == 3 {
-                                    Text("NIVEL 3 · FULL")
+                                    Text("NIVEL 3")
                                         .font(.caption2.bold())
                                         .padding(.horizontal, 8).padding(.vertical, 5)
                                         .background(.orange.opacity(0.22), in: Capsule())
+                                } else if let level = match.entry.alertLevel, level > 0 {
+                                    Text("NIVEL \(level)")
+                                        .font(.caption2.bold())
+                                        .padding(.horizontal, 8).padding(.vertical, 5)
+                                        .background(.secondary.opacity(0.12), in: Capsule())
                                 }
                             }
                             Text(match.entry.description ?? "Corrección de compatibilidad")
