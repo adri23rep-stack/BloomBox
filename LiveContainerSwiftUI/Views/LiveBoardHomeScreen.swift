@@ -2063,218 +2063,322 @@ private struct LiveBoardMoveDropDelegate: DropDelegate {
 }
 
 
-// MARK: - BloomBox Tweak Store (SambaFix-only field trial)
-// The catalog is hosted independently of the BloomBox executable on store-catalog.
-// Never fetch or execute arbitrary instructions from catalog JSON.
-private struct SambaFixStoreCatalog: Decodable {
-    let schemaVersion: Int
-    let tweakEntries: [SambaFixStoreEntry]
+
+ // MARK: - BloomBox remote Tweak Store / compatibility catalog
+ // App binaries are NOT part of this catalog. No commands or scripts are
+ // evaluated from JSON; installing native code always needs user confirmation.
+
+private struct BloomBoxTweakTarget: Codable {
+    let bundleID: String
+    let minVersion: String?
+    let maxVersion: String?
 }
 
-private struct SambaFixStoreEntry: Decodable {
+private struct BloomBoxTweakEntry: Codable, Identifiable {
     let id: String
     let name: String
     let version: String
-    let priority: String
-    let bundleID: String
+    let developer: String?
+    let description: String?
+    let priority: String?
+    let alertLevel: Int?
+    let alertTitle: String?
+    let alertMessage: String?
+    let bundleID: String?
+    let supportedApps: [BloomBoxTweakTarget]?
+    let minAppVersion: String?
+    let maxAppVersion: String?
+    let fileName: String?
+    let fileType: String?
     let downloadURL: String
     let sha256: String
-}
 
-private struct SambaFixMiniStore: View {
-    let apps: [LCAppModel]
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var sharedModel: SharedModel
-    @State private var catalogEntry: SambaFixStoreEntry?
-    @State private var loading = false
-    @State private var installing = false
-    @State private var notice: String?
-    @State private var errorText: String?
-    @State private var selectedLocalFile = false
-    @State private var installedInThisSession = false
+    var assetName: String {
+        fileName ?? URL(string: downloadURL)?.lastPathComponent ?? ""
+    }
 
-    private static let supportedBundle = "com.sega.samba.app"
-    private static let originalSambaFixSHA256 = "4c60b88b2379ba56f854b7091abb5910ca03d41f22553875171da355a4a23dea"
-    private static let indexURL = URL(string: "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/tweaks.json")!
+    var isValid: Bool {
+        guard !id.isEmpty, id.count <= 90, !name.isEmpty, name.count <= 120,
+              !version.isEmpty, version.count <= 60,
+              sha256.count == 64,
+              sha256.unicodeScalars.allSatisfy({ CharacterSet(charactersIn: "0123456789abcdef").contains($0) }),
+              (0...3).contains(alertLevel ?? 0),
+              fileType == nil || fileType == "dylib",
+              let url = URL(string: downloadURL), url.scheme == "https",
+              url.host?.lowercased() == "github.com",
+              url.user == nil, url.password == nil, url.query == nil, url.fragment == nil,
+              assetName.count < 90, assetName.hasSuffix(".dylib"),
+              assetName != ".", assetName != "..",
+              assetName.unicodeScalars.allSatisfy({
+                  CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-").contains($0)
+              })
+        else { return false }
+        let sections = url.path.split(separator: "/").map(String.init)
+        return sections.count == 6 && sections[2] == "releases" &&
+               sections[3] == "download" && sections[5] == assetName &&
+               !(supportedApps ?? []).isEmpty || (
+                  sections.count == 6 && sections[2] == "releases" &&
+                  sections[3] == "download" && sections[5] == assetName &&
+                  bundleID != nil
+               )
+    }
 
-    /// Match either the original Bundle ID or the imported bundle folder.
-    /// Some installed IPAs rewrite CFBundleIdentifier, while App Settings
-    /// retains the original name in "Bundle Folder".
-    private func isSambaApp(_ app: LCAppModel) -> Bool {
+    func applies(to app: LCAppModel) -> Bool {
         guard !(app.appInfo is BuiltInSideStoreAppInfo) else { return false }
-        let identifiers: [String] = [
+        let identifiers = [
             app.bundleIdentifier,
             app.appInfo.relativeBundlePath ?? "",
             app.appInfo.bundlePath().map { URL(fileURLWithPath: $0).lastPathComponent } ?? "",
             app.appInfo.info()["LCOrignalBundleIdentifier"] as? String ?? ""
         ]
-        return identifiers.contains {
-            $0.trimmingCharacters(in: .whitespacesAndNewlines)
-                .caseInsensitiveCompare(Self.supportedBundle) == .orderedSame
+        let targets = supportedApps?.isEmpty == false
+            ? supportedApps! : (bundleID.map { [BloomBoxTweakTarget(bundleID: $0,
+                                         minVersion: minAppVersion, maxVersion: maxAppVersion)] } ?? [])
+        return targets.contains { target in
+            guard identifiers.contains(where: {
+                $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .caseInsensitiveCompare(target.bundleID) == .orderedSame
+            }) else { return false }
+            let version = app.version
+            if let lower = target.minVersion, version.compare(lower, options: .numeric) == .orderedAscending { return false }
+            if let upper = target.maxVersion, version.compare(upper, options: .numeric) == .orderedDescending { return false }
+            return true
         }
     }
 
-    private var samba: LCAppModel? {
-        // The desktop list can omit an installed or shared guest. Consult the
-        // full app registry without disclosing locked hidden apps.
-        let installed = apps + sharedModel.apps
-        let candidates = sharedModel.isHiddenAppUnlocked
-            ? installed + sharedModel.hiddenApps : installed
-        return candidates.first(where: isSambaApp)
-    }
-
-    private func tweakURL(for app: LCAppModel) -> URL? {
-        guard let tweakFolder = app.uiTweakFolder else { return nil }
+    func installedFile(for app: LCAppModel) -> URL? {
+        guard let folder = app.uiTweakFolder, !folder.isEmpty,
+              !folder.contains("/"), folder != ".", folder != ".." else { return nil }
         let root = app.uiIsShared ? LCPath.lcGroupTweakPath : LCPath.tweakPath
-        return root.appendingPathComponent(tweakFolder, isDirectory: true)
-            .appendingPathComponent("SambaFix.dylib", isDirectory: false)
+        return root.appendingPathComponent(folder, isDirectory: true)
+            .appendingPathComponent(assetName)
     }
 
-    private var hasSambaFix: Bool {
-        installedInThisSession ||
-            (samba.flatMap(tweakURL(for:)).map { FileManager.default.fileExists(atPath: $0.path) } ?? false)
+    func isInstalled(for app: LCAppModel) -> Bool {
+        installedFile(for: app).map { FileManager.default.fileExists(atPath: $0.path) } ?? false
     }
-    private var tweakEnabled: Bool {
-        guard let app = samba else { return false }
-        return hasSambaFix && !app.uiDontInjectTweakLoader && !app.uiDontLoadTweakLoader
+
+    func isActive(for app: LCAppModel) -> Bool {
+        isInstalled(for: app) && !app.uiDontInjectTweakLoader && !app.uiDontLoadTweakLoader
+    }
+}
+
+private struct BloomBoxTweakIndex: Codable {
+    let schemaVersion: Int
+    let tweakEntries: [BloomBoxTweakEntry]
+}
+
+private final class BloomBoxTweakCatalog: ObservableObject {
+    static let shared = BloomBoxTweakCatalog()
+    @Published private(set) var entries: [BloomBoxTweakEntry] = []
+    @Published private(set) var lastError: String?
+    @Published private(set) var refreshing = false
+    private var refreshedAt: Date?
+    private static let cacheKey = "BloomBoxTweakCatalogVerifiedCache-v1"
+    private static let catalogURL = URL(string:
+        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/tweaks.json")!
+
+    private init() {
+        if let data = UserDefaults.standard.data(forKey: Self.cacheKey),
+           let parsed = try? JSONDecoder().decode(BloomBoxTweakIndex.self, from: data),
+           parsed.schemaVersion == 1 {
+            entries = parsed.tweakEntries.filter(\.isValid)
+        }
+    }
+
+    @MainActor
+    func refreshIfNeeded(force: Bool = false) async {
+        if refreshing { return }
+        if !force, let last = refreshedAt, Date().timeIntervalSince(last) < 90 { return }
+        refreshing = true
+        defer { refreshing = false }
+        do {
+            var request = URLRequest(url: Self.catalogURL)
+            request.cachePolicy = .reloadRevalidatingCacheData
+            request.timeoutInterval = 7
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let response = response as? HTTPURLResponse,
+                  (200...299).contains(response.statusCode),
+                  data.count < 256_000 else {
+                throw "No se pudo descargar el catálogo remoto de tweaks."
+            }
+            let index = try JSONDecoder().decode(BloomBoxTweakIndex.self, from: data)
+            guard index.schemaVersion == 1,
+                  index.tweakEntries.count <= 150,
+                  index.tweakEntries.allSatisfy(\.isValid) else {
+                throw "El catálogo remoto contiene entradas incompatibles."
+            }
+            entries = index.tweakEntries
+            UserDefaults.standard.set(data, forKey: Self.cacheKey)
+            refreshedAt = Date()
+            lastError = nil
+        } catch {
+            // Keep the previously verified catalog for offline launches.
+            refreshedAt = Date()
+            lastError = error.localizedDescription
+        }
+    }
+
+    func criticalMissing(for app: LCAppModel) -> BloomBoxTweakEntry? {
+        entries.first { ($0.alertLevel ?? 0) == 3 &&
+            $0.applies(to: app) && !$0.isActive(for: app) }
+    }
+}
+
+private struct BloomBoxTweakMatch: Identifiable {
+    let app: LCAppModel
+    let entry: BloomBoxTweakEntry
+    var id: String {
+        "\(entry.id)|\(app.appInfo.relativeBundlePath ?? app.bundleIdentifier)|\(app.uiIsShared)"
+    }
+}
+
+private struct BloomBoxTweakStore: View {
+    let apps: [LCAppModel]
+    let focusedApp: LCAppModel?
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var sharedModel: SharedModel
+    @ObservedObject private var catalog = BloomBoxTweakCatalog.shared
+    @State private var installingID: String?
+    @State private var notice: String?
+    @State private var errorText: String?
+    @State private var importMatch: BloomBoxTweakMatch?
+    @State private var selectedLocalFile = false
+
+    private var installedApps: [LCAppModel] {
+        let provided = apps + sharedModel.apps
+        let all = sharedModel.isHiddenAppUnlocked ? provided + sharedModel.hiddenApps : provided
+        var found = Set<ObjectIdentifier>()
+        return all.filter { found.insert(ObjectIdentifier($0)).inserted }
+    }
+    private var matches: [BloomBoxTweakMatch] {
+        var result: [BloomBoxTweakMatch] = []
+        let targets = focusedApp.map { [$0] } ?? installedApps
+        for entry in catalog.entries {
+            for app in targets where entry.applies(to: app) {
+                result.append(BloomBoxTweakMatch(app: app, entry: entry))
+            }
+        }
+        return result.sorted { ($0.entry.alertLevel ?? 0) > ($1.entry.alertLevel ?? 0) }
     }
 
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    HStack(spacing: 15) {
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(spacing: 14) {
                         Image(systemName: "puzzlepiece.extension.fill")
-                            .font(.system(size: 35, weight: .semibold))
+                            .font(.system(size: 30, weight: .semibold))
                             .foregroundStyle(.white)
-                            .frame(width: 72, height: 72)
-                            .background(LinearGradient(colors: [
-                                Color(red: 0.65, green: 0.48, blue: 0.88),
-                                Color(red: 0.33, green: 0.23, blue: 0.60)
-                            ], startPoint: .topLeading, endPoint: .bottomTrailing),
-                            in: RoundedRectangle(cornerRadius: 20))
-                        VStack(alignment: .leading, spacing: 5) {
+                            .frame(width: 65, height: 65)
+                            .background(Color(red: 0.48, green: 0.32, blue: 0.76),
+                                        in: RoundedRectangle(cornerRadius: 18))
+                        VStack(alignment: .leading, spacing: 4) {
                             Text("BloomBox Tweaks").font(.title2.bold())
-                            Text("Prueba de compatibilidad • SambaFix")
+                            Text("Catálogo comunitario remoto")
                                 .font(.footnote).foregroundStyle(.secondary)
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("Samba de Amigo").font(.headline)
-                            Spacer()
-                            Text("FULL").font(.caption.bold())
-                                .padding(.horizontal, 10).padding(.vertical, 5)
-                                .background(.orange.opacity(0.20), in: Capsule())
-                        }
-                        Text("Corrección CloudKit · SambaFix v3")
-                            .font(.subheadline).foregroundStyle(.secondary)
-
-                        if let samba {
-                            Label("Juego detectado", systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text("Bundle ID: \(samba.bundleIdentifier) · versión \(samba.appInfo.version() ?? "?")")
-                                .font(.caption).foregroundStyle(.secondary)
-                                .textSelection(.enabled)
-                            Text("Carpeta: \(samba.appInfo.relativeBundlePath ?? "sin nombre") · \(samba.uiIsShared ? "Compartida" : "Privada")")
-                                .font(.caption2).foregroundStyle(.secondary)
-                                .textSelection(.enabled)
-
-                            if tweakEnabled {
-                                Label("SambaFix instalado y activado", systemImage: "checkmark.shield.fill")
-                                    .foregroundStyle(.green)
-                                Text("Reinicia el juego para aplicar el cambio.")
-                                    .font(.caption).foregroundStyle(.secondary)
-                            } else if hasSambaFix {
-                                Label("SambaFix existe, pero el cargador de tweaks está desactivado.", systemImage: "exclamationmark.triangle")
-                                    .foregroundStyle(.orange)
-                                Button("Activar SambaFix para este juego") {
-                                    samba.uiDontInjectTweakLoader = false
-                                    samba.uiDontLoadTweakLoader = false
-                                    notice = "Cargador habilitado. Cierra el juego y vuelve a abrirlo."
-                                }
-                                .buttonStyle(.borderedProminent)
-                            } else {
-                                Label("Corrección obligatoria pendiente", systemImage: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(.orange)
-                                if let entry = catalogEntry {
-                                    Button {
-                                        Task { await installFromOfficialCatalog(entry, for: samba) }
-                                    } label: {
-                                        Label(installing ? "Instalando…" : "Instalar SambaFix", systemImage: "arrow.down.to.line")
-                                            .frame(maxWidth: .infinity)
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .disabled(installing)
-                                } else if loading {
-                                    ProgressView("Consultando catálogo remoto…")
-                                } else {
-                                    Text("La descarga directa aún no está disponible. Puedes importar tu SambaFix.dylib original.")
-                                        .font(.footnote).foregroundStyle(.secondary)
-                                    Button("Reintentar consulta") { Task { await refreshCatalog() } }
-                                        .disabled(installing)
-                                }
-
-                                Button {
-                                    selectedLocalFile = true
-                                } label: {
-                                    Label("Importar mi SambaFix.dylib", systemImage: "doc.badge.plus")
-                                        .frame(maxWidth: .infinity)
-                                }
-                                .buttonStyle(.bordered)
-                                .disabled(installing)
-                            }
-                        } else {
-                            Label("Samba de Amigo no está instalado en BloomBox", systemImage: "magnifyingglass")
-                                .foregroundStyle(.secondary)
-                            Text("No se encontró una app con Bundle ID o carpeta com.sega.samba.app.")
-                                .font(.footnote).foregroundStyle(.secondary)
-                            DisclosureGroup("Diagnóstico de detección") {
-                                let found = Array(Set((apps + sharedModel.apps).map { model in
-                                    "\(model.displayName) · \(model.bundleIdentifier) · \(model.appInfo.relativeBundlePath ?? "?")"
-                                })).sorted()
-                                ForEach(found, id: \.self) { item in
-                                    Text(item)
-                                        .font(.caption2)
-                                        .textSelection(.enabled)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                            }.font(.caption)
-                        }
+                    HStack {
+                        Label("\(catalog.entries.count) tweaks en catálogo", systemImage: "arrow.triangle.2.circlepath")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Actualizar") { Task { await catalog.refreshIfNeeded(force: true) } }
+                            .disabled(catalog.refreshing || installingID != nil)
                     }
-                    .padding(18)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
-
+                    if catalog.refreshing {
+                        ProgressView("Sincronizando catálogo...")
+                    }
+                    if let lastError = catalog.lastError {
+                        Text("Sin conexión o catálogo no disponible. Se conserva la última lista válida. \(lastError)")
+                            .font(.caption).foregroundStyle(.orange)
+                    }
                     if let notice {
-                        Label(notice, systemImage: "checkmark.circle")
+                        Label(notice, systemImage: "checkmark.circle.fill")
                             .font(.footnote).foregroundStyle(.green)
                     }
                     if let errorText {
-                        Label(errorText, systemImage: "exclamationmark.circle")
+                        Label(errorText, systemImage: "exclamationmark.triangle.fill")
                             .font(.footnote).foregroundStyle(.red)
                     }
-
-                    Text("Solo instalaremos SambaFix en la carpeta de tweaks de Samba de Amigo. No se instalarán otros plugins ni se ejecutará código remoto del catálogo. El parche desactiva el guardado de iCloud del juego.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    if matches.isEmpty && !catalog.refreshing {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Sin correcciones compatibles").font(.headline)
+                            Text("No encontramos tweaks publicados para las apps visibles en BloomBox.")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
+                        .padding(18)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+                    }
+                    ForEach(matches) { match in
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text(match.entry.name).font(.headline)
+                                Spacer()
+                                if (match.entry.alertLevel ?? 0) == 3 {
+                                    Text("NIVEL 3 · FULL")
+                                        .font(.caption2.bold())
+                                        .padding(.horizontal, 8).padding(.vertical, 5)
+                                        .background(.orange.opacity(0.22), in: Capsule())
+                                }
+                            }
+                            Text(match.entry.description ?? "Corrección de compatibilidad")
+                                .font(.subheadline).foregroundStyle(.secondary)
+                            Text("\(match.app.displayName) · \(match.app.uiIsShared ? "Compartida" : "Privada")")
+                                .font(.footnote.bold())
+                            Text("Bundle: \(match.app.bundleIdentifier) · Carpeta: \(match.app.appInfo.relativeBundlePath ?? "?")")
+                                .font(.caption2).foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                            Text("Versión \(match.entry.version) · Autor: \(match.entry.developer ?? "Comunidad")")
+                                .font(.caption2).foregroundStyle(.secondary)
+                            if match.entry.isActive(for: match.app) {
+                                Label("Instalado y habilitado", systemImage: "checkmark.shield.fill")
+                                    .font(.footnote).foregroundStyle(.green)
+                            } else if match.entry.isInstalled(for: match.app) {
+                                Label("Instalado; cargador de tweaks desactivado", systemImage: "exclamationmark.triangle")
+                                    .font(.footnote).foregroundStyle(.orange)
+                                Button("Activar para esta app") {
+                                    match.app.uiDontInjectTweakLoader = false
+                                    match.app.uiDontLoadTweakLoader = false
+                                    notice = "Cargador habilitado. Reinicia \(match.app.displayName)."
+                                }.buttonStyle(.borderedProminent)
+                            } else {
+                                Button {
+                                    Task { await install(match: match, localData: nil) }
+                                } label: {
+                                    Label(installingID == match.id ? "Instalando…" : "Instalar \(match.entry.name)",
+                                          systemImage: "arrow.down.to.line")
+                                        .frame(maxWidth: .infinity)
+                                }.buttonStyle(.borderedProminent)
+                                    .disabled(installingID != nil || !match.entry.isValid)
+                                Button {
+                                    importMatch = match
+                                    selectedLocalFile = true
+                                } label: {
+                                    Label("Importar .dylib verificado", systemImage: "doc.badge.plus")
+                                }
+                                .buttonStyle(.bordered)
+                                .disabled(installingID != nil)
+                            }
+                        }
+                        .padding(17)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
+                    }
+                    Text("Los tweaks son código nativo: solo instala correcciones de autores confiables. La tienda no realiza instalaciones silenciosas ni distribuye juegos.")
+                        .font(.footnote).foregroundStyle(.secondary)
                 }
                 .padding(20)
             }
             .navigationTitle("Tweak Store")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Cerrar") { dismiss() }
-                }
-            }
-            .task { await refreshCatalog() }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Cerrar") { dismiss() } } }
+            .task { await catalog.refreshIfNeeded() }
             .fileImporter(isPresented: $selectedLocalFile, allowedContentTypes: [.data, .item]) { result in
-                guard let samba else { return }
+                guard let match = importMatch else { return }
                 do {
                     let fileURL = try result.get()
-                    Task { await installLocalFile(fileURL, for: samba) }
+                    Task { await importVerified(fileURL, match: match) }
                 } catch {
                     errorText = error.localizedDescription
                 }
@@ -2283,122 +2387,89 @@ private struct SambaFixMiniStore: View {
     }
 
     @MainActor
-    private func refreshCatalog() async {
-        guard samba != nil else { return }
-        loading = true
-        defer { loading = false }
-        catalogEntry = nil
-        do {
-            var request = URLRequest(url: Self.indexURL)
-            request.cachePolicy = .reloadRevalidatingCacheData
-            request.timeoutInterval = 15
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode),
-                  data.count < 128_000 else { throw "Catálogo no disponible." }
-            let index = try JSONDecoder().decode(SambaFixStoreCatalog.self, from: data)
-            guard index.schemaVersion == 1 else { throw "Versión de catálogo no compatible." }
-            if let entry = index.tweakEntries.first(where: { $0.id == "sambafix-v3" &&
-                $0.bundleID == Self.supportedBundle && $0.priority == "full" }) {
-                guard validEntry(entry) else { throw "La ficha remota de SambaFix no superó la validación." }
-                catalogEntry = entry
-            }
-            errorText = nil
-        } catch {
-            errorText = "No se pudo actualizar la tienda: \(error.localizedDescription)"
-        }
-    }
-
-    private func validEntry(_ entry: SambaFixStoreEntry) -> Bool {
-        guard entry.name == "SambaFix", entry.version == "3",
-              entry.sha256.count == 64,
-              entry.sha256.unicodeScalars.allSatisfy({ CharacterSet(charactersIn: "0123456789abcdef").contains($0) }),
-              let url = URL(string: entry.downloadURL), url.scheme == "https",
-              url.host == "github.com" else { return false }
-        return url.path == "/adri23rep-stack/BloomBox/releases/download/sambafix-v3/SambaFix.dylib"
-    }
-
-    @MainActor
-    private func installFromOfficialCatalog(_ entry: SambaFixStoreEntry, for app: LCAppModel) async {
-        guard validEntry(entry), let url = URL(string: entry.downloadURL) else { return }
-        guard !installing else { return }
-        installing = true
-        errorText = nil
-        defer { installing = false }
-        do {
-            guard !app.isAppRunning else { throw "Cierra el juego antes de instalar un tweak." }
-            var request = URLRequest(url: url)
-            request.timeoutInterval = 30
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode),
-                  (8_192...4_000_000).contains(data.count) else {
-                throw "La descarga de SambaFix no es válida."
-            }
-            let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-            guard hash == entry.sha256 else { throw "El archivo no coincide con el hash SHA-256 aprobado." }
-            try await installVerified(data, for: app)
-        } catch {
-            errorText = error.localizedDescription
-        }
-    }
-
-    @MainActor
-    private func installLocalFile(_ url: URL, for app: LCAppModel) async {
-        guard !installing else { return }
-        installing = true
-        errorText = nil
-        defer { installing = false }
+    private func importVerified(_ url: URL, match: BloomBoxTweakMatch) async {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         do {
-            guard !app.isAppRunning, url.lastPathComponent == "SambaFix.dylib" else {
-                throw "Selecciona SambaFix.dylib y cierra el juego primero."
+            guard url.lastPathComponent == match.entry.assetName else {
+                throw "Selecciona el archivo original \(match.entry.assetName)."
             }
             let data = try Data(contentsOf: url)
-            let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-            guard hash == Self.originalSambaFixSHA256 || hash == catalogEntry?.sha256 else {
-                throw "Este SambaFix.dylib no coincide con la versión v3 verificada."
-            }
-            try await installVerified(data, for: app)
-        } catch {
-            errorText = error.localizedDescription
-        }
+            await install(match: match, localData: data)
+        } catch { errorText = error.localizedDescription }
     }
 
     @MainActor
-    private func installVerified(_ data: Data, for app: LCAppModel) async throws {
-        guard isSambaApp(app),
-              !app.isAppRunning else { throw "No se puede modificar esta app mientras está abierta." }
-        guard data.count >= 32, Array(data.prefix(8)) ==
-            [0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0x00, 0x00, 0x01] else {
-            throw "El archivo no es una biblioteca Mach-O ARM64 válida."
-        }
-        let folderName = app.uiTweakFolder ?? ("BloomBox-Samba-" + String(UUID().uuidString.prefix(12)))
-        let root = app.uiIsShared ? LCPath.lcGroupTweakPath : LCPath.tweakPath
-        let folder = root.appendingPathComponent(folderName, isDirectory: true)
-        let dest = folder.appendingPathComponent("SambaFix.dylib")
-        let fm = FileManager.default
-        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
-        var created = false
+    private func install(match: BloomBoxTweakMatch, localData: Data?) async {
+        guard installingID == nil else { return }
+        installingID = match.id
+        notice = nil
+        errorText = nil
+        defer { installingID = nil }
         do {
-            if !fm.fileExists(atPath: dest.path) {
+            let app = match.app, entry = match.entry
+            guard entry.isValid, entry.applies(to: app), !app.isAppRunning else {
+                throw "La app no coincide con el tweak o está en ejecución."
+            }
+            let data: Data
+            if let localData {
+                data = localData
+            } else {
+                guard let source = URL(string: entry.downloadURL) else { throw "URL inválida" }
+                var request = URLRequest(url: source)
+                request.timeoutInterval = 35
+                let (download, response) = try await URLSession.shared.data(for: request)
+                guard let response = response as? HTTPURLResponse,
+                      (200...299).contains(response.statusCode) else {
+                    throw "La descarga no se completó."
+                }
+                data = download
+            }
+            guard (8_192...10_000_000).contains(data.count),
+                  Array(data.prefix(8)) == [0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0, 0, 0x01] else {
+                throw "El archivo no es una biblioteca ARM64 válida."
+            }
+            let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+            guard digest == entry.sha256 else {
+                throw "SHA-256 no coincide con la versión aprobada en el catálogo."
+            }
+            let previousFolder = app.uiTweakFolder
+            let folderName = previousFolder ?? ("BloomBoxTweak-" + UUID().uuidString.prefix(12))
+            guard !folderName.contains("/"), folderName != ".", folderName != ".." else {
+                throw "La carpeta de tweaks tiene una ruta inválida."
+            }
+            let root = app.uiIsShared ? LCPath.lcGroupTweakPath : LCPath.tweakPath
+            let folder = root.appendingPathComponent(folderName, isDirectory: true)
+            let dest = folder.appendingPathComponent(entry.assetName)
+            let backup = folder.appendingPathComponent(entry.assetName + ".bloombox-backup")
+            let fm = FileManager.default
+            try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+            let hadPrevious = fm.fileExists(atPath: dest.path)
+            if hadPrevious {
+                if fm.fileExists(atPath: backup.path) {
+                    throw "Existe un respaldo pendiente de una instalación anterior."
+                }
+                try fm.moveItem(at: dest, to: backup)
+            }
+            do {
                 try data.write(to: dest, options: .atomic)
-                created = true
                 LCParseMachO((dest.path as NSString).utf8String, false) { path, header, _, _ in
                     LCPatchAddRPath(path, header)
                 }
+                try await LCUtils.signTweaks(tweakFolderUrl: folder, force: true) { _ in }
+                app.uiTweakFolder = folderName
+                app.uiDontInjectTweakLoader = false
+                app.uiDontLoadTweakLoader = false
+                if !app.uiIsShared && !sharedModel.tweakFolderNames.contains(folderName) {
+                    sharedModel.tweakFolderNames.append(folderName)
+                }
+                if hadPrevious { try? fm.removeItem(at: backup) }
+                notice = "\(entry.name) v\(entry.version) instalado para \(app.displayName). Reinicia la app."
+            } catch {
+                try? fm.removeItem(at: dest)
+                if hadPrevious { try? fm.moveItem(at: backup, to: dest) }
+                throw error
             }
-            try await LCUtils.signTweaks(tweakFolderUrl: folder, force: true) { _ in }
-            app.uiTweakFolder = folderName
-            app.uiDontInjectTweakLoader = false
-            app.uiDontLoadTweakLoader = false
-            if !app.uiIsShared && !sharedModel.tweakFolderNames.contains(folderName) {
-                sharedModel.tweakFolderNames.append(folderName)
-            }
-            installedInThisSession = true
-            notice = "SambaFix instalado para Samba de Amigo. Cierra y abre el juego para probar."
-        } catch {
-            if created { try? fm.removeItem(at: dest) }
-            throw error
-        }
+        } catch { errorText = error.localizedDescription }
     }
 }
