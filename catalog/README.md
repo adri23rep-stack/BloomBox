@@ -35,6 +35,19 @@ Las entradas nuevas de GitHub muestran **«Uso bajo tu propio riesgo · No verif
 
 MeloNX: fuente actual https://starforgejo.dev/projects/MeloNX/releases. La ficha puede mostrarse ya; el enlace binario directo debe resolverse dinámicamente y validarse antes de habilitar instalación rápida. MeloCafe: https://github.com/stossy11/MeloCafe/releases; se confirmó `MeloCafe.ipa` para release `1.0`. La publicación puede cambiar en adelante.
 
+## App Store remota (cliente experimental)
+
+La rama experimental de BloomBox contiene una pantalla propia **App Store** con icono en el escritorio y biblioteca. Su fuente independiente es [`catalog/apps.json`](./apps.json), para que podamos añadir fichas sin recompilar la IPA. Ofrece **Destacadas**, **Explorar**, búsqueda, autor, categoría, página oficial, releases y una vía a la pestaña de **Fuentes AltStore**. Muestra la fecha de última sincronización, conserva la última copia válida sin conexión y evita caché de GitHub en renovaciones.
+
+Las fichas separan *descarga del archivo original* y *compatibilidad con el host*. Un asset puede existir y tener SHA-256 comprobado sin que esté probado dentro de BloomBox. Actualmente:
+- **MeloCafe** tiene un asset `MeloCafe.ipa` en GitHub Releases v1.0, SHA-256 `e87c6faa44746fab019deba31a1d58757c449b7ddbd5bd0673e20a9f09be89e3`. Se ofrece **instalación experimental** dentro de BloomBox con consentimiento explícito, comprobación del hash por bloques y el instalador existente (incluido su diálogo de reemplazo). No garantiza JIT ni compatibilidad.
+- **MeloNX** conserva su enlace oficial externo. No se ofrece botón de instalación sin una IPA de origen y hash verificables.
+- **Delta**, **UTM SE** y **StikDebug** son fichas de consulta con enlaces originales. **StikDebug** requiere instalación como app real de iOS, no como invitada; no ofrecerla en el instalador de huéspedes.
+
+La tienda no distribuye apps ajenas, no ejecuta código del JSON y **nunca instala nada automáticamente**. Para habilitar un botón de instalación local, la ficha requiere `installMode: "guest"`, `sourceVerified: true`, una URL HTTPS de GitHub Releases cuyo nombre termine en `.ipa`, y un SHA-256 de 64 caracteres. Antes de modificar datos el instalador comprueba que el archivo recibido coincida con el SHA-256. Los demás elementos mantienen enlaces de visita y advertencias de riesgo.
+
+**No mezclar con la tienda de tweaks ni con la App Store de Apple:** se trata de una lista comunitaria de aplicaciones que pueden importarse al contenedor. No añade derechos de firma, JIT ni permisos que iOS no concede.
+
 ## Tweak Store: cómo publicar nuevos tweaks sin recompilar BloomBox
 
 Modifica únicamente `catalog/tweaks.json` en la rama `store-catalog`. Los campos mínimos para una nueva entrada en `tweakEntries` son `id`, `name`, `version`, `developer`, `description`, `downloadURL` (GitHub Releases oficial, HTTPS, archivo .dylib), `sha256` (calculado del binario publicado), `fileType: "dylib"`, `fileName` (estable entre versiones), y `supportedApps` (con `bundleID` y versiones compatibles opcionales). Nunca almacenes el binario dentro de BloomBox ni incrustes enlaces inventados.
