@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 2,
+  "catalogID": "bloombox.community.tweaks.v2",
+  "updatedAt": "2026-10-29",
+  "safety": "Listings are third-party projects. Displaying a repo, SHA-256 or download does not mean audited or compatible. Installable binaries are user-selected and SHA-256 checked. Native code can access guest-app data.",
+  "tweakEntries": [
+    {
+      "id": "sambafix-v3",
+      "name": "SambaFix",
+      "developer": "BloomBox / SambaFix",
+      "version": "3",
+      "priority": "full",
+      "description": "Corrige el inicio de Samba de Amigo sin usar CloudKit real.",
+      "bundleID": "com.sega.samba.app",
+      "downloadURL": "https://github.com/adri23rep-stack/BloomBox/releases/download/sambafix-v3/SambaFix.dylib",
+      "sha256": "4c60b88b2379ba56f854b7091abb5910ca03d41f22553875171da355a4a23dea",
+      "fileType": "dylib",
+      "minIOS": "15.0",
+      "testedInBloomBox": false,
+      "notes": "La nube de iCloud queda desactivada; los datos del juego son locales.",
+      "alertLevel": 3,
+      "alertTitle": "Corrección imprescindible",
+      "alertMessage": "Samba de Amigo necesita SambaFix v3 para superar el problema de CloudKit. Sin este parche el juego puede cerrarse o no iniciar.",
+      "fileName": "SambaFix.dylib",
+      "supportedApps": [
+        {
+          "bundleID": "com.sega.samba.app"
+        }
+      ],
+      "minAppVersion": null,
+      "maxAppVersion": null,
+      "officialSourceURL": "https://github.com/adri23rep-stack/Samba-iOS-Fix",
+      "appStoreID": 1641321225
+    },
+    {
+      "id": "marketplace-adblock-v1",
+      "name": "MarketplaceAdBlock",
+      "developer": "adamsardo",
+      "officialSourceURL": "https://github.com/adamsardo/MarketplaceAdBlock",
+      "version": "1.0.0",
+      "priority": "optional",
+      "description": "Oculta anuncios dentro de Facebook Marketplace.",
+      "targetAppName": "Facebook",
+      "bundleID": "com.facebook.Facebook",
+      "supportedApps": [
+        {
+          "bundleID": "com.facebook.Facebook"
+        }
+      ],
+      "downloadURL": "https://github.com/adamsardo/MarketplaceAdBlock/releases/download/v1.0.0/MarketplaceAdBlock.dylib",
+      "sha256": "f8c264e8f423034cc4edea4c4dd7d55f100465b20c62a0d61596bf50d805d3b7",
+      "fileName": "MarketplaceAdBlock.dylib",
+      "fileType": "dylib",
+      "alertLevel": 0,
+      "listingOnly": false,
+      "useAtOwnRisk": true,
+      "testedInBloomBox": false,
+      "notes": "Probado por su autor con Facebook iOS 584.0.0; otras versiones o BloomBox pueden no funcionar. Respaldar los datos antes de instalar.",
+      "warnings": [
+        "Uso bajo tu propio riesgo. No se ha verificado en BloomBox ni en el iPhone del usuario."
+      ],
+      "appStoreID": 284882215
+    },
+    {
+      "id": "isaac-eid-ios-v1-1-2",
+      "name": "Isaac External Item Descriptions",
+      "developer": "emp0ry",
+      "officialSourceURL": "https://github.com/emp0ry/IsaacExternalItemDescriptionsiOS",
+      "version": "1.1.2",
+      "priority": "optional",
+      "description": "Descripciones completas de objetos para The Binding of Isaac: Repentance en iOS.",
+      "targetAppName": "The Binding of Isaac: Repentance",
+      "downloadURL": "https://github.com/emp0ry/IsaacExternalItemDescriptionsiOS/releases/download/v1.1.2/IsaacExternalItemDescriptions-LiveContainer.framework.zip",
+      "sha256": "507d5537ac0db4e47a1de36e7dbac66a4a68dfefc8cfd506e0ff65de192df7e1",
+      "fileName": "IsaacExternalItemDescriptions-LiveContainer.framework.zip",
+      "fileType": "framework",
+      "alertLevel": 0,
+      "listingOnly": true,
+      "useAtOwnRisk": true,
+      "testedInBloomBox": false,
+      "notes": "Para LiveContainer el autor exige el framework ZIP y sus recursos en una carpeta por aplicación. Este instalador aún no admite ese formato. Requiere versión nativa de Isaac 1.4 / Repentance 1.7.9b.J754.",
+      "warnings": [
+        "Uso bajo tu propio riesgo. No se ha verificado en BloomBox ni en el iPhone del usuario.",
+        "No instalar el .dylib suelto en lugar del framework recomendado."
+      ]
+    },
+    {
+      "id": "aiupscale-metalfx-v0-0-4",
+      "name": "AIUpscaleTweak (MetalFX)",
+      "developer": "trail-b1az3r",
+      "officialSourceURL": "https://github.com/trail-b1az3r/Upscale",
+      "version": "0.0.4",
+      "priority": "optional",
+      "description": "Escalado espacial MetalFX para juegos Metal desde LiveContainer.",
+      "targetAppName": "Juegos con renderizado Metal",
+      "downloadURL": "https://github.com/trail-b1az3r/Upscale/releases/download/v0.0.4/AIUpscaleTweak.dylib",
+      "sha256": "c244397f7aa58c015954ba825f6551ceeb146f77b4d6b9702001b8f7e966ccba",
+      "fileName": "AIUpscaleTweak.dylib",
+      "fileType": "dylib",
+      "alertLevel": 0,
+      "listingOnly": true,
+      "useAtOwnRisk": true,
+      "testedInBloomBox": false,
+      "notes": "Tweak genérico para juegos Metal. Falta selector seguro de app destino y pruebas de rendimiento para habilitar instalación. Puede subir uso de GPU y batería.",
+      "warnings": [
+        "Uso bajo tu propio riesgo. No se ha verificado en BloomBox ni en el iPhone del usuario."
+      ]
+    },
+    {
+      "id": "instaplus-v1-0-2-1",
+      "name": "InstaPlus",
+      "developer": "eYushaa",
+      "officialSourceURL": "https://github.com/eYushaa/InstaPlus",
+      "version": "1.0.2-1",
+      "priority": "optional",
+      "description": "Herramientas multimedia, ajustes visuales y opciones de privacidad para Instagram.",
+      "targetAppName": "Instagram",
+      "bundleID": "com.burbn.instagram",
+      "supportedApps": [
+        {
+          "bundleID": "com.burbn.instagram"
+        }
+      ],
+      "downloadURL": "https://github.com/eYushaa/InstaPlus/releases/download/V1.0.2-1/InstaPlus.dylib",
+      "sha256": "50b7bc820391ba30fdd64979e56d113d90b5356803ebdb29f5e214f0c2c58861",
+      "fileName": "InstaPlus.dylib",
+      "fileType": "dylib",
+      "alertLevel": 0,
+      "listingOnly": true,
+      "useAtOwnRisk": true,
+      "testedInBloomBox": false,
+      "notes": "El autor exige Sideload Spoofer al instalar con Sideloadly y algunas funciones necesitan servidor externo. BloomBox no implementa ese requisito.",
+      "warnings": [
+        "Uso bajo tu propio riesgo. No se ha verificado en BloomBox ni en el iPhone del usuario."
+      ],
+      "appStoreID": 389801252
+    },
+    {
+      "id": "ios-app-dylib-patches",
+      "name": "iOS App Dylib Patches",
+      "developer": "msx98",
+      "officialSourceURL": "https://github.com/msx98/iOS-App-Dylib-Patches",
+      "version": "source",
+      "priority": "optional",
+      "description": "Colección de parches de código fuente para aplicaciones ejecutadas en LiveContainer.",
+      "targetAppName": "Varias apps de LiveContainer",
+      "downloadURL": "",
+      "sha256": "",
+      "fileName": "",
+      "fileType": "source",
+      "alertLevel": 0,
+      "listingOnly": true,
+      "useAtOwnRisk": true,
+      "testedInBloomBox": false,
+      "notes": "Repositorio de código fuente sin .dylib única preparada para instalar. Contiene NetworkLoader por red; no se incluirá como instalador automático. Revisar cada parche por separado.",
+      "warnings": [
+        "Uso bajo tu propio riesgo. No se ha verificado en BloomBox ni en el iPhone del usuario.",
+        "No ejecutar cargadores remotos sin una revisión independiente."
+      ]
+    }
+  ],
+  "entrySchema": {
+    "id": "string / globally unique",
+    "name": "string",
+    "developer": "name of the original tweak author or team; credit must match the actual published source",
+    "officialSourceURL": "optional HTTPS link to original developer repository or official website, displayed as a credit (never used to download executable code)",
+    "version": "string",
+    "downloadURL": "https://... (direct trusted .dylib, .framework.zip, or reviewed archive)",
+    "sha256": "64-character lowercase hexadecimal digest of the actual release asset",
+    "fileType": "dylib | framework | archive",
+    "supportedApps": [
+      {
+        "bundleID": "original bundle ID or installed bundle folder",
+        "minVersion": "optional",
+        "maxVersion": "optional"
+      }
+    ],
+    "minIOS": "optional",
+    "maxIOS": "optional",
+    "requiresJIT": false,
+    "verifiedInBloomBox": false,
+    "scope": "app-only",
+    "warnings": [
+      "string"
+    ],
+    "alertLevel": "0=sin aviso, 1=informativo, 2=importante, 3=máximo antes de abrir",
+    "alertTitle": "optional text, shown before launch at level 3",
+    "alertMessage": "optional explanation, shown before launch at level 3",
+    "fileName": "stable filename ending in .dylib, no path separators",
+    "minAppVersion": "optional legacy version lower bound",
+    "maxAppVersion": "optional legacy version upper bound",
+    "appStoreID": "optional numeric Apple App Store track ID; look up official artworkUrl512",
+    "appIconURL": "optional direct HTTPS official Apple CDN (mzstatic.com) icon URL; takes precedence over lookup; falls back to installed-app icon if missing/unavailable",
+    "listingOnly": "true = browsing only (manual install disabled; missing/unsupported binary allowed)",
+    "useAtOwnRisk": "show explicit risk label and require confirmation before automatic installation",
+    "targetAppName": "display name for non-installed supported app; never used for selecting install targets",
+    "notes": "additional compatibility warnings from the original developer"
+  }
+}
