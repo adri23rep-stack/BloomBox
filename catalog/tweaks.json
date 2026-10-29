@@ -3,7 +3,23 @@
   "catalogID": "bloombox.official-community.tweaks",
   "updatedAt": "2026-10-28",
   "safety": "Native code executes inside guest apps. Only owner-reviewed releases should be listed. A separate review is required for every new binary version.",
-  "tweakEntries": [],
+  "tweakEntries": [
+    {
+      "id": "sambafix-v3",
+      "name": "SambaFix",
+      "developer": "BloomBox / SambaFix",
+      "version": "3",
+      "priority": "full",
+      "description": "Corrige el inicio de Samba de Amigo sin usar CloudKit real.",
+      "bundleID": "com.sega.samba.app",
+      "downloadURL": "https://github.com/adri23rep-stack/BloomBox/releases/download/sambafix-v3/SambaFix.dylib",
+      "sha256": "4c60b88b2379ba56f854b7091abb5910ca03d41f22553875171da355a4a23dea",
+      "fileType": "dylib",
+      "minIOS": "15.0",
+      "testedInBloomBox": false,
+      "notes": "La nube de iCloud queda desactivada; los datos del juego son locales."
+    }
+  ],
   "entrySchema": {
     "id": "string / globally unique",
     "name": "string",
