@@ -72,7 +72,13 @@
       "sourceVerified": true,
       "featured": true,
       "useAtOwnRisk": true,
-      "notes": "Requiere comprobar JIT y memoria del contenedor; la IPA se instala dentro de BloomBox, no directamente en iOS."
+      "notes": "Requiere comprobar JIT y memoria del contenedor; la IPA se instala dentro de BloomBox, no directamente en iOS. Identificador de referencia tomado del proyecto Xcode oficial; los cambios de firma pueden modificar el bundle ID. BloomBox también comprueba el nombre normalizado.",
+      "bundleID": "com.-yournamehere-.MeloCafe",
+      "aliases": [
+        "MeloCafé",
+        "MeloCafe",
+        "Cemu"
+      ]
     },
     {
       "id": "delta",
