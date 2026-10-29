@@ -583,22 +583,18 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         do {
             if app.appInfo.is32bit { try await ensureBundled32BitRuntime(for: app) }
             if liveBoardMode == "ios" {
+                // Run a private guest in its original host process, before
+                // any virtual-window-only iOS/Classic Mode restrictions.
+                if !app.uiIsShared &&
+                    !UserDefaults.standard.bool(forKey: "LCSharePrivateDataWithLiveProcess") {
+                    try await app.launchFromLibrary(multitask: false, forceJIT: forceJIT)
+                    return
+                }
                 guard #available(iOS 16.0, *) else {
                     throw "La navegación de sesión requiere iOS 16 o posterior."
                 }
                 guard app.appInfo.defaultClassicMode == 0 else {
                     throw "Desactiva Classic Mode en los ajustes de esta app para mantener abierto el launcher."
-                }
-                // Private apps must remain private. LiveProcess virtual-window
-                // sandbox permissions are not equivalent to Shared App conversion.
-                // Unless the user has explicitly enabled private access to LiveProcess,
-                // use the working same-host guest launch, never an unsupported window.
-                // This keeps the desktop icon functional without moving app data to
-                // the shared App Group. The desktop yields to the app until it exits.
-                if !app.uiIsShared &&
-                    !UserDefaults.standard.bool(forKey: "LCSharePrivateDataWithLiveProcess") {
-                    try await app.launchFromLibrary(multitask: false, forceJIT: forceJIT)
-                    return
                 }
                 // Shared apps, and private apps with LiveProcess access explicitly
                 // permitted in Developer Settings, can use the virtual-window path.
