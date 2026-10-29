@@ -2119,7 +2119,7 @@ private struct SambaFixMiniStore: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     HStack(spacing: 15) {
