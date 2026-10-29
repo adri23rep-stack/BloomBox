@@ -2886,3 +2886,406 @@ private struct BloomBoxTweakStore: View {
         } catch { errorText = error.localizedDescription }
     }
 }
+
+
+// MARK: - BloomBox App Store: remote, author-attributed guest IPA discovery
+// This is a launcher catalogue, not the official Apple App Store.
+// Only explicitly reviewed upstream release URLs with a published SHA-256
+// enter the existing installation flow; other items remain external listings.
+
+private struct BloomBoxAppCatalogResponse: Decodable {
+    let schemaVersion: Int
+    let apps: [BloomBoxAppListing]
+}
+
+private struct BloomBoxAppListing: Decodable, Identifiable {
+    struct JITInfo: Decodable {
+        let externalHelper: String?
+        let scriptStatus: String?
+        let bloomboxTested: Bool?
+    }
+
+    let id: String
+    let name: String
+    let creator: String
+    let category: String
+    let description: String
+    let officialWebsite: String
+    let officialReleases: String
+    let currentOfficialRelease: String?
+    let directDownloadURL: String?
+    let fileName: String?
+    let sha256: String?
+    let installMode: String?
+    let sourceVerified: Bool?
+    let featured: Bool?
+    let useAtOwnRisk: Bool?
+    let notes: String?
+    let warnings: [String]?
+    let jit: JITInfo?
+    let bundleID: String?
+    let appStoreID: Int?
+    let appIconURL: String?
+
+    private static func safeWebsite(_ value: String) -> URL? {
+        guard value.count <= 2048, let url = URL(string: value),
+              url.scheme == "https", url.host != nil,
+              url.user == nil, url.password == nil else { return nil }
+        return url
+    }
+
+    var officialURL: URL? { Self.safeWebsite(officialWebsite) }
+    var releasesURL: URL? { Self.safeWebsite(officialReleases) }
+
+    var isValid: Bool {
+        !id.isEmpty && id.count < 100 &&
+        !name.isEmpty && name.count < 140 &&
+        !creator.isEmpty && creator.count < 150 &&
+        officialURL != nil && releasesURL != nil
+    }
+
+    var verifiedGuestIPA: URL? {
+        guard installMode == "guest", sourceVerified == true,
+              let directDownloadURL, let fileName,
+              fileName.hasSuffix(".ipa"), !fileName.contains("/"),
+              let sha256, sha256.count == 64,
+              sha256.unicodeScalars.allSatisfy({
+                  CharacterSet(charactersIn: "0123456789abcdef").contains($0)
+              }),
+              let url = Self.safeWebsite(directDownloadURL),
+              url.host?.lowercased() == "github.com",
+              url.query == nil, url.fragment == nil else { return nil }
+        let parts = url.path.split(separator: "/").map(String.init)
+        guard parts.count == 6, parts[2] == "releases",
+              parts[3] == "download", parts[5] == fileName else { return nil }
+        return url
+    }
+
+    var shouldWarn: Bool { useAtOwnRisk != false }
+    var requiresJIT: Bool { jit?.externalHelper != nil }
+    var categoryTitle: String {
+        switch category {
+        case "emulation": return "Emuladores"
+        case "tools": return "Herramientas"
+        case "utilities": return "Utilidades"
+        default: return "Aplicaciones"
+        }
+    }
+}
+
+private final class BloomBoxAppCatalog: ObservableObject {
+    static let shared = BloomBoxAppCatalog()
+    @Published private(set) var listings: [BloomBoxAppListing] = []
+    @Published private(set) var refreshing = false
+    @Published private(set) var lastError: String?
+    @Published private(set) var lastSync: Date?
+    private var refreshedAt: Date?
+    private static let cacheKey = "BloomBoxAppStoreCatalogueVerified-v1"
+    private static let syncKey = "BloomBoxAppStoreCatalogueLastSync-v1"
+    private static let source = URL(string:
+        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/apps.json")!
+
+    private init() {
+        lastSync = UserDefaults.standard.object(forKey: Self.syncKey) as? Date
+        if let data = UserDefaults.standard.data(forKey: Self.cacheKey),
+           let response = try? JSONDecoder().decode(BloomBoxAppCatalogResponse.self, from: data),
+           response.schemaVersion == 1 {
+            listings = response.apps.filter(\.isValid)
+        }
+    }
+
+    @MainActor
+    func refreshIfNeeded(force: Bool = false) async {
+        if refreshing { return }
+        if !force, let refreshedAt, Date().timeIntervalSince(refreshedAt) < 90 { return }
+        refreshing = true
+        defer { refreshing = false }
+        do {
+            var components = URLComponents(url: Self.source, resolvingAgainstBaseURL: false)!
+            components.queryItems = [URLQueryItem(
+                name: "refresh", value: String(Int64(Date().timeIntervalSince1970 * 1000))
+            )]
+            var request = URLRequest(url: components.url ?? Self.source)
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            request.setValue("no-cache, max-age=0", forHTTPHeaderField: "Cache-Control")
+            request.timeoutInterval = 12
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse,
+                  (200...299).contains(http.statusCode),
+                  data.count < 300_000 else { throw "No se pudo descargar el catálogo de apps." }
+            let decoded = try JSONDecoder().decode(BloomBoxAppCatalogResponse.self, from: data)
+            guard decoded.schemaVersion == 1, decoded.apps.count <= 120,
+                  decoded.apps.allSatisfy(\.isValid) else {
+                throw "La tienda recibió fichas inválidas."
+            }
+            listings = decoded.apps
+            UserDefaults.standard.set(data, forKey: Self.cacheKey)
+            let now = Date()
+            refreshedAt = now
+            lastSync = now
+            UserDefaults.standard.set(now, forKey: Self.syncKey)
+            lastError = nil
+        } catch {
+            refreshedAt = Date()
+            lastError = error.localizedDescription
+            // Failed network requests must not erase the last valid catalogue.
+        }
+    }
+}
+
+private struct BloomBoxAppStoreIcon: View {
+    let app: BloomBoxAppListing
+    @State private var artwork: URL?
+
+    var body: some View {
+        Group {
+            if let artwork {
+                AsyncImage(url: artwork) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    case .empty, .failure:
+                        placeholder
+                    @unknown default:
+                        placeholder
+                    }
+                }
+            } else {
+                placeholder
+            }
+        }
+        .frame(width: 62, height: 62)
+        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .task(id: app.id) {
+            if let direct = app.appIconURL, let url = URL(string: direct),
+               BloomBoxAppStoreArtwork.isTrustedArtwork(url) {
+                artwork = url
+            } else if app.appStoreID != nil || app.bundleID != nil {
+                artwork = await BloomBoxAppStoreArtwork.shared.iconURL(
+                    appStoreID: app.appStoreID, bundleID: app.bundleID
+                )
+            }
+        }
+    }
+
+    private var placeholder: some View {
+        ZStack {
+            Color(red: 0.20, green: 0.48, blue: 0.65)
+            Image(systemName: app.category == "emulation" ? "gamecontroller.fill" :
+                    app.category == "tools" ? "wrench.and.screwdriver.fill" : "app.fill")
+                .font(.system(size: 25))
+                .foregroundStyle(.white)
+        }
+    }
+}
+
+private struct BloomBoxAppStore: View {
+    let apps: [LCAppModel]
+    let openSources: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var sharedModel: SharedModel
+    @ObservedObject private var catalog = BloomBoxAppCatalog.shared
+
+    @State private var section = 0
+    @State private var query = ""
+    @State private var pendingInstall: BloomBoxAppListing?
+    @State private var confirmInstall = false
+
+    private var visibleListings: [BloomBoxAppListing] {
+        let base = section == 0 ? catalog.listings.filter { $0.featured == true }
+                                : catalog.listings
+        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !needle.isEmpty else { return base }
+        return base.filter {
+            [$0.name, $0.creator, $0.categoryTitle, $0.description]
+                .contains { $0.localizedCaseInsensitiveContains(needle) }
+        }
+    }
+
+    private func installed(_ listing: BloomBoxAppListing) -> Bool {
+        let installedApps = apps + sharedModel.apps +
+            (sharedModel.isHiddenAppUnlocked ? sharedModel.hiddenApps : [])
+        return installedApps.contains { guest in
+            if let id = listing.bundleID, id.caseInsensitiveCompare(guest.bundleIdentifier) == .orderedSame {
+                return true
+            }
+            return listing.name.caseInsensitiveCompare(guest.displayName) == .orderedSame
+        }
+    }
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(spacing: 14) {
+                        Image(systemName: "bag.fill")
+                            .font(.system(size: 30, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 65, height: 65)
+                            .background(Color(red: 0.20, green: 0.55, blue: 0.77),
+                                        in: RoundedRectangle(cornerRadius: 18))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("BloomBox App Store").font(.title2.bold())
+                            Text("Aplicaciones de creadores independientes")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
+
+                    HStack {
+                        Label("\(catalog.listings.count) apps en catálogo",
+                              systemImage: "square.stack.3d.up")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Actualizar") {
+                            Task { await catalog.refreshIfNeeded(force: true) }
+                        }.disabled(catalog.refreshing)
+                    }
+                    if catalog.refreshing {
+                        ProgressView("Actualizando tienda...")
+                    } else if let last = catalog.lastSync {
+                        Label("Sincronizado: \(last.formatted(date: .abbreviated, time: .shortened))",
+                              systemImage: "checkmark.circle")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                    if let error = catalog.lastError {
+                        Label("Sin conexión: se conserva la última lista válida. \(error)",
+                              systemImage: "wifi.exclamationmark")
+                            .font(.caption).foregroundStyle(.orange)
+                    }
+
+                    Picker("Explorar apps", selection: $section) {
+                        Text("Destacadas").tag(0)
+                        Text("Explorar").tag(1)
+                    }.pickerStyle(.segmented)
+
+                    if visibleListings.isEmpty && !catalog.refreshing {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("No se encontraron aplicaciones").font(.headline)
+                            Text("Prueba otra búsqueda o actualiza el catálogo.")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
+                        .padding(18)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+                    }
+
+                    ForEach(visibleListings) { listing in
+                        listingCard(listing)
+                    }
+
+                    Button {
+                        dismiss()
+                        DispatchQueue.main.async { openSources() }
+                    } label: {
+                        Label("Explorar repositorios AltStore", systemImage: "tray.full.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    Text("BloomBox no distribuye IPAs de terceros. Cada ficha enlaza al autor original. Solo descarga archivos de proyectos en los que confíes. La ejecución dentro del contenedor puede fallar por restricciones de iOS o JIT.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }.padding(20)
+            }
+            .navigationTitle("App Store")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Cerrar") { dismiss() }
+                }
+            }
+            .searchable(text: $query, prompt: "Buscar apps, autores, categorías")
+            .task { await catalog.refreshIfNeeded() }
+            .confirmationDialog("Instalar IPA en BloomBox",
+                                isPresented: $confirmInstall,
+                                titleVisibility: .visible) {
+                Button("Descargar e instalar bajo mi responsabilidad", role: .destructive) {
+                    guard let selected = pendingInstall,
+                          let url = selected.verifiedGuestIPA,
+                          let sha256 = selected.sha256 else { return }
+                    pendingInstall = nil
+                    dismiss()
+                    DispatchQueue.main.async {
+                        NotificationCenter.default.post(
+                            name: NSNotification.InstallAppNotification,
+                            object: ["url": url, "sha256": sha256]
+                        )
+                    }
+                }
+                Button("Cancelar", role: .cancel) { pendingInstall = nil }
+            } message: {
+                Text("La IPA se descargará desde el release original. Se verificará su SHA-256 antes de instalarla. Puede requerir JIT o permisos no disponibles en BloomBox; haz un respaldo de tus datos.")
+            }
+        }
+    }
+
+    private func listingCard(_ item: BloomBoxAppListing) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                BloomBoxAppStoreIcon(app: item)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(item.name).font(.headline)
+                    Text(item.creator)
+                        .font(.caption).foregroundStyle(.secondary)
+                    Text(item.categoryTitle)
+                        .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                if installed(item) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3).foregroundStyle(.green)
+                        .accessibilityLabel("Instalada")
+                }
+            }
+            Text(item.description)
+                .font(.subheadline).foregroundStyle(.secondary)
+            if item.requiresJIT {
+                Label("Puede requerir JIT · \(item.jit?.externalHelper ?? "depurador")",
+                      systemImage: "bolt.fill")
+                    .font(.caption).foregroundStyle(.orange)
+            }
+            if item.shouldWarn {
+                Label("Uso bajo tu propio riesgo · No probado en BloomBox",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption.weight(.medium)).foregroundStyle(.orange)
+            }
+            if let note = item.notes, !note.isEmpty {
+                Text(note).font(.caption).foregroundStyle(.secondary)
+            }
+            if let release = item.currentOfficialRelease {
+                Text("Versión publicada: \(release)")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
+            if installed(item) {
+                Label("Detectada en BloomBox", systemImage: "checkmark.shield.fill")
+                    .font(.footnote).foregroundStyle(.green)
+            } else if item.verifiedGuestIPA != nil {
+                Button {
+                    pendingInstall = item
+                    confirmInstall = true
+                } label: {
+                    Label("Descargar e instalar IPA", systemImage: "square.and.arrow.down")
+                        .frame(maxWidth: .infinity)
+                }.buttonStyle(.borderedProminent)
+            } else {
+                Label("Instalación directa no habilitada · consulta el lanzamiento",
+                      systemImage: "info.circle")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            HStack(spacing: 16) {
+                if let project = item.officialURL {
+                    Link(destination: project) {
+                        Label("Autor", systemImage: "person.crop.circle")
+                    }
+                }
+                if let releases = item.releasesURL {
+                    Link(destination: releases) {
+                        Label("Releases", systemImage: "arrow.up.right.square")
+                    }
+                }
+            }
+            .font(.footnote.weight(.medium))
+        }
+        .padding(17)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
+    }
+}
