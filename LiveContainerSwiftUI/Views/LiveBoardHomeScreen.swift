@@ -2261,7 +2261,8 @@ private struct BloomBoxModulesPanel: View {
     }
 
     private func moduleDetail(_ module: Module) -> some View {
-        VStack(alignment: .leading, spacing: 20) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
             Label(module.title, systemImage: module.symbol)
                 .font(.title2.bold())
                 Text(detailDescription(module))
@@ -2328,10 +2329,10 @@ private struct BloomBoxModulesPanel: View {
                 Button("Abrir Tweak Store") { onSelect(.tweaks) }
                     .buttonStyle(.bordered)
             }
-            Spacer()
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(moduleBackdrop)
         .navigationTitle(module.title)
         .navigationBarTitleDisplayMode(.inline)
