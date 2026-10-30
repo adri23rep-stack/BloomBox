@@ -77,3 +77,31 @@ An unrelated emulator may lack MeloNX's matching breakpoint and memory
 allocation protocol: it can hang, exit, or fail JIT even with an OK debugger.
 Test only with disposable guest data and turn the switch OFF after a failed
 attempt. The pairing record and the stable MeloNX path are unchanged.
+
+## Polished experimental guest JIT controls
+
+Modules > Experimental > **Configurar JIT por aplicación** now exposes searchable,
+per-installation controls (using each guest's stable relative bundle path). These
+settings are not stored in the app IPA or in the portable guest backup.
+
+- **Automático** (default) leaves the existing app's JIT choice and manual
+  Launch with JIT behavior unchanged, including MeloNX 2.6 auto-activation.
+- **Activado** requests JIT for that guest on normal launch even if it did
+  not previously request JIT. This does not make an incompatible guest compatible.
+  An explicit launch without JIT can still suppress the request.
+- **Desactivado** suppresses JIT for that guest, including MeloNX if explicitly
+  selected; the explicit Launch with JIT action gives a clear error.
+  Turning off JIT may stop an emulator that requires it from working.
+
+The master **Probar script JIT de MeloNX en otras apps** switch is now a safety
+gate, not a blanket global script injection. With the master ON, a *second*
+per-app switch must be selected before an unrelated app can receive the MeloNX
+2.6 script. Custom JIT scripts still win, and external JIT providers are not
+given this test script. The official MeloNX 2.6 automatic profile is unchanged.
+
+The controls are in Experimental for validation, with their policy and UI
+isolated so they can later be linked from the JIT module without changing
+the stored preferences. Settings affect *future* launches only; they do not
+kill an already running guest or change iOS entitlements. Disabling the
+master does not erase saved per-app selections; it simply stops their
+experimental script usage.
