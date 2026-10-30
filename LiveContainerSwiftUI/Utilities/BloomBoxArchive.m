@@ -135,7 +135,7 @@ static BOOL safePath(NSString *path) {
     archive_read_support_format_zip(a);
     BOOL success = archive_read_open_filename(a, source.fileSystemRepresentation, 65536) == ARCHIVE_OK;
     NSString *reason = success ? @"La IPA está dañada o incompleta." : archiveMessage(a);
-    const NSString *prefix = @"Payload/LiveContainer.app/";
+    NSString *const prefix = @"Payload/LiveContainer.app/";
     NSMutableSet<NSString *> *paths = [NSMutableSet set];
     NSMutableSet<NSString *> *plugins = [NSMutableSet set];
     NSMutableDictionary<NSString *, NSDictionary *> *infos = [NSMutableDictionary dictionary];
