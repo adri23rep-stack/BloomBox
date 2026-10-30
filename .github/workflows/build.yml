@@ -192,7 +192,8 @@ jobs:
 
   release__v130:
     name: Publish BloomBox v1.3.0
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release: BloomBox v1.3.0') }}
+    if: >-
+      ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release: BloomBox v1.3.0') }}
     needs: [build]
     runs-on: ubuntu-latest
     permissions:
