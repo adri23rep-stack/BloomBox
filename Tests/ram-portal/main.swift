@@ -183,3 +183,40 @@ assert(before.differenceSummary(as: approved) == "cantidad de permisos: 1 → 2"
 assert(before.differenceSummary(as: changedSnapshot) == "permiso 1: estado enabled")
 assert(before.differenceSummary(as: before) == nil)
 print("RAM+ JSON decoding and redacted diagnostics passed")
+
+// Device RP3 regression: enabled/settings match, but another response
+// attribute changes. Server-owned attributes are not capability edit inputs.
+var responseA = existing
+var responseB = existing
+var attrsA = responseA["attributes"] as! [String: Any]
+var attrsB = responseB["attributes"] as! [String: Any]
+attrsA["serverMetadata"] = ["timestamp": "first", "value": 1]
+attrsB["serverMetadata"] = ["timestamp": "second", "value": 2]
+attrsB["additionalResponseField"] = NSNull()
+responseA["attributes"] = attrsA
+responseB["attributes"] = attrsB
+let stateA = try snapshot(decoded(fixture([responseA])))
+let stateB = try snapshot(decoded(fixture([responseB])))
+assert(stateA.sameCapabilities(as: stateB))
+assert(stateB.preservesUnrelatedCapabilities(from: stateA))
+let projected = portal.payload(stateB, id: "ABC123", bundle: "app.bloom", team: "TEAM")
+let projectedData = projected["data"] as! [String: Any]
+let projectedRelations = projectedData["relationships"] as! [String: Any]
+let projectedCaps = (projectedRelations["bundleIdCapabilities"] as! [String: Any])["data"] as! [[String: Any]]
+let preserved = projectedCaps[0]
+let preservedAttributes = preserved["attributes"] as! [String: Any]
+assert(Set(preservedAttributes.keys) == Set(["enabled", "settings"]))
+assert(NSDictionary(dictionary: preservedAttributes).isEqual(to: existing["attributes"] as! [String: Any]))
+assert(NSDictionary(dictionary: preserved["relationships"] as! [String: Any]).isEqual(to: existing["relationships"] as! [String: Any]))
+attrsB["enabled"] = false
+responseB["attributes"] = attrsB
+let realStateChange = try snapshot(decoded(fixture([responseB])))
+assert(!stateA.sameCapabilities(as: realStateChange))
+assert(!realStateChange.preservesUnrelatedCapabilities(from: stateA))
+attrsB["enabled"] = true
+attrsB["settings"] = []
+responseB["attributes"] = attrsB
+let realSettingsChange = try snapshot(decoded(fixture([responseB])))
+assert(!stateA.sameCapabilities(as: realSettingsChange))
+assert(!realSettingsChange.preservesUnrelatedCapabilities(from: stateA))
+print("RAM+ RP4: response-only attributes ignored; enabled, settings and relationships preserved")

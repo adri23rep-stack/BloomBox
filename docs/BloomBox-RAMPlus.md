@@ -113,3 +113,23 @@ This update treats zero with nonempty records as **unreliable metadata**, NOT as
 - A second authenticated read returns an equivalent set of IDs, attributes and relationships.
 
 Positive reported totals still must match the records. A full page, missing records or inconsistent repeat reads block all changes. Following a PATCH, BloomBox checks both RAM+ and preservation of unrelated capabilities. Actual installation signing still needs on-device verification.
+
+
+## RP4: compare the capability edit state
+
+The RP3 device diagnostic identified a difference in an attribute other than
+`enabled` or `settings`, with the same capability record ID. The exact changing
+attribute/value was not captured. No Apple write occurred in that attempt.
+
+Capability attribute comparison and PATCH serialization now use only `enabled`
+and `settings`, matching the capability edit input constructed by
+[StosSign updateAppID](https://github.com/stossy11/StosSign/blob/main/Sources/StosSign_API/AppleAPI.swift),
+which GetMoreRam calls. Response-only attributes are not sent back to Apple.
+All existing capability records and relationships remain preserved; changes in
+settings, enabled state, linkage, record IDs or capability counts still block
+an unstable read. Zero-total responses still require two matching reads.
+
+Regression fixtures simulate differing extra attributes; they are not captured
+Apple payloads. Tests also cover genuine enabled/settings changes and ensure
+existing settings and relationships survive PATCH construction. On-device
+activation and subsequent SideStore signing still require verification.

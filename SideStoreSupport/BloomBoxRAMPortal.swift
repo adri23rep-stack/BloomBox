@@ -66,6 +66,13 @@ enum BloomBoxRAMPortal {
     static func validID(_ id: String) -> Bool {
         !id.isEmpty && id.count <= 128 && id.unicodeScalars.allSatisfy { CharacterSet.alphanumerics.contains($0) && $0.isASCII }
     }
+    // The Developer Services capability edit contract uses enabled/settings.
+    // Other response attributes are server-owned and must neither gate a
+    // permission comparison nor be echoed into an edit. Keep relationships.
+    // Reference: StosSign AppleAPI.updateAppID (used by GetMoreRam).
+    static func permissionAttributes(_ attributes: [String: Any]) -> [String: Any] {
+        attributes.filter { $0.key == "enabled" || $0.key == "settings" }
+    }
     struct Snapshot {
         let resource: [String: Any]
         let capabilities: [[String: Any]]
@@ -102,7 +109,7 @@ enum BloomBoxRAMPortal {
             guard a["id"] as? String == b["id"] as? String else { return "identificador del registro" }
             guard let left = a["attributes"] as? [String: Any],
                   let right = b["attributes"] as? [String: Any] else { return "estructura de atributos" }
-            if !sameJSON(left, right) {
+            if !sameJSON(permissionAttributes(left), permissionAttributes(right)) {
                 if !sameJSON(["value": left["enabled"] ?? "missing"], ["value": right["enabled"] ?? "missing"]) { return "estado enabled" }
                 if !sameJSON(["value": left["settings"] ?? "missing"], ["value": right["settings"] ?? "missing"]) { return "configuración settings" }
                 return "otros atributos"
@@ -221,6 +228,9 @@ enum BloomBoxRAMPortal {
             var copy = item
             copy.removeValue(forKey: "links")
             copy.removeValue(forKey: "meta")
+            if let attributes = item["attributes"] as? [String: Any] {
+                copy["attributes"] = permissionAttributes(attributes)
+            }
             return copy
         }
         let index = caps.firstIndex { item in
