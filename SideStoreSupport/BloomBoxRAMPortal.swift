@@ -19,6 +19,19 @@ enum BloomBoxRAMPortal {
         return ((try? PropertyListSerialization.propertyList(from: data, options: [], format: nil)) as? [String: Any])
             ?? ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])
     }
+    /// Developer Services can acknowledge a PATCH with no JSON body. A successful
+    /// HTTP response alone is never proof of activation: callers must read back
+    /// the capability before reporting Apple approval.
+    static func validatedResponse(_ data: Data, statusCode: Int, method: String) throws -> [String: Any] {
+        guard (200..<300).contains(statusCode) else {
+            throw fail("Apple rechazó la solicitud (HTTP \\(statusCode)). RAM+ no está confirmada.")
+        }
+        if data.isEmpty && method == "PATCH" { return [:] }
+        guard let response = dictionary(data), response["errors"] == nil else {
+            throw fail("Apple devolvió datos incompletos o con errores. RAM+ no está confirmada.")
+        }
+        return response
+    }
     static func matchesTeam(body: Data?, team: String) -> Bool {
         guard !team.isEmpty, let body else { return false }
         return dictionary(body)?["teamId"] as? String == team
