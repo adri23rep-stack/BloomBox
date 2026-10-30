@@ -223,10 +223,9 @@ private final class BloomBoxRAMJob: NSObject, URLSessionTaskDelegate {
             if http.statusCode == 401 || http.statusCode == 403 { throw BloomBoxRAMPortal.fail("Apple rechazó la sesión o el permiso (\(http.statusCode)). Revisa el inicio de sesión de SideStore.") }
             throw BloomBoxRAMPortal.fail("Apple rechazó la solicitud (HTTP \(http.statusCode)). La activación no está confirmada.")
         }
-        guard let json = BloomBoxRAMPortal.dictionary(data), json["errors"] == nil else {
-            throw BloomBoxRAMPortal.fail("Apple devolvió una respuesta incompleta o con errores. La activación no está confirmada.")
-        }
-        return json
+        // Apple/SideSign may return an empty success body to PATCH. We never
+        // treat it as a grant: run() must perform a fresh GET and confirm RAM+.
+        return try BloomBoxRAMPortal.validatedResponse(data, statusCode: http.statusCode, method: method)
     }
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) { completionHandler(nil) }
