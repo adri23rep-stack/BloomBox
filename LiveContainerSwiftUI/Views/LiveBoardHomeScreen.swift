@@ -2222,6 +2222,31 @@ private struct BloomBoxModulesPanel: View {
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("bloombox.modules.\(module.rawValue).open")
             if module == .experimental {
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("Experimentos · Funciones avanzadas", systemImage: "flask.fill")
+                        .font(.headline)
+                    NavigationLink {
+                        BloomBoxRAMReinstallSimulationView()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "checkmark.shield")
+                                .font(.title3)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Simular reinstalación RAM+").font(.subheadline.bold())
+                                Text("Prevalidación sin tocar permisos, firma ni datos")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right")
+                                .font(.caption.bold())
+                        }
+                        .padding(14)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 15))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("bloombox.experiments.ramDryRun.open")
+                }
                 Button("Abrir Tweak Store") { onSelect(.tweaks) }
                     .buttonStyle(.bordered)
             }
