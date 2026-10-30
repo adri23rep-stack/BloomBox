@@ -36,3 +36,24 @@ script request is not a confirmed game launch or a substitute for MeloNX's check
 CI exercises the actual script with mocked debugger rejection, missing registers,
 qualified thread IDs, disconnects and guest exits. Only physical-device testing
 can establish compatibility with iOS 27 and the installed SideStore signature.
+
+## Repeat launch: dynamic RemotePairing port (experimental fix branch)
+
+iOS 27 may move its RemotePairing service from the StikJIT default port
+`49152` after a restart. In the dynamic-port test branch, BloomBox first
+checks the default, then discovers `_remotepairing._tcp` via Bonjour and
+verifies the candidate against its existing LocalDevVPN device address.
+The old working path is preserved if the default port is reachable.
+
+Modules > JIT > Connection check includes an optional Remote Pairing port
+field. Leave it empty for auto detection. If Bonjour discovery is not possible
+(for example, when on LTE), get the current service port from SideStore's
+Settings > Experimental Features > Network Discovery > local > Remote Pairing,
+then enter that **port number**, not the pairing PIN. This override is passed
+to the JIT extension; no pairing file is copied or exposed.
+
+When the TCP endpoint times out, do not immediately re-pair or clear DDI.
+Check LocalDevVPN is connected, try its reconnect, and confirm local-network
+permission before replacing an existing pairing record. A reachable TCP port
+is necessary but not sufficient: only real-device testing can verify debugger
+authorization and JIT on subsequent launches.
