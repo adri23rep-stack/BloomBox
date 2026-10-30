@@ -167,7 +167,18 @@ private final class BloomBoxRAMJob: NSObject, URLSessionTaskDelegate {
                     if index == 0 { throw BloomBoxRAMPortal.fail("BloomBox no aparece en esta cuenta de SideStore. Revisa la cuenta usada para instalarla.") }
                     optionalMissing = true; continue
                 }
-                let before = try await read(id: id, bundle: bundle)
+                var before = try await read(id: id, bundle: bundle)
+                if before.needsStableRead {
+                    // Apple's metadata may report zero for nonempty capability
+                    // records. Never trust that single response for a write.
+                    try requireCurrent()
+                    save("checking", "Apple informó un contador de permisos inconsistente. Comprobando la lista nuevamente…")
+                    let confirmation = try await read(id: id, bundle: bundle)
+                    guard before.sameCapabilities(as: confirmation) else {
+                        throw BloomBoxRAMPortal.fail("Apple devolvió dos listas de permisos diferentes. No se modificó nada; vuelve a intentarlo.")
+                    }
+                    before = confirmation
+                }
                 if !before.enabled {
                     try requireCurrent()
                     save("requesting", "Solicitando a Apple el permiso para \(bundle)…")
@@ -176,6 +187,9 @@ private final class BloomBoxRAMJob: NSObject, URLSessionTaskDelegate {
                     try requireCurrent()
                     let after = try await read(id: id, bundle: bundle)
                     guard after.enabled else { throw BloomBoxRAMPortal.fail("Apple respondió, pero no confirmó Increased Memory Limit. No se marcará como activado.") }
+                    guard after.preservesUnrelatedCapabilities(from: before) else {
+                        throw BloomBoxRAMPortal.fail("Apple confirmó RAM+, pero otros permisos parecen haber cambiado. Revisa la firma antes de reinstalar; no se marcará como completado.")
+                    }
                 }
                 approvedBundles.append(bundle)
             }
