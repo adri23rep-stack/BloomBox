@@ -57,3 +57,23 @@ Check LocalDevVPN is connected, try its reconnect, and confirm local-network
 permission before replacing an existing pairing record. A reachable TCP port
 is necessary but not sufficient: only real-device testing can verify debugger
 authorization and JIT on subsequent launches.
+
+## Experimental cross-app script switch (isolated experiment branch)
+
+Modules > Experimental > **Probar script JIT de MeloNX en otras apps**
+(default OFF) only changes which script is passed when an installed guest already
+requests JIT using BloomBox's **built-in** provider. It does **not** automatically
+enable JIT for every installed app, and it does not affect external JIT providers.
+
+Precedence:
+1. A guest's configured custom JIT script wins.
+2. MeloNX bundle `com.stossy11.MeloNX` version `2.6` retains its automatic script.
+3. With the switch ON, another guest **already requesting built-in JIT**
+   receives MeloNX 2.6's exact bundled script if it has no custom script.
+4. With the switch OFF, unrelated guests keep their existing generic behavior.
+
+This is a compatibility experiment, NOT a universal iOS 27 JIT patch.
+An unrelated emulator may lack MeloNX's matching breakpoint and memory
+allocation protocol: it can hang, exit, or fail JIT even with an OK debugger.
+Test only with disposable guest data and turn the switch OFF after a failed
+attempt. The pairing record and the stable MeloNX path are unchanged.
