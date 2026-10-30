@@ -95,8 +95,10 @@ zeroResource["relationships"] = zeroRelations
 zeroTotal["data"] = zeroResource
 let zeroSnapshot = try snapshot(zeroTotal)
 assert(zeroSnapshot.capabilities.count == 1 && zeroSnapshot.needsStableRead)
-assert(zeroSnapshot.sameCapabilities(as: try snapshot(zeroTotal)))
-assert(!zeroSnapshot.sameCapabilities(as: try snapshot(fixture([cap("APP_GROUPS", enabled: false)]))))
+let confirmedZeroSnapshot = try snapshot(zeroTotal)
+assert(zeroSnapshot.sameCapabilities(as: confirmedZeroSnapshot))
+let changedSnapshot = try snapshot(fixture([cap("APP_GROUPS", enabled: false)]))
+assert(!zeroSnapshot.sameCapabilities(as: changedSnapshot))
 var zeroWithNext = zeroTotal
 var zeroNextResource = zeroResource
 var zeroNextRelations = zeroRelations
@@ -119,7 +121,8 @@ fullZero["data"] = fullResource
 do { _ = try snapshot(fullZero); fatalError("Accepted a full page with untrusted count") } catch is BloomBoxRAMPortal.Failure { }
 let reordered = try snapshot(fixture([cap(portal.capability, enabled: true), existing]))
 let priorWithRAM = try snapshot(fixture([existing, cap(portal.capability, enabled: false)]))
-assert(reordered.sameCapabilities(as: try snapshot(fixture([existing, cap(portal.capability, enabled: true)]))))
+let originalOrder = try snapshot(fixture([existing, cap(portal.capability, enabled: true)]))
+assert(reordered.sameCapabilities(as: originalOrder))
 assert(reordered.preservesUnrelatedCapabilities(from: priorWithRAM))
 let lostUnrelated = try snapshot(fixture([cap(portal.capability, enabled: true)]))
 assert(!lostUnrelated.preservesUnrelatedCapabilities(from: priorWithRAM))
