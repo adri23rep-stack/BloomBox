@@ -99,3 +99,17 @@ If the new limit does not resolve the mismatch, use the counts to implement a
 verified pagination read rather than dropping the safety guard or clearing
 other Apple capabilities. The provisioning profile is unchanged until a new
 signing/install step actually includes RAM+.
+
+
+## Regression: Apple reports zero total for one capability on iOS 27
+
+The on-device response contained **one capability record**, while its pagination metadata `total` was **zero**. Increasing the requested limit to 200 did not resolve this inconsistency. BloomBox rejected the response before submitting changes.
+
+This update treats zero with nonempty records as **unreliable metadata**, NOT as proof that the list is complete. The request proceeds only when:
+
+- No nonempty `next` pagination link exists.
+- The page contains fewer than 200 records.
+- Every capability has unique IDs, a strict enabled boolean and complete relationships.
+- A second authenticated read returns an equivalent set of IDs, attributes and relationships.
+
+Positive reported totals still must match the records. A full page, missing records or inconsistent repeat reads block all changes. Following a PATCH, BloomBox checks both RAM+ and preservation of unrelated capabilities. Actual installation signing still needs on-device verification.
