@@ -582,10 +582,11 @@ struct LiveBoardHomeScreen: View {
             })
         }
         .sheet(isPresented: $modulesPresented, onDismiss: performModuleAction) {
-            BloomBoxModulesPanel { destination in
+            BloomBoxModulesPanel(apps: apps + sharedModel.hiddenApps) { destination in
                 pendingModuleDestination = destination
                 modulesPresented = false
             }
+            .modifier(BloomBoxModulesSheetBackground())
         }
         .alert("Compatibilidad · Nivel 3 (máximo)", isPresented: $showTweakLevel3Alert) {
             Button("Instalar corrección") {
@@ -1881,6 +1882,8 @@ struct LiveBoardHomeScreen: View {
         switch destination {
         case .jit: jitSetup = true
         case .desktop: desktopSettings = true
+        case .interface: openInterface()
+        case .wallpaper: customizing = true
         case .apps: openManagement()
         case .settings: openTab(.settings)
         case .sidestore: openSideStore()
@@ -2049,7 +2052,7 @@ private struct BloomBoxModulesPanel: View {
     @AppStorage("BloomBoxRAMPlusExperimentalControls", store: LCUtils.appGroupUserDefault)
     private var ramExperimentalControlsEnabled = false
 
-    enum Destination { case jit, desktop, apps, settings, tweaks, sidestore }
+    enum Destination { case jit, desktop, interface, wallpaper, apps, settings, tweaks, sidestore }
     enum Module: String, CaseIterable, Identifiable {
         case ram, jit, desktop, connectivity, privacy, experimental
         var id: String { rawValue }
@@ -2096,6 +2099,7 @@ private struct BloomBoxModulesPanel: View {
         }
     }
 
+    let apps: [LCAppModel]
     let onSelect: (Destination) -> Void
     @Environment(\.dismiss) private var dismiss
     private let columns = [GridItem(.flexible(), spacing: 12),
@@ -2132,16 +2136,7 @@ private struct BloomBoxModulesPanel: View {
                 }
                 .padding(18)
             }
-            .background {
-                ZStack {
-                    Color(red: 0.05, green: 0.07, blue: 0.19)
-                    LinearGradient(colors: [
-                        Color(red: 0.23, green: 0.16, blue: 0.70).opacity(0.63),
-                        Color(red: 0.09, green: 0.19, blue: 0.57).opacity(0.48),
-                        Color(red: 0.19, green: 0.07, blue: 0.34).opacity(0.62)
-                    ], startPoint: .topLeading, endPoint: .bottomTrailing)
-                }.ignoresSafeArea()
-            }
+            .background(moduleBackdrop)
             .foregroundStyle(.white)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -2182,7 +2177,8 @@ private struct BloomBoxModulesPanel: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 165)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
+        .background(Color(red: 0.15, green: 0.16, blue: 0.23).opacity(0.88),
+                    in: RoundedRectangle(cornerRadius: 24))
         .overlay {
             RoundedRectangle(cornerRadius: 24)
                 .strokeBorder(LinearGradient(colors: [module.tint.opacity(0.72), .white.opacity(0.13)],
@@ -2192,11 +2188,70 @@ private struct BloomBoxModulesPanel: View {
     }
 
     @ViewBuilder private func detail(for module: Module) -> some View {
-        if module == .ram {
+        switch module {
+        case .ram:
             ramDetail
-        } else {
+        case .jit:
+            LiveBoardJITSetup(embedded: true)
+        case .desktop:
+            desktopDetail
+        case .connectivity:
+            BloomBoxConnectivityModule(apps: apps)
+        case .privacy, .experimental:
             moduleDetail(module)
         }
+    }
+
+    private var moduleBackdrop: some View {
+        Color(red: 0.055, green: 0.065, blue: 0.13).opacity(0.87)
+            .ignoresSafeArea()
+    }
+
+    private var desktopDetail: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Label("Escritorio", systemImage: "display")
+                    .font(.title2.bold())
+                Text("Los accesos del menú Escritorio, ahora dentro de Módulos.")
+                    .font(.subheadline).foregroundStyle(.white.opacity(0.7))
+                Button { onSelect(.interface) } label: {
+                    moduleShortcut("Interface", subtitle: "iOS Home Screen", symbol: "square.grid.3x3.fill", color: .cyan)
+                }
+                Button { onSelect(.wallpaper) } label: {
+                    moduleShortcut("Wallpaper", subtitle: "Fotos, videos, GIF y fondo", symbol: "photo.fill", color: .pink)
+                }
+                Button { onSelect(.apps) } label: {
+                    moduleShortcut("Apps", subtitle: "Instalar y administrar apps", symbol: "square.stack.3d.up.fill", color: .purple)
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(22)
+        }
+        .background(moduleBackdrop)
+        .foregroundStyle(.white)
+        .navigationTitle("Escritorio")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func moduleShortcut(_ title: String, subtitle: String, symbol: String, color: Color) -> some View {
+        HStack(spacing: 16) {
+            Image(systemName: symbol)
+                .font(.system(size: 25, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 53, height: 53)
+                .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 15))
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title).font(.headline)
+                Text(subtitle).font(.footnote).foregroundStyle(.white.opacity(0.65))
+            }
+            Spacer(minLength: 4)
+            Image(systemName: "chevron.right")
+                .font(.caption.bold()).foregroundStyle(.white.opacity(0.55))
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(white: 0.18).opacity(0.9), in: RoundedRectangle(cornerRadius: 22))
+        .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(color.opacity(0.38)))
     }
 
     private var ramDetail: some View {
@@ -2252,7 +2307,8 @@ private struct BloomBoxModulesPanel: View {
             Spacer()
         }
         .padding(24)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(moduleBackdrop)
         .navigationTitle(module.title)
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -2276,6 +2332,155 @@ private struct BloomBoxModulesPanel: View {
         case .experimental: return "Abrir ajustes avanzados"
         case .ram: return ""
         }
+    }
+}
+
+
+private struct BloomBoxModulesSheetBackground: ViewModifier {
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(iOS 16.4, *) {
+            content.presentationBackground(.clear)
+        } else {
+            content
+        }
+    }
+}
+
+/// Uses the same app property as the established per-app Internet switch.
+/// Turning Internet on means networkBlocked=false; turning it off means true.
+private struct BloomBoxConnectivityModule: View {
+    let apps: [LCAppModel]
+    @State private var search = ""
+    @State private var notice: String?
+    @State private var changedCount = 0
+
+    private var availableApps: [LCAppModel] {
+        var seen = Set<String>()
+        return apps.filter { app in
+            !(app.appInfo is BuiltInSideStoreAppInfo) &&
+            seen.insert(liveBoardAppKey(app)).inserted
+        }.sorted {
+            $0.appInfo.displayName().localizedCaseInsensitiveCompare($1.appInfo.displayName()) == .orderedAscending
+        }
+    }
+
+    private var filteredApps: [LCAppModel] {
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return availableApps }
+        return availableApps.filter {
+            $0.appInfo.displayName().localizedCaseInsensitiveContains(query) ||
+            $0.bundleIdentifier.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 10) {
+                    Image(systemName: "wifi").foregroundStyle(.green)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Internet por aplicación").font(.title3.bold())
+                        Text("Encendido: tiene Internet · Apagado: bloqueado")
+                            .font(.footnote).foregroundStyle(.white.opacity(0.7))
+                    }
+                }
+                TextField("Buscar app", text: $search)
+                    .padding(12)
+                    .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("bloombox.modules.connectivity.search")
+
+                if let notice {
+                    Label(notice, systemImage: "checkmark.circle")
+                        .foregroundStyle(.green)
+                        .font(.footnote)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                }
+
+                if availableApps.isEmpty {
+                    Label("No hay aplicaciones invitadas instaladas.", systemImage: "square.stack")
+                        .foregroundStyle(.white.opacity(0.7))
+                        .padding(14)
+                } else if filteredApps.isEmpty {
+                    Text("No se encontraron aplicaciones.")
+                        .foregroundStyle(.secondary)
+                        .padding(14)
+                } else {
+                    ForEach(filteredApps, id: \.self) { app in
+                        BloomBoxConnectivityRow(app: app) { allowed in
+                            changedCount += 1
+                            notice = allowed
+                                ? "«\(app.appInfo.displayName())» volverá a tener Internet después de reiniciar BloomBox."
+                                : "«\(app.appInfo.displayName())» tendrá Internet bloqueado después de reiniciar BloomBox."
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        }
+                    }
+                }
+
+                if changedCount > 0 {
+                    Label("Hay cambios pendientes de aplicar: cierra BloomBox desde el selector de apps y vuelve a abrirlo.", systemImage: "arrow.clockwise")
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                }
+                Text("Este ajuste se aplica a las apps invitadas dentro de BloomBox, no a todo iOS. El filtro es experimental y algunas conexiones, incluidas las de iCloud, pueden continuar. Los cambios requieren cerrar y volver a abrir BloomBox.")
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.64))
+            }
+            .padding(20)
+        }
+        .background(Color(red: 0.055, green: 0.065, blue: 0.13).opacity(0.87).ignoresSafeArea())
+        .foregroundStyle(.white)
+        .navigationTitle("Conectividad")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct BloomBoxConnectivityRow: View {
+    @ObservedObject var app: LCAppModel
+    let onChange: (Bool) -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            LiveBoardIconImage(app: app, dark: false)
+                .frame(width: 47, height: 47)
+                .clipShape(RoundedRectangle(cornerRadius: 11))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(app.appInfo.displayName())
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                if app.isAppRunning {
+                    Text("Cierra la app para cambiar el acceso")
+                        .font(.caption2).foregroundStyle(.orange)
+                } else if app.isSigningInProgress {
+                    Text("Firma en curso")
+                        .font(.caption2).foregroundStyle(.orange)
+                } else {
+                    Label(app.uiNetworkBlocked ? "Internet bloqueado" : "Internet permitido",
+                          systemImage: app.uiNetworkBlocked ? "wifi.slash" : "wifi")
+                        .font(.caption2)
+                        .foregroundStyle(app.uiNetworkBlocked ? Color.orange : Color.green)
+                }
+            }
+            Spacer(minLength: 4)
+            Toggle("Internet de \(app.appInfo.displayName())", isOn: Binding(
+                get: { !app.uiNetworkBlocked },
+                set: { allowed in
+                    guard !app.isAppRunning && !app.isSigningInProgress else { return }
+                    app.uiNetworkBlocked = !allowed
+                    onChange(allowed)
+                }
+            ))
+            .labelsHidden()
+            .tint(.green)
+            .disabled(app.isAppRunning || app.isSigningInProgress)
+            .accessibilityIdentifier("bloombox.modules.connectivity.\(liveBoardAppKey(app))")
+        }
+        .padding(13)
+        .background(Color(white: 0.18).opacity(0.9), in: RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18)
+            .strokeBorder(app.uiNetworkBlocked ? Color.orange.opacity(0.35) : Color.white.opacity(0.12)))
     }
 }
 
