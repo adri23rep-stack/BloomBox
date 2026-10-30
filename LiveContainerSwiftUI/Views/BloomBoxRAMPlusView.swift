@@ -16,6 +16,12 @@ final class BloomBoxRAMPlus: ObservableObject {
     @Published private(set) var activationStatus = ""
     @Published private(set) var activationMessage = ""
     private let reinstallKey = "BloomBoxRAMReinstall"
+    private let experimentalControlsKey = "BloomBoxRAMPlusExperimentalControls"
+    private var experimentalControlsEnabled: Bool { defaults.bool(forKey: experimentalControlsKey) }
+    private var experimentalReinstall: Bool {
+        experimentalControlsEnabled &&
+        (defaults.dictionary(forKey: reinstallKey)?["experimental"] as? Bool == true)
+    }
     @Published private(set) var reinstallStage = ""
     @Published private(set) var reinstallMessage = ""
     @Published private(set) var preparedIPA: URL?
@@ -104,7 +110,7 @@ final class BloomBoxRAMPlus: ObservableObject {
         extensionSigned = BloomBoxRAMValidation.boolean(Self.signature(extensionBundle?.executablePath)?[BloomBoxRAMValidation.entitlement])
         available = LCUtils.bloomBoxAvailableMemory()
         checkedAt = Date()
-        if validation.confirmed && reinstallStage != "confirmed" {
+        if validation.confirmed && reinstallStage != "confirmed" && !experimentalReinstall {
             saveReinstall("confirmed", "RAM+ está activa en esta instalación.")
         } else if reinstallStage == "installing" {
             saveReinstall("verifying", "SideStore recibió la solicitud. Cuando termine, vuelve a abrir BloomBox para comprobar la firma.")
@@ -176,10 +182,13 @@ final class BloomBoxRAMPlus: ObservableObject {
     }
 
 
-    /// Runs once after Apple readback. Never changes version without explicit choice.
+    /// Also allows an explicitly enabled RAM+ experimental reinstall without repeating Apple's approval.
+    /// It still only accepts the exact installed version and does not change RAM+ entitlements.
     func resumeAfterAppleApproval() async {
-        guard !reinstallBusy, !validation.confirmed, requested,
-              activationStatus == "approved", reinstallStage.isEmpty || reinstallStage == "approved" else { return }
+        let testing = validation.confirmed && experimentalReinstall
+        guard !reinstallBusy, (!validation.confirmed || testing), (requested || testing),
+              (activationStatus == "approved" || testing),
+              (reinstallStage.isEmpty || reinstallStage == "approved") else { return }
         reinstallBusy = true
         defer { reinstallBusy = false }
         saveReinstall("checking", "Comprobando origen y versión de la IPA…")
@@ -245,7 +254,8 @@ final class BloomBoxRAMPlus: ObservableObject {
     }
 
     func importIPA(_ source: URL) async {
-        guard !reinstallBusy, activationStatus == "approved", !validation.confirmed else { return }
+        let testing = validation.confirmed && experimentalReinstall
+        guard !reinstallBusy, (activationStatus == "approved" && !validation.confirmed) || testing else { return }
         reinstallBusy = true
         defer { reinstallBusy = false }
         let scoped = source.startAccessingSecurityScopedResource()
@@ -261,8 +271,19 @@ final class BloomBoxRAMPlus: ObservableObject {
     }
 
     func retryReinstall() {
-        guard !reinstallBusy, activationStatus == "approved" && !validation.confirmed else { return }
+        let testing = validation.confirmed && experimentalReinstall
+        guard !reinstallBusy, (activationStatus == "approved" && !validation.confirmed) || testing else { return }
         saveReinstall("approved", "Buscando de nuevo la IPA de esta compilación.")
+    }
+
+    /// Reopens the existing reinstall controls only. No Apple request, signing,
+    /// SideStore launch or file change occurs until the user chooses an action.
+    func startExperimentalReinstall() {
+        guard validation.confirmed, experimentalControlsEnabled, !reinstallBusy else { return }
+        var state = defaults.dictionary(forKey: reinstallKey) ?? [:]
+        state["experimental"] = true
+        defaults.set(state, forKey: reinstallKey)
+        saveReinstall("approved", "Prueba experimental: RAM+ ya está activa. Se verificará la misma IPA sin repetir la solicitud a Apple.")
     }
 
     private static func signature(_ path: String?) -> [String: Any]? {
@@ -278,6 +299,8 @@ struct BloomBoxRAMPlusView: View {
     @State private var showWarning = false
     @State private var activationError: String?
     @State private var chooseOriginalIPA = false
+    @AppStorage("BloomBoxRAMPlusExperimentalControls", store: LCUtils.appGroupUserDefault)
+    private var experimentalControlsEnabled = false
     private let statusTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -357,6 +380,31 @@ struct BloomBoxRAMPlusView: View {
                             }
                             Text("Si SideStore no acepta la entrega automática, guarda la IPA en Archivos, abre SideStore y selecciónala con +. Instálala encima de BloomBox, con todas sus extensiones.")
                                 .font(.footnote).foregroundStyle(.secondary)
+                            Button("Abrir SideStore", action: openSideStore)
+                        }
+                        if ram.validation.confirmed && experimentalControlsEnabled {
+                            Divider()
+                            Label("Controles RAM+ habilitados para pruebas", systemImage: "flask.fill")
+                                .font(.subheadline.bold())
+                            Text("RAM+ ya está activa. Los siguientes botones permiten volver a probar la preparación e instalación de la misma edición SIN volver a pedir el permiso a Apple. Reinstalar puede modificar la firma y perder RAM+ si SideStore no la conserva.")
+                                .font(.footnote).foregroundStyle(.orange)
+                            Button("Reintentar reinstalación de RAM+ (experimental)") {
+                                ram.startExperimentalReinstall()
+                                Task { await ram.resumeAfterAppleApproval() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(ram.reinstallBusy)
+                            .accessibilityIdentifier("bloombox.experiments.ramRetryInstall")
+                            Button("Elegir IPA original") {
+                                ram.startExperimentalReinstall()
+                                chooseOriginalIPA = true
+                            }
+                            .disabled(ram.reinstallBusy)
+                            if #available(iOS 16.0, *), let file = ram.preparedIPA {
+                                ShareLink(item: file) {
+                                    Label("Compartir IPA con SideStore", systemImage: "square.and.arrow.up")
+                                }
+                            }
                             Button("Abrir SideStore", action: openSideStore)
                         }
                         if ram.activationStatus == "uncertain" {
@@ -446,298 +494,5 @@ struct BloomBoxRAMPlusView: View {
             Spacer()
             Text(value.map { $0 ? "Sí" : "No" } ?? "Sin confirmar").font(.caption)
         }.font(.footnote)
-    }
-}
-
-
-// MARK: - Simulación segura de reinstalación (solo lectura)
-//
-// No utiliza requestActivation(), resumeAfterAppleApproval(), prepareIPA(),
-// UserDefaults.set, UIApplication.open ni el instalador de SideStore.
-// Una prevalidación correcta NO garantiza que SideStore firme/reinstale con éxito.
-private struct BloomBoxRAMDryRunCheck: Identifiable, Sendable {
-    enum State: Equatable, Sendable { case pass, warning, blocked }
-    let id: String
-    let detail: String
-    let state: State
-}
-
-private struct BloomBoxRAMDryRunExpected: Sendable {
-    let bundleID: String
-    let version: String
-    let build: String
-    let commit: String?
-    let extensions: Set<String>
-    let appGroups: Set<String>
-
-    static func current() -> Self {
-        let info = Bundle.main.infoDictionary ?? [:]
-        let extPath = Bundle.main.builtInPlugInsURL?.path ?? ""
-        let ext = Set((try? FileManager.default.contentsOfDirectory(atPath: extPath)) ?? [])
-        return Self(
-            bundleID: Bundle.main.bundleIdentifier ?? "",
-            version: info["CFBundleShortVersionString"] as? String ?? "",
-            build: info["CFBundleVersion"] as? String ?? "",
-            commit: info["BloomBoxBuildCommit"] as? String,
-            extensions: ext,
-            appGroups: Set(info["ALTAppGroups"] as? [String] ?? [])
-        )
-    }
-}
-
-private struct BloomBoxRAMDryRunIPA: Sendable {
-    let fileName: String
-    let checksum: String
-    let checks: [BloomBoxRAMDryRunCheck]
-    var compatible: Bool { !checks.contains { $0.state == .blocked } }
-
-    static func inspect(_ url: URL, expected: BloomBoxRAMDryRunExpected) throws -> Self {
-        let accessing = url.startAccessingSecurityScopedResource()
-        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
-        guard url.pathExtension.lowercased() == "ipa" else {
-            throw NSError(domain: "BloomBoxRAMDryRun", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "Selecciona una IPA original (.ipa)."])
-        }
-
-        // Validación del archivo real: no copiar, extraer, firmar ni instalar.
-        let ipa = try BloomBoxArchive.inspectIPA(url)
-        let bundle = ipa["bundle"] as? String ?? ""
-        let version = ipa["version"] as? String ?? ""
-        let build = ipa["build"] as? String ?? ""
-        let commit = ipa["commit"] as? String
-        let extensions = Set(ipa["extensions"] as? [String] ?? [])
-        let groups = Set(ipa["groups"] as? [String] ?? [])
-
-        let handle = try FileHandle(forReadingFrom: url)
-        defer { try? handle.close() }
-        var sha = SHA256()
-        while true {
-            let bytes = handle.readData(ofLength: 1024 * 1024)
-            if bytes.isEmpty { break }
-            sha.update(data: bytes)
-        }
-        let checksum = sha.finalize().map { String(format: "%02x", $0) }.joined()
-        func check(_ id: String, _ passed: Bool, _ detail: String) -> BloomBoxRAMDryRunCheck {
-            .init(id: id, detail: detail, state: passed ? .pass : .blocked)
-        }
-        let matchingID = !bundle.isEmpty &&
-            (bundle == expected.bundleID || expected.bundleID.hasPrefix(bundle + "."))
-        let matchingVersion = !version.isEmpty && !build.isEmpty &&
-            version == expected.version && build == expected.build
-        let matchingExtensions = !expected.extensions.isEmpty && extensions == expected.extensions
-        let matchingGroups = groups == expected.appGroups
-        let matchingCommit = expected.commit.map { !($0.isEmpty) && commit == $0 } ?? true
-        return .init(fileName: url.lastPathComponent, checksum: checksum, checks: [
-            check("Identidad de BloomBox", matchingID,
-                  "IPA: \(bundle.isEmpty ? "desconocida" : bundle); instalada: \(expected.bundleID)"),
-            check("Versión y compilación", matchingVersion,
-                  "IPA: \(version) (\(build)); instalada: \(expected.version) (\(expected.build))"),
-            check("Extensiones", matchingExtensions,
-                  "IPA: \(extensions.count); instaladas: \(expected.extensions.count); deben coincidir exactamente."),
-            check("App Groups declarados", matchingGroups,
-                  "Coincidencia: \(matchingGroups ? "sí" : "no"). Se validan los metadatos, no la firma final."),
-            check("Commit de compilación", matchingCommit,
-                  expected.commit == nil ? "La instalación actual no declara commit: no se puede contrastar." :
-                  (matchingCommit ? "Coincide con la edición instalada." : "Diferente o ausente; no es la misma compilación."))
-        ])
-    }
-}
-
-struct BloomBoxRAMReinstallSimulationView: View {
-    @State private var checks: [BloomBoxRAMDryRunCheck] = []
-    @State private var preview: BloomBoxRAMDryRunIPA?
-    @State private var showImporter = false
-    @State private var scanning = false
-    @State private var scanError: String?
-    @State private var lastRun: Date?
-
-    private var blocked: Bool {
-        checks.contains { $0.state == .blocked }
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 17) {
-                Label("Simulación de reinstalación RAM+", systemImage: "checkmark.shield")
-                    .font(.title2.bold())
-                Text("Prueba de diagnóstico segura. No pide permisos a Apple, no descarga ni instala nada, no abre SideStore y no modifica RAM+, la firma o tus datos.")
-                    .font(.callout).foregroundStyle(.secondary)
-
-                Button {
-                    runDryRun()
-                } label: {
-                    Label("Ejecutar simulación", systemImage: "play.circle.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(scanning)
-                .accessibilityIdentifier("bloombox.experiments.ramDryRun.start")
-
-                Button {
-                    showImporter = true
-                } label: {
-                    Label("Examinar IPA original (opcional)", systemImage: "doc.zipper")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .disabled(scanning)
-                .accessibilityIdentifier("bloombox.experiments.ramDryRun.selectIPA")
-
-                if scanning { ProgressView("Analizando IPA sin modificarla…") }
-                if let scanError {
-                    Label(scanError, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange).font(.footnote)
-                }
-                if let preview {
-                    GroupBox("IPA examinada") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(preview.fileName).font(.subheadline.bold())
-                            Text("SHA-256: " + preview.checksum)
-                                .font(.caption.monospaced())
-                                .textSelection(.enabled)
-                            Text("Este hash identifica el archivo local; no autentica por sí solo su origen.")
-                                .font(.caption).foregroundStyle(.secondary)
-                        }.frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-                if let lastRun {
-                    GroupBox("Informe de prevalidación") {
-                        VStack(alignment: .leading, spacing: 15) {
-                            ForEach(checks) { row in
-                                HStack(alignment: .top, spacing: 10) {
-                                    Image(systemName: symbol(for: row.state))
-                                        .foregroundStyle(tint(for: row.state))
-                                        .frame(width: 20)
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(row.id).font(.subheadline.bold())
-                                        Text(row.detail).font(.footnote).foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 4)
-                    }
-                    Label(blocked ? "Hay incompatibilidades: no se recomienda reinstalar." :
-                          (preview == nil ? "Prevalidación parcial: falta revisar una IPA." :
-                           "Prevalidación local completada; la reinstalación real no se ha probado."),
-                          systemImage: blocked ? "xmark.shield" : "info.circle")
-                        .foregroundStyle(blocked ? Color.orange : Color.secondary)
-                        .font(.callout)
-                    Text("Comprobado: \(lastRun.formatted(date: .abbreviated, time: .standard))")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                Text("Límite de la prueba: la firma nueva, la respuesta de Apple, el enlace externo, el instalador de SideStore y la conservación de los datos tras reemplazar la app solo pueden confirmarse en una reinstalación real. Ninguno se ejecuta aquí.")
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
-            .padding(22)
-        }
-        .navigationTitle("Simulación RAM+")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear { if lastRun == nil { runDryRun() } }
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.item], allowsMultipleSelection: false) { result in
-            switch result {
-            case .success(let files):
-                guard let url = files.first else { return }
-                scanning = true
-                scanError = nil
-                let expected = BloomBoxRAMDryRunExpected.current()
-                Task {
-                    do {
-                        let inspected = try await Task.detached(priority: .userInitiated) {
-                            try BloomBoxRAMDryRunIPA.inspect(url, expected: expected)
-                        }.value
-                        preview = inspected
-                    } catch {
-                        preview = nil
-                        scanError = error.localizedDescription
-                    }
-                    scanning = false
-                    runDryRun()
-                }
-            case .failure(let error):
-                preview = nil
-                scanError = error.localizedDescription
-                runDryRun()
-            }
-        }
-    }
-
-    private func runDryRun() {
-        let expected = BloomBoxRAMDryRunExpected.current()
-        let xml = Bundle.main.executablePath.flatMap(getExecutableEntitlementXML)
-        let entitlements = xml?.data(using: .utf8).flatMap {
-            (try? PropertyListSerialization.propertyList(from: $0, options: [], format: nil)) as? [String: Any]
-        }
-        let applicationID = entitlements?["application-identifier"] as? String
-        let profileURL = Bundle.main.bundleURL.appendingPathComponent("embedded.mobileprovision")
-        let profile = (try? Data(contentsOf: profileURL)).flatMap(BloomBoxRAMValidation.profile)
-        let validated = BloomBoxRAMValidation.inspect(
-            runtime: LCUtils.bloomBoxMemoryEntitlement()?.boolValue,
-            profile: profile, applicationIdentifier: applicationID
-        )
-        let sideStorePresent = Bundle.main.privateFrameworksURL.map {
-            FileManager.default.fileExists(atPath: $0.appendingPathComponent("SideStoreApp.framework").path)
-        } == true
-        var deeplink = URLComponents()
-        deeplink.scheme = "sidestore"
-        deeplink.host = "install"
-        deeplink.queryItems = [URLQueryItem(name: "url", value: "https://github.com/adri23rep-stack/BloomBox")]
-        let canConstructLink = deeplink.url != nil
-
-        var results: [BloomBoxRAMDryRunCheck] = [
-            .init(id: "RAM+ de la instalación actual",
-                  detail: validated.confirmed ? "Ya está confirmada; no se cambiará." :
-                    "No está completamente confirmada. La simulación NO solicita ni activa el permiso.",
-                  state: validated.confirmed ? .pass : .warning),
-            .init(id: "Identidad instalada",
-                  detail: "\(expected.bundleID) · \(expected.version) (\(expected.build))",
-                  state: !expected.bundleID.isEmpty && !expected.version.isEmpty && !expected.build.isEmpty ? .pass : .blocked),
-            .init(id: "Extensiones y grupo",
-                  detail: "\(expected.extensions.count) extensiones; \(expected.appGroups.count) App Groups declarados.",
-                  state: expected.extensions.contains("LiveProcess.appex") ? .pass : .blocked),
-            .init(id: "SideStore integrado",
-                  detail: sideStorePresent ? "El framework existe. No se inicia sesión ni se intenta firmar." :
-                    "No se encontró SideStoreApp.framework dentro de BloomBox.",
-                  state: sideStorePresent ? .pass : .blocked),
-            .init(id: "Enlace de instalación",
-                  detail: canConstructLink ? "El formato sidestore://install puede construirse. NO se abre ni se comprueba recepción." :
-                    "No pudo componerse un enlace válido.",
-                  state: canConstructLink ? .pass : .blocked),
-            .init(id: "Descarga y autenticidad remota",
-                  detail: "No se descargan datos. Esta prueba no confirma si GitHub ofrece una IPA de esta compilación.",
-                  state: .warning)
-        ]
-        if let preview {
-            results.append(contentsOf: preview.checks)
-            results.append(.init(id: "Integridad del archivo local",
-                                 detail: "ZIP analizado y SHA-256 calculado en modo lectura; no se compara con un hash publicado.",
-                                 state: .warning))
-        } else {
-            results.append(.init(id: "Comparación de IPA",
-                                 detail: "Pendiente: selecciona la IPA original para comparar identidad, versión, build, extensiones y App Groups.",
-                                 state: .warning))
-        }
-        results.append(.init(id: "Firma, reemplazo y datos",
-                             detail: "No ejecutados. RAM+, ajustes, sesión Apple y archivos existentes permanecen intactos.",
-                             state: .warning))
-        checks = results
-        lastRun = Date()
-    }
-
-    private func symbol(for status: BloomBoxRAMDryRunCheck.State) -> String {
-        switch status {
-        case .pass: return "checkmark.circle.fill"
-        case .warning: return "info.circle"
-        case .blocked: return "xmark.circle.fill"
-        }
-    }
-
-    private func tint(for status: BloomBoxRAMDryRunCheck.State) -> Color {
-        switch status {
-        case .pass: return .green
-        case .warning: return .orange
-        case .blocked: return .red
-        }
     }
 }
