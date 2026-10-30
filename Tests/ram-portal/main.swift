@@ -157,3 +157,29 @@ changedSettings["attributes"] = changedAttributes
 let changedSettingsSnapshot = try snapshot(fixture([changedSettings]))
 assert(!stableA.sameCapabilities(as: changedSettingsSnapshot))
 print("RAM+ relationship comparison regressions passed")
+
+// Use actual JSON-decoded Foundation objects, not only Swift literals.
+func decoded(_ value: [String: Any]) throws -> [String: Any] {
+    let bytes = try JSONSerialization.data(withJSONObject: value)
+    return try JSONSerialization.jsonObject(with: bytes) as! [String: Any]
+}
+var nullable = linkedA
+var nullableAttrs = nullable["attributes"] as! [String: Any]
+nullableAttrs["optional"] = NSNull()
+nullable["attributes"] = nullableAttrs
+let decodedA = try snapshot(decoded(fixture([nullable])))
+let decodedB = try snapshot(decoded(fixture([nullable])))
+assert(decodedA.sameCapabilities(as: decodedB))
+let decodedOrderA = try snapshot(decoded(fixture([linkedA])))
+let decodedOrderB = try snapshot(decoded(fixture([linkedB])))
+assert(decodedOrderA.sameCapabilities(as: decodedOrderB))
+assert(stableA.differenceSummary(as: changedSettingsSnapshot) == "permiso 1: configuración settings")
+assert(stableA.differenceSummary(as: changedLinkSnapshot) == "permiso 1: relación appGroups")
+var changedID = existing
+changedID["id"] = "PRIVATE_VALUE_MUST_NOT_APPEAR"
+let changedIDSnapshot = try snapshot(fixture([changedID]))
+assert(before.differenceSummary(as: changedIDSnapshot) == "identificador del registro 1")
+assert(before.differenceSummary(as: approved) == "cantidad de permisos: 1 → 2")
+assert(before.differenceSummary(as: changedSnapshot) == "permiso 1: estado enabled")
+assert(before.differenceSummary(as: before) == nil)
+print("RAM+ JSON decoding and redacted diagnostics passed")

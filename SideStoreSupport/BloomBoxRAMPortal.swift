@@ -91,22 +91,58 @@ enum BloomBoxRAMPortal {
                 return relation
             }
         }
+        // Compare JSON values consistently after Foundation decoding. In
+        // particular, retain nulls and distinguish Boolean and numeric values.
+        private static func sameJSON(_ a: Any, _ b: Any) -> Bool {
+            guard let left = try? JSONSerialization.data(withJSONObject: a, options: [.sortedKeys, .fragmentsAllowed]),
+                  let right = try? JSONSerialization.data(withJSONObject: b, options: [.sortedKeys, .fragmentsAllowed]) else { return false }
+            return left == right
+        }
+        private static func difference(_ a: [String: Any], _ b: [String: Any]) -> String? {
+            guard a["id"] as? String == b["id"] as? String else { return "identificador del registro" }
+            guard let left = a["attributes"] as? [String: Any],
+                  let right = b["attributes"] as? [String: Any] else { return "estructura de atributos" }
+            if !sameJSON(left, right) {
+                if !sameJSON(["value": left["enabled"] ?? "missing"], ["value": right["enabled"] ?? "missing"]) { return "estado enabled" }
+                if !sameJSON(["value": left["settings"] ?? "missing"], ["value": right["settings"] ?? "missing"]) { return "configuración settings" }
+                return "otros atributos"
+            }
+            guard let leftRelations = a["relationships"] as? [String: Any],
+                  let rightRelations = b["relationships"] as? [String: Any] else { return "estructura de relaciones" }
+            let l = relationshipState(leftRelations), r = relationshipState(rightRelations)
+            guard Set(l.keys) == Set(r.keys) else { return "conjunto de relaciones" }
+            if !sameJSON(l, r) {
+                // Fixed labels only: never expose server-provided IDs, keys,
+                // URLs, settings values, account information or credentials.
+                for key in ["capability", "appGroups", "bundleId"] {
+                    if !sameJSON(["value": l[key] ?? "missing"], ["value": r[key] ?? "missing"]) {
+                        return "relación " + key
+                    }
+                }
+                return "otras relaciones"
+            }
+            return nil
+        }
         private static func equivalent(_ a: [String: Any], _ b: [String: Any]) -> Bool {
-            guard a["id"] as? String == b["id"] as? String,
-                  let leftAttributes = a["attributes"] as? [String: Any],
-                  let rightAttributes = b["attributes"] as? [String: Any],
-                  let leftRelationships = a["relationships"] as? [String: Any],
-                  let rightRelationships = b["relationships"] as? [String: Any] else { return false }
-            return NSDictionary(dictionary: leftAttributes).isEqual(to: rightAttributes) &&
-                   NSDictionary(dictionary: relationshipState(leftRelationships)).isEqual(to: relationshipState(rightRelationships))
+            difference(a, b) == nil
+        }
+        func differenceSummary(as other: Snapshot) -> String? {
+            guard capabilities.count == other.capabilities.count else {
+                return "cantidad de permisos: \(capabilities.count) → \(other.capabilities.count)"
+            }
+            for (index, original) in capabilities.enumerated() {
+                guard let id = original["id"] as? String,
+                      let counterpart = other.capabilities.first(where: { $0["id"] as? String == id }) else {
+                    return "identificador del registro \(index + 1)"
+                }
+                if let detail = Self.difference(original, counterpart) {
+                    return "permiso \(index + 1): " + detail
+                }
+            }
+            return nil
         }
         func sameCapabilities(as other: Snapshot) -> Bool {
-            guard capabilities.count == other.capabilities.count else { return false }
-            return capabilities.allSatisfy { original in
-                guard let id = original["id"] as? String,
-                      let counterpart = other.capabilities.first(where: { $0["id"] as? String == id }) else { return false }
-                return Self.equivalent(original, counterpart)
-            }
+            differenceSummary(as: other) == nil
         }
         func preservesUnrelatedCapabilities(from prior: Snapshot) -> Bool {
             return prior.capabilities.allSatisfy { original in

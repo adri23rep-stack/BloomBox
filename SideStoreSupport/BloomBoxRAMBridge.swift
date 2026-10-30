@@ -174,8 +174,8 @@ private final class BloomBoxRAMJob: NSObject, URLSessionTaskDelegate {
                     try requireCurrent()
                     save("checking", "Apple informó un contador de permisos inconsistente. Comprobando la lista nuevamente…")
                     let confirmation = try await read(id: id, bundle: bundle)
-                    guard before.sameCapabilities(as: confirmation) else {
-                        throw BloomBoxRAMPortal.fail("Apple devolvió dos listas de permisos diferentes. No se modificó nada; vuelve a intentarlo.")
+                    if let difference = before.differenceSummary(as: confirmation) {
+                        throw BloomBoxRAMPortal.fail("RAM+ RP3: las lecturas de Apple no coinciden. Diferencia: \(difference). No se modificó nada. Comparte este aviso para identificar el bloqueo.")
                     }
                     before = confirmation
                 }
