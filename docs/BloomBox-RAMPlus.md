@@ -85,3 +85,17 @@ Unknown or failed readbacks are never promoted to success.
 6. If SideStore drops the signed entitlement, investigate the upstream SideSign
    signer or preserve the manual Xcode/GetMoreRam route; do not override the
    validation screen or label the feature active.
+
+## Incomplete capability list diagnostic (2026-10-29)
+
+An iOS 27 report reached the authenticated SideStore read stage but Apple's
+relationship `meta.paging.total` disagreed with the count in
+`relationships.bundleIdCapabilities.data`. This is not a Wi-Fi/LTE problem and
+is not proof that Apple accepted RAM+. In the first implementation the nested
+query requested at most 50 capabilities; this patch requests up to 200. A
+mismatch still blocks **all writes** and now reports the counts and whether
+another page exists. The message contains no Apple ID, tokens or bundle IDs.
+If the new limit does not resolve the mismatch, use the counts to implement a
+verified pagination read rather than dropping the safety guard or clearing
+other Apple capabilities. The provisioning profile is unchanged until a new
+signing/install step actually includes RAM+.

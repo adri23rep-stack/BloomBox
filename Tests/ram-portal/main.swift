@@ -11,6 +11,7 @@ let readJSON = try JSONSerialization.jsonObject(with: readBody) as! [String: Str
 assert(readJSON.count == 1) // No unexpected top-level credentials or team fields.
 assert(readJSON["urlEncodedQueryParams"]?.contains("teamId=TEAM") == true)
 assert(readJSON["urlEncodedQueryParams"]?.contains("bundleIdCapabilities") == true)
+assert(readJSON["urlEncodedQueryParams"]?.contains("limit%5BbundleIdCapabilities%5D=200") == true || readJSON["urlEncodedQueryParams"]?.contains("limit[bundleIdCapabilities]=200") == true)
 do { _ = try portal.readParameters(team: ""); fatalError("Accepted empty team") } catch { }
 let list: [String: Any] = ["resultCode": 0, "appIds": [["appIdId": "ABC123", "identifier": "app.bloom"]]]
 let matched = try portal.appID(in: list, bundle: "app.bloom"); assert(matched == "ABC123")
@@ -39,6 +40,30 @@ let enabledPayload = portal.payload(disabled, id: "ABC123", bundle: "app.bloom",
 let enabledData = enabledPayload["data"] as! [String: Any]
 let enabledRelation = (enabledData["relationships"] as! [String: Any])["bundleIdCapabilities"] as! [String: Any]
 assert((enabledRelation["data"] as! [[String: Any]]).count == 2)
+
+var oversized = fixture(Array(0..<60).map { cap("EXISTING_\\($0)", enabled: true) })
+let oversizedCaps = try snapshot(oversized)
+assert(oversizedCaps.capabilities.count == 60)
+var paged = fixture([existing])
+var pagedResource = paged["data"] as! [String: Any]
+var pagedRelations = pagedResource["relationships"] as! [String: Any]
+var pagedCapabilities = pagedRelations["bundleIdCapabilities"] as! [String: Any]
+pagedCapabilities["meta"] = ["paging": ["total": 2]]
+pagedRelations["bundleIdCapabilities"] = pagedCapabilities
+pagedResource["relationships"] = pagedRelations
+paged["data"] = pagedResource
+do { _ = try snapshot(paged); fatalError("Accepted partial capability page") } catch let failure as BloomBoxRAMPortal.Failure {
+    assert(failure.message.contains("1 permisos"))
+    assert(failure.message.contains("2 en total"))
+}
+pagedCapabilities["meta"] = ["paging": ["total": 1]]
+pagedCapabilities["links"] = ["next": "https://developerservices2.apple.com/next"]
+pagedRelations["bundleIdCapabilities"] = pagedCapabilities
+pagedResource["relationships"] = pagedRelations
+paged["data"] = pagedResource
+do { _ = try snapshot(paged); fatalError("Accepted next-page link") } catch let failure as BloomBoxRAMPortal.Failure {
+    assert(failure.message.contains("más páginas"))
+}
 var incomplete = fixture([existing]); incomplete["included"] = []
 do { _ = try snapshot(incomplete); fatalError("Accepted incomplete capability list") } catch { }
 do { _ = try portal.snapshot(fixture([existing]), id: "ABC123", bundle: "other.app", team: "TEAM"); fatalError("Accepted another app") } catch { }

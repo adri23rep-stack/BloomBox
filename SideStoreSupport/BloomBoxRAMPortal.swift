@@ -5,6 +5,8 @@ enum BloomBoxRAMPortal {
     static let capability = "INCREASED_MEMORY_LIMIT"
     static let host = "developerservices2.apple.com"
     static let listPath = "/services/QH65B2/ios/listAppIds.action"
+    // Larger complete snapshot before attempting any write; Apple permits 200.
+    static let maxCapabilityPageSize = 200
     struct Failure: LocalizedError {
         let message: String
         var errorDescription: String? { message }
@@ -31,7 +33,7 @@ enum BloomBoxRAMPortal {
             URLQueryItem(name: "teamId", value: team),
             URLQueryItem(name: "include", value: "bundleIdCapabilities,bundleIdCapabilities.capability"),
             URLQueryItem(name: "fields[bundleIds]", value: "identifier,name,seedId,bundleType,hasExclusiveManagedCapabilities,bundleIdCapabilities"),
-            URLQueryItem(name: "limit[bundleIdCapabilities]", value: "50")
+            URLQueryItem(name: "limit[bundleIdCapabilities]", value: String(maxCapabilityPageSize))
         ]
         guard let parameters = query.query else { throw fail("No se pudo preparar la lectura de permisos.") }
         return try JSONSerialization.data(withJSONObject: ["urlEncodedQueryParams": parameters])
@@ -95,10 +97,16 @@ enum BloomBoxRAMPortal {
               let refs = caps["data"] as? [[String: Any]] else {
             throw fail("No se pudo verificar el App ID y sus permisos actuales. No se modificó nada.")
         }
+        // Never write back a partial list: Apple's PATCH could otherwise drop
+        // unrelated capabilities. Report only counts, never App IDs or session data.
         let links = caps["links"] as? [String: Any]
-        if let next = links?["next"], !(next is NSNull) { throw fail("La lista de permisos está incompleta; no se modificó nada.") }
-        if let total = (caps["meta"] as? [String: Any])?["paging"] as? [String: Any],
-           let count = total["total"] as? Int, count != refs.count { throw fail("La lista de permisos está incompleta.") }
+        let hasNextPage = links?["next"].map { !($0 is NSNull) && !String(describing: $0).isEmpty } == true
+        let paging = (caps["meta"] as? [String: Any])?["paging"] as? [String: Any]
+        let reportedTotal = (paging?["total"] as? NSNumber)?.intValue
+        if hasNextPage || (reportedTotal != nil && reportedTotal != refs.count) {
+            let expected = reportedTotal.map { String($0) } ?? "desconocido"
+            throw fail("Apple entregó \\(refs.count) permisos, pero reportó \\(expected) en total\\(hasNextPage ? " (hay más páginas)" : ""). No se modificó nada. Prueba esta versión con consulta ampliada; si persiste, comparte solo este mensaje.")
+        }
         let included = response["included"] as? [[String: Any]] ?? []
         var resolved: [[String: Any]] = []
         var seen = Set<String>()
