@@ -41,7 +41,7 @@ let enabledData = enabledPayload["data"] as! [String: Any]
 let enabledRelation = (enabledData["relationships"] as! [String: Any])["bundleIdCapabilities"] as! [String: Any]
 assert((enabledRelation["data"] as! [[String: Any]]).count == 2)
 
-var oversized = fixture(Array(0..<60).map { cap("EXISTING_\\($0)", enabled: true) })
+var oversized = fixture(Array(0..<60).map { cap("EXISTING_\($0)", enabled: true) })
 let oversizedCaps = try snapshot(oversized)
 assert(oversizedCaps.capabilities.count == 60)
 var paged = fixture([existing])
