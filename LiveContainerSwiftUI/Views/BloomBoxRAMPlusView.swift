@@ -277,6 +277,7 @@ struct BloomBoxRAMPlusView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showWarning = false
     @State private var activationError: String?
+    @State private var chooseOriginalIPA = false
     private let statusTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -321,8 +322,42 @@ struct BloomBoxRAMPlusView: View {
                                 .font(.footnote).foregroundStyle(.secondary)
                         }
                         if ram.activationStatus == "approved" && !ram.validation.confirmed {
-                            Text("Apple aprobó el App ID, pero eso NO confirma la firma instalada. Vuelve a instalar la IPA con SideStore, conservando las extensiones; un simple refresco puede mantener el perfil anterior.")
+                            Text("Apple aprobó el App ID, pero aún falta firmar e instalar exactamente la misma IPA. No se actualizará a otra versión.")
                                 .font(.footnote).foregroundStyle(.orange)
+                        }
+                        if !ram.reinstallStage.isEmpty {
+                            Label(ram.reinstallMessage, systemImage: ram.reinstallStage == "confirmed" ? "checkmark.seal.fill" : "arrow.triangle.2.circlepath")
+                                .font(.footnote)
+                            Text("Etapa: " + ([
+                                "checking": "Comprobando",
+                                "downloading": "Descargando",
+                                "preparing": "Preparando instalación",
+                                "installing": "Instalando",
+                                "verifying": "Verificando",
+                                "chooseIPA": "Falta la IPA original",
+                                "manualReady": "Preparada para SideStore",
+                                "failed": "Reintento disponible",
+                                "confirmed": "Verificada"
+                            ][ram.reinstallStage] ?? ram.reinstallStage))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        if ram.reinstallBusy { ProgressView("Preparando reinstalación…") }
+                        if ram.activationStatus == "approved" && !ram.validation.confirmed {
+                            if !ram.reinstallBusy && (ram.reinstallStage.isEmpty || ram.reinstallStage == "approved" || ram.reinstallStage == "failed" || ram.reinstallStage == "verifying") {
+                                Button("Reanudar instalación") {
+                                    ram.retryReinstall()
+                                    Task { await ram.resumeAfterAppleApproval() }
+                                }.buttonStyle(.borderedProminent)
+                            }
+                            Button("Elegir IPA original") { chooseOriginalIPA = true }
+                            if let file = ram.preparedIPA {
+                                ShareLink(item: file) {
+                                    Label("Compartir IPA con SideStore", systemImage: "square.and.arrow.up")
+                                }
+                            }
+                            Text("Si SideStore no acepta la entrega automática, guarda la IPA en Archivos, abre SideStore y selecciónala con +. Instálala encima de BloomBox, con todas sus extensiones.")
+                                .font(.footnote).foregroundStyle(.secondary)
+                            Button("Abrir SideStore", action: openSideStore)
                         }
                         if ram.activationStatus == "uncertain" {
                             Text("No se pudo confirmar la respuesta de Apple después de enviar la solicitud. Comprueba el App ID antes de repetirla para evitar modificaciones duplicadas.")
@@ -332,14 +367,15 @@ struct BloomBoxRAMPlusView: View {
                             ProgressView("Solicitud en curso…")
                             Button("Volver a SideStore", action: openSideStore)
                             Button("Cancelar solicitud", role: .cancel) { ram.cancelActivation() }
-                        } else {
-                            Button("Solicitar permiso con SideStore") { activate() }
+                        } else if ram.activationStatus != "approved" && !ram.validation.confirmed {
+                            Button("Activar y reinstalar") { activate() }
                                 .buttonStyle(.borderedProminent)
-                                .disabled(ram.validation.confirmed)
                                 .accessibilityIdentifier("bloombox.ram.requestPermission")
                         }
-                        Text("Cuando Apple lo confirme, reinstala BloomBox desde SideStore conservando las extensiones y sin borrar la app. Vuelve aquí para verificar que la firma instalada incluye el permiso.")
-                        Button("Abrir SideStore para reinstalar", action: openSideStore)
+                        Text("La confirmación de Apple y el permiso de esta instalación se validan por separado. Nunca borres BloomBox para aplicar RAM+.")
+                        if ram.activationStatus != "approved" {
+                            Button("Abrir SideStore", action: openSideStore)
+                        }
                         if let activationError { Text(activationError).foregroundStyle(.orange) }
                     }.font(.callout).padding(.vertical, 6)
                 }
@@ -364,9 +400,26 @@ struct BloomBoxRAMPlusView: View {
         }
         .navigationTitle("RAM+")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { ram.refresh(); showWarning = ram.needsAttention }
-        .onChange(of: scenePhase) { if $0 == .active { ram.refresh() } }
+        .onAppear {
+            ram.refresh()
+            showWarning = ram.needsAttention
+            Task { await ram.resumeAfterAppleApproval() }
+        }
+        .onChange(of: scenePhase) {
+            if $0 == .active {
+                ram.refresh()
+                Task { await ram.resumeAfterAppleApproval() }
+            }
+        }
         .onReceive(statusTimer) { _ in if scenePhase == .active && ram.activationPending { ram.refresh() } }
+        .fileImporter(isPresented: $chooseOriginalIPA, allowedContentTypes: [.item], allowsMultipleSelection: false) { result in
+            switch result {
+            case .success(let files):
+                if let file = files.first { Task { await ram.importIPA(file) } }
+            case .failure(let error):
+                activationError = error.localizedDescription
+            }
+        }
         .alert("RAM+ aún no está confirmada", isPresented: $showWarning) {
             Button("Activar con SideStore") { activate() }
             Button("Después", role: .cancel) { }
