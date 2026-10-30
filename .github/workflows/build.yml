@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - experimental/melonx-26-jit
+      - fix/jit-dynamic-rsd-port-ios27
       - migration/import-full-source
       - feature/modules-liquidglass-ram-placeholder
   pull_request:
