@@ -133,3 +133,48 @@ Regression fixtures simulate differing extra attributes; they are not captured
 Apple payloads. Tests also cover genuine enabled/settings changes and ensure
 existing settings and relationships survive PATCH construction. On-device
 activation and subsequent SideStore signing still require verification.
+
+
+## Reinstallación experimental sin cambiar de versión (RP5)
+
+La activación real de RAM+ fue confirmada en iPhone 14 Pro con iOS 27:
+la respuesta de Apple y las validaciones del proceso/perfil fueron positivas;
+MelonNX informó "Increased Memory Limit: Enabled". **Este resultado
+corresponde a RP4 y no comprueba todavía el nuevo instalador de RP5.**
+
+- El botón **Activar y reinstalar** conserva la solicitud y comprobación de
+  Apple tal como funcionaban en RP4. Una segunda solicitud no se envía
+  mientras exista otra en curso. Si el permiso ya funciona en la instalación
+  actual, no se inicia ninguna reinstalación.
+- Tras la confirmación de Apple, el UI recupera la operación guardada y busca
+  una IPA oficial publicada por este proyecto. El descubrimiento automático
+  exige: commit de origen de 40 caracteres grabado en el paquete, etiqueta de
+  versión exacta, archivo \`BloomBox-SideStore-unsigned.ipa\` único, SHA-256
+  publicado en el asset de GitHub y URL HTTPS de una release de este repositorio.
+  El archivo se descarga para comprobar el SHA-256, su estructura ZIP, versión,
+  build, bundle base, extensiones, App Groups y commit del paquete.
+- Si se cumple todo, se envía a SideStore mediante el esquema **oficial** de
+  instalación remota \`sidestore://install?url=...\`. El enrutamiento de
+  BloomBox ya entrega ese esquema al SideStore integrado. El instalador puede
+  necesitar VPN, autenticación o confirmación. SideStore descarga el asset de
+  nuevo porque su esquema remoto no permite entregarle el archivo local
+  inspeccionado; no se afirma que la instalación sea silenciosa.
+- Si la IPA correspondiente es un artefacto temporal de Actions, no existe
+  una release verificable, requiere autenticación, caducó o falta un commit
+  exacto en la app instalada, **no se sustituye por otra versión**. Se ofrece
+  importar la IPA original del usuario. El ZIP se comprueba localmente, pero
+  su origen no puede autenticarse por esa vía. El paso pendiente es compartir
+  el archivo a SideStore (o guardarlo en Archivos y seleccionarlo con +).
+  **No desinstalar ni borrar datos**; conservar extensiones durante la firma.
+- El estado se guarda en el contenedor de documentos y UserDefaults del grupo,
+  **sin credenciales ni tokens**. Una entrega en curso pasa a \`verifying\` al
+  regresar, sin intentos automáticos repetidos. El botón de reintento es
+  explícito. El resultado solo se muestra como confirmado al comprobar
+  entitlement del proceso y perfil instalado vigente.
+- La reautenticación de SideStore, los diálogos de iOS y la sustitución de la
+  propia app mientras el SideStore integrado está ejecutándose **no se pueden
+  verificar en CI** y deben probarse con el iPhone. No se tocó JIT, main ni
+  se creó una release. La opción "actualizar a la última versión" queda aparte.
+
+Referencias: [esquema oficial de SideStore](https://docs.sidestore.io/docs/advanced/url-schema)
+y [enrutamiento de SideStore integrado](https://github.com/LiveContainer/LiveContainer/issues/1086).
