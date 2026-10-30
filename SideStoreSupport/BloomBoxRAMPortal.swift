@@ -69,6 +69,37 @@ enum BloomBoxRAMPortal {
     struct Snapshot {
         let resource: [String: Any]
         let capabilities: [[String: Any]]
+        /// Apple sometimes returns paging.total=0 while providing valid records.
+        /// Such a response requires a second, stable server read before a PATCH.
+        let needsStableRead: Bool
+
+        private static func equivalent(_ a: [String: Any], _ b: [String: Any]) -> Bool {
+            guard a["id"] as? String == b["id"] as? String,
+                  let leftAttributes = a["attributes"] as? [String: Any],
+                  let rightAttributes = b["attributes"] as? [String: Any],
+                  let leftRelationships = a["relationships"] as? [String: Any],
+                  let rightRelationships = b["relationships"] as? [String: Any] else { return false }
+            return NSDictionary(dictionary: leftAttributes).isEqual(to: rightAttributes) &&
+                   NSDictionary(dictionary: leftRelationships).isEqual(to: rightRelationships)
+        }
+        func sameCapabilities(as other: Snapshot) -> Bool {
+            guard capabilities.count == other.capabilities.count else { return false }
+            return capabilities.allSatisfy { original in
+                guard let id = original["id"] as? String,
+                      let counterpart = other.capabilities.first(where: { $0["id"] as? String == id }) else { return false }
+                return Self.equivalent(original, counterpart)
+            }
+        }
+        func preservesUnrelatedCapabilities(from prior: Snapshot) -> Bool {
+            return prior.capabilities.allSatisfy { original in
+                let relation = original["relationships"] as? [String: Any]
+                let capability = (relation?["capability"] as? [String: Any])?["data"] as? [String: Any]
+                if capability?["id"] as? String == BloomBoxRAMPortal.capability { return true }
+                guard let id = original["id"] as? String,
+                      let counterpart = capabilities.first(where: { $0["id"] as? String == id }) else { return false }
+                return Self.equivalent(original, counterpart)
+            }
+        }
         var enabled: Bool {
             capabilities.contains { item in
                 let relations = item["relationships"] as? [String: Any]
@@ -103,9 +134,16 @@ enum BloomBoxRAMPortal {
         let hasNextPage = links?["next"].map { !($0 is NSNull) && !String(describing: $0).isEmpty } == true
         let paging = (caps["meta"] as? [String: Any])?["paging"] as? [String: Any]
         let reportedTotal = (paging?["total"] as? NSNumber)?.intValue
-        if hasNextPage || (reportedTotal != nil && reportedTotal != refs.count) {
+        // The report "1 record, total 0" is a real-world Apple response.
+        // Treat zero as unreliable metadata, NOT evidence of completeness.
+        // A second identical read is required, and a full page or next link
+        // still fails closed to avoid overwriting an unseen capability.
+        let unreliableZero = reportedTotal == 0 && !refs.isEmpty
+        if hasNextPage || reportedTotal.map({ $0 < 0 }) == true ||
+            (reportedTotal != nil && reportedTotal != refs.count && !unreliableZero) ||
+            (unreliableZero && refs.count >= maxCapabilityPageSize) {
             let expected = reportedTotal.map { String($0) } ?? "desconocido"
-            throw fail("Apple entregó \(refs.count) permisos, pero reportó \(expected) en total\(hasNextPage ? " (hay más páginas)" : ""). No se modificó nada. Prueba esta versión con consulta ampliada; si persiste, comparte solo este mensaje.")
+            throw fail("Apple entregó \(refs.count) permisos, pero reportó \(expected) en total\(hasNextPage ? " (hay más páginas)" : ""). No se modificó nada. La lista necesita una revisión adicional.")
         }
         let included = response["included"] as? [[String: Any]] ?? []
         var resolved: [[String: Any]] = []
@@ -122,7 +160,7 @@ enum BloomBoxRAMPortal {
                   capabilityData["id"] is String else { throw fail("Faltan detalles de los permisos actuales; no se modificó nada.") }
             resolved.append(item)
         }
-        return Snapshot(resource: resource, capabilities: resolved)
+        return Snapshot(resource: resource, capabilities: resolved, needsStableRead: unreliableZero)
     }
     static func payload(_ snapshot: Snapshot, id: String, bundle: String, team: String) -> [String: Any] {
         var caps = snapshot.capabilities.map { item -> [String: Any] in
