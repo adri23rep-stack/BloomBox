@@ -7,6 +7,7 @@ on:
       - experimental/melonx-26-jit
       - fix/jit-dynamic-rsd-port-ios27
       - experimental/melonx-script-other-guests
+      - experimental/jit-per-app-controls
       - migration/import-full-source
       - feature/modules-liquidglass-ram-placeholder
   pull_request:
