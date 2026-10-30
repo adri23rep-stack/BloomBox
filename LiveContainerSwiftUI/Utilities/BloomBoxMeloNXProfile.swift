@@ -1,5 +1,69 @@
 import Foundation
 
+/// Saved per installed guest (relative bundle path) so different installs can have
+/// independent JIT settings. This Foundation-only policy can later move to Modules > JIT
+/// without changing the launch path or migrating user preferences.
+enum BloomBoxJITGuestPolicy {
+    enum Mode: String, CaseIterable {
+        case automatic
+        case enabled
+        case disabled
+
+        var title: String {
+            switch self {
+            case .automatic: return "Automático"
+            case .enabled: return "Activado"
+            case .disabled: return "Desactivado"
+            }
+        }
+    }
+
+    static let modeKey = "BloomBoxJITGuestModes"
+    static let experimentalScriptAppsKey = "BloomBoxJITMeloNXExperimentApps"
+
+    static func mode(for appKey: String, defaults: UserDefaults) -> Mode {
+        guard !appKey.isEmpty else { return .automatic }
+        let raw = defaults.dictionary(forKey: modeKey)?[appKey] as? String ?? ""
+        return Mode(rawValue: raw) ?? .automatic
+    }
+
+    static func setMode(_ mode: Mode, for appKey: String, defaults: UserDefaults) {
+        guard !appKey.isEmpty else { return }
+        var modes = defaults.dictionary(forKey: modeKey) as? [String: String] ?? [:]
+        if mode == .automatic { modes.removeValue(forKey: appKey) }
+        else { modes[appKey] = mode.rawValue }
+        defaults.set(modes, forKey: modeKey)
+    }
+
+    static func isExperimentSelected(for appKey: String, defaults: UserDefaults) -> Bool {
+        guard !appKey.isEmpty else { return false }
+        return (defaults.stringArray(forKey: experimentalScriptAppsKey) ?? []).contains(appKey)
+    }
+
+    static func setExperimentSelected(_ selected: Bool, for appKey: String, defaults: UserDefaults) {
+        guard !appKey.isEmpty else { return }
+        var keys = Set(defaults.stringArray(forKey: experimentalScriptAppsKey) ?? [])
+        if selected { keys.insert(appKey) }
+        else { keys.remove(appKey) }
+        defaults.set(keys.sorted(), forKey: experimentalScriptAppsKey)
+    }
+
+    /// User-initiated "Launch with JIT" and the installed app's own default
+    /// are unchanged unless a per-app policy was explicitly saved.
+    static func wantsJIT(automatic: Bool, forced: Bool?, mode: Mode) -> Bool {
+        switch mode {
+        case .automatic: return forced ?? automatic
+        case .enabled: return forced ?? true
+        case .disabled: return false
+        }
+    }
+
+    static func shouldTryMeloNXScript(appKey: String, isMeloNX26: Bool,
+                                     enabled: Bool, defaults: UserDefaults) -> Bool {
+        !isMeloNX26 && enabled && isExperimentSelected(for: appKey, defaults: defaults)
+    }
+}
+
 /// MeloNX 2.6, GPL-3.0; Stossy11 and MeloNX contributors.
 /// Pinned source: https://starforgejo.dev/projects/MeloNX/src/tag/2.6/src/MeloNX/MeloNX/Common/JIT/EnableJIT.swift
 /// Commit: 0b0800d37142a28efa24aa6444d47b1f331bfc2f
