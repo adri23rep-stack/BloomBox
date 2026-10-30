@@ -106,11 +106,14 @@ final class ScriptRunner {
             for _ in 0..<commandsInBatch {
                 var response: UnsafeMutablePointer<CChar>?
                 let readError = debug_proxy_read_response(debugProxy, &response)
-                if let response {
-                    idevice_string_free(response)
-                }
+                let reply = response.map { String(cString: $0) }
+                if let response { idevice_string_free(response) }
                 if let readError {
                     recordExecutionError(IdeviceFFI.consume(readError, fallback: "debug_proxy_read_response"))
+                    return nil
+                }
+                guard reply == "OK" else {
+                    recordExecutionError(.scriptExecution("JIT memory preparation rejected: " + (reply ?? "empty response")))
                     return nil
                 }
             }

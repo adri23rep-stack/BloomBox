@@ -21,3 +21,14 @@ RAM+ uses an independently implemented Developer Services request flow informed 
 [StosSign](https://github.com/stossy11/StosSign), and
 [SideSign](https://github.com/SideStore/SideSign). Authentication is performed by the
 already-bundled SideStore. No GetMoreRam or StosSign authentication source is bundled.
+
+## MeloNX 2.6 JIT profile
+
+The embedded JavaScript in `BloomBoxMeloNXProfile.swift` is copied without changes
+from `src/MeloNX/MeloNX/Common/JIT/EnableJIT.swift`, MeloNX tag 2.6,
+commit `0b0800d37142a28efa24aa6444d47b1f331bfc2f`.
+Copyright Stossy11 and MeloNX contributors; GPL-3.0 (see the upstream license).
+Source: https://starforgejo.dev/projects/MeloNX/src/tag/2.6/src/MeloNX/MeloNX/Common/JIT/EnableJIT.swift
+License: https://starforgejo.dev/projects/MeloNX/src/tag/2.6/LICENSE.txt
+BloomBox's debugger adapter applies its existing register-parsing compatibility
+fixes at runtime. The base64 string is the complete corresponding script source.

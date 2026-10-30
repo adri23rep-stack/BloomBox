@@ -242,8 +242,15 @@ class LCAppModel: ObservableObject, Hashable {
         }
         let currentDataFolder = containerFolderName ?? uiSelectedContainer?.folderName
         
+        // The profile is selected from the installed guest, never its display name.
+        let guestBundle = Bundle(path: appInfo.bundlePath())
+        let melonProfile = BloomBoxMeloNXProfile.matches(
+            bundleID: appInfo.bundleIdentifier(),
+            version: guestBundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+        let launchScript = (jitLaunchScriptJs?.isEmpty == false) ? jitLaunchScriptJs
+            : (melonProfile ? BloomBoxMeloNXProfile.scriptBase64 : nil)
         let classicMode = appInfo.defaultClassicMode
-        let builtInJIT = LCUtils.appGroupUserDefault.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue && (forceJIT ?? (appInfo.isJITNeeded || appInfo.is32bit))
+        let builtInJIT = LCUtils.appGroupUserDefault.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue && (forceJIT ?? (appInfo.isJITNeeded || appInfo.is32bit || melonProfile))
         if builtInJIT && classicMode != 0 {
             throw "Built-in JIT requires normal compatibility mode. Turn off Classic Mode for this app, then retry."
         }
@@ -349,7 +356,7 @@ class LCAppModel: ObservableObject, Hashable {
         }
         UserDefaults.standard.set(uiSelectedContainer?.folderName, forKey: "selectedContainer")
         
-        var jitNeeded = appInfo.isJITNeeded || appInfo.is32bit
+        var jitNeeded = appInfo.isJITNeeded || appInfo.is32bit || melonProfile
         if let forceJIT {
             jitNeeded = forceJIT
         }
@@ -369,7 +376,7 @@ class LCAppModel: ObservableObject, Hashable {
                             return
                         }
                         Task {
-                            if let scriptData = self.jitLaunchScriptJs, !scriptData.isEmpty {
+                            if let scriptData = launchScript, !scriptData.isEmpty {
                                 await self.delegate?.jitLaunch(withPID: pidNumber.intValue, withScript: scriptData, appName: self.appInfo.displayName())
                             } else {
                                 await self.delegate?.jitLaunch(withPID: pidNumber.intValue, withScript: nil, appName: self.appInfo.displayName())
@@ -380,7 +387,7 @@ class LCAppModel: ObservableObject, Hashable {
                 }
             } else {
                 // Non-multitask JIT flow remains unchanged
-                if let scriptData = jitLaunchScriptJs, !scriptData.isEmpty {
+                if let scriptData = launchScript, !scriptData.isEmpty {
                     await delegate?.jitLaunch(withScript: scriptData, appName: self.appInfo.displayName(), classicMode: classicMode)
                 } else {
                     await delegate?.jitLaunch(appName: self.appInfo.displayName(), classicMode: classicMode)

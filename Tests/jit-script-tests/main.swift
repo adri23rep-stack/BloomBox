@@ -1,6 +1,11 @@
 import Foundation
 import JavaScriptCore
-let source = try String(contentsOfFile: "ShareExtension/universal.js", encoding: .utf8)
+let source = CommandLine.arguments.contains("melonx")
+    ? String(data: Data(base64Encoded: BloomBoxMeloNXProfile.scriptBase64)!, encoding: .utf8)!
+    : try String(contentsOfFile: "ShareExtension/universal.js", encoding: .utf8)
+precondition(BloomBoxMeloNXProfile.matches(bundleID: "com.stossy11.MeloNX", version: "2.6"))
+precondition(!BloomBoxMeloNXProfile.matches(bundleID: "com.stossy11.MeloNX", version: "2.7"))
+precondition(!BloomBoxMeloNXProfile.matches(bundleID: "other", version: "2.6"))
 func run(_ mode: String) -> (String?, [String]) {
     let context = JSContext()!
     var commands: [String] = []

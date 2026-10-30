@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - experimental/melonx-26-jit
       - migration/import-full-source
       - feature/modules-liquidglass-ram-placeholder
   pull_request:
@@ -50,6 +51,11 @@ jobs:
           "$RUNNER_TEMP/ram-portal-tests"
       - name: Restore pinned StikJIT and runtime dependencies
         run: python3 Scripts/fetch-bundled-dependencies.py
+      - name: Test JIT debugger protocol and MeloNX 2.6 profile
+        run: |
+          swiftc ShareExtension/StrataJITScriptSafety.swift LiveContainerSwiftUI/Utilities/BloomBoxMeloNXProfile.swift Tests/jit-script-tests/main.swift -o "$RUNNER_TEMP/jit-script-tests"
+          "$RUNNER_TEMP/jit-script-tests"
+          "$RUNNER_TEMP/jit-script-tests" melonx
       - name: Install Rust toolchain for on-device pairing
         uses: dtolnay/rust-toolchain@stable
         with:
