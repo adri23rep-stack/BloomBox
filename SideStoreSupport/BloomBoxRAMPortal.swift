@@ -73,6 +73,24 @@ enum BloomBoxRAMPortal {
         /// Such a response requires a second, stable server read before a PATCH.
         let needsStableRead: Bool
 
+        // Relationship links and paging metadata describe the response, not
+        // the granted permissions. Compare linkage by identity, ignoring order.
+        // Keep every attribute and every relationship data value strict.
+        private static func relationshipState(_ relationships: [String: Any]) -> [String: Any] {
+            relationships.mapValues { value in
+                guard var relation = value as? [String: Any] else { return value }
+                relation.removeValue(forKey: "links")
+                relation.removeValue(forKey: "meta")
+                if let entries = relation["data"] as? [[String: Any]] {
+                    relation["data"] = entries.sorted { left, right in
+                        let a = (try? JSONSerialization.data(withJSONObject: left, options: [.sortedKeys])) ?? Data()
+                        let b = (try? JSONSerialization.data(withJSONObject: right, options: [.sortedKeys])) ?? Data()
+                        return a.lexicographicallyPrecedes(b)
+                    }
+                }
+                return relation
+            }
+        }
         private static func equivalent(_ a: [String: Any], _ b: [String: Any]) -> Bool {
             guard a["id"] as? String == b["id"] as? String,
                   let leftAttributes = a["attributes"] as? [String: Any],
@@ -80,7 +98,7 @@ enum BloomBoxRAMPortal {
                   let leftRelationships = a["relationships"] as? [String: Any],
                   let rightRelationships = b["relationships"] as? [String: Any] else { return false }
             return NSDictionary(dictionary: leftAttributes).isEqual(to: rightAttributes) &&
-                   NSDictionary(dictionary: leftRelationships).isEqual(to: rightRelationships)
+                   NSDictionary(dictionary: relationshipState(leftRelationships)).isEqual(to: relationshipState(rightRelationships))
         }
         func sameCapabilities(as other: Snapshot) -> Bool {
             guard capabilities.count == other.capabilities.count else { return false }

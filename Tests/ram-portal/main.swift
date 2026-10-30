@@ -129,3 +129,31 @@ assert(!lostUnrelated.preservesUnrelatedCapabilities(from: priorWithRAM))
 let mutatedUnrelated = try snapshot(fixture([cap("APP_GROUPS", enabled: false), cap(portal.capability, enabled: true)]))
 assert(!mutatedUnrelated.preservesUnrelatedCapabilities(from: priorWithRAM))
 print("RAM+ portal: scoping, exact App ID, team match, permission preservation and readback cases passed")
+
+// Equivalent grants may arrive with different relationship URLs, paging
+// metadata, and order. Those changes must not block the zero-total reread.
+var linkedA = existing
+var relationsA = linkedA["relationships"] as! [String: Any]
+relationsA["appGroups"] = ["data": [["type": "appGroups", "id": "KEEP"], ["type": "appGroups", "id": "SECOND"]], "links": ["related": "https://example.test/a"], "meta": ["paging": ["total": 0]]]
+linkedA["relationships"] = relationsA
+var linkedB = linkedA
+var relationsB = relationsA
+relationsB["appGroups"] = ["data": [["type": "appGroups", "id": "SECOND"], ["type": "appGroups", "id": "KEEP"]], "links": ["related": "https://example.test/b"], "meta": ["paging": ["total": 2]]]
+linkedB["relationships"] = relationsB
+let stableA = try snapshot(fixture([linkedA]))
+let stableB = try snapshot(fixture([linkedB]))
+assert(stableA.sameCapabilities(as: stableB))
+assert(stableB.preservesUnrelatedCapabilities(from: stableA))
+var changedLink = linkedB
+relationsB["appGroups"] = ["data": [["type": "appGroups", "id": "OTHER"]]]
+changedLink["relationships"] = relationsB
+let changedLinkSnapshot = try snapshot(fixture([changedLink]))
+assert(!stableA.sameCapabilities(as: changedLinkSnapshot))
+assert(!changedLinkSnapshot.preservesUnrelatedCapabilities(from: stableA))
+var changedSettings = linkedB
+var changedAttributes = changedSettings["attributes"] as! [String: Any]
+changedAttributes["settings"] = []
+changedSettings["attributes"] = changedAttributes
+let changedSettingsSnapshot = try snapshot(fixture([changedSettings]))
+assert(!stableA.sameCapabilities(as: changedSettingsSnapshot))
+print("RAM+ relationship comparison regressions passed")
