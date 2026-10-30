@@ -81,4 +81,48 @@ do { _ = try portal.validatedResponse(Data(), statusCode: 204, method: "POST"); 
 do { _ = try portal.validatedResponse(Data(), statusCode: 403, method: "PATCH"); fatalError("Accepted rejection") } catch { }
 let serverErrors = try JSONSerialization.data(withJSONObject: ["errors": [["status": "409"]]])
 do { _ = try portal.validatedResponse(serverErrors, statusCode: 200, method: "PATCH"); fatalError("Accepted Apple errors") } catch { }
+
+// Device regression: Apple returned one capability but meta.paging.total=0.
+// Accept its validated entry only when no more pages exist, and require a
+// second identical read before the caller can submit a PATCH.
+var zeroTotal = fixture([existing])
+var zeroResource = zeroTotal["data"] as! [String: Any]
+var zeroRelations = zeroResource["relationships"] as! [String: Any]
+var zeroCapabilities = zeroRelations["bundleIdCapabilities"] as! [String: Any]
+zeroCapabilities["meta"] = ["paging": ["total": 0]]
+zeroRelations["bundleIdCapabilities"] = zeroCapabilities
+zeroResource["relationships"] = zeroRelations
+zeroTotal["data"] = zeroResource
+let zeroSnapshot = try snapshot(zeroTotal)
+assert(zeroSnapshot.capabilities.count == 1 && zeroSnapshot.needsStableRead)
+assert(zeroSnapshot.sameCapabilities(as: try snapshot(zeroTotal)))
+assert(!zeroSnapshot.sameCapabilities(as: try snapshot(fixture([cap("APP_GROUPS", enabled: false)]))))
+var zeroWithNext = zeroTotal
+var zeroNextResource = zeroResource
+var zeroNextRelations = zeroRelations
+var zeroNextCaps = zeroCapabilities
+zeroNextCaps["links"] = ["next": "https://developerservices2.apple.com/more"]
+zeroNextRelations["bundleIdCapabilities"] = zeroNextCaps
+zeroNextResource["relationships"] = zeroNextRelations
+zeroWithNext["data"] = zeroNextResource
+do { _ = try snapshot(zeroWithNext); fatalError("Accepted a zero-total paginated page") } catch let failure as BloomBoxRAMPortal.Failure {
+    assert(failure.message.contains("más páginas"))
+}
+var fullZero = fixture((0..<200).map { cap("EXISTING_\($0)", enabled: true) })
+var fullResource = fullZero["data"] as! [String: Any]
+var fullRelations = fullResource["relationships"] as! [String: Any]
+var fullCaps = fullRelations["bundleIdCapabilities"] as! [String: Any]
+fullCaps["meta"] = ["paging": ["total": 0]]
+fullRelations["bundleIdCapabilities"] = fullCaps
+fullResource["relationships"] = fullRelations
+fullZero["data"] = fullResource
+do { _ = try snapshot(fullZero); fatalError("Accepted a full page with untrusted count") } catch is BloomBoxRAMPortal.Failure { }
+let reordered = try snapshot(fixture([cap(portal.capability, enabled: true), existing]))
+let priorWithRAM = try snapshot(fixture([existing, cap(portal.capability, enabled: false)]))
+assert(reordered.sameCapabilities(as: try snapshot(fixture([existing, cap(portal.capability, enabled: true)]))))
+assert(reordered.preservesUnrelatedCapabilities(from: priorWithRAM))
+let lostUnrelated = try snapshot(fixture([cap(portal.capability, enabled: true)]))
+assert(!lostUnrelated.preservesUnrelatedCapabilities(from: priorWithRAM))
+let mutatedUnrelated = try snapshot(fixture([cap("APP_GROUPS", enabled: false), cap(portal.capability, enabled: true)]))
+assert(!mutatedUnrelated.preservesUnrelatedCapabilities(from: priorWithRAM))
 print("RAM+ portal: scoping, exact App ID, team match, permission preservation and readback cases passed")
