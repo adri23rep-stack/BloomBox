@@ -6,6 +6,12 @@ let body = try PropertyListSerialization.data(fromPropertyList: ["teamId": "TEAM
 assert(portal.matchesTeam(body: body, team: "TEAM"))
 assert(!portal.matchesTeam(body: body, team: "OTHER"))
 assert(!portal.matchesTeam(body: nil, team: "TEAM"))
+let readBody = try portal.readParameters(team: "TEAM")
+let readJSON = try JSONSerialization.jsonObject(with: readBody) as! [String: String]
+assert(readJSON.count == 1) // No unexpected top-level credentials or team fields.
+assert(readJSON["urlEncodedQueryParams"]?.contains("teamId=TEAM") == true)
+assert(readJSON["urlEncodedQueryParams"]?.contains("bundleIdCapabilities") == true)
+do { _ = try portal.readParameters(team: ""); fatalError("Accepted empty team") } catch { }
 let list: [String: Any] = ["resultCode": 0, "appIds": [["appIdId": "ABC123", "identifier": "app.bloom"]]]
 let matched = try portal.appID(in: list, bundle: "app.bloom"); assert(matched == "ABC123")
 let missing = try portal.appID(in: list, bundle: "other"); assert(missing == nil)
