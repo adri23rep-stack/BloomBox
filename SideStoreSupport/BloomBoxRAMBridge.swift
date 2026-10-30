@@ -208,14 +208,9 @@ private final class BloomBoxRAMJob: NSObject, URLSessionTaskDelegate {
             request.httpMethod = method
             request.httpBody = try JSONSerialization.data(withJSONObject: payload)
         } else {
-            var query = URLComponents()
-            query.queryItems = [URLQueryItem(name: "teamId", value: team),
-                               URLQueryItem(name: "include", value: "bundleIdCapabilities,bundleIdCapabilities.capability"),
-                               URLQueryItem(name: "fields[bundleIds]", value: "identifier,name,seedId,bundleType,hasExclusiveManagedCapabilities,bundleIdCapabilities"),
-                               URLQueryItem(name: "limit[bundleIdCapabilities]", value: "50")]
             request.httpMethod = "POST"
             request.setValue("GET", forHTTPHeaderField: "X-HTTP-Method-Override")
-            request.httpBody = try JSONSerialization.data(withJSONObject: ["urlEncodedQueryParams": query.percentEncodedQuery ?? "", "teamId": team])
+            request.httpBody = try BloomBoxRAMPortal.readParameters(team: team)
         }
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw BloomBoxRAMPortal.fail("Apple no devolvió una respuesta válida.") }
