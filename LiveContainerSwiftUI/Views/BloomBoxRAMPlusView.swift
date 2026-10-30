@@ -123,6 +123,79 @@ final class BloomBoxRAMPlus: ObservableObject {
         if let path { preparedIPA = path }
     }
 
+
+    private func prepareIPA(_ source: URL, digest: String?, commit: String?) throws -> URL {
+        let fm = FileManager.default
+        let dir = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("BloomBoxRAMPlus", isDirectory: true)
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        let temporary = dir.appendingPathComponent(UUID().uuidString + ".ipa")
+        try fm.copyItem(at: source, to: temporary)
+        defer { try? fm.removeItem(at: temporary) }
+        let handle = try FileHandle(forReadingFrom: temporary)
+        defer { try? handle.close() }
+        var hash = SHA256()
+        while true {
+            let data = handle.readData(ofLength: 1024 * 1024)
+            if data.isEmpty { break }
+            hash.update(data: data)
+        }
+        let sha = hash.finalize().map { String(format: "%02x", $0) }.joined()
+        if let digest, sha.lowercased() != digest.lowercased() {
+            throw NSError(domain: "BloomBoxRAM", code: 1, userInfo: [NSLocalizedDescriptionKey: "El SHA-256 descargado no coincide con el publicado."])
+        }
+        guard let ipa = try BloomBoxArchive.inspectIPA(temporary),
+              let bundle = ipa["bundle"] as? String,
+              let version = ipa["version"] as? String,
+              let build = ipa["build"] as? String else {
+            throw NSError(domain: "BloomBoxRAM", code: 2, userInfo: [NSLocalizedDescriptionKey: "No se pudo verificar la estructura de la IPA."])
+        }
+        let installedID = Bundle.main.bundleIdentifier ?? ""
+        let installedVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        let installedBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
+        let installedExtensions = Set((try? fm.contentsOfDirectory(atPath: Bundle.main.builtInPlugInsURL?.path ?? "")) ?? [])
+        let ipaExtensions = Set(ipa["extensions"] as? [String] ?? [])
+        let installedGroups = Set(Bundle.main.infoDictionary?["ALTAppGroups"] as? [String] ?? [])
+        let ipaGroups = Set(ipa["groups"] as? [String] ?? [])
+        guard (installedID == bundle || installedID.hasPrefix(bundle + ".")),
+              version == installedVersion && build == installedBuild,
+              !installedExtensions.isEmpty && installedExtensions == ipaExtensions,
+              installedGroups == ipaGroups,
+              commit == nil || ipa["commit"] as? String == commit else {
+            throw NSError(domain: "BloomBoxRAM", code: 3, userInfo: [NSLocalizedDescriptionKey: "La IPA no coincide con la identidad, versión, build, extensiones, App Groups o commit actual. No se instalará."])
+        }
+        let destination = dir.appendingPathComponent("BloomBox-validada.ipa")
+        if fm.fileExists(atPath: destination.path) { try fm.removeItem(at: destination) }
+        try fm.moveItem(at: temporary, to: destination)
+        var state = defaults.dictionary(forKey: reinstallKey) ?? [:]
+        state["sha256"] = sha
+        state["version"] = version
+        state["build"] = build
+        defaults.set(state, forKey: reinstallKey)
+        return destination
+    }
+
+    func importIPA(_ source: URL) async {
+        guard !reinstallBusy, activationStatus == "approved", !validation.confirmed else { return }
+        reinstallBusy = true
+        defer { reinstallBusy = false }
+        let scoped = source.startAccessingSecurityScopedResource()
+        defer { if scoped { source.stopAccessingSecurityScopedResource() } }
+        do {
+            guard source.pathExtension.lowercased() == "ipa" else {
+                throw NSError(domain: "BloomBoxRAM", code: 4, userInfo: [NSLocalizedDescriptionKey: "Elige un archivo .ipa."])
+            }
+            saveReinstall("checking", "Comprobando la IPA seleccionada…")
+            let checked = try prepareIPA(source, digest: nil, commit: nil)
+            saveReinstall("manualReady", "IPA compatible. El origen del archivo no está autenticado: compártelo con SideStore, instala encima sin borrar la app y conserva las extensiones.", path: checked)
+        } catch { saveReinstall("chooseIPA", error.localizedDescription) }
+    }
+
+    func retryReinstall() {
+        guard !reinstallBusy, activationStatus == "approved" && !validation.confirmed else { return }
+        saveReinstall("approved", "Buscando de nuevo la IPA de esta compilación.")
+    }
+
     private static func signature(_ path: String?) -> [String: Any]? {
         guard let path, let xml = getExecutableEntitlementXML(path), let data = xml.data(using: .utf8) else { return nil }
         return (try? PropertyListSerialization.propertyList(from: data, options: [], format: nil)) as? [String: Any]
