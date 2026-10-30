@@ -582,7 +582,7 @@ struct LiveBoardHomeScreen: View {
             })
         }
         .sheet(isPresented: $modulesPresented, onDismiss: performModuleAction) {
-            BloomBoxModulesPanel(apps: apps + sharedModel.hiddenApps) { destination in
+            BloomBoxModulesPanel(apps: apps + (sharedModel.isHiddenAppUnlocked ? sharedModel.hiddenApps : [])) { destination in
                 pendingModuleDestination = destination
                 modulesPresented = false
             }
