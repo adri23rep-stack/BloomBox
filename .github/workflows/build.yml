@@ -189,3 +189,55 @@ jobs:
             .github/apps_ss_lc.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release__v130:
+    name: Publish BloomBox v1.3.0
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release: BloomBox v1.3.0') }}
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download tested unsigned SideStore IPA
+        uses: actions/download-artifact@v8
+        with:
+          name: BloomBox-SideStore-unsigned.ipa
+          path: release
+      - name: Confirm release asset
+        run: |
+          test -s release/BloomBox-SideStore-unsigned.ipa
+          unzip -t release/BloomBox-SideStore-unsigned.ipa | tail -1
+          sha256sum release/BloomBox-SideStore-unsigned.ipa
+      - name: Publish versioned GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v1.3.0
+          name: "BloomBox 1.3 — Modules, RAM+ and Connectivity"
+          target_commitish: ${{ github.sha }}
+          draft: false
+          prerelease: false
+          make_latest: true
+          generate_release_notes: false
+          fail_on_unmatched_files: true
+          files: release/BloomBox-SideStore-unsigned.ipa
+          body: |
+            ## BloomBox 1.3 — Modules, RAM+ and Connectivity
+
+            This update introduces a refreshed Modules hub, more direct access to existing features, and experimental tools for controlling guest app connectivity and checking RAM+.
+
+            ### What's new
+            - **Redesigned Modules:** A dark translucent interface without Liquid Glass blur, with quick access to RAM+, JIT, Desktop, Connectivity, Privacy, and Experimental settings.
+            - **JIT in one place:** Open the full existing JIT setup and provider controls directly inside the JIT module, without an extra setup button.
+            - **Desktop shortcuts:** Open Interface, Wallpaper, and Apps management from the Desktop module.
+            - **Per-app connectivity:** Find installed guest apps and allow or block Internet access using individual switches. The existing crossed-out Wi-Fi badge remains visible for blocked apps.
+            - **RAM+ support:** Request and inspect Increased Memory Limit approval, verify the installed entitlement and extensions, and access cautious reinstall controls from Experimental settings.
+            - **Reinstall safeguards:** Local IPA validation checks the app identifier, version, build, extensions and App Groups before manual reuse. Experimental reinstall controls do not request Apple approval again when RAM+ is already active.
+
+            ### Important notes
+            - **Connectivity is experimental.** Fully close and reopen BloomBox after changing an app's Internet switch. Some connections, including iCloud-related services, may continue.
+            - **RAM+ is not extra physical RAM.** Apple authorization and the entitlement in the installed signature are separate checks.
+            - **Keep your signing identity and extensions.** Re-signing or replacing BloomBox may remove RAM+ if SideStore does not preserve its entitlement. Back up your data and avoid uninstalling the existing app.
+            - **JIT compatibility depends on your iOS version, provider, and signed permissions.** No universal JIT compatibility is claimed.
+            - The published IPA is **unsigned** and is intended to be signed and installed with SideStore.
+
+            **Build:** ${{ github.sha }}
