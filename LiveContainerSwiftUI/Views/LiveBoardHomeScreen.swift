@@ -2051,6 +2051,8 @@ private struct BloomBoxModulesIcon: View {
 private struct BloomBoxModulesPanel: View {
     @AppStorage("BloomBoxRAMPlusExperimentalControls", store: LCUtils.appGroupUserDefault)
     private var ramExperimentalControlsEnabled = false
+    @AppStorage("BloomBoxJITTryMeloNXScriptForOtherApps", store: LCUtils.appGroupUserDefault)
+    private var melonScriptCrossAppEnabled = false
 
     enum Destination { case jit, desktop, interface, wallpaper, apps, settings, tweaks, sidestore }
     enum Module: String, CaseIterable, Identifiable {
@@ -2283,6 +2285,18 @@ private struct BloomBoxModulesPanel: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Experimentos · Funciones avanzadas", systemImage: "flask.fill")
                         .font(.headline)
+                    Toggle("Probar script JIT de MeloNX en otras apps", isOn: $melonScriptCrossAppEnabled)
+                        .tint(Color(red: 0.72, green: 0.45, blue: 1))
+                        .accessibilityIdentifier("bloombox.experiments.melonScriptCrossApp.toggle")
+                    Text("Al iniciar otra app con JIT integrado, intenta usar el script de MeloNX 2.6 si esa app no tiene uno propio. No fuerza JIT en apps normales ni modifica la configuración de MeloNX.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    if melonScriptCrossAppEnabled {
+                        Label("Experimental: otras apps pueden no entender este script, quedarse congeladas o cerrarse. Desactívalo si una app falla.", systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    Divider()
                     Toggle("Habilitar botones RAM+ para pruebas", isOn: $ramExperimentalControlsEnabled)
                         .tint(Color(red: 0.72, green: 0.45, blue: 1))
                         .accessibilityIdentifier("bloombox.experiments.ramControls.toggle")
