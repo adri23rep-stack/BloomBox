@@ -456,7 +456,7 @@ struct BloomBoxRAMPlusView: View {
 // UserDefaults.set, UIApplication.open ni el instalador de SideStore.
 // Una prevalidación correcta NO garantiza que SideStore firme/reinstale con éxito.
 private struct BloomBoxRAMDryRunCheck: Identifiable, Sendable {
-    enum State: Sendable { case pass, warning, blocked }
+    enum State: Equatable, Sendable { case pass, warning, blocked }
     let id: String
     let detail: String
     let state: State
