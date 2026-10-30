@@ -247,14 +247,26 @@ class LCAppModel: ObservableObject, Hashable {
         let melonProfile = BloomBoxMeloNXProfile.matches(
             bundleID: appInfo.bundleIdentifier(),
             version: guestBundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
-        let builtInProvider = LCUtils.appGroupUserDefault.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue
-        let wantsJIT = forceJIT ?? (appInfo.isJITNeeded || appInfo.is32bit || melonProfile)
+        let defaults = LCUtils.appGroupUserDefault
+        let guestPolicy = BloomBoxJITGuestPolicy.mode(for: appInfo.relativeBundlePath, defaults: defaults)
+        if guestPolicy == .disabled && forceJIT == true {
+            throw "El JIT está desactivado para esta app en Módulos > Experimental. Cambia la política de la app para usar Launch with JIT."
+        }
+        let builtInProvider = defaults.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue
+        let wantsJIT = BloomBoxJITGuestPolicy.wantsJIT(
+            automatic: appInfo.isJITNeeded || appInfo.is32bit || melonProfile,
+            forced: forceJIT, mode: guestPolicy)
+        let experimentSelected = BloomBoxJITGuestPolicy.shouldTryMeloNXScript(
+            appKey: appInfo.relativeBundlePath,
+            isMeloNX26: melonProfile,
+            enabled: defaults.bool(forKey: BloomBoxMeloNXProfile.crossAppExperimentKey),
+            defaults: defaults)
         let launchScript = BloomBoxMeloNXProfile.scriptForLaunch(
             custom: jitLaunchScriptJs,
             isMeloNX26: melonProfile,
             isBuiltInProvider: builtInProvider,
             jitRequested: wantsJIT,
-            crossAppExperiment: LCUtils.appGroupUserDefault.bool(forKey: BloomBoxMeloNXProfile.crossAppExperimentKey))
+            crossAppExperiment: experimentSelected)
         let classicMode = appInfo.defaultClassicMode
         let builtInJIT = builtInProvider && wantsJIT
         if builtInJIT && classicMode != 0 {
