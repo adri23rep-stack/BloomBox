@@ -24,7 +24,7 @@ enum BloomBoxRAMPortal {
     /// the capability before reporting Apple approval.
     static func validatedResponse(_ data: Data, statusCode: Int, method: String) throws -> [String: Any] {
         guard (200..<300).contains(statusCode) else {
-            throw fail("Apple rechazó la solicitud (HTTP \\(statusCode)). RAM+ no está confirmada.")
+            throw fail("Apple rechazó la solicitud (HTTP \(statusCode)). RAM+ no está confirmada.")
         }
         if data.isEmpty && method == "PATCH" { return [:] }
         guard let response = dictionary(data), response["errors"] == nil else {
