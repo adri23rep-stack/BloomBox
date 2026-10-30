@@ -36,12 +36,12 @@ private enum BloomBoxJITEndpoint {
         var config = StikJIT.Configuration()
         if let manualPort, (1...65535).contains(manualPort) {
             config.rsdPort = UInt16(manualPort)
-            report("Remote pairing endpoint: \\(config.deviceAddress):\\(config.rsdPort) (manual).")
+            report("Remote pairing endpoint: \(config.deviceAddress):\(config.rsdPort) (manual).")
             return config
         }
         // Do not delay the working configuration; the port may still be 49152.
         if EndpointProbe.failureReason(address: config.deviceAddress, port: config.rsdPort, timeout: 1.2) == nil {
-            report("Remote pairing endpoint: \\(config.deviceAddress):\\(config.rsdPort) (default, reachable).")
+            report("Remote pairing endpoint: \(config.deviceAddress):\(config.rsdPort) (default, reachable).")
             return config
         }
         report("Default RemotePairing port 49152 is unreachable. Discovering the current port via Bonjour…")
@@ -50,7 +50,7 @@ private enum BloomBoxJITEndpoint {
             // Other nearby iPhones may advertise this service: verify on our own VPN address.
             if EndpointProbe.failureReason(address: config.deviceAddress, port: port, timeout: 0.8) == nil {
                 config.rsdPort = port
-                report("Remote pairing endpoint: \\(config.deviceAddress):\\(port) (Bonjour, reachable).")
+                report("Remote pairing endpoint: \(config.deviceAddress):\(port) (Bonjour, reachable).")
                 return config
             }
         }
@@ -102,7 +102,7 @@ enum StrataJITWorker {
                     context.completeRequest(returningItems: nil)
                     return
                 }
-                let config = BloomBoxJITEndpoint.configuration(manualPort: input["remotePort"] as? Int, report: report)
+                let config = BloomBoxJITEndpoint.configuration(manualPort: input["remotePort"] as? Int, report: { report($0) })
                 let readiness = StikJIT.prepareDevice(pairingFile: pairing, paths: paths, configuration: config) { stage in
                     report(String(describing: stage))
                 }
