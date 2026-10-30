@@ -175,6 +175,75 @@ final class BloomBoxRAMPlus: ObservableObject {
         return destination
     }
 
+
+    /// Runs once after Apple readback. Never changes version without explicit choice.
+    func resumeAfterAppleApproval() async {
+        guard !reinstallBusy, !validation.confirmed, requested,
+              activationStatus == "approved", reinstallStage.isEmpty || reinstallStage == "approved" else { return }
+        reinstallBusy = true
+        defer { reinstallBusy = false }
+        saveReinstall("checking", "Comprobando origen y versión de la IPA…")
+        do {
+            guard let commit = Bundle.main.object(forInfoDictionaryKey: "BloomBoxBuildCommit") as? String,
+                  commit.count == 40 else {
+                saveReinstall("chooseIPA", "Esta edición experimental no identifica su compilación exacta. Selecciona su IPA original; no se instalará otra versión.")
+                return
+            }
+            let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+            let endpoint = URL(string: "https://api.github.com/repos/adri23rep-stack/BloomBox/releases?per_page=30")!
+            var req = URLRequest(url: endpoint)
+            req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+            req.timeoutInterval = 25
+            let (body, response) = try await URLSession.shared.data(for: req)
+            guard (response as? HTTPURLResponse)?.statusCode == 200,
+                  let releases = try JSONSerialization.jsonObject(with: body) as? [[String: Any]] else {
+                throw NSError(domain: "BloomBoxRAM", code: 5, userInfo: [NSLocalizedDescriptionKey: "GitHub no respondió con una lista válida de IPAs."])
+            }
+            let assets = releases.filter {
+                ($0["draft"] as? Bool) == false && ($0["tag_name"] as? String) == "v" + version
+            }.flatMap { $0["assets"] as? [[String: Any]] ?? [] }.filter {
+                ($0["name"] as? String) == "BloomBox-SideStore-unsigned.ipa"
+            }
+            guard assets.count == 1, let asset = assets.first,
+                  let sha = asset["digest"] as? String, sha.hasPrefix("sha256:"), sha.count == 71,
+                  let location = asset["browser_download_url"] as? String,
+                  let url = URL(string: location), url.scheme == "https",
+                  url.host == "github.com",
+                  url.path.hasPrefix("/adri23rep-stack/BloomBox/releases/download/"),
+                  let size = asset["size"] as? Int, size > 0, size < 1024 * 1024 * 1024 else {
+                saveReinstall("chooseIPA", "No se encontró una IPA pública oficial con versión y SHA-256 verificables. Elige tu IPA original o actualiza por separado.")
+                return
+            }
+            saveReinstall("downloading", "Descargando la misma versión y variante desde GitHub…")
+            let (download, result) = try await URLSession.shared.download(from: url)
+            guard (result as? HTTPURLResponse)?.statusCode == 200 else {
+                throw NSError(domain: "BloomBoxRAM", code: 6, userInfo: [NSLocalizedDescriptionKey: "No se pudo descargar la IPA exacta de GitHub."])
+            }
+            saveReinstall("preparing", "Revisando estructura, firma solicitada e integridad de la IPA…")
+            let local = try prepareIPA(download, digest: String(sha.dropFirst(7)), commit: commit)
+            saveReinstall("preparing", "IPA exacta validada. Preparando SideStore…", path: local)
+            // Official SideStore URI, forwarded by LCTabView / LCAppListView
+            // to the bundled SideStore. The OS may terminate the host.
+            var link = URLComponents()
+            link.scheme = "sidestore"
+            link.host = "install"
+            link.queryItems = [URLQueryItem(name: "url", value: url.absoluteString)]
+            guard let deeplink = link.url else {
+                throw NSError(domain: "BloomBoxRAM", code: 7, userInfo: [NSLocalizedDescriptionKey: "No se pudo preparar el enlace de SideStore."])
+            }
+            saveReinstall("installing", "SideStore está recibiendo la IPA para firmar e instalar encima. Confirma cualquier aviso de iOS y conserva las extensiones.")
+            UIApplication.shared.open(deeplink, options: [:]) { opened in
+                if !opened {
+                    Task { @MainActor in
+                        self.saveReinstall("failed", "SideStore no pudo abrir la instalación. Comparte la IPA guardada o reintenta.")
+                    }
+                }
+            }
+        } catch {
+            saveReinstall("failed", error.localizedDescription + " No se reemplazó BloomBox.")
+        }
+    }
+
     func importIPA(_ source: URL) async {
         guard !reinstallBusy, activationStatus == "approved", !validation.confirmed else { return }
         reinstallBusy = true
