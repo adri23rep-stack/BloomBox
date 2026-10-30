@@ -8,7 +8,11 @@ struct LiveBoardJITSetup: View {
     @ObservedObject private var pairing = ManzanaOnDevicePairing.shared
     @State private var importing = false
     @State private var hasPairing = FileManager.default.fileExists(atPath: LiveBoardBuiltInJIT.pairingURL.path)
-    var embedded = false
+    let embedded: Bool
+
+    init(embedded: Bool = false) {
+        self.embedded = embedded
+    }
 
     var body: some View {
         Group {
