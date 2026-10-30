@@ -247,10 +247,16 @@ class LCAppModel: ObservableObject, Hashable {
         let melonProfile = BloomBoxMeloNXProfile.matches(
             bundleID: appInfo.bundleIdentifier(),
             version: guestBundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
-        let launchScript = (jitLaunchScriptJs?.isEmpty == false) ? jitLaunchScriptJs
-            : (melonProfile ? BloomBoxMeloNXProfile.scriptBase64 : nil)
+        let builtInProvider = LCUtils.appGroupUserDefault.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue
+        let wantsJIT = forceJIT ?? (appInfo.isJITNeeded || appInfo.is32bit || melonProfile)
+        let launchScript = BloomBoxMeloNXProfile.scriptForLaunch(
+            custom: jitLaunchScriptJs,
+            isMeloNX26: melonProfile,
+            isBuiltInProvider: builtInProvider,
+            jitRequested: wantsJIT,
+            crossAppExperiment: LCUtils.appGroupUserDefault.bool(forKey: BloomBoxMeloNXProfile.crossAppExperimentKey))
         let classicMode = appInfo.defaultClassicMode
-        let builtInJIT = LCUtils.appGroupUserDefault.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue && (forceJIT ?? (appInfo.isJITNeeded || appInfo.is32bit || melonProfile))
+        let builtInJIT = builtInProvider && wantsJIT
         if builtInJIT && classicMode != 0 {
             throw "Built-in JIT requires normal compatibility mode. Turn off Classic Mode for this app, then retry."
         }
@@ -356,10 +362,7 @@ class LCAppModel: ObservableObject, Hashable {
         }
         UserDefaults.standard.set(uiSelectedContainer?.folderName, forKey: "selectedContainer")
         
-        var jitNeeded = appInfo.isJITNeeded || appInfo.is32bit || melonProfile
-        if let forceJIT {
-            jitNeeded = forceJIT
-        }
+        var jitNeeded = wantsJIT
 #if targetEnvironment(simulator)
         jitNeeded = false
 #endif
