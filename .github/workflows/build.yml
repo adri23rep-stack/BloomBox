@@ -104,6 +104,11 @@ jobs:
       - name: Verify Dynamic Island + SideStore IPA contents
         run: python3 Scripts/verify-bloombox-ipa.py "LiveContainer+SideStore.ipa"
 
+      - name: Verify RAM+ requested by packaged executables
+        run: |
+          python3 Scripts/verify-ramplus-ipa.py "LiveContainer+SideStore.ipa"
+          python3 Scripts/verify-ramplus-ipa.py "LiveContainer.ipa"
+
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v7
         with:
