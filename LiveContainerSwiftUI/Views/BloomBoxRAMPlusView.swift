@@ -144,8 +144,8 @@ final class BloomBoxRAMPlus: ObservableObject {
         if let digest, sha.lowercased() != digest.lowercased() {
             throw NSError(domain: "BloomBoxRAM", code: 1, userInfo: [NSLocalizedDescriptionKey: "El SHA-256 descargado no coincide con el publicado."])
         }
-        guard let ipa = try BloomBoxArchive.inspectIPA(temporary),
-              let bundle = ipa["bundle"] as? String,
+        let ipa = try BloomBoxArchive.inspectIPA(temporary)
+        guard let bundle = ipa["bundle"] as? String,
               let version = ipa["version"] as? String,
               let build = ipa["build"] as? String else {
             throw NSError(domain: "BloomBoxRAM", code: 2, userInfo: [NSLocalizedDescriptionKey: "No se pudo verificar la estructura de la IPA."])
@@ -219,7 +219,7 @@ final class BloomBoxRAMPlus: ObservableObject {
             guard (result as? HTTPURLResponse)?.statusCode == 200 else {
                 throw NSError(domain: "BloomBoxRAM", code: 6, userInfo: [NSLocalizedDescriptionKey: "No se pudo descargar la IPA exacta de GitHub."])
             }
-            saveReinstall("preparing", "Revisando estructura, firma solicitada e integridad de la IPA…")
+            saveReinstall("preparing", "Revisando estructura e integridad de la IPA…")
             let local = try prepareIPA(download, digest: String(sha.dropFirst(7)), commit: commit)
             saveReinstall("preparing", "IPA exacta validada. Preparando SideStore…", path: local)
             // Official SideStore URI, forwarded by LCTabView / LCAppListView
@@ -350,7 +350,7 @@ struct BloomBoxRAMPlusView: View {
                                 }.buttonStyle(.borderedProminent)
                             }
                             Button("Elegir IPA original") { chooseOriginalIPA = true }
-                            if let file = ram.preparedIPA {
+                            if #available(iOS 16.0, *), let file = ram.preparedIPA {
                                 ShareLink(item: file) {
                                     Label("Compartir IPA con SideStore", systemImage: "square.and.arrow.up")
                                 }
