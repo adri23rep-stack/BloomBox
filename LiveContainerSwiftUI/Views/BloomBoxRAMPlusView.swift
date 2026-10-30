@@ -50,9 +50,14 @@ final class BloomBoxRAMPlus: ObservableObject {
 
     var needsAttention: Bool { requested && !validation.confirmed }
     var status: String {
-        if validation.confirmed { return "Permiso confirmado en BloomBox" }
-        if validation.runtimeGranted == true { return "Permiso presente; perfil sin confirmar" }
-        return requested ? "Pendiente de activación" : "Permiso no confirmado"
+        if validation.confirmed { return "RAM+ confirmado en la instalación actual" }
+        if validation.profileGranted == true && validation.runtimeGranted != true {
+            return "El perfil tiene RAM+, pero la firma instalada no lo confirma"
+        }
+        if validation.runtimeGranted == true { return "Firma con RAM+; perfil sin confirmar" }
+        if activationStatus == "approved" { return "Apple aprobó RAM+; falta reinstalar BloomBox" }
+        if activationPending { return "Esperando confirmación de Apple" }
+        return requested ? "RAM+ solicitado, aún sin confirmar" : "Permiso no confirmado"
     }
 
     func setRequested(_ enabled: Bool) {
@@ -137,6 +142,18 @@ struct BloomBoxRAMPlusView: View {
                         if !ram.activationMessage.isEmpty {
                             Label(ram.activationMessage, systemImage: ram.activationStatus == "approved" ? "checkmark.circle" : "info.circle")
                                 .font(.callout)
+                        }
+                        if ram.activationStatus == "awaitingSession" {
+                            Text("Esperando una consulta de SideStore a Apple. Abre Mis apps con la misma cuenta que firmó BloomBox. Si la sesión venció, SideStore puede pedir iniciar sesión.")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
+                        if ram.activationStatus == "approved" && !ram.validation.confirmed {
+                            Text("Apple aprobó el App ID, pero eso NO confirma la firma instalada. Vuelve a instalar la IPA con SideStore, conservando las extensiones; un simple refresco puede mantener el perfil anterior.")
+                                .font(.footnote).foregroundStyle(.orange)
+                        }
+                        if ram.activationStatus == "uncertain" {
+                            Text("No se pudo confirmar la respuesta de Apple después de enviar la solicitud. Comprueba el App ID antes de repetirla para evitar modificaciones duplicadas.")
+                                .font(.footnote).foregroundStyle(.orange)
                         }
                         if ram.activationPending {
                             ProgressView("Solicitud en curso…")
