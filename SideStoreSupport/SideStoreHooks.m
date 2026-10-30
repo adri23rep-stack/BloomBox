@@ -191,7 +191,24 @@ static void SSInstallVersionWindow(UIWindowScene *windowScene)
 }
 
 
+// Install the RAM+ observer into newly-created sessions and the shared session.
+// The protocol itself only accepts Apple's App ID list endpoint with an active request.
+@implementation NSURLSessionConfiguration(BloomBoxRAM)
+- (NSArray<Class> *)bb_ramProtocolClasses {
+    NSArray<Class> *original = [self bb_ramProtocolClasses] ?: @[];
+    Class protocol = NSClassFromString(@"BloomBoxRAMProtocol");
+    if (!protocol || [original containsObject:protocol]) return original;
+    return [@[protocol] arrayByAddingObjectsFromArray:original];
+}
+@end
+
 void installSideStoreHooks(void) {
+    Class ramProtocol = NSClassFromString(@"BloomBoxRAMProtocol");
+    if (ramProtocol) {
+        [NSURLProtocol registerClass:ramProtocol];
+        swizzle(NSURLSessionConfiguration.class, @selector(protocolClasses), @selector(bb_ramProtocolClasses));
+    }
+
 
     swizzleClassMethod(NSBundle.class, @selector(appbundleIdentifier), @selector(hook_appbundleIdentifier));
     swizzleClassMethod(NSBundle.class, @selector(storeAppBundleIdentifier), @selector(hook_storeAppBundleIdentifier));

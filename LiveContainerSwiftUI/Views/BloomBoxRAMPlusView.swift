@@ -11,6 +11,42 @@ final class BloomBoxRAMPlus: ObservableObject {
     @Published private(set) var available: UInt64 = 0
     @Published private(set) var checkedAt: Date?
     @Published private(set) var applicationIdentifier = ""
+    @Published private(set) var activationStatus = ""
+    @Published private(set) var activationMessage = ""
+    var activationPending: Bool { ["awaitingSession", "checking", "requesting"].contains(activationStatus) }
+
+    func requestActivation() throws {
+        guard !activationPending else { return }
+        guard let signature = Self.signature(Bundle.main.executablePath),
+              let team = signature["com.apple.developer.team-identifier"] as? String, !team.isEmpty,
+              let appIdentifier = signature["application-identifier"] as? String,
+              let bundle = Bundle.main.bundleIdentifier,
+              appIdentifier.hasSuffix("." + bundle),
+              Bundle.main.privateFrameworksURL.map({ FileManager.default.fileExists(atPath: $0.appendingPathComponent("SideStoreApp.framework").path) }) == true else {
+            throw NSError(domain: "BloomBoxRAM", code: 1, userInfo: [NSLocalizedDescriptionKey: "No se pudo identificar la cuenta de firma o falta el SideStore integrado. Reinstala la edición con SideStore."])
+        }
+        var bundles = [bundle]
+        if let url = Bundle.main.builtInPlugInsURL?.appendingPathComponent("LiveProcess.appex"),
+           let extensionBundle = Bundle(url: url), let extensionID = extensionBundle.bundleIdentifier,
+           extensionID != bundle, extensionID.hasPrefix(bundle + "."),
+           let extensionSignature = Self.signature(extensionBundle.executablePath),
+           extensionSignature["com.apple.developer.team-identifier"] as? String == team {
+            bundles.append(extensionID)
+        }
+        let id = UUID().uuidString
+        defaults.set(true, forKey: key)
+        defaults.set(["id": id, "team": team, "bundles": bundles, "expires": Date().addingTimeInterval(300)], forKey: "BloomBoxRAMPlusRequest")
+        defaults.set(["id": id, "status": "awaitingSession", "message": "Abre Mis apps en SideStore. Se usará su sesión para solicitar RAM+; si te pide iniciar sesión, hazlo allí.", "date": Date()], forKey: "BloomBoxRAMPlusResult")
+        defaults.synchronize()
+        refresh()
+    }
+
+    func cancelActivation() {
+        defaults.removeObject(forKey: "BloomBoxRAMPlusRequest")
+        defaults.set(["status": "cancelled", "message": "Solicitud cancelada. Si ya se envió a Apple, el permiso podría haberse aplicado; vuelve a comprobar antes de repetirla.", "date": Date()], forKey: "BloomBoxRAMPlusResult")
+        defaults.synchronize()
+        refresh()
+    }
 
     var needsAttention: Bool { requested && !validation.confirmed }
     var status: String {
@@ -21,11 +57,22 @@ final class BloomBoxRAMPlus: ObservableObject {
 
     func setRequested(_ enabled: Bool) {
         defaults.set(enabled, forKey: key)
+        if !enabled && activationPending { cancelActivation() }
         refresh()
     }
 
     func refresh() {
         requested = defaults.bool(forKey: key)
+        if let plan = defaults.dictionary(forKey: "BloomBoxRAMPlusRequest"),
+           let expiry = plan["expires"] as? Date, expiry <= Date(),
+           let result = defaults.dictionary(forKey: "BloomBoxRAMPlusResult"),
+           let status = result["status"] as? String, ["awaitingSession", "checking", "requesting"].contains(status) {
+            defaults.removeObject(forKey: "BloomBoxRAMPlusRequest")
+            defaults.set(["status": "expired", "message": "La solicitud venció. Si llegó a enviarse a Apple, su resultado no está confirmado. Puedes iniciar una nueva comprobación.", "date": Date()], forKey: "BloomBoxRAMPlusResult")
+        }
+        let result = defaults.dictionary(forKey: "BloomBoxRAMPlusResult")
+        activationStatus = result?["status"] as? String ?? ""
+        activationMessage = result?["message"] as? String ?? ""
         let signed = Self.signature(Bundle.main.executablePath)
         applicationIdentifier = signed?["application-identifier"] as? String ?? ""
         let profileURL = Bundle.main.bundleURL.appendingPathComponent("embedded.mobileprovision")
@@ -51,6 +98,8 @@ struct BloomBoxRAMPlusView: View {
     @ObservedObject private var ram = BloomBoxRAMPlus.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var showWarning = false
+    @State private var activationError: String?
+    private let statusTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ScrollView {
@@ -67,7 +116,7 @@ struct BloomBoxRAMPlusView: View {
                     Text("El switch está encendido, pero RAM+ todavía no está confirmada. Completa la activación y vuelve a comprobar.")
                         .font(.callout).foregroundStyle(.orange)
                 }
-                Text("El switch guarda tu solicitud. iOS aplica el permiso al firmar e instalar la app; apagarlo no retira un permiso ya instalado.")
+                Text("iOS aplica el permiso al firmar e instalar la app. Apagar el switch cancela una solicitud pendiente; no retira un permiso ya instalado.")
                     .font(.footnote).foregroundStyle(.secondary)
                 GroupBox("Validaciones de esta instalación") {
                     VStack(alignment: .leading, spacing: 12) {
@@ -80,19 +129,38 @@ struct BloomBoxRAMPlusView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 6)
                 }
-                GroupBox("Completar activación") {
+                GroupBox("Activar con la sesión de SideStore") {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("1. En GetMoreRam, inicia sesión con la cuenta usada para instalar BloomBox. En App IDs, selecciona el identificador de abajo y pulsa Add Increased Memory Limit.")
+                        Text("BloomBox solicitará Increased Memory Limit para su App ID y para LiveProcess si tiene uno separado. Se conservarán los demás permisos.")
+                        Text("SideStore hace el inicio de sesión. BloomBox no guarda tu contraseña ni la sesión de Apple.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                        if !ram.activationMessage.isEmpty {
+                            Label(ram.activationMessage, systemImage: ram.activationStatus == "approved" ? "checkmark.circle" : "info.circle")
+                                .font(.callout)
+                        }
+                        if ram.activationPending {
+                            ProgressView("Solicitud en curso…")
+                            Button("Volver a SideStore", action: openSideStore)
+                            Button("Cancelar solicitud", role: .cancel) { ram.cancelActivation() }
+                        } else {
+                            Button("Solicitar permiso con SideStore") { activate() }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(ram.validation.confirmed)
+                                .accessibilityIdentifier("bloombox.ram.requestPermission")
+                        }
+                        Text("Cuando Apple lo confirme, reinstala BloomBox desde SideStore conservando las extensiones y sin borrar la app. Vuelve aquí para verificar que la firma instalada incluye el permiso.")
+                        Button("Abrir SideStore para reinstalar", action: openSideStore)
+                        if let activationError { Text(activationError).foregroundStyle(.orange) }
+                    }.font(.callout).padding(.vertical, 6)
+                }
+                DisclosureGroup("Alternativa manual con GetMoreRam") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Si la integración experimental no funciona, usa la misma cuenta Apple en GetMoreRam, selecciona este App ID y pulsa Add Increased Memory Limit. Después reinstala desde SideStore.")
                         Text(Bundle.main.bundleIdentifier ?? "Identificador no disponible")
                             .font(.caption.monospaced()).textSelection(.enabled)
                         Button("Copiar identificador") { UIPasteboard.general.string = Bundle.main.bundleIdentifier }
-                        Link("Abrir GetMoreRam · instrucciones e instalación", destination: URL(string: "https://github.com/hugeBlack/GetMoreRam")!)
-                        Text("2. Reinstala BloomBox con SideStore conservando sus extensiones. No borres la app: conserva sus datos. Si LiveProcess tiene un App ID separado, habilita también su permiso.")
-                        Button("Abrir SideStore", action: openSideStore).buttonStyle(.borderedProminent)
-                        Text("3. Abre de nuevo BloomBox y comprueba el resultado. Si la firma perdió el permiso, el aviso seguirá visible.")
-                        Text("La solicitud a Apple se realiza en GetMoreRam. Esta pantalla no inicia sesión ni importa las credenciales de SideStore.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }.font(.callout).padding(.vertical, 6)
+                        Link("GetMoreRam · instrucciones e instalación", destination: URL(string: "https://github.com/hugeBlack/GetMoreRam")!)
+                    }.font(.footnote).padding(.top, 10)
                 }
                 Button("Comprobar de nuevo") { ram.refresh(); showWarning = ram.needsAttention }
                     .buttonStyle(.bordered)
@@ -108,10 +176,22 @@ struct BloomBoxRAMPlusView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { ram.refresh(); showWarning = ram.needsAttention }
         .onChange(of: scenePhase) { if $0 == .active { ram.refresh() } }
+        .onReceive(statusTimer) { _ in if scenePhase == .active && ram.activationPending { ram.refresh() } }
         .alert("RAM+ aún no está confirmada", isPresented: $showWarning) {
-            Button("Entendido", role: .cancel) { }
+            Button("Activar con SideStore") { activate() }
+            Button("Después", role: .cancel) { }
         } message: {
-            Text("El switch está encendido, pero esta instalación no supera las validaciones. Habilita el permiso con GetMoreRam y reinstala desde SideStore. Encender el switch no aumenta la memoria por sí solo.")
+            Text("El switch está encendido, pero esta instalación no supera las validaciones. Solicita el permiso con SideStore y reinstala BloomBox. Encender el switch no aumenta la memoria por sí solo.")
+        }
+    }
+
+    private func activate() {
+        do {
+            activationError = nil
+            try ram.requestActivation()
+            openSideStore()
+        } catch {
+            activationError = error.localizedDescription
         }
     }
 

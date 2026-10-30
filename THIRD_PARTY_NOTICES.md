@@ -13,3 +13,11 @@ BloomBox retains the original upstream copyright and third-party notices. This i
 - Strata icon: adapted from artwork provided by the project owner. Apple Music artwork remains copyright Apple Inc.
 
 No claim of endorsement or ownership of upstream trademarks is made. See each component's source for its complete dependency notices.
+
+## RAM+ protocol references
+
+RAM+ uses an independently implemented Developer Services request flow informed by
+[GetMoreRam](https://github.com/hugeBlack/GetMoreRam),
+[StosSign](https://github.com/stossy11/StosSign), and
+[SideSign](https://github.com/SideStore/SideSign). Authentication is performed by the
+already-bundled SideStore. No GetMoreRam or StosSign authentication source is bundled.
