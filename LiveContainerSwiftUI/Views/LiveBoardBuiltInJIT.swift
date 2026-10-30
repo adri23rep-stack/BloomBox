@@ -72,13 +72,23 @@ enum LiveBoardBuiltInJIT {
         }
         let token = UUID().uuidString
         let status = root.appendingPathComponent("Library/StrataJIT/\(token).json")
+        let manualPortText = (LCUtils.appGroupUserDefault.string(forKey: "BloomBoxJITRemotePort") ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let manualPort = manualPortText.isEmpty ? nil : UInt16(manualPortText)
+        if !manualPortText.isEmpty && (manualPort == nil || manualPort == 0) {
+            report("Invalid remote pairing port. Enter 1–65535 or leave the field empty for auto discovery.")
+            return false
+        }
+        var helperInput: [String: Any] = ["strataJIT": true, "group": group, "operation": operation,
+                                          "token": token, "pid": pid, "pairing": data, "script": script ?? ""]
+        if let manualPort { helperInput["remotePort"] = Int(manualPort) }
         var helper: NSObject?
         defer {
             if let helper { LCUtils.strataStopJITHelper(helper) }
             try? FileManager.default.removeItem(at: status)
         }
         do {
-            helper = try LCUtils.strataStartJITHelper(["strataJIT": true, "group": group, "operation": operation, "token": token, "pid": pid, "pairing": data, "script": script ?? ""])
+            helper = try LCUtils.strataStartJITHelper(helperInput)
             guard helper != nil else { report("JIT helper unavailable. Reinstall keeping app extensions."); return false }
             report("Preparing device. Keep LocalDevVPN connected and Developer Mode enabled.")
             var lastMessage = ""
