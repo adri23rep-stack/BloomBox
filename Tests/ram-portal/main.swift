@@ -39,4 +39,13 @@ do { _ = try portal.snapshot(fixture([existing]), id: "ABC123", bundle: "other.a
 do { _ = try portal.snapshot(fixture([existing]), id: "ABC123", bundle: "app.bloom", team: "OTHER"); fatalError("Accepted another team") } catch { }
 var errors = fixture([existing]); errors["errors"] = [["status": "403"]]
 do { _ = try snapshot(errors); fatalError("Accepted server error") } catch { }
+
+// Apple v1 may acknowledge a successful capability PATCH with zero response bytes.
+// It still requires an independent, complete readback before activation is claimed.
+assert(try portal.validatedResponse(Data(), statusCode: 204, method: "PATCH").isEmpty)
+assert(try portal.validatedResponse(Data("{}".utf8), statusCode: 200, method: "PATCH").isEmpty)
+do { _ = try portal.validatedResponse(Data(), statusCode: 204, method: "POST"); fatalError("Accepted empty readback") } catch { }
+do { _ = try portal.validatedResponse(Data(), statusCode: 403, method: "PATCH"); fatalError("Accepted rejection") } catch { }
+let serverErrors = try JSONSerialization.data(withJSONObject: ["errors": [["status": "409"]]])
+do { _ = try portal.validatedResponse(serverErrors, statusCode: 200, method: "PATCH"); fatalError("Accepted Apple errors") } catch { }
 print("RAM+ portal: scoping, exact App ID, team match, permission preservation and readback cases passed")
