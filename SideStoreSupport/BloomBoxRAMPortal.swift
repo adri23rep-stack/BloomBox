@@ -105,7 +105,7 @@ enum BloomBoxRAMPortal {
         let reportedTotal = (paging?["total"] as? NSNumber)?.intValue
         if hasNextPage || (reportedTotal != nil && reportedTotal != refs.count) {
             let expected = reportedTotal.map { String($0) } ?? "desconocido"
-            throw fail("Apple entregó \\(refs.count) permisos, pero reportó \\(expected) en total\\(hasNextPage ? " (hay más páginas)" : ""). No se modificó nada. Prueba esta versión con consulta ampliada; si persiste, comparte solo este mensaje.")
+            throw fail("Apple entregó \(refs.count) permisos, pero reportó \(expected) en total\(hasNextPage ? " (hay más páginas)" : ""). No se modificó nada. Prueba esta versión con consulta ampliada; si persiste, comparte solo este mensaje.")
         }
         let included = response["included"] as? [[String: Any]] ?? []
         var resolved: [[String: Any]] = []
