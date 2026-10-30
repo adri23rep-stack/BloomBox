@@ -42,8 +42,10 @@ do { _ = try snapshot(errors); fatalError("Accepted server error") } catch { }
 
 // Apple v1 may acknowledge a successful capability PATCH with zero response bytes.
 // It still requires an independent, complete readback before activation is claimed.
-assert(try portal.validatedResponse(Data(), statusCode: 204, method: "PATCH").isEmpty)
-assert(try portal.validatedResponse(Data("{}".utf8), statusCode: 200, method: "PATCH").isEmpty)
+let emptyPatch = try portal.validatedResponse(Data(), statusCode: 204, method: "PATCH")
+assert(emptyPatch.isEmpty)
+let jsonPatch = try portal.validatedResponse(Data("{}".utf8), statusCode: 200, method: "PATCH")
+assert(jsonPatch.isEmpty)
 do { _ = try portal.validatedResponse(Data(), statusCode: 204, method: "POST"); fatalError("Accepted empty readback") } catch { }
 do { _ = try portal.validatedResponse(Data(), statusCode: 403, method: "PATCH"); fatalError("Accepted rejection") } catch { }
 let serverErrors = try JSONSerialization.data(withJSONObject: ["errors": [["status": "409"]]])
