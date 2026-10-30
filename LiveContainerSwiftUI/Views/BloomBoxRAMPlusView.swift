@@ -1,4 +1,6 @@
 import SwiftUI
+import CryptoKit
+import UniformTypeIdentifiers
 
 @MainActor
 final class BloomBoxRAMPlus: ObservableObject {
@@ -13,6 +15,11 @@ final class BloomBoxRAMPlus: ObservableObject {
     @Published private(set) var applicationIdentifier = ""
     @Published private(set) var activationStatus = ""
     @Published private(set) var activationMessage = ""
+    private let reinstallKey = "BloomBoxRAMReinstall"
+    @Published private(set) var reinstallStage = ""
+    @Published private(set) var reinstallMessage = ""
+    @Published private(set) var preparedIPA: URL?
+    @Published private(set) var reinstallBusy = false
     var activationPending: Bool { ["awaitingSession", "checking", "requesting"].contains(activationStatus) }
 
     func requestActivation() throws {
@@ -37,6 +44,7 @@ final class BloomBoxRAMPlus: ObservableObject {
         defaults.set(true, forKey: key)
         defaults.set(["id": id, "team": team, "bundles": bundles, "expires": Date().addingTimeInterval(300)], forKey: "BloomBoxRAMPlusRequest")
         defaults.set(["id": id, "status": "awaitingSession", "message": "Abre Mis apps en SideStore. Se usará su sesión para solicitar RAM+; si te pide iniciar sesión, hazlo allí.", "date": Date()], forKey: "BloomBoxRAMPlusResult")
+        defaults.removeObject(forKey: reinstallKey)
         defaults.synchronize()
         refresh()
     }
@@ -78,6 +86,12 @@ final class BloomBoxRAMPlus: ObservableObject {
         let result = defaults.dictionary(forKey: "BloomBoxRAMPlusResult")
         activationStatus = result?["status"] as? String ?? ""
         activationMessage = result?["message"] as? String ?? ""
+        let saved = defaults.dictionary(forKey: reinstallKey) ?? [:]
+        reinstallStage = saved["stage"] as? String ?? ""
+        reinstallMessage = saved["message"] as? String ?? ""
+        if let path = saved["path"] as? String, FileManager.default.fileExists(atPath: path) {
+            preparedIPA = URL(fileURLWithPath: path)
+        } else { preparedIPA = nil }
         let signed = Self.signature(Bundle.main.executablePath)
         applicationIdentifier = signed?["application-identifier"] as? String ?? ""
         let profileURL = Bundle.main.bundleURL.appendingPathComponent("embedded.mobileprovision")
@@ -90,6 +104,23 @@ final class BloomBoxRAMPlus: ObservableObject {
         extensionSigned = BloomBoxRAMValidation.boolean(Self.signature(extensionBundle?.executablePath)?[BloomBoxRAMValidation.entitlement])
         available = LCUtils.bloomBoxAvailableMemory()
         checkedAt = Date()
+        if validation.confirmed && reinstallStage != "confirmed" {
+            saveReinstall("confirmed", "RAM+ está activa en esta instalación.")
+        } else if reinstallStage == "installing" {
+            saveReinstall("verifying", "SideStore recibió la solicitud. Cuando termine, vuelve a abrir BloomBox para comprobar la firma.")
+        }
+    }
+
+    private func saveReinstall(_ stage: String, _ message: String, path: URL? = nil) {
+        var value = defaults.dictionary(forKey: reinstallKey) ?? [:]
+        value["stage"] = stage
+        value["message"] = message
+        value["date"] = Date()
+        if let path { value["path"] = path.path }
+        defaults.set(value, forKey: reinstallKey)
+        reinstallStage = stage
+        reinstallMessage = message
+        if let path { preparedIPA = path }
     }
 
     private static func signature(_ path: String?) -> [String: Any]? {
