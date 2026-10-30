@@ -22,6 +22,20 @@ enum BloomBoxRAMPortal {
     /// Developer Services can acknowledge a PATCH with no JSON body. A successful
     /// HTTP response alone is never proof of activation: callers must read back
     /// the capability before reporting Apple approval.
+    /// SideSign's v1 GET bridge sends only urlEncodedQueryParams in its POST
+    /// body; teamId is inside the query. Preserve that protocol exactly.
+    static func readParameters(team: String) throws -> Data {
+        guard !team.isEmpty else { throw fail("Falta el equipo de firma de Apple.") }
+        var query = URLComponents()
+        query.queryItems = [
+            URLQueryItem(name: "teamId", value: team),
+            URLQueryItem(name: "include", value: "bundleIdCapabilities,bundleIdCapabilities.capability"),
+            URLQueryItem(name: "fields[bundleIds]", value: "identifier,name,seedId,bundleType,hasExclusiveManagedCapabilities,bundleIdCapabilities"),
+            URLQueryItem(name: "limit[bundleIdCapabilities]", value: "50")
+        ]
+        guard let parameters = query.query else { throw fail("No se pudo preparar la lectura de permisos.") }
+        return try JSONSerialization.data(withJSONObject: ["urlEncodedQueryParams": parameters])
+    }
     static func validatedResponse(_ data: Data, statusCode: Int, method: String) throws -> [String: Any] {
         guard (200..<300).contains(statusCode) else {
             throw fail("Apple rechazó la solicitud (HTTP \(statusCode)). RAM+ no está confirmada.")
