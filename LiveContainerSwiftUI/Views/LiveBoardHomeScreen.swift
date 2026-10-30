@@ -2046,6 +2046,9 @@ private struct BloomBoxModulesIcon: View {
 }
 
 private struct BloomBoxModulesPanel: View {
+    @AppStorage("BloomBoxRAMPlusExperimentalControls", store: LCUtils.appGroupUserDefault)
+    private var ramExperimentalControlsEnabled = false
+
     enum Destination { case jit, desktop, apps, settings, tweaks, sidestore }
     enum Module: String, CaseIterable, Identifiable {
         case ram, jit, desktop, connectivity, privacy, experimental
@@ -2225,27 +2228,23 @@ private struct BloomBoxModulesPanel: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Experimentos · Funciones avanzadas", systemImage: "flask.fill")
                         .font(.headline)
-                    NavigationLink {
-                        BloomBoxRAMReinstallSimulationView()
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "checkmark.shield")
-                                .font(.title3)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Simular reinstalación RAM+").font(.subheadline.bold())
-                                Text("Prevalidación sin tocar permisos, firma ni datos")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: 0)
-                            Image(systemName: "chevron.right")
-                                .font(.caption.bold())
+                    Toggle("Habilitar botones RAM+ para pruebas", isOn: $ramExperimentalControlsEnabled)
+                        .tint(Color(red: 0.72, green: 0.45, blue: 1))
+                        .accessibilityIdentifier("bloombox.experiments.ramControls.toggle")
+                    Text("Permite volver a abrir los controles de reinstalación cuando RAM+ ya está activa. No desactiva RAM+, no solicita permisos a Apple ni reinstala nada al encender el interruptor.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    if ramExperimentalControlsEnabled {
+                        Text("La reinstalación real podría perder RAM+ si la nueva firma no conserva el permiso. Comprueba tu firma antes de instalar.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                        NavigationLink {
+                            BloomBoxRAMPlusView { onSelect(.sidestore) }
+                        } label: {
+                            Label("Abrir controles de RAM+", systemImage: "cpu")
                         }
-                        .padding(14)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 15))
+                        .accessibilityIdentifier("bloombox.experiments.ramControls.open")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("bloombox.experiments.ramDryRun.open")
                 }
                 Button("Abrir Tweak Store") { onSelect(.tweaks) }
                     .buttonStyle(.bordered)
