@@ -6,6 +6,30 @@ let source = CommandLine.arguments.contains("melonx")
 precondition(BloomBoxMeloNXProfile.matches(bundleID: "com.stossy11.MeloNX", version: "2.6"))
 precondition(!BloomBoxMeloNXProfile.matches(bundleID: "com.stossy11.MeloNX", version: "2.7"))
 precondition(!BloomBoxMeloNXProfile.matches(bundleID: "other", version: "2.6"))
+
+let originalScript = "my-own-compatible-script"
+func routed(_ custom: String? = nil, _ melon: Bool = false,
+            _ builtIn: Bool = true, _ requested: Bool = true,
+            _ experimental: Bool = false) -> String? {
+    BloomBoxMeloNXProfile.scriptForLaunch(custom: custom,
+        isMeloNX26: melon, isBuiltInProvider: builtIn,
+        jitRequested: requested, crossAppExperiment: experimental)
+}
+precondition(routed() == nil, "Other guests must default to no MeloNX script")
+precondition(routed(nil, false, true, true, true) == BloomBoxMeloNXProfile.scriptBase64,
+             "Opt-in built-in JIT must reuse the exact MeloNX script")
+precondition(routed(nil, false, false, true, true) == nil,
+             "External JIT providers must not receive the experimental script")
+precondition(routed(nil, false, true, false, true) == nil,
+             "The switch must never force JIT on a normal guest")
+precondition(routed(nil, true, false, false, false) == BloomBoxMeloNXProfile.scriptBase64,
+             "MeloNX 2.6 automatic script must remain unchanged")
+precondition(routed(originalScript, false, true, true, true) == originalScript,
+             "Existing app scripts must take precedence")
+precondition(routed(originalScript, true, true, true, true) == originalScript,
+             "A custom MeloNX script must still take precedence")
+print("PASS: MeloNX script routing is opt-in, limited to built-in JIT, and preserves app overrides.")
+
 func run(_ mode: String) -> (String?, [String]) {
     let context = JSContext()!
     var commands: [String] = []
