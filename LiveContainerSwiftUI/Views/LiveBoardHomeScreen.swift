@@ -28,6 +28,9 @@ struct LiveBoardHomeScreen: View {
     @State private var jitSetup = false
     @State private var tweakStorePresented = false
     @State private var appStorePresented = false
+    @State private var modulesPresented = false
+    @ObservedObject private var ramPlus = BloomBoxRAMPlus.shared
+    @State private var pendingModuleDestination: BloomBoxModulesPanel.Destination?
     @State private var storeFocusedApp: LCAppModel?
     @State private var pendingAlertApp: LCAppModel?
     @State private var pendingAlertTweak: BloomBoxTweakEntry?
@@ -105,11 +108,12 @@ struct LiveBoardHomeScreen: View {
     private static let installKey = "manzana:install"
     private static let tweakStoreKey = "manzana:tweakstore"
     private static let appStoreKey = "manzana:appstore"
+    private static let modulesKey = "manzana:modules"
     private enum DesktopAction { case interface, sources, tweaks, wallpaper, apps, settings, jit }
 
     private var appKeys: [String] {
         apps.filter { !($0.appInfo is BuiltInSideStoreAppInfo) }.map(liveBoardAppKey)
-            + [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey]
+            + [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey]
     }
     private var appMap: [String: LCAppModel] {
         Dictionary(apps.filter { !($0.appInfo is BuiltInSideStoreAppInfo) }.map {
@@ -259,6 +263,7 @@ struct LiveBoardHomeScreen: View {
                 }
             })
             .onChange(of: scenePhase) { phase in
+                if phase == .active { ramPlus.refresh() }
                 if phase == .active, #available(iOS 16.2, *) {
                     Task { await ManzanaExpiryReminderCenter.shared.synchronize() }
                 }
@@ -269,6 +274,7 @@ struct LiveBoardHomeScreen: View {
                 page = min(page, libraryPageIndex)
             }
             .onAppear {
+                ramPlus.refresh()
                 Task { await tweakCatalog.refreshIfNeeded() }
                 layout = LiveBoardHomeLayout.decode(savedLayout)
                 reconcile()
@@ -280,6 +286,20 @@ struct LiveBoardHomeScreen: View {
                 if page > 0 && hiddenPageIndices.contains(page - 1) {
                     page = (visiblePageIndices.first ?? 0) + 1
                 }
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if ramPlus.needsAttention {
+                Button { modulesPresented = true } label: {
+                    Label("RAM+ solicitada, pero el permiso no está confirmado. Toca para revisar.", systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.orange)
+                        .padding(14)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+                }
+                .padding(.horizontal, 18)
+                .padding(.bottom, 100)
+                .accessibilityIdentifier("bloombox.ram.warning")
             }
         }
         .overlay { if importingMotionWallpaper { ProgressView("Preparando fondo…").padding(20).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20)) } }
@@ -561,6 +581,13 @@ struct LiveBoardHomeScreen: View {
                 openTab(.sources)
             })
         }
+        .sheet(isPresented: $modulesPresented, onDismiss: performModuleAction) {
+            BloomBoxModulesPanel(apps: apps + (!LCUtils.appGroupUserDefault.bool(forKey: "LCStrictHiding") || sharedModel.isHiddenAppUnlocked ? sharedModel.hiddenApps : [])) { destination in
+                pendingModuleDestination = destination
+                modulesPresented = false
+            }
+            .modifier(BloomBoxModulesSheetBackground())
+        }
         .alert("Compatibilidad · Nivel 3 (máximo)", isPresented: $showTweakLevel3Alert) {
             Button("Instalar corrección") {
                 storeFocusedApp = pendingAlertApp
@@ -705,7 +732,7 @@ struct LiveBoardHomeScreen: View {
         if let custom = assigned[key], !custom.isEmpty {
             return custom
         }
-        if key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey { return "Utilidades" }
+        if key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey || key == Self.modulesKey { return "Utilidades" }
         let hint = "\(title(key, appsByKey: appsByKey)) \(appsByKey[key]?.bundleIdentifier ?? "")".lowercased()
         func containsAny(_ words: [String]) -> Bool { words.contains { hint.contains($0) } }
         if containsAny(["youtube", "tiktok", "instagram", "whatsapp", "discord", "facebook",
@@ -952,6 +979,7 @@ struct LiveBoardHomeScreen: View {
         else if key == Self.installKey { openInstall() }
         else if key == Self.tweakStoreKey { storeFocusedApp = nil; tweakStorePresented = true }
         else if key == Self.appStoreKey { appStorePresented = true }
+        else if key == Self.modulesKey { modulesPresented = true }
         else if let app = appMap[key] { requestLaunch(app) }
     }
 
@@ -1114,6 +1142,8 @@ struct LiveBoardHomeScreen: View {
                 Image(systemName: "square.stack.fill")
                     .frame(width: size, height: size)
             }
+        } else if key == Self.modulesKey {
+            BloomBoxModulesIcon(size: size)
         } else if key == Self.appStoreKey {
             Image(systemName: "bag.fill")
                 .font(.system(size: size * 0.46, weight: .semibold))
@@ -1270,7 +1300,7 @@ struct LiveBoardHomeScreen: View {
         Group {
             if let folder = layout.folders.first(where: { $0.id == key }) {
                 folderIcon(folder, showLabel: showLabel)
-            } else if key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey {
+            } else if key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey || key == Self.modulesKey {
                 shortcutIcon(key, showLabel: showLabel)
             } else if let app = appMap[key] {
                 LiveBoardHomeIcon(app: app, title: title(key), size: largeIcons ? 76 : 64,
@@ -1307,27 +1337,33 @@ struct LiveBoardHomeScreen: View {
         let isSideStore = key == Self.sideStoreKey
         let isTweakStore = key == Self.tweakStoreKey
         let isAppStore = key == Self.appStoreKey
+        let isModules = key == Self.modulesKey
         return Button {
             guard !editing else { return }
             if isSideStore { openSideStore() }
             else if isTweakStore { tweakStorePresented = true }
             else if isAppStore { appStorePresented = true }
+            else if isModules { modulesPresented = true }
             else { openInstall() }
         } label: {
             VStack(spacing: 5) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
-                        .fill(isSideStore ? Color(red: 0.14, green: 0.26, blue: 0.69)
-                                           : isTweakStore ? Color(red: 0.48, green: 0.32, blue: 0.76)
-                                           : isAppStore ? Color(red: 0.20, green: 0.55, blue: 0.77)
-                                           : Color(red: 0.12, green: 0.58, blue: 0.76))
-                    if isSideStore, let icon = BuiltInSideStoreAppInfo.shared.iconIsDarkIcon(darkIcons) {
-                        Image(uiImage: icon).resizable().scaledToFill()
-                            .clipShape(RoundedRectangle(cornerRadius: size * 0.23, style: .continuous))
+                    if isModules {
+                        BloomBoxModulesIcon(size: size)
                     } else {
-                        Image(systemName: isSideStore ? "square.stack.3d.up.fill" : isTweakStore ? "puzzlepiece.extension.fill" : isAppStore ? "bag.fill" : "square.and.arrow.down.fill")
-                            .font(.system(size: size * 0.44, weight: .semibold))
-                            .foregroundStyle(.white)
+                        RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
+                            .fill(isSideStore ? Color(red: 0.14, green: 0.26, blue: 0.69)
+                                               : isTweakStore ? Color(red: 0.48, green: 0.32, blue: 0.76)
+                                               : isAppStore ? Color(red: 0.20, green: 0.55, blue: 0.77)
+                                               : Color(red: 0.12, green: 0.58, blue: 0.76))
+                        if isSideStore, let icon = BuiltInSideStoreAppInfo.shared.iconIsDarkIcon(darkIcons) {
+                            Image(uiImage: icon).resizable().scaledToFill()
+                                .clipShape(RoundedRectangle(cornerRadius: size * 0.23, style: .continuous))
+                        } else {
+                            Image(systemName: isSideStore ? "square.stack.3d.up.fill" : isTweakStore ? "puzzlepiece.extension.fill" : isAppStore ? "bag.fill" : "square.and.arrow.down.fill")
+                                .font(.system(size: size * 0.44, weight: .semibold))
+                                .foregroundStyle(.white)
+                        }
                     }
                 }
                 .frame(width: size, height: size)
@@ -1336,7 +1372,7 @@ struct LiveBoardHomeScreen: View {
                 .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
                          phase: isSideStore ? 0.7 : 2.1))
                 if showLabel {
-                    Text(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : "Instalar app")
+                    Text(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : isModules ? "Módulos" : "Instalar app")
                         .font(.system(size: 12))
                         .lineLimit(1)
                         .foregroundStyle(.white)
@@ -1840,6 +1876,21 @@ struct LiveBoardHomeScreen: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { customizing = false } } }
         }.navigationViewStyle(.stack)
     }
+    private func performModuleAction() {
+        guard let destination = pendingModuleDestination else { return }
+        pendingModuleDestination = nil
+        switch destination {
+        case .jit: jitSetup = true
+        case .desktop: desktopSettings = true
+        case .interface: openInterface()
+        case .wallpaper: customizing = true
+        case .apps: openManagement()
+        case .settings: openTab(.settings)
+        case .sidestore: openSideStore()
+        case .tweaks: storeFocusedApp = nil; tweakStorePresented = true
+        }
+    }
+
     private func performDesktopAction() {
         guard let action = desktopAction else { return }
         desktopAction = nil
@@ -1912,7 +1963,7 @@ struct LiveBoardHomeScreen: View {
         let hadSavedLayout = layout.initialized
         let knownKeys = Set(layout.pages.flatMap { $0.compactMap { $0 } }
             + layout.dock + layout.folders.flatMap { $0.apps } + layout.hidden)
-        let needsShortcuts = [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey]
+        let needsShortcuts = [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey]
             .filter { !knownKeys.contains($0) }
         // Only installed guest apps not seen before, never icons the user hid.
         let newGuestKeys = hadSavedLayout
@@ -1946,6 +1997,7 @@ struct LiveBoardHomeScreen: View {
         if key == Self.installKey { return "Instalar app" }
         if key == Self.tweakStoreKey { return "Tweak Store" }
         if key == Self.appStoreKey { return "App Store" }
+        if key == Self.modulesKey { return "Módulos" }
         if let folder = layout.folders.first(where: { $0.id == key }) { return folder.name }
         return (appsByKey ?? appMap)[key].map { appCustomization.name($0) } ?? "App"
     }
@@ -1961,12 +2013,474 @@ struct LiveBoardHomeScreen: View {
             guard let key = value as? String else { return }
             DispatchQueue.main.async {
                 guard appMap[key] != nil ||
-                      key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey ||
+                      key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey || key == Self.modulesKey ||
                       layout.folders.contains(where: { $0.id == key }) else { return }
                 apply(key)
             }
         }
         return true
+    }
+}
+
+
+private struct BloomBoxModulesIcon: View {
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [Color(red: 0.29, green: 0.48, blue: 1),
+                             Color(red: 0.27, green: 0.18, blue: 0.85),
+                             Color(red: 0.42, green: 0.23, blue: 0.91)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing))
+            Image(systemName: "square.stack.3d.up.fill")
+                .font(.system(size: size * 0.47, weight: .medium))
+                .foregroundStyle(.white)
+                .shadow(color: .white.opacity(0.38), radius: size * 0.08)
+        }
+        .frame(width: size, height: size)
+        .overlay {
+            RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
+                .strokeBorder(.white.opacity(0.32), lineWidth: 1.1)
+        }
+        .accessibilityLabel("Módulos de BloomBox")
+    }
+}
+
+private struct BloomBoxModulesPanel: View {
+    @AppStorage("BloomBoxRAMPlusExperimentalControls", store: LCUtils.appGroupUserDefault)
+    private var ramExperimentalControlsEnabled = false
+
+    enum Destination { case jit, desktop, interface, wallpaper, apps, settings, tweaks, sidestore }
+    enum Module: String, CaseIterable, Identifiable {
+        case ram, jit, desktop, connectivity, privacy, experimental
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .ram: return "RAM+"
+            case .jit: return "JIT"
+            case .desktop: return "Escritorio"
+            case .connectivity: return "Conectividad"
+            case .privacy: return "Privacidad"
+            case .experimental: return "Experimental"
+            }
+        }
+        var subtitle: String {
+            switch self {
+            case .ram: return "Memoria ampliada"
+            case .jit: return "Setup y proveedores"
+            case .desktop: return "Personalización"
+            case .connectivity: return "Internet y red"
+            case .privacy: return "Aislamiento y permisos"
+            case .experimental: return "Funciones avanzadas"
+            }
+        }
+        var symbol: String {
+            switch self {
+            case .ram: return "cpu"
+            case .jit: return "bolt.fill"
+            case .desktop: return "display"
+            case .connectivity: return "wifi"
+            case .privacy: return "shield.lefthalf.filled"
+            case .experimental: return "flask.fill"
+            }
+        }
+        var tint: Color {
+            switch self {
+            case .ram: return Color(red: 0.80, green: 0.48, blue: 1)
+            case .jit: return Color(red: 1, green: 0.73, blue: 0.43)
+            case .desktop: return Color(red: 0.31, green: 0.78, blue: 1)
+            case .connectivity: return Color(red: 0.35, green: 0.92, blue: 0.68)
+            case .privacy: return Color(red: 1, green: 0.48, blue: 0.75)
+            case .experimental: return Color(red: 0.72, green: 0.45, blue: 1)
+            }
+        }
+    }
+
+    let apps: [LCAppModel]
+    let onSelect: (Destination) -> Void
+    @Environment(\.dismiss) private var dismiss
+    private let columns = [GridItem(.flexible(), spacing: 12),
+                           GridItem(.flexible(), spacing: 12)]
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 23) {
+                    HStack(spacing: 16) {
+                        BloomBoxModulesIcon(size: 55)
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("Módulos")
+                                .font(.system(size: 31, weight: .bold, design: .rounded))
+                            Text("Funciones y herramientas de BloomBox")
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                    }
+                    .padding(.top, 16)
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(Module.allCases) { module in
+                            NavigationLink(destination: detail(for: module)) {
+                                tile(module)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("bloombox.modules.\(module.rawValue)")
+                        }
+                    }
+                    Text("RAM+ comprueba el permiso de la instalación actual y te guía para completar su activación.")
+                        .font(.footnote)
+                        .foregroundStyle(.white.opacity(0.66))
+                        .padding(.horizontal, 4)
+                }
+                .padding(18)
+            }
+            .background(moduleBackdrop)
+            .foregroundStyle(.white)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Listo") { dismiss() }.font(.system(size: 16, weight: .semibold))
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.dark)
+    }
+
+    private func tile(_ module: Module) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Image(systemName: module.symbol)
+                .font(.system(size: 25, weight: .semibold))
+                .foregroundStyle(module.tint)
+                .frame(width: 49, height: 49)
+                .background(module.tint.opacity(0.18),
+                            in: RoundedRectangle(cornerRadius: 14))
+            Spacer(minLength: 0)
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(module.title)
+                    .font(.system(size: 17, weight: .bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.80)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.65))
+            }
+            Text(module.subtitle)
+                .font(.system(size: 12))
+                .foregroundStyle(.white.opacity(0.72))
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 165)
+        .background(Color(red: 0.15, green: 0.16, blue: 0.23).opacity(0.88),
+                    in: RoundedRectangle(cornerRadius: 24))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24)
+                .strokeBorder(LinearGradient(colors: [module.tint.opacity(0.72), .white.opacity(0.13)],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing),
+                              lineWidth: 1)
+        }
+    }
+
+    @ViewBuilder private func detail(for module: Module) -> some View {
+        switch module {
+        case .ram:
+            ramDetail
+        case .jit:
+            LiveBoardJITSetup(embedded: true)
+        case .desktop:
+            desktopDetail
+        case .connectivity:
+            BloomBoxConnectivityModule(apps: apps)
+        case .privacy, .experimental:
+            moduleDetail(module)
+        }
+    }
+
+    private var moduleBackdrop: some View {
+        Color(red: 0.055, green: 0.065, blue: 0.13).opacity(0.87)
+            .ignoresSafeArea()
+    }
+
+    private var desktopDetail: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Label("Escritorio", systemImage: "display")
+                    .font(.title2.bold())
+                Text("Los accesos del menú Escritorio, ahora dentro de Módulos.")
+                    .font(.subheadline).foregroundStyle(.white.opacity(0.7))
+                Button { onSelect(.interface) } label: {
+                    moduleShortcut("Interface", subtitle: "iOS Home Screen", symbol: "square.grid.3x3.fill", color: .cyan)
+                }
+                Button { onSelect(.wallpaper) } label: {
+                    moduleShortcut("Wallpaper", subtitle: "Fotos, videos, GIF y fondo", symbol: "photo.fill", color: .pink)
+                }
+                Button { onSelect(.apps) } label: {
+                    moduleShortcut("Apps", subtitle: "Instalar y administrar apps", symbol: "square.stack.3d.up.fill", color: .purple)
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(22)
+        }
+        .background(moduleBackdrop)
+        .foregroundStyle(.white)
+        .navigationTitle("Escritorio")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func moduleShortcut(_ title: String, subtitle: String, symbol: String, color: Color) -> some View {
+        HStack(spacing: 16) {
+            Image(systemName: symbol)
+                .font(.system(size: 25, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 53, height: 53)
+                .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 15))
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title).font(.headline)
+                Text(subtitle).font(.footnote).foregroundStyle(.white.opacity(0.65))
+            }
+            Spacer(minLength: 4)
+            Image(systemName: "chevron.right")
+                .font(.caption.bold()).foregroundStyle(.white.opacity(0.55))
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(white: 0.18).opacity(0.9), in: RoundedRectangle(cornerRadius: 22))
+        .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(color.opacity(0.38)))
+    }
+
+    private var ramDetail: some View {
+        BloomBoxRAMPlusView { onSelect(.sidestore) }
+    }
+
+    private func moduleDetail(_ module: Module) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Label(module.title, systemImage: module.symbol)
+                .font(.title2.bold())
+                Text(detailDescription(module))
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            Button {
+                switch module {
+                case .jit: onSelect(.jit)
+                case .desktop: onSelect(.desktop)
+                case .connectivity, .privacy: onSelect(.apps)
+                case .experimental: onSelect(.settings)
+                case .ram: break
+                }
+            } label: {
+                Label(detailButton(module), systemImage: "arrow.up.right.square")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("bloombox.modules.\(module.rawValue).open")
+            if module == .experimental {
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("Experimentos · Funciones avanzadas", systemImage: "flask.fill")
+                        .font(.headline)
+                    Toggle("Habilitar botones RAM+ para pruebas", isOn: $ramExperimentalControlsEnabled)
+                        .tint(Color(red: 0.72, green: 0.45, blue: 1))
+                        .accessibilityIdentifier("bloombox.experiments.ramControls.toggle")
+                    Text("Permite volver a abrir los controles de reinstalación cuando RAM+ ya está activa. No desactiva RAM+, no solicita permisos a Apple ni reinstala nada al encender el interruptor.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    if ramExperimentalControlsEnabled {
+                        Text("La reinstalación real podría perder RAM+ si la nueva firma no conserva el permiso. Comprueba tu firma antes de instalar.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                        NavigationLink {
+                            BloomBoxRAMPlusView { onSelect(.sidestore) }
+                        } label: {
+                            Label("Abrir controles de RAM+", systemImage: "cpu")
+                        }
+                        .accessibilityIdentifier("bloombox.experiments.ramControls.open")
+                    }
+                }
+                Button("Abrir Tweak Store") { onSelect(.tweaks) }
+                    .buttonStyle(.bordered)
+            }
+            Spacer()
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(moduleBackdrop)
+        .navigationTitle(module.title)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func detailDescription(_ module: Module) -> String {
+        switch module {
+        case .jit: return "Accede a los proveedores JIT y a su configuración existente."
+        case .desktop: return "Abre los controles de escritorio: apariencia, widgets, páginas y personalización."
+        case .connectivity: return "El acceso a internet se configura por aplicación desde su administración. No se cambia la conectividad de todo el iPhone."
+        case .privacy: return "Revisa las opciones de aislamiento disponibles en cada aplicación instalada. Estas funciones no modifican permisos de iOS."
+        case .experimental: return "Consulta las herramientas y opciones avanzadas que ya están disponibles en BloomBox."
+        case .ram: return ""
+        }
+    }
+
+    private func detailButton(_ module: Module) -> String {
+        switch module {
+        case .jit: return "Configurar JIT"
+        case .desktop: return "Abrir controles del escritorio"
+        case .connectivity, .privacy: return "Administrar aplicaciones"
+        case .experimental: return "Abrir ajustes avanzados"
+        case .ram: return ""
+        }
+    }
+}
+
+
+private struct BloomBoxModulesSheetBackground: ViewModifier {
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(iOS 16.4, *) {
+            content.presentationBackground(.clear)
+        } else {
+            content
+        }
+    }
+}
+
+/// Uses the same app property as the established per-app Internet switch.
+/// Turning Internet on means networkBlocked=false; turning it off means true.
+private struct BloomBoxConnectivityModule: View {
+    let apps: [LCAppModel]
+    @State private var search = ""
+    @State private var notice: String?
+    @State private var changedCount = 0
+
+    private var availableApps: [LCAppModel] {
+        var seen = Set<String>()
+        return apps.filter { app in
+            !(app.appInfo is BuiltInSideStoreAppInfo) &&
+            seen.insert(liveBoardAppKey(app)).inserted
+        }.sorted {
+            $0.appInfo.displayName().localizedCaseInsensitiveCompare($1.appInfo.displayName()) == .orderedAscending
+        }
+    }
+
+    private var filteredApps: [LCAppModel] {
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return availableApps }
+        return availableApps.filter {
+            $0.appInfo.displayName().localizedCaseInsensitiveContains(query) ||
+            $0.bundleIdentifier.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 10) {
+                    Image(systemName: "wifi").foregroundStyle(.green)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Internet por aplicación").font(.title3.bold())
+                        Text("Encendido: tiene Internet · Apagado: bloqueado")
+                            .font(.footnote).foregroundStyle(.white.opacity(0.7))
+                    }
+                }
+                TextField("Buscar app", text: $search)
+                    .padding(12)
+                    .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("bloombox.modules.connectivity.search")
+
+                if let notice {
+                    Label(notice, systemImage: "checkmark.circle")
+                        .foregroundStyle(.green)
+                        .font(.footnote)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                }
+
+                if availableApps.isEmpty {
+                    Label("No hay aplicaciones invitadas instaladas.", systemImage: "square.stack")
+                        .foregroundStyle(.white.opacity(0.7))
+                        .padding(14)
+                } else if filteredApps.isEmpty {
+                    Text("No se encontraron aplicaciones.")
+                        .foregroundStyle(.secondary)
+                        .padding(14)
+                } else {
+                    ForEach(filteredApps, id: \.self) { app in
+                        BloomBoxConnectivityRow(app: app) { allowed in
+                            changedCount += 1
+                            notice = allowed
+                                ? "«\(app.appInfo.displayName())» volverá a tener Internet después de reiniciar BloomBox."
+                                : "«\(app.appInfo.displayName())» tendrá Internet bloqueado después de reiniciar BloomBox."
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        }
+                    }
+                }
+
+                if changedCount > 0 {
+                    Label("Hay cambios pendientes de aplicar: cierra BloomBox desde el selector de apps y vuelve a abrirlo.", systemImage: "arrow.clockwise")
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                }
+                Text("Este ajuste se aplica a las apps invitadas dentro de BloomBox, no a todo iOS. El filtro es experimental y algunas conexiones, incluidas las de iCloud, pueden continuar. Los cambios requieren cerrar y volver a abrir BloomBox.")
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.64))
+            }
+            .padding(20)
+        }
+        .background(Color(red: 0.055, green: 0.065, blue: 0.13).opacity(0.87).ignoresSafeArea())
+        .foregroundStyle(.white)
+        .navigationTitle("Conectividad")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct BloomBoxConnectivityRow: View {
+    @ObservedObject var app: LCAppModel
+    let onChange: (Bool) -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            LiveBoardIconImage(app: app, dark: false)
+                .frame(width: 47, height: 47)
+                .clipShape(RoundedRectangle(cornerRadius: 11))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(app.appInfo.displayName())
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                if app.isAppRunning {
+                    Text("Cierra la app para cambiar el acceso")
+                        .font(.caption2).foregroundStyle(.orange)
+                } else if app.isSigningInProgress {
+                    Text("Firma en curso")
+                        .font(.caption2).foregroundStyle(.orange)
+                } else {
+                    Label(app.uiNetworkBlocked ? "Internet bloqueado" : "Internet permitido",
+                          systemImage: app.uiNetworkBlocked ? "wifi.slash" : "wifi")
+                        .font(.caption2)
+                        .foregroundStyle(app.uiNetworkBlocked ? Color.orange : Color.green)
+                }
+            }
+            Spacer(minLength: 4)
+            Toggle("Internet de \(app.appInfo.displayName())", isOn: Binding(
+                get: { !app.uiNetworkBlocked },
+                set: { allowed in
+                    guard !app.isAppRunning && !app.isSigningInProgress else { return }
+                    app.uiNetworkBlocked = !allowed
+                    onChange(allowed)
+                }
+            ))
+            .labelsHidden()
+            .tint(.green)
+            .disabled(app.isAppRunning || app.isSigningInProgress)
+            .accessibilityIdentifier("bloombox.modules.connectivity.\(liveBoardAppKey(app))")
+        }
+        .padding(13)
+        .background(Color(white: 0.18).opacity(0.9), in: RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18)
+            .strokeBorder(app.uiNetworkBlocked ? Color.orange.opacity(0.35) : Color.white.opacity(0.12)))
     }
 }
 
@@ -2927,6 +3441,7 @@ private struct BloomBoxAppListing: Decodable, Identifiable {
     let bundleID: String?
     let appStoreID: Int?
     let appIconURL: String?
+    let aliases: [String]?
 
     private static func safeWebsite(_ value: String) -> URL? {
         guard value.count <= 2048, let url = URL(string: value),
@@ -2990,6 +3505,54 @@ private final class BloomBoxAppCatalog: ObservableObject {
     private static let syncKey = "BloomBoxAppStoreCatalogueLastSync-v1"
     private static let source = URL(string:
         "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/apps.json")!
+    private static let githubContents = URL(string:
+        "https://api.github.com/repos/adri23rep-stack/BloomBox/contents/catalog/apps.json?ref=store-catalog")!
+
+    private struct GitHubFile: Decodable {
+        let content: String
+        let encoding: String
+    }
+
+    /// Prefer GitHub's branch-aware Contents API; raw.githubusercontent.com is
+    /// an independent fallback for rate limits or temporary API outages.
+    private static func fetchCatalogue(at source: URL, githubAPI: Bool) async throws -> Data {
+        var components = URLComponents(url: source, resolvingAgainstBaseURL: false)!
+        var queryItems = components.queryItems ?? []
+        queryItems.append(URLQueryItem(
+            name: "_refresh", value: String(Int64(Date().timeIntervalSince1970 * 1000))
+        ))
+        components.queryItems = queryItems
+
+        var request = URLRequest(url: components.url ?? source)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("no-cache, no-store, max-age=0", forHTTPHeaderField: "Cache-Control")
+        request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+        request.setValue("BloomBox/1.2 (App Store catalogue)", forHTTPHeaderField: "User-Agent")
+        if githubAPI {
+            request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        }
+        request.timeoutInterval = 15
+
+        let config = URLSessionConfiguration.ephemeral
+        config.urlCache = nil
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        let session = URLSession(configuration: config)
+        defer { session.invalidateAndCancel() }
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse,
+              (200...299).contains(http.statusCode),
+              !data.isEmpty, data.count < 700_000 else {
+            throw "No se pudo descargar el catálogo remoto de apps."
+        }
+        guard githubAPI else { return data }
+        let file = try JSONDecoder().decode(GitHubFile.self, from: data)
+        guard file.encoding.lowercased() == "base64",
+              let decoded = Data(base64Encoded: file.content, options: .ignoreUnknownCharacters) else {
+            throw "La respuesta de GitHub no contiene un catálogo válido."
+        }
+        return decoded
+    }
 
     private init() {
         lastSync = UserDefaults.standard.object(forKey: Self.syncKey) as? Date
@@ -3006,19 +3569,17 @@ private final class BloomBoxAppCatalog: ObservableObject {
         if !force, let refreshedAt, Date().timeIntervalSince(refreshedAt) < 90 { return }
         refreshing = true
         defer { refreshing = false }
+
         do {
-            var components = URLComponents(url: Self.source, resolvingAgainstBaseURL: false)!
-            components.queryItems = [URLQueryItem(
-                name: "refresh", value: String(Int64(Date().timeIntervalSince1970 * 1000))
-            )]
-            var request = URLRequest(url: components.url ?? Self.source)
-            request.cachePolicy = .reloadIgnoringLocalCacheData
-            request.setValue("no-cache, max-age=0", forHTTPHeaderField: "Cache-Control")
-            request.timeoutInterval = 12
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse,
-                  (200...299).contains(http.statusCode),
-                  data.count < 300_000 else { throw "No se pudo descargar el catálogo de apps." }
+            let data: Data
+            do {
+                data = try await Self.fetchCatalogue(at: Self.githubContents, githubAPI: true)
+            } catch {
+                data = try await Self.fetchCatalogue(at: Self.source, githubAPI: false)
+            }
+            guard data.count < 300_000 else {
+                throw "La tienda recibió un catálogo demasiado grande."
+            }
             let decoded = try JSONDecoder().decode(BloomBoxAppCatalogResponse.self, from: data)
             guard decoded.schemaVersion == 1, decoded.apps.count <= 120,
                   decoded.apps.allSatisfy(\.isValid) else {
@@ -3032,9 +3593,9 @@ private final class BloomBoxAppCatalog: ObservableObject {
             UserDefaults.standard.set(now, forKey: Self.syncKey)
             lastError = nil
         } catch {
-            refreshedAt = Date()
+            // Keep the last verified catalogue. Do not throttle the next retry
+            // after a network failure; the user may have just reconnected.
             lastError = error.localizedDescription
-            // Failed network requests must not erase the last valid catalogue.
         }
     }
 }
@@ -3113,14 +3674,37 @@ private struct BloomBoxAppStore: View {
         }
     }
 
+    /// MeloCafé and MeloCafe (or apps renamed during sideloading) should
+    /// resolve to the same app without confusing unrelated bundle IDs.
+    private func normalizedAppName(_ value: String) -> String {
+        let folded = value.folding(
+            options: [.caseInsensitive, .diacriticInsensitive],
+            locale: Locale(identifier: "en_US_POSIX")
+        )
+        return folded.lowercased().filter { $0.isLetter || $0.isNumber }
+    }
+
     private func installed(_ listing: BloomBoxAppListing) -> Bool {
         let installedApps = apps + sharedModel.apps +
             (sharedModel.isHiddenAppUnlocked ? sharedModel.hiddenApps : [])
+        let expectedBundle = listing.bundleID?.lowercased()
+        let expectedNames = Set(([listing.name, listing.id] + (listing.aliases ?? []))
+            .map(normalizedAppName)
+            .filter { !$0.isEmpty })
+
         return installedApps.contains { guest in
-            if let id = listing.bundleID, id.caseInsensitiveCompare(guest.bundleIdentifier) == .orderedSame {
+            guard !(guest.appInfo is BuiltInSideStoreAppInfo) else { return false }
+            if let expectedBundle,
+               expectedBundle.caseInsensitiveCompare(guest.bundleIdentifier) == .orderedSame {
                 return true
             }
-            return listing.name.caseInsensitiveCompare(guest.displayName) == .orderedSame
+            let bundleTail = guest.bundleIdentifier.split(separator: ".").last.map(String.init) ?? ""
+            let installationName = URL(fileURLWithPath:
+                guest.appInfo.relativeBundlePath ?? ""
+            ).deletingPathExtension().lastPathComponent
+            return [guest.displayName, bundleTail, installationName].contains {
+                expectedNames.contains(normalizedAppName($0))
+            }
         }
     }
 
@@ -3170,6 +3754,16 @@ private struct BloomBoxAppStore: View {
                         Text("Ports").tag(2)
                     }.pickerStyle(.segmented)
 
+                    HStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("Buscar apps, autores, categorías", text: $query)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+
                     if visibleListings.isEmpty && !catalog.refreshing {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("No se encontraron aplicaciones").font(.headline)
@@ -3204,8 +3798,7 @@ private struct BloomBoxAppStore: View {
                     Button("Cerrar") { dismiss() }
                 }
             }
-            .searchable(text: $query, prompt: "Buscar apps, autores, categorías")
-            .task { await catalog.refreshIfNeeded() }
+            .task { await catalog.refreshIfNeeded(force: true) }
             .confirmationDialog("Instalar IPA en BloomBox",
                                 isPresented: $confirmInstall,
                                 titleVisibility: .visible) {

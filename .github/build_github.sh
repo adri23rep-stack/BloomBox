@@ -6,6 +6,10 @@ brew install ldid
 # move lc to working folder
 mv "$archive_path.xcarchive/Products/Applications" Payload
 
+if [ -n "${GITHUB_SHA:-}" ]; then
+  /usr/libexec/PlistBuddy -c "Add :BloomBoxBuildCommit string $GITHUB_SHA" ./Payload/LiveContainer.app/Info.plist
+fi
+
 # temporarily move sidestore support framrwork to tmp before zip
 mkdir tmp
 mv Payload/LiveContainer.app/Frameworks/SideStoreSupport.framework ./tmp

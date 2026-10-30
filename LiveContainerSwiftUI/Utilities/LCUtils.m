@@ -1,5 +1,6 @@
 @import Darwin;
 @import MachO;
+#import <os/proc.h>
 @import UIKit;
 @import UniformTypeIdentifiers;
 @import Security;
@@ -21,6 +22,22 @@
 @end
 
 @implementation LCUtils
++ (NSNumber *)bloomBoxMemoryEntitlement {
+    void *task = SecTaskCreateFromSelf(NULL);
+    if (!task) return nil;
+    CFErrorRef error = NULL;
+    CFTypeRef value = SecTaskCopyValueForEntitlement(task,
+        CFSTR("com.apple.developer.kernel.increased-memory-limit"), &error);
+    NSNumber *result = nil;
+    if (!error) result = @(value && CFGetTypeID(value) == CFBooleanGetTypeID() && CFEqual(value, kCFBooleanTrue));
+    if (value) CFRelease(value);
+    if (error) CFRelease(error);
+    CFRelease(task);
+    return result;
+}
++ (unsigned long long)bloomBoxAvailableMemory {
+    return os_proc_available_memory();
+}
 + (BOOL)strataCanDebug {
     void *task = SecTaskCreateFromSelf(NULL);
     if (!task) return NO;

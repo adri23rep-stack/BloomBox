@@ -26,6 +26,8 @@ uint32_t dyld_get_sdk_version(const struct mach_header* mh);
 
 @interface LCUtils : NSObject
 + (BOOL)strataCanDebug;
++ (NSNumber * _Nullable)bloomBoxMemoryEntitlement;
++ (unsigned long long)bloomBoxAvailableMemory;
 + (NSObject *)strataStartJITHelper:(NSDictionary *)payload error:(NSError **)error;
 + (void)strataStopJITHelper:(NSObject *)helper;
 

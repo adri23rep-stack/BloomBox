@@ -8,9 +8,51 @@ struct LiveBoardJITSetup: View {
     @ObservedObject private var pairing = ManzanaOnDevicePairing.shared
     @State private var importing = false
     @State private var hasPairing = FileManager.default.fileExists(atPath: LiveBoardBuiltInJIT.pairingURL.path)
+    let embedded: Bool
+
+    init(embedded: Bool = false) {
+        self.embedded = embedded
+    }
+
     var body: some View {
-        NavigationView {
-            Form {
+        Group {
+            if embedded {
+                if #available(iOS 16.0, *) {
+                    jitForm.scrollContentBackground(.hidden).navigationTitle("JIT")
+                } else {
+                    jitForm.navigationTitle("JIT")
+                }
+            } else {
+                NavigationView {
+                    jitForm
+                        .navigationTitle("JIT setup")
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { dismiss() }
+                            }
+                        }
+                }.navigationViewStyle(.stack)
+            }
+        }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.data]) { result in
+                    do {
+                        let url = try result.get()
+                        try LiveBoardBuiltInJIT.importPairing(url)
+                        hasPairing = true
+                        session.message = "Pairing file imported. Connect LocalDevVPN, then launch an app with JIT."
+                    } catch { session.message = error.localizedDescription }
+                }
+        .onChange(of: pairing.phase) { phase in
+                if case .paired = phase {
+                    hasPairing = true
+                    provider = JITEnablerType.BuiltIn.rawValue
+                    session.message = "Pairing saved. Keep LocalDevVPN connected, then tap Prepare device."
+                }
+            }
+    }
+
+    private var jitForm: some View {
+        Form {
                 Section("JIT method") {
                     Picker("Enable JIT using", selection: $provider) {
                         ForEach(JITEnablerType.allCases) { Text($0.displayName).tag($0.rawValue) }
@@ -91,24 +133,8 @@ struct LiveBoardJITSetup: View {
                 }
                 if provider != JITEnablerType.BuiltIn.rawValue && !session.message.isEmpty { Section { Text(session.message) } }
                 Section { NavigationLink("JIT-less setup and diagnostics") { LCJITLessDiagnoseView() } }
-            }.navigationTitle("JIT setup")
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-                .fileImporter(isPresented: $importing, allowedContentTypes: [.data]) { result in
-                    do {
-                        let url = try result.get()
-                        try LiveBoardBuiltInJIT.importPairing(url)
-                        hasPairing = true
-                        session.message = "Pairing file imported. Connect LocalDevVPN, then launch an app with JIT."
-                    } catch { session.message = error.localizedDescription }
-                }
-        }.navigationViewStyle(.stack)
-            .onChange(of: pairing.phase) { phase in
-                if case .paired = phase {
-                    hasPairing = true
-                    provider = JITEnablerType.BuiltIn.rawValue
-                    session.message = "Pairing saved. Keep LocalDevVPN connected, then tap Prepare device."
-                }
-            }
+        }
     }
+
     private func perform(_ operation: String) { session.start(operation) }
 }
