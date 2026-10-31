@@ -1200,11 +1200,13 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         
         do {
             let fileManager = FileManager.default
-            let destinationURL = fileManager.temporaryDirectory.appendingPathComponent(installUrl.lastPathComponent)
-            if fileManager.fileExists(atPath: destinationURL.path) {
-                try fileManager.removeItem(at: destinationURL)
-            }
-            
+            // Unique destination prevents simultaneous downloads with the same filename
+            // from overwriting one another. Always clean it up, including install errors,
+            // hash mismatches and user cancellation (which used to leave large IPAs).
+            let temporaryName = UUID().uuidString + "-" + installUrl.lastPathComponent
+            let destinationURL = fileManager.temporaryDirectory.appendingPathComponent(temporaryName)
+            defer { try? fileManager.removeItem(at: destinationURL) }
+
             try await downloadHelper.download(url: installUrl, to: destinationURL)
             if downloadHelper.cancelled {
                 return
@@ -1225,7 +1227,6 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 }
             }
             try await installIpaFile(destinationURL)
-            try fileManager.removeItem(at: destinationURL)
         } catch {
             errorInfo = error.localizedDescription
             errorShow = true
