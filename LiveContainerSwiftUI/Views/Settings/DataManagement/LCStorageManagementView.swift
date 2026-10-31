@@ -32,12 +32,12 @@ struct LCStorageManagementView: View {
                             }
                         }
                         if breakdown.temporaryEntries.count > 20 {
-                            Text("Mostrando los 20 elementos más grandes de \\(breakdown.temporaryEntries.count).")
+                            Text("Mostrando los 20 elementos más grandes de \(breakdown.temporaryEntries.count).")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    Text("Último análisis: \\(breakdown.scannedAt.formatted(date: .omitted, time: .standard)). Los temporales pueden desaparecer mientras usas la app. Actualiza para volver a medir.")
+                    Text("Último análisis: \(breakdown.scannedAt.formatted(date: .omitted, time: .standard)). Los temporales pueden desaparecer mientras usas la app. Actualiza para volver a medir.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else if model.isCalculating {
