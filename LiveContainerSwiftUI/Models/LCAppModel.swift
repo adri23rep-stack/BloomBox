@@ -255,16 +255,23 @@ class LCAppModel: ObservableObject, Hashable {
             bundleID: appInfo.bundleIdentifier(),
             version: guestBundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
         let defaults = LCUtils.appGroupUserDefault
-        let guestPolicy = BloomBoxJITGuestPolicy.mode(for: appInfo.relativeBundlePath, defaults: defaults)
+        // Built-in SideStore is not installed inside Documents/Applications and has
+        // no relativeBundlePath. Bridging that Objective-C IUO to a nonoptional
+        // String used to trigger a Swift nil-unwrapping trap on SideStore launch.
+        let bundledSideStore = appInfo is BuiltInSideStoreAppInfo
+        let guestAppKey = bundledSideStore ? "" : (appInfo.relativeBundlePath ?? "")
+        let guestPolicy = bundledSideStore
+            ? BloomBoxJITGuestPolicy.Mode.automatic
+            : BloomBoxJITGuestPolicy.mode(for: guestAppKey, defaults: defaults)
         if guestPolicy == .disabled && forceJIT == true {
             throw "El JIT está desactivado para esta app en Módulos > Experimental. Cambia la política de la app para usar Launch with JIT."
         }
         let builtInProvider = defaults.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue
         let wantsJIT = BloomBoxJITGuestPolicy.wantsJIT(
-            automatic: appInfo.isJITNeeded || appInfo.is32bit || melonProfile,
-            forced: forceJIT, mode: guestPolicy)
+            automatic: !bundledSideStore && (appInfo.isJITNeeded || appInfo.is32bit || melonProfile),
+            forced: bundledSideStore ? false : forceJIT, mode: guestPolicy)
         let experimentSelected = BloomBoxJITGuestPolicy.shouldTryMeloNXScript(
-            appKey: appInfo.relativeBundlePath,
+            appKey: guestAppKey,
             isMeloNX26: melonProfile,
             enabled: defaults.bool(forKey: BloomBoxMeloNXProfile.crossAppExperimentKey),
             defaults: defaults)
