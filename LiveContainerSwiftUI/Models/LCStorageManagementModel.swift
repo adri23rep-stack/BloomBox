@@ -28,6 +28,8 @@ struct LCStorageBreakdown {
     let appGroupSize: Int64
     let tweaksSize: Int64
     let otherSize: Int64
+    // Installed BloomBox bundle lives outside Documents; it must not be counted as app data.
+    let hostBundleSize: Int64
 
     let appItems: [LCAppStorageItem]
 }
@@ -108,6 +110,10 @@ final class LCStorageManagementModel: ObservableObject {
             }
         }
 
+        // Built-in SideStore stores its own Documents under BloomBox/Documents/SideStore.
+        // Count it once as a container instead of leaving it buried in Other.
+        sizesByCategory[.containers, default: 0] += sideStoreContainerSize
+
         try await withThrowingTaskGroup(of: (StorageCategory, Int64).self) { group in
 
             group.addTask(priority: .utility) {
@@ -134,6 +140,7 @@ final class LCStorageManagementModel: ObservableObject {
         let appGroupSize = sizesByCategory[.appGroup] ?? 0
         let tweaksSize = sizesByCategory[.tweaks] ?? 0
         let knownRootsSize = try await calculateCombinedSize(of: knownRoots)
+        let hostBundleSize = try await calculateSize(at: Bundle.main.bundleURL)
         var librarySize: Int64 = 0
         if let libraryPath = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first {
             librarySize = try await calculateSize(at: libraryPath)
@@ -150,6 +157,7 @@ final class LCStorageManagementModel: ObservableObject {
             appGroupSize: appGroupSize,
             tweaksSize: tweaksSize,
             otherSize: otherSize,
+            hostBundleSize: hostBundleSize,
             appItems: appItems
         )
     }
@@ -185,6 +193,18 @@ final class LCStorageManagementModel: ObservableObject {
             )
         }
 
+
+        // Unlike ordinary guests, SideStore's persistent data is in Documents/SideStore,
+        // not in an LCContainer. Show the actual data instead of an empty row.
+        if input.appInfo is BuiltInSideStoreAppInfo {
+            let sideStoreURL = LCPath.docPath.appendingPathComponent("SideStore", isDirectory: true)
+            let sideStoreBytes = try await calculateSize(at: sideStoreURL)
+            containersSize += sideStoreBytes
+            containerDetails.append(LCAppStorageContainerItem(
+                id: UUID(), name: "Datos de SideStore", size: sideStoreBytes,
+                isExternalContainer: false
+            ))
+        }
 
         let bundleSize: Int64?
         if let bundlePath = input.appInfo.bundlePath() {
