@@ -123,14 +123,17 @@ final class BloomBoxRAMPlus: ObservableObject {
         value["message"] = message
         value["date"] = Date()
         if let path { value["path"] = path.path }
+        else if ["checking", "review", "chooseIPA", "failed"].contains(stage) {
+            value.removeValue(forKey: "path")
+        }
         defaults.set(value, forKey: reinstallKey)
         reinstallStage = stage
         reinstallMessage = message
-        if let path { preparedIPA = path }
+        preparedIPA = (value["path"] as? String).map { URL(fileURLWithPath: $0) }
     }
 
 
-    private func prepareIPA(_ source: URL, digest: String?, commit: String?) throws -> URL {
+    private func prepareIPA(_ source: URL, digest: String?, expectedCommit: String?) throws -> URL {
         let fm = FileManager.default
         let dir = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("BloomBoxRAMPlus", isDirectory: true)
@@ -157,18 +160,18 @@ final class BloomBoxRAMPlus: ObservableObject {
             throw NSError(domain: "BloomBoxRAM", code: 2, userInfo: [NSLocalizedDescriptionKey: "No se pudo verificar la estructura de la IPA."])
         }
         let installedID = Bundle.main.bundleIdentifier ?? ""
-        let installedVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-        let installedBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
         let installedExtensions = Set((try? fm.contentsOfDirectory(atPath: Bundle.main.builtInPlugInsURL?.path ?? "")) ?? [])
         let ipaExtensions = Set(ipa["extensions"] as? [String] ?? [])
-        let installedGroups = Set(Bundle.main.infoDictionary?["ALTAppGroups"] as? [String] ?? [])
-        let ipaGroups = Set(ipa["groups"] as? [String] ?? [])
-        guard (installedID == bundle || installedID.hasPrefix(bundle + ".")),
-              version == installedVersion && build == installedBuild,
-              !installedExtensions.isEmpty && installedExtensions == ipaExtensions,
-              installedGroups == ipaGroups,
-              commit == nil || ipa["commit"] as? String == commit else {
-            throw NSError(domain: "BloomBoxRAM", code: 3, userInfo: [NSLocalizedDescriptionKey: "La IPA no coincide con la identidad, versión, build, extensiones, App Groups o commit actual. No se instalará."])
+        // The published release may have a different version/build/commit.
+        // The app's internal version is inherited from LiveContainer (3.8.10)
+        // and does NOT match BloomBox's public tag (v1.3.0).
+        // SideStore reassigns Apple App Groups during signing; exact equality
+        // with the *unsigned* IPA is not meaningful and previously blocked updates.
+        guard BloomBoxRAMRelease.compatibleIdentity(installed: installedID, sourceBundle: bundle),
+              !version.isEmpty, !build.isEmpty,
+              BloomBoxRAMRelease.preservesExtensions(installed: installedExtensions, candidate: ipaExtensions),
+              expectedCommit == nil || ipa["commit"] as? String == expectedCommit else {
+            throw NSError(domain: "BloomBoxRAM", code: 3, userInfo: [NSLocalizedDescriptionKey: "La IPA no conserva la identidad o las extensiones instaladas, o su commit no coincide con la release. No se instalará."])
         }
         let destination = dir.appendingPathComponent("BloomBox-validada.ipa")
         if fm.fileExists(atPath: destination.path) { try fm.removeItem(at: destination) }
@@ -182,69 +185,66 @@ final class BloomBoxRAMPlus: ObservableObject {
     }
 
 
-    /// Also allows an explicitly enabled RAM+ experimental reinstall without repeating Apple's approval.
-    /// It still only accepts the exact installed version and does not change RAM+ entitlements.
-    func resumeAfterAppleApproval() async {
+    /// Uses the newest PUBLIC stable BloomBox release, never an Actions artifact
+    /// or a release selected using upstream LiveContainer's internal version.
+    /// A different commit needs an explicit second confirmation before downloading.
+    func resumeAfterAppleApproval(confirmDifferentBuild: Bool = false) async {
         let testing = validation.confirmed && experimentalReinstall
         guard !reinstallBusy, (!validation.confirmed || testing), (requested || testing),
               (activationStatus == "approved" || testing),
-              (reinstallStage.isEmpty || reinstallStage == "approved") else { return }
+              (reinstallStage.isEmpty || ["approved", "review", "chooseIPA"].contains(reinstallStage)) else { return }
         reinstallBusy = true
         defer { reinstallBusy = false }
-        saveReinstall("checking", "Comprobando origen y versión de la IPA…")
+        saveReinstall("checking", "Buscando la release estable más reciente de BloomBox…")
         do {
-            guard let commit = Bundle.main.object(forInfoDictionaryKey: "BloomBoxBuildCommit") as? String,
-                  commit.count == 40 else {
-                saveReinstall("chooseIPA", "Esta edición experimental no identifica su compilación exacta. Selecciona su IPA original; no se instalará otra versión.")
-                return
-            }
-            let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-            let endpoint = URL(string: "https://api.github.com/repos/adri23rep-stack/BloomBox/releases?per_page=30")!
-            var req = URLRequest(url: endpoint)
+            var req = URLRequest(url: BloomBoxRAMRelease.latestAPI)
             req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
             req.timeoutInterval = 25
             let (body, response) = try await URLSession.shared.data(for: req)
-            guard (response as? HTTPURLResponse)?.statusCode == 200,
-                  let releases = try JSONSerialization.jsonObject(with: body) as? [[String: Any]] else {
-                throw NSError(domain: "BloomBoxRAM", code: 5, userInfo: [NSLocalizedDescriptionKey: "GitHub no respondió con una lista válida de IPAs."])
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+                throw NSError(domain: "BloomBoxRAM", code: 5, userInfo: [NSLocalizedDescriptionKey: "No se pudo consultar la última release oficial de GitHub. Revisa Internet y reintenta."])
             }
-            let assets = releases.filter {
-                ($0["draft"] as? Bool) == false && ($0["tag_name"] as? String) == "v" + version
-            }.flatMap { $0["assets"] as? [[String: Any]] ?? [] }.filter {
-                ($0["name"] as? String) == "BloomBox-SideStore-unsigned.ipa"
-            }
-            guard assets.count == 1, let asset = assets.first,
-                  let sha = asset["digest"] as? String, sha.hasPrefix("sha256:"), sha.count == 71,
-                  let location = asset["browser_download_url"] as? String,
-                  let url = URL(string: location), url.scheme == "https",
-                  url.host == "github.com",
-                  url.path.hasPrefix("/adri23rep-stack/BloomBox/releases/download/"),
-                  let size = asset["size"] as? Int, size > 0, size < 1024 * 1024 * 1024 else {
-                saveReinstall("chooseIPA", "No se encontró una IPA pública oficial con versión y SHA-256 verificables. Elige tu IPA original o actualiza por separado.")
+            let asset = try BloomBoxRAMRelease.select(json: body)
+            let installedCommit = Bundle.main.object(forInfoDictionaryKey: "BloomBoxBuildCommit") as? String ?? ""
+            // Comparing to the release commit is only informational here:
+            // downloaded IPA contents are independently checked against GitHub's SHA.
+            let releaseCommit = asset.commitish ?? ""
+            if !confirmDifferentBuild && (releaseCommit.isEmpty || installedCommit != releaseCommit) {
+                saveReinstall("review", "Última versión oficial: \(asset.tag). Tu instalación tiene otra compilación (posiblemente JIT experimental). Instalar esta release podría reemplazar funciones experimentales. Revisa y confirma si quieres continuar.")
                 return
             }
-            saveReinstall("downloading", "Descargando la misma versión y variante desde GitHub…")
-            let (download, result) = try await URLSession.shared.download(from: url)
+            saveReinstall("downloading", "Descargando BloomBox \(asset.tag) desde GitHub…")
+            let (download, result) = try await URLSession.shared.download(from: asset.url)
             guard (result as? HTTPURLResponse)?.statusCode == 200 else {
-                throw NSError(domain: "BloomBoxRAM", code: 6, userInfo: [NSLocalizedDescriptionKey: "No se pudo descargar la IPA exacta de GitHub."])
+                throw NSError(domain: "BloomBoxRAM", code: 6, userInfo: [NSLocalizedDescriptionKey: "No se pudo descargar la última IPA desde GitHub."])
             }
-            saveReinstall("preparing", "Revisando estructura e integridad de la IPA…")
-            let local = try prepareIPA(download, digest: String(sha.dropFirst(7)), commit: commit)
-            saveReinstall("preparing", "IPA exacta validada. Preparando SideStore…", path: local)
-            // Official SideStore URI, forwarded by LCTabView / LCAppListView
-            // to the bundled SideStore. The OS may terminate the host.
+            let fileSize = (try FileManager.default.attributesOfItem(atPath: download.path)[.size] as? NSNumber)?.int64Value ?? -1
+            guard fileSize == asset.size else {
+                throw NSError(domain: "BloomBoxRAM", code: 6, userInfo: [NSLocalizedDescriptionKey: "El tamaño descargado no coincide con la release oficial. No se instalará."])
+            }
+            saveReinstall("preparing", "Verificando SHA-256, identidad y extensiones de BloomBox \(asset.tag)…")
+            let expectedCommit = releaseCommit.count == 40 &&
+                releaseCommit.utf8.allSatisfy({ (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0) })
+                ? releaseCommit : nil
+            let local = try prepareIPA(download, digest: asset.digest, expectedCommit: expectedCommit)
+            var saved = defaults.dictionary(forKey: reinstallKey) ?? [:]
+            saved["releaseTag"] = asset.tag
+            defaults.set(saved, forKey: reinstallKey)
+            saveReinstall("preparing", "BloomBox \(asset.tag) validada. Preparando la actualización con SideStore…", path: local)
+            // SideStore's documented remote URL scheme will fetch the official asset
+            // again. Its final signed entitlement is always checked after install.
             var link = URLComponents()
             link.scheme = "sidestore"
             link.host = "install"
-            link.queryItems = [URLQueryItem(name: "url", value: url.absoluteString)]
+            link.queryItems = [URLQueryItem(name: "url", value: asset.url.absoluteString)]
             guard let deeplink = link.url else {
                 throw NSError(domain: "BloomBoxRAM", code: 7, userInfo: [NSLocalizedDescriptionKey: "No se pudo preparar el enlace de SideStore."])
             }
-            saveReinstall("installing", "SideStore está recibiendo la IPA para firmar e instalar encima. Confirma cualquier aviso de iOS y conserva las extensiones.")
+            saveReinstall("installing", "SideStore instalará BloomBox \(asset.tag) encima de esta app. Conserva extensiones y datos. RAM+ se comprobará después de firmar.")
             UIApplication.shared.open(deeplink, options: [:]) { opened in
                 if !opened {
                     Task { @MainActor in
-                        self.saveReinstall("failed", "SideStore no pudo abrir la instalación. Comparte la IPA guardada o reintenta.")
+                        self.saveReinstall("failed", "SideStore no pudo abrir la instalación. Comparte la IPA validada o reintenta.")
                     }
                 }
             }
@@ -265,7 +265,7 @@ final class BloomBoxRAMPlus: ObservableObject {
                 throw NSError(domain: "BloomBoxRAM", code: 4, userInfo: [NSLocalizedDescriptionKey: "Elige un archivo .ipa."])
             }
             saveReinstall("checking", "Comprobando la IPA seleccionada…")
-            let checked = try prepareIPA(source, digest: nil, commit: nil)
+            let checked = try prepareIPA(source, digest: nil, expectedCommit: nil)
             saveReinstall("manualReady", "IPA compatible. El origen del archivo no está autenticado: compártelo con SideStore, instala encima sin borrar la app y conserva las extensiones.", path: checked)
         } catch { saveReinstall("chooseIPA", error.localizedDescription) }
     }
@@ -273,7 +273,7 @@ final class BloomBoxRAMPlus: ObservableObject {
     func retryReinstall() {
         let testing = validation.confirmed && experimentalReinstall
         guard !reinstallBusy, (activationStatus == "approved" && !validation.confirmed) || testing else { return }
-        saveReinstall("approved", "Buscando de nuevo la IPA de esta compilación.")
+        saveReinstall("approved", "Buscando de nuevo la última release estable de BloomBox.")
     }
 
     /// Reopens the existing reinstall controls only. No Apple request, signing,
@@ -283,7 +283,7 @@ final class BloomBoxRAMPlus: ObservableObject {
         var state = defaults.dictionary(forKey: reinstallKey) ?? [:]
         state["experimental"] = true
         defaults.set(state, forKey: reinstallKey)
-        saveReinstall("approved", "Prueba experimental: RAM+ ya está activa. Se verificará la misma IPA sin repetir la solicitud a Apple.")
+        saveReinstall("approved", "Prueba experimental: RAM+ ya está activa. Se comprobará la última release estable, sin repetir la solicitud a Apple.")
     }
 
     private static func signature(_ path: String?) -> [String: Any]? {
