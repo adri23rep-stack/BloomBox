@@ -53,7 +53,7 @@ precondition(rejects(Data("not-json".utf8)))
 
 precondition(BloomBoxRAMRelease.compatibleIdentity(installed: "com.kdt.livecontainer", sourceBundle: "com.kdt.livecontainer"))
 precondition(BloomBoxRAMRelease.compatibleIdentity(installed: "com.kdt.livecontainer.T449", sourceBundle: "com.kdt.livecontainer"))
-precondition(!BloomBoxRAMRelease.compatibleIdentity(installed: "com.kdt.livecontainer.fake", sourceBundle: "com.kdt"))
+precondition(!BloomBoxRAMRelease.compatibleIdentity(installed: "com.kdt.livecontainer.fake", sourceBundle: "com.kdt.livecontainerX"))
 precondition(!BloomBoxRAMRelease.compatibleIdentity(installed: "com.evil", sourceBundle: "com.kdt.livecontainer"))
 
 let core: Set<String> = ["LiveProcess.appex", "LiveWidgetExtension.appex"]
