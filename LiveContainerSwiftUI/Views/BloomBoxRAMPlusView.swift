@@ -123,7 +123,7 @@ final class BloomBoxRAMPlus: ObservableObject {
         value["message"] = message
         value["date"] = Date()
         if let path { value["path"] = path.path }
-        else if ["checking", "review", "chooseIPA", "failed"].contains(stage) {
+        else if ["checking", "review", "chooseIPA"].contains(stage) {
             value.removeValue(forKey: "path")
         }
         defaults.set(value, forKey: reinstallKey)
