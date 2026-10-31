@@ -345,7 +345,7 @@ struct BloomBoxRAMPlusView: View {
                                 .font(.footnote).foregroundStyle(.secondary)
                         }
                         if ram.activationStatus == "approved" && !ram.validation.confirmed {
-                            Text("Apple aprobó el App ID, pero aún falta firmar e instalar exactamente la misma IPA. No se actualizará a otra versión.")
+                            Text("Apple aprobó RAM+, pero falta firmar e instalar BloomBox con el permiso. Se buscará la release oficial más reciente. Si usas una compilación experimental, confirma antes de reemplazarla.")
                                 .font(.footnote).foregroundStyle(.orange)
                         }
                         if !ram.reinstallStage.isEmpty {
@@ -357,8 +357,9 @@ struct BloomBoxRAMPlusView: View {
                                 "preparing": "Preparando instalación",
                                 "installing": "Instalando",
                                 "verifying": "Verificando",
-                                "chooseIPA": "Falta la IPA original",
+                                "chooseIPA": "IPA oficial no disponible",
                                 "manualReady": "Preparada para SideStore",
+                                "review": "Confirma el cambio de versión",
                                 "failed": "Reintento disponible",
                                 "confirmed": "Verificada"
                             ][ram.reinstallStage] ?? ram.reinstallStage))
@@ -366,13 +367,13 @@ struct BloomBoxRAMPlusView: View {
                         }
                         if ram.reinstallBusy { ProgressView("Preparando reinstalación…") }
                         if ram.activationStatus == "approved" && !ram.validation.confirmed {
-                            if !ram.reinstallBusy && (ram.reinstallStage.isEmpty || ram.reinstallStage == "approved" || ram.reinstallStage == "failed" || ram.reinstallStage == "verifying") {
-                                Button("Reanudar instalación") {
+                            if !ram.reinstallBusy && (ram.reinstallStage.isEmpty || ["approved", "failed", "verifying", "chooseIPA"].contains(ram.reinstallStage)) {
+                                Button("Buscar última release e instalar") {
                                     ram.retryReinstall()
                                     Task { await ram.resumeAfterAppleApproval() }
                                 }.buttonStyle(.borderedProminent)
                             }
-                            Button("Elegir IPA original") { chooseOriginalIPA = true }
+                            Button("Elegir IPA manualmente") { chooseOriginalIPA = true }
                             if #available(iOS 16.0, *), let file = ram.preparedIPA {
                                 ShareLink(item: file) {
                                     Label("Compartir IPA con SideStore", systemImage: "square.and.arrow.up")
@@ -382,20 +383,30 @@ struct BloomBoxRAMPlusView: View {
                                 .font(.footnote).foregroundStyle(.secondary)
                             Button("Abrir SideStore", action: openSideStore)
                         }
+                        if ram.reinstallStage == "review" && !ram.reinstallBusy {
+                            Button("Confirmar actualización a la última release") {
+                                Task { await ram.resumeAfterAppleApproval(confirmDifferentBuild: true) }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.orange)
+                            .accessibilityIdentifier("bloombox.ram.confirmLatestRelease")
+                            Text("Advertencia: la última release pública puede reemplazar funciones de compilaciones experimentales, incluido JIT. No se borrarán los datos intencionalmente, pero haz un respaldo antes de actualizar.")
+                                .font(.footnote).foregroundStyle(.orange)
+                        }
                         if ram.validation.confirmed && experimentalControlsEnabled {
                             Divider()
                             Label("Controles RAM+ habilitados para pruebas", systemImage: "flask.fill")
                                 .font(.subheadline.bold())
-                            Text("RAM+ ya está activa. Los siguientes botones permiten volver a probar la preparación e instalación de la misma edición SIN volver a pedir el permiso a Apple. Reinstalar puede modificar la firma y perder RAM+ si SideStore no la conserva.")
+                            Text("RAM+ ya está activa. Estos controles prueban la descarga de la última release estable SIN volver a solicitar el permiso a Apple. Reinstalar puede reemplazar JIT experimental o perder RAM+ si SideStore no conserva el permiso.")
                                 .font(.footnote).foregroundStyle(.orange)
-                            Button("Reintentar reinstalación de RAM+ (experimental)") {
+                            Button("Probar actualización RAM+ (experimental)") {
                                 ram.startExperimentalReinstall()
                                 Task { await ram.resumeAfterAppleApproval() }
                             }
                             .buttonStyle(.borderedProminent)
                             .disabled(ram.reinstallBusy)
                             .accessibilityIdentifier("bloombox.experiments.ramRetryInstall")
-                            Button("Elegir IPA original") {
+                            Button("Elegir IPA manualmente") {
                                 ram.startExperimentalReinstall()
                                 chooseOriginalIPA = true
                             }
@@ -451,12 +462,11 @@ struct BloomBoxRAMPlusView: View {
         .onAppear {
             ram.refresh()
             showWarning = ram.needsAttention
-            Task { await ram.resumeAfterAppleApproval() }
+            // Never silently replace a working experimental build on view appear.
         }
         .onChange(of: scenePhase) {
             if $0 == .active {
                 ram.refresh()
-                Task { await ram.resumeAfterAppleApproval() }
             }
         }
         .onReceive(statusTimer) { _ in if scenePhase == .active && ram.activationPending { ram.refresh() } }
