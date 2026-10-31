@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/ramplus-latest-release-installer
       - migration/import-full-source
       - feature/modules-liquidglass-ram-placeholder
   pull_request:
@@ -48,6 +49,10 @@ jobs:
         run: |
           swiftc SideStoreSupport/BloomBoxRAMPortal.swift Tests/ram-portal/main.swift -o "$RUNNER_TEMP/ram-portal-tests"
           "$RUNNER_TEMP/ram-portal-tests"
+      - name: Test latest BloomBox release discovery and installer safety
+        run: |
+          swiftc LiveContainerSwiftUI/Utilities/BloomBoxRAMRelease.swift Tests/ram-release/main.swift -o "$RUNNER_TEMP/ram-release-tests"
+          "$RUNNER_TEMP/ram-release-tests"
       - name: Restore pinned StikJIT and runtime dependencies
         run: python3 Scripts/fetch-bundled-dependencies.py
       - name: Install Rust toolchain for on-device pairing
