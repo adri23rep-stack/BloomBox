@@ -38,19 +38,57 @@ enum LiveBoardBuiltInJIT {
         busy = true
         defer { busy = false }
         guard #available(iOS 17.4, *) else { report("Built-in JIT requires iOS 17.4 or later."); return false }
-        guard LCUtils.strataCanDebug() else { report("This installation lacks debugging permission (get-task-allow). Re-sign using a compatible signing method."); return false }
+        guard operation == "enable" || LCUtils.strataCanDebug() else { report("This installation lacks debugging permission (get-task-allow). Re-sign using a compatible signing method."); return false }
         guard let data = try? Data(contentsOf: pairingURL) else { report("Import your pairing file in JIT setup first."); return false }
         do { try StrataPairingRecord.validate(data) } catch { report(error.localizedDescription); return false }
         guard let group = LCSharedUtils.appGroupID(), let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) else { report("The shared app container is unavailable."); return false }
+        if operation == "enable" {
+            let file = root.appendingPathComponent("Library/StrataJIT/Targets/\(pid).json")
+            report("Checking the running LiveProcess signature (PID \(pid))…")
+            var target: [String: Any]?
+            for _ in 0..<50 {
+                if Task.isCancelled { report("JIT cancelled."); return false }
+                if let bytes = try? Data(contentsOf: file),
+                   let value = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
+                   value["pid"] as? Int32 == pid,
+                   let timestamp = value["timestamp"] as? Double,
+                   (0...60).contains(Date().timeIntervalSince1970 - timestamp) {
+                    target = value
+                    try? FileManager.default.removeItem(at: file)
+                    break
+                }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            guard let target else {
+                report("LiveProcess did not report its signature. Keep all extensions when reinstalling; close the guest and try again.")
+                return false
+            }
+            guard target["debug"] as? Bool == true else {
+                report("LiveProcess lacks confirmed get-task-allow. SideStore must preserve the extension's debugging permission. No debugger connection was attempted.")
+                return false
+            }
+            let ram = (target["ram"] as? Bool).map { $0 ? "active" : "missing" } ?? "unknown"
+            report("LiveProcess: debugging permitted; RAM+ \(ram).")
+        }
         let token = UUID().uuidString
         let status = root.appendingPathComponent("Library/StrataJIT/\(token).json")
+        let manualPortText = (LCUtils.appGroupUserDefault.string(forKey: "BloomBoxJITRemotePort") ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let manualPort = manualPortText.isEmpty ? nil : UInt16(manualPortText)
+        if !manualPortText.isEmpty && (manualPort == nil || manualPort == 0) {
+            report("Invalid remote pairing port. Enter 1–65535 or leave the field empty for auto discovery.")
+            return false
+        }
+        var helperInput: [String: Any] = ["strataJIT": true, "group": group, "operation": operation,
+                                          "token": token, "pid": pid, "pairing": data, "script": script ?? ""]
+        if let manualPort { helperInput["remotePort"] = Int(manualPort) }
         var helper: NSObject?
         defer {
             if let helper { LCUtils.strataStopJITHelper(helper) }
             try? FileManager.default.removeItem(at: status)
         }
         do {
-            helper = try LCUtils.strataStartJITHelper(["strataJIT": true, "group": group, "operation": operation, "token": token, "pid": pid, "pairing": data, "script": script ?? ""])
+            helper = try LCUtils.strataStartJITHelper(helperInput)
             guard helper != nil else { report("JIT helper unavailable. Reinstall keeping app extensions."); return false }
             report("Preparing device. Keep LocalDevVPN connected and Developer Mode enabled.")
             var lastMessage = ""

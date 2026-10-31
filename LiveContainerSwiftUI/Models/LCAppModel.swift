@@ -3,10 +3,19 @@ import Foundation
 protocol LCAppModelDelegate {
     func closeNavigationView()
     func changeAppVisibility(app : LCAppModel)
+    @MainActor func didFailToLaunchSideStore(_ message: String)
+    @MainActor func approveEmulatorLaunch(app: LCAppModel, forceJIT: Bool?) async -> Bool
     func jitLaunch(appName: String, classicMode: UInt) async
     func jitLaunch(withScript script: String, appName: String, classicMode: UInt) async
     func jitLaunch(withPID pid: Int, withScript script: String?, appName: String) async
     func showRunWhenMultitaskAlert() async -> Bool?
+}
+
+extension LCAppModelDelegate {
+    @MainActor func approveEmulatorLaunch(app: LCAppModel, forceJIT: Bool?) async -> Bool { true }
+    @MainActor func didFailToLaunchSideStore(_ message: String) {
+        NSLog("[BloomBox] SideStore launch failed: %@", message)
+    }
 }
 
 class LCAppModel: ObservableObject, Hashable {
@@ -224,6 +233,8 @@ class LCAppModel: ObservableObject, Hashable {
         if isAppRunning {
             return
         }
+        // Applies to normal launches, library launches, and deep links.
+        if await delegate?.approveEmulatorLaunch(app: self, forceJIT: forceJIT) == false { return }
         
         if uiContainers.isEmpty {
             let newName = NSUUID().uuidString
@@ -242,8 +253,41 @@ class LCAppModel: ObservableObject, Hashable {
         }
         let currentDataFolder = containerFolderName ?? uiSelectedContainer?.folderName
         
+        // The profile is selected from the installed guest, never its display name.
+        let guestBundle = Bundle(path: appInfo.bundlePath())
+        let melonProfile = BloomBoxMeloNXProfile.matches(
+            bundleID: appInfo.bundleIdentifier(),
+            version: guestBundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+        let defaults = LCUtils.appGroupUserDefault
+        // Built-in SideStore is not installed inside Documents/Applications and has
+        // no relativeBundlePath. Bridging that Objective-C IUO to a nonoptional
+        // String used to trigger a Swift nil-unwrapping trap on SideStore launch.
+        let bundledSideStore = appInfo is BuiltInSideStoreAppInfo
+        let guestAppKey = bundledSideStore ? "" : (appInfo.relativeBundlePath ?? "")
+        let guestPolicy = bundledSideStore
+            ? BloomBoxJITGuestPolicy.Mode.automatic
+            : BloomBoxJITGuestPolicy.mode(for: guestAppKey, defaults: defaults)
+        if guestPolicy == .disabled && forceJIT == true {
+            throw "El JIT está desactivado para esta app en Módulos > Experimental. Cambia la política de la app para usar Launch with JIT."
+        }
+        let builtInProvider = defaults.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue
+        let wantsJIT = BloomBoxJITGuestPolicy.wantsJIT(
+            automatic: !bundledSideStore && (appInfo.isJITNeeded || appInfo.is32bit || melonProfile),
+            forced: bundledSideStore ? false : forceJIT, mode: guestPolicy)
+        let experimentSelected = BloomBoxJITGuestPolicy.shouldTryMeloNXScript(
+            appKey: guestAppKey,
+            isMeloNX26: melonProfile,
+            enabled: defaults.bool(forKey: BloomBoxMeloNXProfile.crossAppExperimentKey),
+            defaults: defaults)
+        let launchScript = BloomBoxMeloNXProfile.scriptForLaunch(
+            custom: jitLaunchScriptJs,
+            isMeloNX26: melonProfile,
+            isBuiltInProvider: builtInProvider,
+            jitRequested: wantsJIT,
+            crossAppExperiment: experimentSelected,
+            universalScript: builtInProvider && wantsJIT ? LCUtils.base64EncodedUniversalJITScript() : nil)
         let classicMode = appInfo.defaultClassicMode
-        let builtInJIT = LCUtils.appGroupUserDefault.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue && (forceJIT ?? (appInfo.isJITNeeded || appInfo.is32bit))
+        let builtInJIT = builtInProvider && wantsJIT
         if builtInJIT && classicMode != 0 {
             throw "Built-in JIT requires normal compatibility mode. Turn off Classic Mode for this app, then retry."
         }
@@ -349,10 +393,7 @@ class LCAppModel: ObservableObject, Hashable {
         }
         UserDefaults.standard.set(uiSelectedContainer?.folderName, forKey: "selectedContainer")
         
-        var jitNeeded = appInfo.isJITNeeded || appInfo.is32bit
-        if let forceJIT {
-            jitNeeded = forceJIT
-        }
+        var jitNeeded = wantsJIT
 #if targetEnvironment(simulator)
         jitNeeded = false
 #endif
@@ -369,7 +410,7 @@ class LCAppModel: ObservableObject, Hashable {
                             return
                         }
                         Task {
-                            if let scriptData = self.jitLaunchScriptJs, !scriptData.isEmpty {
+                            if let scriptData = launchScript, !scriptData.isEmpty {
                                 await self.delegate?.jitLaunch(withPID: pidNumber.intValue, withScript: scriptData, appName: self.appInfo.displayName())
                             } else {
                                 await self.delegate?.jitLaunch(withPID: pidNumber.intValue, withScript: nil, appName: self.appInfo.displayName())
@@ -380,7 +421,7 @@ class LCAppModel: ObservableObject, Hashable {
                 }
             } else {
                 // Non-multitask JIT flow remains unchanged
-                if let scriptData = jitLaunchScriptJs, !scriptData.isEmpty {
+                if let scriptData = launchScript, !scriptData.isEmpty {
                     await delegate?.jitLaunch(withScript: scriptData, appName: self.appInfo.displayName(), classicMode: classicMode)
                 } else {
                     await delegate?.jitLaunch(appName: self.appInfo.displayName(), classicMode: classicMode)

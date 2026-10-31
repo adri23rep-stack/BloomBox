@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+      - experimental/melonx-26-jit
+      - fix/jit-dynamic-rsd-port-ios27
+      - experimental/melonx-script-other-guests
+      - experimental/jit-per-app-controls
+      - experimental/jit-ramplus-unified-ios27
       - migration/import-full-source
       - feature/modules-liquidglass-ram-placeholder
   pull_request:
@@ -48,8 +53,17 @@ jobs:
         run: |
           swiftc SideStoreSupport/BloomBoxRAMPortal.swift Tests/ram-portal/main.swift -o "$RUNNER_TEMP/ram-portal-tests"
           "$RUNNER_TEMP/ram-portal-tests"
+      - name: Test latest BloomBox release discovery and installer safety
+        run: |
+          swiftc LiveContainerSwiftUI/Utilities/BloomBoxRAMRelease.swift Tests/ram-release/main.swift -o "$RUNNER_TEMP/ram-release-tests"
+          "$RUNNER_TEMP/ram-release-tests"
       - name: Restore pinned StikJIT and runtime dependencies
         run: python3 Scripts/fetch-bundled-dependencies.py
+      - name: Test JIT debugger protocol and MeloNX 2.6 profile
+        run: |
+          swiftc ShareExtension/StrataJITScriptSafety.swift LiveContainerSwiftUI/Utilities/BloomBoxMeloNXProfile.swift Tests/jit-script-tests/main.swift -o "$RUNNER_TEMP/jit-script-tests"
+          "$RUNNER_TEMP/jit-script-tests"
+          "$RUNNER_TEMP/jit-script-tests" melonx
       - name: Install Rust toolchain for on-device pairing
         uses: dtolnay/rust-toolchain@stable
         with:

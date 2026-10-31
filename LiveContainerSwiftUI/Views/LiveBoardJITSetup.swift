@@ -6,6 +6,7 @@ struct LiveBoardJITSetup: View {
     @AppStorage("LCJITEnablerType", store: LCUtils.appGroupUserDefault) private var provider = JITEnablerType.SideJITServer.rawValue
     @ObservedObject private var session = LiveBoardJITSession.shared
     @ObservedObject private var pairing = ManzanaOnDevicePairing.shared
+    @AppStorage("BloomBoxJITRemotePort", store: LCUtils.appGroupUserDefault) private var remotePortOverride = ""
     @State private var importing = false
     @State private var hasPairing = FileManager.default.fileExists(atPath: LiveBoardBuiltInJIT.pairingURL.path)
     let embedded: Bool
@@ -110,6 +111,17 @@ struct LiveBoardJITSetup: View {
                         Text("JIT applies only to guests installed inside BloomBox, not other iPhone apps. It runs through LiveProcess, and some guest engines need a matching iOS 27 JIT script. Keep extensions when updating.").foregroundStyle(.secondary)
                     }
                     Section("Connection check") {
+                        HStack {
+                            Text("Remote Pairing port")
+                            Spacer()
+                            TextField("Auto", text: $remotePortOverride)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(maxWidth: 110)
+                        }
+                        Text("Leave blank for automatic detection. If JIT times out on port 49152, find the current port under SideStore > Settings > Experimental Features > Network Discovery > local > Remote Pairing and enter it here. This is not the pairing PIN.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                         Button("Prepare device") { perform("prepare") }.disabled(session.busy || !hasPairing)
                         Button("Reset developer disk image cache") { perform("reset") }.disabled(session.busy || !hasPairing)
                         if session.busy {

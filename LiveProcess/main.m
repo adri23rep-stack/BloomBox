@@ -6,6 +6,9 @@
 //
 
 #import <dlfcn.h>
+#import <Security/Security.h>
+#import "../LiveContainer/LCSharedUtils.h"
+#import "../LiveContainer/FoundationPrivate.h"
 #import <UIKit/UIKit.h>
 #import <mach-o/dyld.h>
 #import "../LiveContainer/utils.h"
@@ -33,6 +36,31 @@ static NSDictionary *retrievedAppInfo;
 }
 @end
 
+// Read the actual extension signature before guest hooks can replace bundle identity.
+static void BloomBoxReportJITPermissions(void) {
+    void *task = SecTaskCreateFromSelf(NULL);
+    if (!task) return;
+    NSMutableDictionary *report = [@{@"pid": @(getpid()),
+        @"timestamp": @([NSDate date].timeIntervalSince1970)} mutableCopy];
+    NSDictionary *keys = @{@"debug": @"get-task-allow",
+        @"ram": @"com.apple.developer.kernel.increased-memory-limit"};
+    for (NSString *name in keys) {
+        CFErrorRef error = NULL;
+        CFTypeRef value = SecTaskCopyValueForEntitlement(task, (__bridge CFStringRef)keys[name], &error);
+        if (!error) report[name] = @(value && CFGetTypeID(value) == CFBooleanGetTypeID() && CFEqual(value, kCFBooleanTrue));
+        if (value) CFRelease(value);
+        if (error) CFRelease(error);
+    }
+    CFRelease(task);
+    NSURL *root = [LCSharedUtils appGroupPath];
+    if (!root) return;
+    NSURL *directory = [root URLByAppendingPathComponent:@"Library/StrataJIT/Targets" isDirectory:YES];
+    [NSFileManager.defaultManager createDirectoryAtURL:directory withIntermediateDirectories:YES attributes:nil error:nil];
+    NSURL *file = [directory URLByAppendingPathComponent:[NSString stringWithFormat:@"%d.json", getpid()]];
+    NSData *data = [NSJSONSerialization dataWithJSONObject:report options:0 error:nil];
+    [data writeToURL:file options:NSDataWritingAtomic error:nil];
+}
+
 extern int LiveContainerMain(int argc, char *argv[]);
 static char **_envp, **_apple = NULL;
 int LiveProcessMain(int argc, char *argv[]) {
@@ -41,6 +69,7 @@ int LiveProcessMain(int argc, char *argv[]) {
     // Ensure app info is delivered
     NSDictionary *appInfo = LiveProcessHandler.retrievedAppInfo;
     NSCAssert(appInfo, @"Failed to retrieve app info");
+    BloomBoxReportJITPermissions();
     
     // Check if we received a request to execute a custom payload
     NSString *customPayloadDylib = appInfo[@"customPayloadDylib"];

@@ -1,6 +1,114 @@
 import Foundation
 import JavaScriptCore
-let source = try String(contentsOfFile: "ShareExtension/universal.js", encoding: .utf8)
+
+// Both packaged scripts must keep identical runtime semantics. Their first
+// comment line may differ (upstream's date format vs our resource header).
+// A mismatch silently gives LiveProcess and Built-in JIT different behavior.
+let hostUniversal = try String(contentsOfFile: "Resources/universal.js", encoding: .utf8)
+let extensionUniversal = try String(contentsOfFile: "ShareExtension/universal.js", encoding: .utf8)
+func normalizedScriptBody(_ source: String) -> String {
+    source.components(separatedBy: "\n").dropFirst().joined(separator: "\n")
+}
+precondition(normalizedScriptBody(hostUniversal) == normalizedScriptBody(extensionUniversal),
+    "Host and extension universal.js scripts have diverged")
+let source = CommandLine.arguments.contains("melonx")
+    ? String(data: Data(base64Encoded: BloomBoxMeloNXProfile.scriptBase64)!, encoding: .utf8)!
+    : try String(contentsOfFile: "ShareExtension/universal.js", encoding: .utf8)
+precondition(BloomBoxMeloNXProfile.matches(bundleID: "com.stossy11.MeloNX", version: "2.6"))
+precondition(!BloomBoxMeloNXProfile.matches(bundleID: "com.stossy11.MeloNX", version: "2.7"))
+precondition(!BloomBoxMeloNXProfile.matches(bundleID: "other", version: "2.6"))
+
+// Universal default, special MeloNX profile, override, OFF and RAM+ priority.
+let universalSample = "bundled-universal"
+precondition(BloomBoxMeloNXProfile.scriptForLaunch(custom: nil, isMeloNX26: false, isBuiltInProvider: true, jitRequested: true, crossAppExperiment: false, universalScript: universalSample) == universalSample)
+precondition(BloomBoxMeloNXProfile.scriptForLaunch(custom: nil, isMeloNX26: true, isBuiltInProvider: true, jitRequested: true, crossAppExperiment: false, universalScript: universalSample) == BloomBoxMeloNXProfile.scriptBase64)
+precondition(BloomBoxMeloNXProfile.scriptForLaunch(custom: "own", isMeloNX26: true, isBuiltInProvider: true, jitRequested: true, crossAppExperiment: false, universalScript: universalSample) == "own")
+precondition(BloomBoxMeloNXProfile.scriptForLaunch(custom: nil, isMeloNX26: false, isBuiltInProvider: true, jitRequested: false, crossAppExperiment: false, universalScript: universalSample) == nil)
+do {
+    let suite = "BloomBoxEmulatorPreflight." + UUID().uuidString
+    let d = UserDefaults(suiteName: suite)!
+    defer { d.removePersistentDomain(forName: suite) }
+    precondition(BloomBoxEmulatorPreflight.firstMissing(ramReady: false, jitReady: false, appKey: "app", defaults: d) == .ramPlus)
+    precondition(BloomBoxEmulatorPreflight.firstMissing(ramReady: true, jitReady: false, appKey: "app", defaults: d) == .jit)
+    BloomBoxEmulatorPreflight.suppress(.ramPlus, appKey: "app", defaults: d)
+    precondition(BloomBoxEmulatorPreflight.firstMissing(ramReady: false, jitReady: false, appKey: "app", defaults: d) == .jit,
+                 "Suppressing the RAM+ warning must not suppress the JIT warning.")
+    precondition(BloomBoxEmulatorPreflight.firstMissing(ramReady: false, jitReady: false, appKey: "other", defaults: d) == .ramPlus,
+                 "Warnings must be isolated per installed guest.")
+    BloomBoxEmulatorPreflight.suppress(.jit, appKey: "app", defaults: d)
+    precondition(BloomBoxEmulatorPreflight.firstMissing(ramReady: false, jitReady: false, appKey: "app", defaults: d) == nil,
+                 "Both warnings can be dismissed independently.")
+}
+let originalScript = "my-own-compatible-script"
+func routed(_ custom: String? = nil, _ melon: Bool = false,
+            _ builtIn: Bool = true, _ requested: Bool = true,
+            _ experimental: Bool = false) -> String? {
+    BloomBoxMeloNXProfile.scriptForLaunch(custom: custom,
+        isMeloNX26: melon, isBuiltInProvider: builtIn,
+        jitRequested: requested, crossAppExperiment: experimental)
+}
+precondition(routed() == nil, "Other guests must default to no MeloNX script")
+precondition(routed(nil, false, true, true, true) == BloomBoxMeloNXProfile.scriptBase64,
+             "Opt-in built-in JIT must reuse the exact MeloNX script")
+precondition(routed(nil, false, false, true, true) == nil,
+             "External JIT providers must not receive the experimental script")
+precondition(routed(nil, false, true, false, true) == nil,
+             "The switch must never force JIT on a normal guest")
+precondition(routed(nil, true, false, false, false) == BloomBoxMeloNXProfile.scriptBase64,
+             "MeloNX 2.6 automatic script must remain unchanged")
+precondition(routed(originalScript, false, true, true, true) == originalScript,
+             "Existing app scripts must take precedence")
+precondition(routed(originalScript, true, true, true, true) == originalScript,
+             "A custom MeloNX script must still take precedence")
+print("PASS: MeloNX script routing is opt-in, limited to built-in JIT, and preserves app overrides.")
+
+// Saved, per-installed-app policy: no global script blast radius.
+do {
+    let suite = "BloomBoxJITPolicyTests." + UUID().uuidString
+    guard let defaults = UserDefaults(suiteName: suite) else { fatalError("Cannot create test defaults") }
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let appA = "GuestA.app"
+    let appB = "GuestB.app"
+    precondition(BloomBoxJITGuestPolicy.mode(for: appA, defaults: defaults) == .automatic)
+    precondition(BloomBoxJITGuestPolicy.wantsJIT(automatic: true, forced: nil, mode: .automatic))
+    precondition(!BloomBoxJITGuestPolicy.wantsJIT(automatic: false, forced: nil, mode: .automatic))
+    precondition(BloomBoxJITGuestPolicy.wantsJIT(automatic: false, forced: true, mode: .automatic))
+    precondition(BloomBoxJITGuestPolicy.wantsJIT(automatic: false, forced: nil, mode: .enabled))
+    precondition(!BloomBoxJITGuestPolicy.wantsJIT(automatic: true, forced: false, mode: .enabled))
+    precondition(!BloomBoxJITGuestPolicy.wantsJIT(automatic: true, forced: true, mode: .disabled))
+
+    BloomBoxJITGuestPolicy.setMode(.disabled, for: appA, defaults: defaults)
+    precondition(BloomBoxJITGuestPolicy.mode(for: appA, defaults: defaults) == .disabled)
+    precondition(BloomBoxJITGuestPolicy.mode(for: appB, defaults: defaults) == .automatic)
+    BloomBoxJITGuestPolicy.setMode(.enabled, for: appB, defaults: defaults)
+    precondition(BloomBoxJITGuestPolicy.mode(for: appB, defaults: defaults) == .enabled)
+    BloomBoxJITGuestPolicy.setMode(.automatic, for: appA, defaults: defaults)
+    precondition(BloomBoxJITGuestPolicy.mode(for: appA, defaults: defaults) == .automatic)
+
+    precondition(!BloomBoxJITGuestPolicy.shouldTryMeloNXScript(
+        appKey: appA, isMeloNX26: false, enabled: true, defaults: defaults))
+    BloomBoxJITGuestPolicy.setExperimentSelected(true, for: appA, defaults: defaults)
+    precondition(BloomBoxJITGuestPolicy.isExperimentSelected(for: appA, defaults: defaults))
+    precondition(!BloomBoxJITGuestPolicy.isExperimentSelected(for: appB, defaults: defaults))
+    precondition(!BloomBoxJITGuestPolicy.shouldTryMeloNXScript(
+        appKey: appA, isMeloNX26: false, enabled: false, defaults: defaults))
+    precondition(!BloomBoxJITGuestPolicy.shouldTryMeloNXScript(
+        appKey: appA, isMeloNX26: true, enabled: true, defaults: defaults))
+    let selected = BloomBoxJITGuestPolicy.shouldTryMeloNXScript(
+        appKey: appA, isMeloNX26: false, enabled: true, defaults: defaults)
+    precondition(selected)
+    precondition(routed(nil, false, true, true, selected) == BloomBoxMeloNXProfile.scriptBase64)
+    precondition(routed("my-script", false, true, true, selected) == "my-script")
+    precondition(routed(nil, false, true, false, selected) == nil)
+    precondition(routed(nil, false, false, true, selected) == nil)
+    BloomBoxJITGuestPolicy.setExperimentSelected(false, for: appA, defaults: defaults)
+    precondition(!BloomBoxJITGuestPolicy.isExperimentSelected(for: appA, defaults: defaults))
+    precondition(!BloomBoxJITGuestPolicy.shouldTryMeloNXScript(
+        appKey: appA, isMeloNX26: false, enabled: true, defaults: defaults))
+    print("PASS: per-app JIT policies remain isolated, reversible and script opt-in is explicit.")
+}
+
+
 func run(_ mode: String) -> (String?, [String]) {
     let context = JSContext()!
     var commands: [String] = []

@@ -1,5 +1,64 @@
 import Foundation
 
+/// Discovers the current iOS RemotePairing port rather than assuming it is always 49152.
+/// This runs synchronously on StrataJITWorker's dedicated serial helper queue.
+private final class BloomBoxRemotePairingDiscovery: NSObject, NetServiceBrowserDelegate, NetServiceDelegate {
+    private let browser = NetServiceBrowser()
+    private var services: [NetService] = []
+    private var ports = Set<UInt16>()
+
+    func discover(timeout: TimeInterval) -> [UInt16] {
+        browser.delegate = self
+        browser.schedule(in: .current, forMode: .default)
+        browser.searchForServices(ofType: "_remotepairing._tcp.", inDomain: "local.")
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            _ = RunLoop.current.run(mode: .default, before: min(deadline, Date().addingTimeInterval(0.1)))
+        }
+        browser.stop()
+        services.forEach { $0.stop() }
+        return ports.sorted()
+    }
+
+    func netServiceBrowser(_ browser: NetServiceBrowser, didFind service: NetService, moreComing: Bool) {
+        services.append(service)
+        service.delegate = self
+        service.resolve(withTimeout: 2)
+    }
+
+    func netServiceDidResolveAddress(_ sender: NetService) {
+        if (1...65535).contains(sender.port) { ports.insert(UInt16(sender.port)) }
+    }
+}
+
+private enum BloomBoxJITEndpoint {
+    static func configuration(manualPort: Int?, report: (String) -> Void) -> StikJIT.Configuration {
+        var config = StikJIT.Configuration()
+        if let manualPort, (1...65535).contains(manualPort) {
+            config.rsdPort = UInt16(manualPort)
+            report("Remote pairing endpoint: \(config.deviceAddress):\(config.rsdPort) (manual).")
+            return config
+        }
+        // Do not delay the working configuration; the port may still be 49152.
+        if EndpointProbe.failureReason(address: config.deviceAddress, port: config.rsdPort, timeout: 1.2) == nil {
+            report("Remote pairing endpoint: \(config.deviceAddress):\(config.rsdPort) (default, reachable).")
+            return config
+        }
+        report("Default RemotePairing port 49152 is unreachable. Discovering the current port via Bonjour…")
+        let candidates = BloomBoxRemotePairingDiscovery().discover(timeout: 4)
+        for port in candidates where port != config.rsdPort {
+            // Other nearby iPhones may advertise this service: verify on our own VPN address.
+            if EndpointProbe.failureReason(address: config.deviceAddress, port: port, timeout: 0.8) == nil {
+                config.rsdPort = port
+                report("Remote pairing endpoint: \(config.deviceAddress):\(port) (Bonjour, reachable).")
+                return config
+            }
+        }
+        report("No reachable RemotePairing port was discovered. Trying 49152; if it fails, reconnect LocalDevVPN or set the port manually in Modules > JIT. Do not re-pair yet.")
+        return config
+    }
+}
+
 /// Runs debugger work outside the target process, serially. Pairing data never enters logs.
 enum StrataJITWorker {
     private static let lock = NSLock()
@@ -43,7 +102,7 @@ enum StrataJITWorker {
                     context.completeRequest(returningItems: nil)
                     return
                 }
-                let config = StikJIT.Configuration()
+                let config = BloomBoxJITEndpoint.configuration(manualPort: input["remotePort"] as? Int, report: { report($0) })
                 let readiness = StikJIT.prepareDevice(pairingFile: pairing, paths: paths, configuration: config) { stage in
                     report(String(describing: stage))
                 }

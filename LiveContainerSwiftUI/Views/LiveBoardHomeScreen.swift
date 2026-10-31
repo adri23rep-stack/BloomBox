@@ -2051,6 +2051,8 @@ private struct BloomBoxModulesIcon: View {
 private struct BloomBoxModulesPanel: View {
     @AppStorage("BloomBoxRAMPlusExperimentalControls", store: LCUtils.appGroupUserDefault)
     private var ramExperimentalControlsEnabled = false
+    @AppStorage("BloomBoxJITTryMeloNXScriptForOtherAppsV2", store: LCUtils.appGroupUserDefault)
+    private var melonScriptCrossAppEnabled = false
 
     enum Destination { case jit, desktop, interface, wallpaper, apps, settings, tweaks, sidestore }
     enum Module: String, CaseIterable, Identifiable {
@@ -2192,7 +2194,7 @@ private struct BloomBoxModulesPanel: View {
         case .ram:
             ramDetail
         case .jit:
-            LiveBoardJITSetup(embedded: true)
+            BloomBoxJITControlPanel(apps: apps)
         case .desktop:
             desktopDetail
         case .connectivity:
@@ -2259,7 +2261,8 @@ private struct BloomBoxModulesPanel: View {
     }
 
     private func moduleDetail(_ module: Module) -> some View {
-        VStack(alignment: .leading, spacing: 20) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
             Label(module.title, systemImage: module.symbol)
                 .font(.title2.bold())
                 Text(detailDescription(module))
@@ -2283,6 +2286,28 @@ private struct BloomBoxModulesPanel: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Experimentos · Funciones avanzadas", systemImage: "flask.fill")
                         .font(.headline)
+                    Toggle("Probar script JIT de MeloNX en otras apps", isOn: $melonScriptCrossAppEnabled)
+                        .tint(Color(red: 0.72, green: 0.45, blue: 1))
+                        .accessibilityIdentifier("bloombox.experiments.melonScriptCrossApp.toggle")
+                    Text("Interruptor maestro de seguridad: permite las pruebas de script solo en las apps que selecciones abajo. No cambia el JIT de MeloNX ni activa JIT en todas las apps.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    NavigationLink {
+                        BloomBoxJITGuestControlsView(apps: apps)
+                    } label: {
+                        Label("Pruebas avanzadas del script MeloNX", systemImage: "flask.fill")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .accessibilityIdentifier("bloombox.experiments.jitApps.open")
+                    Text("Los interruptores habituales están en Módulos > JIT. Aquí se conserva la prueba experimental del script MeloNX en otras apps.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if melonScriptCrossAppEnabled {
+                        Label("La prueba solo se aplicará a las apps seleccionadas. Un motor incompatible puede quedarse congelado o cerrarse.", systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    Divider()
                     Toggle("Habilitar botones RAM+ para pruebas", isOn: $ramExperimentalControlsEnabled)
                         .tint(Color(red: 0.72, green: 0.45, blue: 1))
                         .accessibilityIdentifier("bloombox.experiments.ramControls.toggle")
@@ -2304,10 +2329,10 @@ private struct BloomBoxModulesPanel: View {
                 Button("Abrir Tweak Store") { onSelect(.tweaks) }
                     .buttonStyle(.bordered)
             }
-            Spacer()
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(moduleBackdrop)
         .navigationTitle(module.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -2343,6 +2368,341 @@ private struct BloomBoxModulesSheetBackground: ViewModifier {
         } else {
             content
         }
+    }
+}
+
+/// Self-contained destination: later move its NavigationLink from Experimental to
+/// Modules > JIT without migrating stored choices or changing the launch coordinator.
+/// Built-in JIT control surface: every guest has independent launch settings.
+private struct BloomBoxJITControlPanel: View {
+    let apps: [LCAppModel]
+    @State private var search = ""
+    @State private var importing = false
+    @State private var target: LCAppModel?
+    @State private var scriptError: String?
+    @AppStorage("LCJITEnablerType", store: LCUtils.appGroupUserDefault)
+    private var provider = JITEnablerType.SideJITServer.rawValue
+
+    private var installed: [LCAppModel] {
+        var ids = Set<String>()
+        return apps.filter { app in
+            !(app.appInfo is BuiltInSideStoreAppInfo) &&
+            !app.appInfo.relativeBundlePath.isEmpty &&
+            ids.insert(app.appInfo.relativeBundlePath).inserted
+        }.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+    }
+    private var visible: [LCAppModel] {
+        let q = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        return q.isEmpty ? installed : installed.filter {
+            $0.displayName.localizedCaseInsensitiveContains(q) ||
+            $0.bundleIdentifier.localizedCaseInsensitiveContains(q)
+        }
+    }
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 16) {
+                Label("JIT", systemImage: "bolt.fill").font(.title2.bold()).foregroundStyle(.orange)
+                NavigationLink {
+                    LiveBoardJITSetup(embedded: true)
+                } label: {
+                    HStack(spacing: 13) {
+                        Image(systemName: "bolt.shield.fill")
+                            .font(.title2).foregroundStyle(.orange)
+                            .frame(width: 48, height: 48)
+                            .background(Color.orange.opacity(0.14), in: RoundedRectangle(cornerRadius: 14))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Habilitar JIT").font(.headline)
+                            Text("Pairing, LocalDevVPN y conexión")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").foregroundStyle(.secondary)
+                    }
+                    .padding(14).background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 17))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("bloombox.modules.jit.enable")
+
+                HStack {
+                    Text("JIT por aplicación").font(.headline)
+                    Spacer()
+                    Text(String(installed.count) + " apps").font(.caption).foregroundStyle(.secondary)
+                }
+                Text("Encendido: solicita JIT al abrir. Apagado: abre sin JIT. Universal por defecto excepto MeloNX 2.6. Mantén presionada una app para importar otro script.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                if provider != JITEnablerType.BuiltIn.rawValue {
+                    Label("Para scripts integrados, elige Built-in JIT en Habilitar JIT.", systemImage: "info.circle")
+                        .font(.caption).foregroundStyle(.orange)
+                }
+                TextField("Buscar aplicación", text: $search)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .padding(12).background(Color.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 12))
+                ForEach(visible, id: \.appInfo.relativeBundlePath) { app in
+                    BloomBoxJITSwitchRow(app: app) { target = app; importing = true }
+                }
+                if visible.isEmpty {
+                    Text("No hay aplicaciones que coincidan.").foregroundStyle(.secondary)
+                }
+                Text("Se aplica al próximo lanzamiento. Algunos emuladores requieren scripts propios; evita ejecutarlos si el iPhone se está calentando.")
+                    .font(.caption).foregroundStyle(.orange)
+            }.padding(18)
+        }
+        .background(Color(red: 0.055, green: 0.065, blue: 0.13).ignoresSafeArea())
+        .navigationTitle("JIT").navigationBarTitleDisplayMode(.inline)
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.javaScript], allowsMultipleSelection: false) { result in
+            let app = target
+            target = nil
+            guard let app else { return }
+            do {
+                guard let url = try result.get().first else { return }
+                let scoped = url.startAccessingSecurityScopedResource()
+                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                guard url.pathExtension.lowercased() == "js" else {
+                    throw NSError(domain: "BloomBoxJIT", code: 1, userInfo: [NSLocalizedDescriptionKey: "Elige un archivo .js."])
+                }
+                let data = try Data(contentsOf: url)
+                guard !data.isEmpty, data.count <= 512 * 1024,
+                      String(data: data, encoding: .utf8) != nil else {
+                    throw NSError(domain: "BloomBoxJIT", code: 2, userInfo: [NSLocalizedDescriptionKey: "El script debe ser UTF-8 y tener máximo 512 KB."])
+                }
+                app.jitLaunchScriptJs = data.base64EncodedString()
+            } catch {
+                scriptError = error.localizedDescription
+            }
+        }
+        .alert("No se pudo importar el script", isPresented: Binding(
+            get: { scriptError != nil },
+            set: { if !$0 { scriptError = nil } })) {
+            Button("Aceptar") { scriptError = nil }
+        } message: { Text(scriptError ?? "") }
+    }
+}
+
+private struct BloomBoxJITSwitchRow: View {
+    @ObservedObject var app: LCAppModel
+    let importScript: () -> Void
+    @State private var enabled: Bool
+    init(app: LCAppModel, importScript: @escaping () -> Void) {
+        self.app = app
+        self.importScript = importScript
+        let mode = BloomBoxJITGuestPolicy.mode(
+            for: app.appInfo.relativeBundlePath, defaults: LCUtils.appGroupUserDefault)
+        let guest = Bundle(path: app.appInfo.bundlePath())
+        let melon = BloomBoxMeloNXProfile.matches(
+            bundleID: app.bundleIdentifier,
+            version: guest?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+        _enabled = State(initialValue: BloomBoxJITGuestPolicy.wantsJIT(
+            automatic: app.appInfo.isJITNeeded || app.appInfo.is32bit || melon,
+            forced: nil, mode: mode))
+    }
+    private var specialMeloNX: Bool {
+        let guest = Bundle(path: app.appInfo.bundlePath())
+        return BloomBoxMeloNXProfile.matches(
+            bundleID: app.bundleIdentifier,
+            version: guest?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+    }
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "app.fill").foregroundStyle(.purple)
+                .frame(width: 40, height: 40)
+                .background(Color.purple.opacity(0.16), in: RoundedRectangle(cornerRadius: 11))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(app.displayName).font(.subheadline.weight(.semibold)).lineLimit(1)
+                Text(app.jitLaunchScriptJs?.isEmpty == false ? "Script personalizado" :
+                     specialMeloNX ? "Script propio de MeloNX" : "Universal JIT")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 4)
+            Toggle("JIT " + app.displayName, isOn: $enabled).labelsHidden().tint(.orange)
+                .onChange(of: enabled) { on in
+                    BloomBoxJITGuestPolicy.setMode(on ? .enabled : .disabled,
+                        for: app.appInfo.relativeBundlePath, defaults: LCUtils.appGroupUserDefault)
+                }
+                .accessibilityIdentifier("bloombox.modules.jit.app.toggle")
+        }
+        .padding(14)
+        .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 16))
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button { importScript() } label: {
+                Label("Importar script JIT (.js)", systemImage: "doc.badge.plus")
+            }
+            if app.jitLaunchScriptJs?.isEmpty == false {
+                Button { app.jitLaunchScriptJs = nil } label: {
+                    Label("Restaurar script predeterminado", systemImage: "arrow.counterclockwise")
+                }
+            }
+        }
+    }
+}
+
+struct BloomBoxJITGuestControlsView: View {
+    let apps: [LCAppModel]
+    @State private var searchText = ""
+    @AppStorage("BloomBoxJITTryMeloNXScriptForOtherAppsV2", store: LCUtils.appGroupUserDefault)
+    private var scriptExperimentEnabled = false
+    @AppStorage("LCJITEnablerType", store: LCUtils.appGroupUserDefault)
+    private var provider = JITEnablerType.SideJITServer.rawValue
+
+    private var installedApps: [LCAppModel] {
+        var seen = Set<String>()
+        return apps.filter { app in
+            !(app.appInfo is BuiltInSideStoreAppInfo) &&
+            !app.appInfo.relativeBundlePath.isEmpty &&
+            seen.insert(app.appInfo.relativeBundlePath).inserted
+        }.sorted {
+            $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+        }
+    }
+
+    private var visibleApps: [LCAppModel] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return installedApps }
+        return installedApps.filter {
+            $0.displayName.localizedCaseInsensitiveContains(query) ||
+            $0.bundleIdentifier.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 12) {
+                    Image(systemName: "bolt.badge.clock")
+                        .font(.title2)
+                        .foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("JIT por aplicación").font(.title2.bold())
+                        Text("Preparación del futuro módulo JIT")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+                Text("Automático respeta la configuración original. Activado solicita JIT; Desactivado impide solicitarlo. Cambia el siguiente lanzamiento, no cierra apps abiertas.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                if provider != JITEnablerType.BuiltIn.rawValue {
+                    Label("El script experimental de MeloNX solo funciona con Built-in JIT. El control JIT por app también puede afectar otros proveedores.", systemImage: "info.circle")
+                        .font(.footnote).foregroundStyle(.orange)
+                }
+                if !scriptExperimentEnabled {
+                    Label("Pruebas con script MeloNX desactivadas globalmente. Puedes preparar las selecciones, pero no se aplicarán hasta encender el interruptor anterior.", systemImage: "lock.shield")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                TextField("Buscar aplicación", text: $searchText)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .padding(12)
+                    .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityIdentifier("bloombox.experiments.jitApps.search")
+                if visibleApps.isEmpty {
+                    Text("No hay aplicaciones que coincidan con tu búsqueda.")
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 18)
+                }
+                ForEach(visibleApps, id: \.appInfo.relativeBundlePath) { app in
+                    BloomBoxJITGuestExperimentRow(
+                        app: app,
+                        isBuiltIn: provider == JITEnablerType.BuiltIn.rawValue,
+                        experimentEnabled: scriptExperimentEnabled)
+                }
+                Text("Esto es experimental: un script no crea compatibilidad JIT por sí solo. Si falla, vuelve a Automático y desmarca la prueba MeloNX.")
+                    .font(.footnote).foregroundStyle(.orange)
+            }
+            .padding(18)
+        }
+        .background(Color(red: 0.055, green: 0.065, blue: 0.13).ignoresSafeArea())
+        .navigationTitle("JIT por app")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct BloomBoxJITGuestExperimentRow: View {
+    @ObservedObject var app: LCAppModel
+    let isBuiltIn: Bool
+    let experimentEnabled: Bool
+    @State private var jitMode: BloomBoxJITGuestPolicy.Mode
+    @State private var tryMeloScript: Bool
+
+    init(app: LCAppModel, isBuiltIn: Bool, experimentEnabled: Bool) {
+        self.app = app
+        self.isBuiltIn = isBuiltIn
+        self.experimentEnabled = experimentEnabled
+        let defaults = LCUtils.appGroupUserDefault
+        _jitMode = State(initialValue: BloomBoxJITGuestPolicy.mode(
+            for: app.appInfo.relativeBundlePath, defaults: defaults))
+        _tryMeloScript = State(initialValue: BloomBoxJITGuestPolicy.isExperimentSelected(
+            for: app.appInfo.relativeBundlePath, defaults: defaults))
+    }
+
+    private var isMeloNX26: Bool {
+        let bundle = Bundle(path: app.appInfo.bundlePath())
+        return BloomBoxMeloNXProfile.matches(
+            bundleID: app.bundleIdentifier,
+            version: bundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+    }
+
+    private var hasCustomScript: Bool { app.jitLaunchScriptJs?.isEmpty == false }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "app.fill")
+                    .font(.title2).foregroundStyle(.purple)
+                    .frame(width: 40, height: 40)
+                    .background(Color.purple.opacity(0.18), in: RoundedRectangle(cornerRadius: 10))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(app.displayName).font(.headline)
+                    Text(app.bundleIdentifier)
+                        .font(.caption2).foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+                Spacer(minLength: 0)
+            }
+            Picker("JIT al abrir", selection: $jitMode) {
+                ForEach(BloomBoxJITGuestPolicy.Mode.allCases, id: \.self) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .tint(.orange)
+            .onChange(of: jitMode) { newMode in
+                BloomBoxJITGuestPolicy.setMode(newMode,
+                    for: app.appInfo.relativeBundlePath, defaults: LCUtils.appGroupUserDefault)
+            }
+            .accessibilityIdentifier("bloombox.experiments.jitApps.mode")
+            if isMeloNX26 {
+                Label("MeloNX 2.6 tiene su perfil automático original.", systemImage: "checkmark.shield")
+                    .font(.caption).foregroundStyle(.green)
+            } else {
+                Toggle("Probar script de MeloNX 2.6", isOn: $tryMeloScript)
+                    .tint(.purple)
+                    .disabled(hasCustomScript)
+                    .onChange(of: tryMeloScript) { selected in
+                        BloomBoxJITGuestPolicy.setExperimentSelected(selected,
+                            for: app.appInfo.relativeBundlePath, defaults: LCUtils.appGroupUserDefault)
+                    }
+                    .accessibilityIdentifier("bloombox.experiments.jitApps.melonScript")
+                if hasCustomScript {
+                    Text("Esta app tiene un script propio; se respeta su prioridad.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else if tryMeloScript && experimentEnabled && isBuiltIn && jitMode != .disabled {
+                    Text("El script se intentará en el próximo lanzamiento con JIT.")
+                        .font(.caption).foregroundStyle(.orange)
+                } else if tryMeloScript {
+                    Text("Selección guardada; requiere JIT integrado, experimento maestro activo y JIT no desactivado.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if jitMode == .disabled {
+                Text("JIT desactivado para esta app. «Launch with JIT» mostrará un aviso.")
+                    .font(.caption).foregroundStyle(.orange)
+            } else if jitMode == .enabled {
+                Text("Se solicitará JIT al abrirla, pero esto no garantiza compatibilidad.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding(15)
+        .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18)
+            .strokeBorder(Color.white.opacity(0.10)))
     }
 }
 

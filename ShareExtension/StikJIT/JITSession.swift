@@ -34,9 +34,11 @@ final class JITSession {
                    forceScript: Bool,
                    txmPresence: TXMPresence,
                    progress: @escaping (String) -> Void) throws {
+        progress("Opening LocalDevVPN tunnel…")
         let tunnel = try makeTunnel()
         defer { tunnel.free() }
 
+        progress("Connecting remote debug services…")
         let session = try connectDebugSession(over: tunnel)
         defer { session.free() }
 
@@ -48,6 +50,7 @@ final class JITSession {
         _ = try sendCommand("QEnableErrorStrings", over: debugProxy)
         _ = try sendCommand("QThreadSuffixSupported", over: debugProxy)
 
+        progress("Debug transport ready. Target PID: \(targetPID).")
         switch (forceScript, txmPresence) {
         case (true, _), (false, .present):
             try ScriptRunner(targetPID: targetPID, debugProxy: debugProxy, script: script, progress: progress).run()
