@@ -19,6 +19,14 @@ do {
     defer { d.removePersistentDomain(forName: suite) }
     precondition(BloomBoxEmulatorPreflight.firstMissing(ramReady: false, jitReady: false, appKey: "app", defaults: d) == .ramPlus)
     precondition(BloomBoxEmulatorPreflight.firstMissing(ramReady: true, jitReady: false, appKey: "app", defaults: d) == .jit)
+    BloomBoxEmulatorPreflight.suppress(.ramPlus, appKey: "app", defaults: d)
+    precondition(BloomBoxEmulatorPreflight.firstMissing(ramReady: false, jitReady: false, appKey: "app", defaults: d) == .jit,
+                 "Suppressing the RAM+ warning must not suppress the JIT warning.")
+    precondition(BloomBoxEmulatorPreflight.firstMissing(ramReady: false, jitReady: false, appKey: "other", defaults: d) == .ramPlus,
+                 "Warnings must be isolated per installed guest.")
+    BloomBoxEmulatorPreflight.suppress(.jit, appKey: "app", defaults: d)
+    precondition(BloomBoxEmulatorPreflight.firstMissing(ramReady: false, jitReady: false, appKey: "app", defaults: d) == nil,
+                 "Both warnings can be dismissed independently.")
 }
 let originalScript = "my-own-compatible-script"
 func routed(_ custom: String? = nil, _ melon: Bool = false,

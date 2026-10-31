@@ -522,9 +522,18 @@ extension LCUtils {
     
     static func openSideStore(delegate: LCAppModelDelegate? = nil, urlStr: String? = nil) {
         let sideStoreApp = LCAppModel(appInfo: BuiltInSideStoreAppInfo.shared, delegate: delegate)
-        
+
         Task {
-            try await sideStoreApp.runApp(bundleIdOverride: "builtinSideStore", urlStr: urlStr)
+            do {
+                try await sideStoreApp.runApp(bundleIdOverride: "builtinSideStore", urlStr: urlStr)
+            } catch {
+                // Never silently drop errors from the detached launch Task.
+                // Surface a readable message while preserving the guest's data.
+                await delegate?.didFailToLaunchSideStore(error.localizedDescription)
+                if delegate == nil {
+                    NSLog("[BloomBox] SideStore launch failed: %@", error.localizedDescription)
+                }
+            }
         }
     }
 }

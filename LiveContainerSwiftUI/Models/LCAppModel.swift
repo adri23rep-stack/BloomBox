@@ -3,6 +3,7 @@ import Foundation
 protocol LCAppModelDelegate {
     func closeNavigationView()
     func changeAppVisibility(app : LCAppModel)
+    @MainActor func didFailToLaunchSideStore(_ message: String)
     @MainActor func approveEmulatorLaunch(app: LCAppModel, forceJIT: Bool?) async -> Bool
     func jitLaunch(appName: String, classicMode: UInt) async
     func jitLaunch(withScript script: String, appName: String, classicMode: UInt) async
@@ -12,6 +13,9 @@ protocol LCAppModelDelegate {
 
 extension LCAppModelDelegate {
     @MainActor func approveEmulatorLaunch(app: LCAppModel, forceJIT: Bool?) async -> Bool { true }
+    @MainActor func didFailToLaunchSideStore(_ message: String) {
+        NSLog("[BloomBox] SideStore launch failed: %@", message)
+    }
 }
 
 class LCAppModel: ObservableObject, Hashable {

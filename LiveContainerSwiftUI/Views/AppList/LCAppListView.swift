@@ -601,6 +601,12 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         
     }
     @MainActor
+    func didFailToLaunchSideStore(_ message: String) {
+        errorInfo = "No se pudo abrir SideStore: " + message
+        errorShow = true
+    }
+
+    @MainActor
     func approveEmulatorLaunch(app: LCAppModel, forceJIT: Bool?) async -> Bool {
         let bundle = Bundle(path: app.appInfo.bundlePath())
         let version = bundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
@@ -637,8 +643,10 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             }
             return false
         case .suppress?:
-            BloomBoxEmulatorPreflight.suppress(.ramPlus, appKey: app.appInfo.relativeBundlePath, defaults: defaults)
-            BloomBoxEmulatorPreflight.suppress(.jit, appKey: app.appInfo.relativeBundlePath, defaults: defaults)
+            // "Don't ask again" applies only to the warning currently shown.
+            // Otherwise dismissing RAM+ also silently disables the later JIT warning.
+            BloomBoxEmulatorPreflight.suppress(missing,
+                appKey: app.appInfo.relativeBundlePath, defaults: defaults)
             return true
         default: return true
         }
