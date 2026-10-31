@@ -270,6 +270,9 @@ private extension AltStoreSourcesViewModel {
     }
     
     func storeCache(_ data: Data, for url: URL) {
+        // Some Archive items have huge file lists. Keep the on-device catalogue
+        // cache bounded; a large list may be refreshed without saving it.
+        guard data.count <= 4 * 1024 * 1024 else { return }
         guard let fileURL = cacheFileURL(for: url) else { return }
         do {
             try data.write(to: fileURL, options: .atomic)
