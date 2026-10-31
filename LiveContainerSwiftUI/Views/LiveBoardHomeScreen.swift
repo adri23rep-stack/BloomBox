@@ -2373,7 +2373,7 @@ private struct BloomBoxModulesSheetBackground: ViewModifier {
 
 /// Self-contained destination: later move its NavigationLink from Experimental to
 /// Modules > JIT without migrating stored choices or changing the launch coordinator.
-private /// Built-in JIT control surface: every guest has independent launch settings.
+/// Built-in JIT control surface: every guest has independent launch settings.
 private struct BloomBoxJITControlPanel: View {
     let apps: [LCAppModel]
     @State private var search = ""
