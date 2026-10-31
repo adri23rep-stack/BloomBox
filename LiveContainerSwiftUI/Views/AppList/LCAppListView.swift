@@ -64,6 +64,11 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     
     @State private var jitLog = ""
     @StateObject private var jitAlert = YesNoHelper()
+    @StateObject private var emulatorPrompt = AlertHelper<BloomBoxEmulatorPreflight.Decision>()
+    @State private var emulatorPromptName = ""
+    @State private var emulatorMissing = BloomBoxEmulatorPreflight.Missing.ramPlus
+    @State private var emulatorRAMSetup = false
+    @State private var emulatorJITSetup = false
     
     @StateObject private var runWhenMultitaskAlert = YesNoHelper()
     
@@ -458,6 +463,27 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 installUrlInput.close(result: nil)
             }
         )
+        .alert("Permisos para " + emulatorPromptName, isPresented: $emulatorPrompt.show) {
+            Button("Sí, configurar") { emulatorPrompt.close(result: .setup) }
+            Button("No") { emulatorPrompt.close(result: .skip) }
+            Button("No volver a preguntar") { emulatorPrompt.close(result: .suppress) }
+        } message: {
+            if emulatorMissing == .ramPlus {
+                Text("Esta app recomienda RAM+ y JIT. RAM+ no está confirmada para BloomBox y LiveProcess. ¿Abrir activador RAM+ primero?")
+            } else {
+                Text("RAM+ está confirmada, pero JIT necesita configuración. ¿Abrir activador JIT?")
+            }
+        }
+        .sheet(isPresented: $emulatorRAMSetup) {
+            NavigationView {
+                BloomBoxRAMPlusView(openSideStore: { LCUtils.openSideStore(delegate: self) })
+                    .navigationTitle("Activar RAM+")
+                    .toolbar { ToolbarItem(placement: .confirmationAction) {
+                        Button("Listo") { emulatorRAMSetup = false }
+                    }}
+            }.navigationViewStyle(.stack)
+        }
+        .sheet(isPresented: $emulatorJITSetup) { LiveBoardJITSetup() }
         .sheet(isPresented: $jitAlert.show, onDismiss: {
             jitAlert.close(result: false)
         }) {
@@ -574,6 +600,50 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         await openWebView(urlString: urlToOpen)
         
     }
+    @MainActor
+    func approveEmulatorLaunch(app: LCAppModel, forceJIT: Bool?) async -> Bool {
+        let bundle = Bundle(path: app.appInfo.bundlePath())
+        let version = bundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let id = app.appInfo.bundleIdentifier()
+        let isMeloNX = BloomBoxMeloNXProfile.matches(bundleID: id, version: version)
+        let isMeloCafe = id?.lowercased().hasSuffix(".melocafe") == true
+        guard isMeloNX || isMeloCafe else { return true }
+        let defaults = LCUtils.appGroupUserDefault
+        let ram = BloomBoxRAMPlus.shared
+        ram.refresh()
+        let ramReady = ram.validation.confirmed && ram.extensionSigned == true
+        let policy = BloomBoxJITGuestPolicy.mode(for: app.appInfo.relativeBundlePath, defaults: defaults)
+        let jitRequested = BloomBoxJITGuestPolicy.wantsJIT(
+            automatic: app.appInfo.isJITNeeded || isMeloNX, forced: forceJIT, mode: policy)
+        let intentionallyOff = policy == .disabled || forceJIT == false
+        let jitReady = intentionallyOff || (jitRequested &&
+            defaults.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue &&
+            LCUtils.strataCanDebug() &&
+            FileManager.default.fileExists(atPath: LiveBoardBuiltInJIT.pairingURL.path))
+        guard let missing = BloomBoxEmulatorPreflight.firstMissing(
+            ramReady: ramReady, jitReady: jitReady,
+            appKey: app.appInfo.relativeBundlePath, defaults: defaults) else { return true }
+        guard !emulatorPrompt.show else { return false }
+        emulatorPromptName = app.displayName
+        emulatorMissing = missing
+        let decision = await emulatorPrompt.open()
+        switch decision {
+        case .setup?:
+            if missing == .ramPlus {
+                emulatorRAMSetup = true
+            } else {
+                BloomBoxJITGuestPolicy.setMode(.enabled, for: app.appInfo.relativeBundlePath, defaults: defaults)
+                emulatorJITSetup = true
+            }
+            return false
+        case .suppress?:
+            BloomBoxEmulatorPreflight.suppress(.ramPlus, appKey: app.appInfo.relativeBundlePath, defaults: defaults)
+            BloomBoxEmulatorPreflight.suppress(.jit, appKey: app.appInfo.relativeBundlePath, defaults: defaults)
+            return true
+        default: return true
+        }
+    }
+
     @MainActor
     func launchFromLiveBoard(_ app: LCAppModel, forceJIT: Bool = false) async {
         let window = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap { $0.windows }.first { $0.isKeyWindow }

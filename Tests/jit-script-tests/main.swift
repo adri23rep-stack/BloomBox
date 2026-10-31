@@ -7,6 +7,19 @@ precondition(BloomBoxMeloNXProfile.matches(bundleID: "com.stossy11.MeloNX", vers
 precondition(!BloomBoxMeloNXProfile.matches(bundleID: "com.stossy11.MeloNX", version: "2.7"))
 precondition(!BloomBoxMeloNXProfile.matches(bundleID: "other", version: "2.6"))
 
+// Universal default, special MeloNX profile, override, OFF and RAM+ priority.
+let universalSample = "bundled-universal"
+precondition(BloomBoxMeloNXProfile.scriptForLaunch(custom: nil, isMeloNX26: false, isBuiltInProvider: true, jitRequested: true, crossAppExperiment: false, universalScript: universalSample) == universalSample)
+precondition(BloomBoxMeloNXProfile.scriptForLaunch(custom: nil, isMeloNX26: true, isBuiltInProvider: true, jitRequested: true, crossAppExperiment: false, universalScript: universalSample) == BloomBoxMeloNXProfile.scriptBase64)
+precondition(BloomBoxMeloNXProfile.scriptForLaunch(custom: "own", isMeloNX26: true, isBuiltInProvider: true, jitRequested: true, crossAppExperiment: false, universalScript: universalSample) == "own")
+precondition(BloomBoxMeloNXProfile.scriptForLaunch(custom: nil, isMeloNX26: false, isBuiltInProvider: true, jitRequested: false, crossAppExperiment: false, universalScript: universalSample) == nil)
+do {
+    let suite = "BloomBoxEmulatorPreflight." + UUID().uuidString
+    let d = UserDefaults(suiteName: suite)!
+    defer { d.removePersistentDomain(forName: suite) }
+    precondition(BloomBoxEmulatorPreflight.firstMissing(ramReady: false, jitReady: false, appKey: "app", defaults: d) == .ramPlus)
+    precondition(BloomBoxEmulatorPreflight.firstMissing(ramReady: true, jitReady: false, appKey: "app", defaults: d) == .jit)
+}
 let originalScript = "my-own-compatible-script"
 func routed(_ custom: String? = nil, _ melon: Bool = false,
             _ builtIn: Bool = true, _ requested: Bool = true,

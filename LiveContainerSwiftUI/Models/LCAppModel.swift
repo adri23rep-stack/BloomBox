@@ -3,10 +3,15 @@ import Foundation
 protocol LCAppModelDelegate {
     func closeNavigationView()
     func changeAppVisibility(app : LCAppModel)
+    @MainActor func approveEmulatorLaunch(app: LCAppModel, forceJIT: Bool?) async -> Bool
     func jitLaunch(appName: String, classicMode: UInt) async
     func jitLaunch(withScript script: String, appName: String, classicMode: UInt) async
     func jitLaunch(withPID pid: Int, withScript script: String?, appName: String) async
     func showRunWhenMultitaskAlert() async -> Bool?
+}
+
+extension LCAppModelDelegate {
+    @MainActor func approveEmulatorLaunch(app: LCAppModel, forceJIT: Bool?) async -> Bool { true }
 }
 
 class LCAppModel: ObservableObject, Hashable {
@@ -224,6 +229,8 @@ class LCAppModel: ObservableObject, Hashable {
         if isAppRunning {
             return
         }
+        // Applies to normal launches, library launches, and deep links.
+        if await delegate?.approveEmulatorLaunch(app: self, forceJIT: forceJIT) == false { return }
         
         if uiContainers.isEmpty {
             let newName = NSUUID().uuidString
@@ -266,7 +273,8 @@ class LCAppModel: ObservableObject, Hashable {
             isMeloNX26: melonProfile,
             isBuiltInProvider: builtInProvider,
             jitRequested: wantsJIT,
-            crossAppExperiment: experimentSelected)
+            crossAppExperiment: experimentSelected,
+            universalScript: builtInProvider && wantsJIT ? LCUtils.base64EncodedUniversalJITScript() : nil)
         let classicMode = appInfo.defaultClassicMode
         let builtInJIT = builtInProvider && wantsJIT
         if builtInJIT && classicMode != 0 {
