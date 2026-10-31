@@ -5,6 +5,42 @@
   "purpose": "Community app listings. App binaries remain hosted by their verified original publishers.",
   "apps": [
     {
+      "id": "nikaview",
+      "name": "NikaView (Takopi Explorer)",
+      "creator": "adri23rep-stack / NikaView contributors",
+      "category": "tools",
+      "description": "Explorador de archivos para iPhone con doble panel, gestión de archivos, conexiones de red y Takopi Vault cifrada. Permite respaldar y restaurar la bóveda con Takopi PC Bridge.",
+      "officialWebsite": "https://github.com/adri23rep-stack/NikaView",
+      "officialReleases": "https://github.com/adri23rep-stack/NikaView/releases/tag/v0.12.21",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "adri23rep-stack",
+        "repo": "NikaView",
+        "assetFileName": "NikaidoExplorer-LiveContainer-v0.12.21.ipa"
+      },
+      "currentOfficialRelease": "0.12.21",
+      "directDownloadURL": "https://github.com/adri23rep-stack/NikaView/releases/download/v0.12.21/NikaidoExplorer-LiveContainer-v0.12.21.ipa",
+      "fileName": "NikaidoExplorer-LiveContainer-v0.12.21.ipa",
+      "sha256": "a7733cd16089b09b546b147a1f3ead102d79175f6de7467f4daa5bfdab7fbc2d",
+      "releaseResolution": "verified-upstream-asset",
+      "installMode": "guest",
+      "sourceVerified": true,
+      "featured": true,
+      "useAtOwnRisk": true,
+      "installsInsideBloomBox": "not-tested",
+      "aliases": [
+        "NikaView",
+        "Takopi Explorer",
+        "Nikaido Explorer",
+        "Takopi"
+      ],
+      "notes": "IPA oficial para LiveContainer publicada por NikaView. El enlace descarga el archivo desde su release original y BloomBox verifica SHA-256 antes de instalar. No incluye el ejecutable Windows Takopi PC Bridge.",
+      "warnings": [
+        "Compatibilidad de la versión 0.12.21 como app invitada de BloomBox todavía no comprobada.",
+        "Por las restricciones de iOS, la app invitada no obtiene acceso automático a archivos privados de otras apps ni a todo el sistema."
+      ]
+    },
+    {
       "id": "melonx",
       "name": "MeloNX",
       "creator": "Stossy11 / MeloNX contributors",
