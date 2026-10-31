@@ -210,8 +210,24 @@ final class BloomBoxRAMPlus: ObservableObject {
             // downloaded IPA contents are independently checked against GitHub's SHA.
             let releaseCommit = asset.commitish ?? ""
             if !confirmDifferentBuild && (releaseCommit.isEmpty || installedCommit != releaseCommit) {
+                var state = defaults.dictionary(forKey: reinstallKey) ?? [:]
+                state["reviewTag"] = asset.tag
+                state["reviewDigest"] = asset.digest
+                defaults.set(state, forKey: reinstallKey)
                 saveReinstall("review", "Última versión oficial: \(asset.tag). Tu instalación tiene otra compilación (posiblemente JIT experimental). Instalar esta release podría reemplazar funciones experimentales. Revisa y confirma si quieres continuar.")
                 return
+            }
+            if confirmDifferentBuild {
+                let confirmed = defaults.dictionary(forKey: reinstallKey) ?? [:]
+                guard confirmed["reviewTag"] as? String == asset.tag,
+                      confirmed["reviewDigest"] as? String == asset.digest else {
+                    saveReinstall("review", "La release más reciente cambió desde tu confirmación. Vuelve a revisar antes de instalar.")
+                    var state = defaults.dictionary(forKey: reinstallKey) ?? [:]
+                    state["reviewTag"] = asset.tag
+                    state["reviewDigest"] = asset.digest
+                    defaults.set(state, forKey: reinstallKey)
+                    return
+                }
             }
             saveReinstall("downloading", "Descargando BloomBox \(asset.tag) desde GitHub…")
             let (download, result) = try await URLSession.shared.download(from: asset.url)
