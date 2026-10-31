@@ -20,6 +20,12 @@ struct LCAppStorageContainerItem: Identifiable {
     let isExternalContainer: Bool
 }
 
+struct LCStorageTemporaryEntry: Identifiable {
+    let name: String
+    let size: Int64
+    var id: String { name }
+}
+
 struct LCStorageBreakdown {
     let totalSize: Int64
     let appBundleSize: Int64
@@ -30,6 +36,8 @@ struct LCStorageBreakdown {
     let otherSize: Int64
     // Installed BloomBox bundle lives outside Documents; it must not be counted as app data.
     let hostBundleSize: Int64
+    let temporaryEntries: [LCStorageTemporaryEntry]
+    let scannedAt: Date
 
     let appItems: [LCAppStorageItem]
 }
@@ -94,12 +102,9 @@ final class LCStorageManagementModel: ObservableObject {
         sizesByCategory[.appBundle] = 0
         sizesByCategory[.containers] = 0
         
-        var sideStoreContainerSize: Int64 = 0
         for appItem in appItems {
             if !(appItem.appModel.appInfo is BuiltInSideStoreAppInfo) {
                 sizesByCategory[.appBundle]! += appItem.bundleSize ?? 0
-            } else {
-                sideStoreContainerSize = appItem.containersSize
             }
             
             for containerDetail in appItem.containerDetails {
@@ -110,15 +115,10 @@ final class LCStorageManagementModel: ObservableObject {
             }
         }
 
-        // Built-in SideStore stores its own Documents under BloomBox/Documents/SideStore.
-        // Count it once as a container instead of leaving it buried in Other.
-        sizesByCategory[.containers, default: 0] += sideStoreContainerSize
+        let temporaryEntries = try await calculateTemporaryEntries()
+        sizesByCategory[.temporaryFiles] = temporaryEntries.reduce(0) { $0 + $1.size }
 
         try await withThrowingTaskGroup(of: (StorageCategory, Int64).self) { group in
-
-            group.addTask(priority: .utility) {
-                (.temporaryFiles, try await calculateSize(at: FileManager.default.temporaryDirectory))
-            }
 
             group.addTask(priority: .utility) {
                 (.appGroup, try await calculateCombinedSize(of: appGroupRoots))
@@ -158,6 +158,8 @@ final class LCStorageManagementModel: ObservableObject {
             tweaksSize: tweaksSize,
             otherSize: otherSize,
             hostBundleSize: hostBundleSize,
+            temporaryEntries: temporaryEntries,
+            scannedAt: Date(),
             appItems: appItems
         )
     }
@@ -265,6 +267,23 @@ final class LCStorageManagementModel: ObservableObject {
         }
     }
 
+    // List the *same* temp-root contents that contribute to the displayed total.
+    // A later cleanup may correctly report zero: /tmp is volatile and this is a snapshot.
+    nonisolated private static func calculateTemporaryEntries() async throws -> [LCStorageTemporaryEntry] {
+        let directory = FileManager.default.temporaryDirectory
+        let children = try FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil, options: []
+        )
+        var entries: [LCStorageTemporaryEntry] = []
+        entries.reserveCapacity(children.count)
+        for url in children {
+            try Task.checkCancellation()
+            let size = try await calculateSize(at: url)
+            entries.append(LCStorageTemporaryEntry(name: url.lastPathComponent, size: size))
+        }
+        return entries.sorted { $0.size > $1.size }
+    }
+
     nonisolated private static func calculateCombinedSize(of urls: [URL]) async throws -> Int64 {
         try await withThrowingTaskGroup(of: Int64.self) { group in
             for url in uniquePaths(urls) {
@@ -300,10 +319,21 @@ final class LCStorageManagementModel: ObservableObject {
         let fileManager = FileManager.default
         let resourceKeys: Set<URLResourceKey> = [
             .isRegularFileKey,
+            .isSymbolicLinkKey,
             .totalFileAllocatedSizeKey,
             .fileAllocatedSizeKey,
             .fileSizeKey
         ]
+        // An entry in /tmp can be a regular file, not only a folder.
+        // FileManager.enumerator(at:) does not enumerate the root regular file.
+        if let fileValues = try? url.resourceValues(forKeys: resourceKeys) {
+            if fileValues.isSymbolicLink == true { return 0 }
+            if fileValues.isRegularFile == true {
+                return Int64(fileValues.totalFileAllocatedSize
+                    ?? fileValues.fileAllocatedSize
+                    ?? fileValues.fileSize ?? 0)
+            }
+        }
         guard let enumerator = fileManager.enumerator(
             at: url,
             includingPropertiesForKeys: Array(resourceKeys),
