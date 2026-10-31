@@ -178,3 +178,51 @@ corresponde a RP4 y no comprueba todavía el nuevo instalador de RP5.**
 
 Referencias: [esquema oficial de SideStore](https://docs.sidestore.io/docs/advanced/url-schema)
 y [enrutamiento de SideStore integrado](https://github.com/LiveContainer/LiveContainer/issues/1086).
+
+
+## Hotfix: latest public release for RAM+ reinstall (2026-10-30)
+
+The preceding RP5 section describes the old exact-build installer.
+That implementation could not discover public BloomBox v1.3.0: the
+embedded **LiveContainer** Info.plist still reports
+\`CFBundleShortVersionString=3.8.10\`, which is deliberately separate
+from the BloomBox GitHub release tag \`v1.3.0\`. Searching for
+\`tag_name == "v" + installed CFBundleShortVersionString\` therefore
+returned no asset, even for a valid official release.
+
+The new logic uses the fixed GitHub API endpoint
+\`repos/adri23rep-stack/BloomBox/releases/latest\` for the latest
+**stable, public, nondraft** release. It requires exactly one official
+\`BloomBox-SideStore-unsigned.ipa\`, HTTPS release URL under the
+canonical repository and exact tag, GitHub SHA-256, and bounded download
+size. The downloaded ZIP is inspected and hashed *before* requesting
+the SideStore handoff. The signed installation identity must match the
+source base app ID (or its SideStore suffix), and installed extension
+bundles may not disappear in the update. The package must contain
+LiveProcess, LiveWidgetExtension and SideStore. The new release can
+have a different version/build/commit; Apple App Group names are not
+compared verbatim with the unsigned archive because SideStore remaps
+them during signing.
+
+When the installed build differs from GitHub's current release commit,
+the user must explicitly confirm updating to the stable release before
+SideStore opens. The selected tag and digest are pinned between review
+and confirmation: if GitHub published a different asset in the meantime,
+confirmation is required again. This protects owners using a
+*JIT experimental* build from accidentally overwriting their working
+experiment with the latest **stable** release. Entering the RAM+ screen
+never triggers installation without an explicit action.
+
+If GitHub is unavailable, SHA/identity check fails or the handoff
+fails, do not delete the existing installation. The user can choose an
+IPA manually (source unverified), or share the validated local IPA if
+the SideStore URL handoff fails. Actual Apple RAM+ entitlement is
+confirmed only by reading the installed signature and provisioning
+profile **after** SideStore finishes; server-side approval is not proof
+of installed capability.
+
+Known limitation: SideStore may still drop the RAM+ entitlement when
+re-signing on certain account setups. This upstream issue is separate
+from latest-release discovery; it cannot be bypassed by downloading
+another IPA. Device validation and a new public release are required
+before existing users can benefit from this hotfix.
