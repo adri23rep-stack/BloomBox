@@ -840,13 +840,17 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
         let decompressProgress = Progress.discreteProgress(totalUnitCount: 100)
         installProgress.addChild(decompressProgress, withPendingUnitCount: 80)
-        let payloadPath = fm.temporaryDirectory.appendingPathComponent("Payload")
-        if fm.fileExists(atPath: payloadPath.path) {
-            try fm.removeItem(at: payloadPath)
-        }
-        
-        // decompress
-        guard await decompress(url.path, fm.temporaryDirectory.path, decompressProgress) == 0 else {
+        // Extract into a private, uniquely named staging folder. IPA archives may
+        // contain root-level metadata outside Payload; extraction directly into the
+        // global temp directory used to leave those files behind indefinitely.
+        let extractionRoot = fm.temporaryDirectory
+            .appendingPathComponent("BloomBoxInstall-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: extractionRoot, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: extractionRoot) }
+        let payloadPath = extractionRoot.appendingPathComponent("Payload", isDirectory: true)
+
+        // Every success, failure and cancellation removes all staged files.
+        guard await decompress(url.path, extractionRoot.path, decompressProgress) == 0 else {
             throw "lc.appList.urlFileIsNotIpaError".loc
         }
 
