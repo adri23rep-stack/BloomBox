@@ -236,17 +236,24 @@ final class LCStorageManagementModel: ObservableObject {
         var appItems: [LCAppStorageItem] = []
         appItems.reserveCapacity(inputs.count)
 
+        // Disk scans are expensive: limit concurrent guests so the diagnostic
+        // screen does not flood the file system when many apps are installed.
         try await withThrowingTaskGroup(of: LCAppStorageItem.self) { group in
-            for input in inputs {
-                group.addTask(priority: .utility) {
-                    try await calculateAppItem(
-                        from: input
-                    )
+            var remaining = inputs.makeIterator()
+            for _ in 0..<min(inputs.count, 3) {
+                if let input = remaining.next() {
+                    group.addTask(priority: .utility) {
+                        try await calculateAppItem(from: input)
+                    }
                 }
             }
-
-            for try await item in group {
+            while let item = try await group.next() {
                 appItems.append(item)
+                if let input = remaining.next() {
+                    group.addTask(priority: .utility) {
+                        try await calculateAppItem(from: input)
+                    }
+                }
             }
         }
 
