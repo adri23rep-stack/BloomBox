@@ -27,7 +27,6 @@ struct LCContainerView : View {
     @StateObject private var deleteDataAlert = YesNoHelper()
     @StateObject private var removeKeychainAlert = YesNoHelper()
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var sharedModel : SharedModel
     @State private var typingContainerName : String = ""
     @State private var typingIDFV: String = ""
     @State private var inUse = false
