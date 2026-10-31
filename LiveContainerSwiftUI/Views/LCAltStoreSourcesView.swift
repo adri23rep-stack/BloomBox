@@ -379,7 +379,7 @@ enum AltStoreSourceLoader {
         let sourceName = (title?.isEmpty == false) ? title! : identifier
         let details = URL(string: "https://archive.org/details/\(identifier)")
         let icon = URL(string: "https://archive.org/services/img/\(identifier)")
-        let items = files.compactMap { file -> AltStoreSourceApp? in
+        let items = Array(files.lazy.compactMap { file -> AltStoreSourceApp? in
             guard let filename = file["name"] as? String,
                   filename.lowercased().hasSuffix(".ipa"),
                   filename.utf8.count <= 1024,
@@ -421,7 +421,7 @@ enum AltStoreSourceLoader {
                 latestVersion: version,
                 isBeta: false
             )
-        }
+        }.prefix(500))
         guard !items.isEmpty else {
             throw sourceError("Este elemento no contiene archivos .ipa públicos.")
         }
@@ -874,6 +874,19 @@ private struct ManageSourcesSheet: View {
                     }
                 } header: {
                     Text("lc.sources.manage.current".loc)
+                }
+                if !viewModel.sources.isEmpty {
+                    Section {
+                        Button {
+                            UIPasteboard.general.string = viewModel.sources
+                                .map { $0.url.absoluteString }
+                                .joined(separator: "\n")
+                        } label: {
+                            Label("Copiar lista de fuentes", systemImage: "doc.on.doc")
+                        }
+                    } footer: {
+                        Text("Puedes guardar o compartir los enlaces; no se exportan datos privados ni archivos IPA.")
+                    }
                 }
                 
                 Section {
