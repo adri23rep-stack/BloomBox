@@ -133,7 +133,7 @@ final class BloomBoxRAMPlus: ObservableObject {
     }
 
 
-    private func prepareIPA(_ source: URL, digest: String?, expectedCommit: String?) throws -> URL {
+    private func prepareIPA(_ source: URL, digest: String?) throws -> URL {
         let fm = FileManager.default
         let dir = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("BloomBoxRAMPlus", isDirectory: true)
@@ -169,9 +169,8 @@ final class BloomBoxRAMPlus: ObservableObject {
         // with the *unsigned* IPA is not meaningful and previously blocked updates.
         guard BloomBoxRAMRelease.compatibleIdentity(installed: installedID, sourceBundle: bundle),
               !version.isEmpty, !build.isEmpty,
-              BloomBoxRAMRelease.preservesExtensions(installed: installedExtensions, candidate: ipaExtensions),
-              expectedCommit == nil || ipa["commit"] as? String == expectedCommit else {
-            throw NSError(domain: "BloomBoxRAM", code: 3, userInfo: [NSLocalizedDescriptionKey: "La IPA no conserva la identidad o las extensiones instaladas, o su commit no coincide con la release. No se instalará."])
+              BloomBoxRAMRelease.preservesExtensions(installed: installedExtensions, candidate: ipaExtensions) else {
+            throw NSError(domain: "BloomBoxRAM", code: 3, userInfo: [NSLocalizedDescriptionKey: "La IPA no conserva la identidad o las extensiones instaladas. No se instalará."])
         }
         let destination = dir.appendingPathComponent("BloomBox-validada.ipa")
         if fm.fileExists(atPath: destination.path) { try fm.removeItem(at: destination) }
@@ -239,10 +238,9 @@ final class BloomBoxRAMPlus: ObservableObject {
                 throw NSError(domain: "BloomBoxRAM", code: 6, userInfo: [NSLocalizedDescriptionKey: "El tamaño descargado no coincide con la release oficial. No se instalará."])
             }
             saveReinstall("preparing", "Verificando SHA-256, identidad y extensiones de BloomBox \(asset.tag)…")
-            let expectedCommit = releaseCommit.count == 40 &&
-                releaseCommit.utf8.allSatisfy({ (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0) })
-                ? releaseCommit : nil
-            let local = try prepareIPA(download, digest: asset.digest, expectedCommit: expectedCommit)
+            // The published v1.3.0 IPA has no stable BloomBoxBuildCommit.
+            // The official release-asset SHA-256 is the integrity check.
+            let local = try prepareIPA(download, digest: asset.digest)
             var saved = defaults.dictionary(forKey: reinstallKey) ?? [:]
             saved["releaseTag"] = asset.tag
             defaults.set(saved, forKey: reinstallKey)
@@ -281,7 +279,7 @@ final class BloomBoxRAMPlus: ObservableObject {
                 throw NSError(domain: "BloomBoxRAM", code: 4, userInfo: [NSLocalizedDescriptionKey: "Elige un archivo .ipa."])
             }
             saveReinstall("checking", "Comprobando la IPA seleccionada…")
-            let checked = try prepareIPA(source, digest: nil, expectedCommit: nil)
+            let checked = try prepareIPA(source, digest: nil)
             saveReinstall("manualReady", "IPA compatible. El origen del archivo no está autenticado: compártelo con SideStore, instala encima sin borrar la app y conserva las extensiones.", path: checked)
         } catch { saveReinstall("chooseIPA", error.localizedDescription) }
     }
