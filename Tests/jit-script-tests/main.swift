@@ -1,5 +1,16 @@
 import Foundation
 import JavaScriptCore
+
+// Both packaged scripts must keep identical runtime semantics. Their first
+// comment line may differ (upstream's date format vs our resource header).
+// A mismatch silently gives LiveProcess and Built-in JIT different behavior.
+let hostUniversal = try String(contentsOfFile: "Resources/universal.js", encoding: .utf8)
+let extensionUniversal = try String(contentsOfFile: "ShareExtension/universal.js", encoding: .utf8)
+func normalizedScriptBody(_ source: String) -> String {
+    source.components(separatedBy: "\n").dropFirst().joined(separator: "\n")
+}
+precondition(normalizedScriptBody(hostUniversal) == normalizedScriptBody(extensionUniversal),
+    "Host and extension universal.js scripts have diverged")
 let source = CommandLine.arguments.contains("melonx")
     ? String(data: Data(base64Encoded: BloomBoxMeloNXProfile.scriptBase64)!, encoding: .utf8)!
     : try String(contentsOfFile: "ShareExtension/universal.js", encoding: .utf8)
