@@ -115,6 +115,7 @@ struct LiveBoardHomeScreen: View {
     @State private var widgetMediaID: String?
     @State private var choosingWidgetFile = false
     @State private var choosingWidgetPhoto = false
+    @State private var editingWidgetNote = false
     @State private var widgetMediaError: String?
     @State private var startupNoticesEnabled = false
     @State private var pendingRemovalKey: String?
@@ -798,6 +799,18 @@ struct LiveBoardHomeScreen: View {
             Button("Elegir de Fotos") { choosingWidgetPhoto = true }
             Button("Importar de Archivos") { choosingWidgetFile = true }
             Button("Cancelar", role: .cancel) { widgetMediaID = nil }
+        }
+        .sheet(isPresented: $editingWidgetNote) {
+            NavigationView {
+                TextEditor(text: $miniatureNote)
+                    .padding()
+                    .navigationTitle("Notas")
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Listo") { editingWidgetNote = false }
+                        }
+                    }
+            }.navigationViewStyle(.stack)
         }
         .sheet(isPresented: $choosingWidgetPhoto) {
             BloomBoxMediaPhotosPicker { data in
@@ -1487,7 +1500,12 @@ struct LiveBoardHomeScreen: View {
         savePlacedWidgets(all)
         moveIconsOutOfWidgetArea()
         page = target + 1
-        if kind == "media" { widgetMediaID = widget.id }
+        if kind == "media" {
+            // Wait for the gallery sheet dismissal before opening photo import.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.40) {
+                widgetMediaID = widget.id
+            }
+        }
     }
     private func setWidgetMedia(_ id: String, name: String) {
         var all = placedWidgets
@@ -1725,7 +1743,8 @@ struct LiveBoardHomeScreen: View {
                     let widgetWidth = CGFloat(widget.columns) * cellWidth - 5
                     let widgetHeight = CGFloat(widget.rows) * pitch - 5
                     BloomBoxGridWidgetView(widget: widget,
-                                           width: widgetWidth, height: widgetHeight)
+                                           width: widgetWidth, height: widgetHeight,
+                                           active: page == index + 1)
                         .modifier(aliveEntrance(for: index,
                             delay: Double(widget.slot % 4) * 0.145
                                 + Double(widget.slot / 4) * 0.026))
@@ -1742,6 +1761,11 @@ struct LiveBoardHomeScreen: View {
                             acceptHomeDrop(providers, pageIndex: index, slot: widget.slot)
                         })
                         .contextMenu {
+                            if widget.kind == "notes" {
+                                Button("Editar nota", systemImage: "square.and.pencil") {
+                                    editingWidgetNote = true
+                                }
+                            }
                             if widget.kind == "media" {
                                 Button("Cambiar imagen o GIF", systemImage: "photo.badge.plus") {
                                     widgetMediaID = widget.id
