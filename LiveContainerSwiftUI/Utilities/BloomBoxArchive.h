@@ -6,5 +6,8 @@ NS_ASSUME_NONNULL_BEGIN
 + (BOOL)unpackFile:(NSURL *)source toURL:(NSURL *)destination error:(NSError **)error NS_SWIFT_NAME(unpack(source:destination:));
 /// Read/verify IPA entries without extraction. Does not authenticate its publisher.
 + (nullable NSDictionary<NSString *, id> *)inspectIPA:(NSURL *)source error:(NSError **)error NS_SWIFT_NAME(inspectIPA(_:));
+/// Import the tweak payload of a Debian ar package into a NEW, isolated folder.
+/// Executes no dpkg maintainer scripts and ignores SpringBoard/system payloads.
++ (BOOL)importDEB:(NSURL *)source toDirectory:(NSURL *)destination error:(NSError **)error NS_SWIFT_NAME(importDEB(_:destination:));
 @end
 NS_ASSUME_NONNULL_END
