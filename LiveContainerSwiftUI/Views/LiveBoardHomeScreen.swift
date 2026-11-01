@@ -1229,8 +1229,8 @@ struct LiveBoardHomeScreen: View {
                     VStack(spacing: 0) {
                         if !widgets(on: index).isEmpty {
                             HStack {
-                                ForEach(widgets(on: index), id: \.self) { id in
-                                    Image(systemName: id == "clock" ? "clock" : id == "photo" ? "photo" : "note.text")
+                                ForEach(widgets(on: index)) { widget in
+                                    Image(systemName: widget.kind == "clock" ? "clock" : widget.kind == "media" ? "photo" : "note.text")
                                         .font(.caption).frame(maxWidth: .infinity).padding(6).liveBoardGlass(radius: 8)
                                 }
                             }.padding(8)
@@ -2519,11 +2519,11 @@ struct LiveBoardHomeScreen: View {
             if layout.removePage(at: index) {
                 var widgetMap = placedWidgets
                 let moving = widgetMap.removeValue(forKey: index) ?? []
-                var shifted: [Int: [BloomBoxPlacedWidget]] = [:]
+                var shiftedWidgets: [Int: [BloomBoxPlacedWidget]] = [:]
                 for (old, items) in widgetMap {
-                    shifted[old > index ? old - 1 : old] = items
+                    shiftedWidgets[old > index ? old - 1 : old] = items
                 }
-                savePlacedWidgets(shifted)
+                savePlacedWidgets(shiftedWidgets)
                 for widget in moving {
                     moveWidgetToAvailablePage(widget, preferred: targetPage)
                 }
