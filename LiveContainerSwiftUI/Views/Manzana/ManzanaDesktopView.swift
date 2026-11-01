@@ -416,6 +416,7 @@ struct BloomBoxGridWidgetView: View {
     let widget: BloomBoxPlacedWidget
     let width: CGFloat
     let height: CGFloat
+    var active = true
     @AppStorage("ManzanaNote", store: LCUtils.appGroupUserDefault) private var note = ""
     @Environment(\.scenePhase) private var scenePhase
 
@@ -454,7 +455,8 @@ struct BloomBoxGridWidgetView: View {
                        FileManager.default.fileExists(atPath: file.path) {
                         if file.pathExtension.lowercased() == "gif" {
                             ManzanaAnimatedWallpaper(url: file, fit: !widget.fill,
-                                paused: scenePhase != .active)
+                                paused: scenePhase != .active || !active,
+                                clearBackground: true)
                         } else if let image = UIImage(contentsOfFile: file.path) {
                             Image(uiImage: image)
                                 .resizable()
@@ -626,7 +628,8 @@ private struct BloomBoxRemoteNewsImage: View {
             if url.pathExtension.lowercased() == "gif" {
                 if let gifFile {
                     ManzanaAnimatedWallpaper(url: gifFile, fit: false,
-                                             paused: scenePhase != .active)
+                                             paused: scenePhase != .active,
+                                             clearBackground: true)
                 } else {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
