@@ -2324,8 +2324,20 @@ struct LiveBoardHomeScreen: View {
                     }
                 }
             }
+            if isThemes && !layout.folders.isEmpty {
+                Menu("Meter en carpeta", systemImage: "folder") {
+                    ForEach(layout.folders) { folder in
+                        Button(folder.name) { layout.put(key, in: folder.id); reconcile() }
+                    }
+                }
+            }
+            if isThemes && layout.folders.contains(where: { $0.apps.contains(key) }) {
+                Button("Sacar de carpeta", systemImage: "folder.badge.minus") {
+                    layout.place(key, on: max(0, page - 1)); reconcile()
+                }
+            }
         }
-        .accessibilityLabel(isSideStore ? "Abrir SideStore" : isTweakStore ? "Abrir Tweak Store" : isAppStore ? "Abrir App Store" : "Instalar IPA en LiveContainer")
+        .accessibilityLabel(isThemes ? "Temas" : title(key))
     }
 
     @ViewBuilder private func appMenu(_ key: String, app: LCAppModel) -> some View {
