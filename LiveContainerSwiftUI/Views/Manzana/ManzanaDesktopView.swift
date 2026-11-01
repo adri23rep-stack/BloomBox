@@ -408,7 +408,7 @@ struct BloomBoxGridWidgetView: View {
 /// single UIImage frame. The callback receives raw data, then the media
 /// importer validates and copies it to app-owned storage.
 struct BloomBoxMediaPhotosPicker: UIViewControllerRepresentable {
-    let completion: (Data?) -> Void
+    let completion: (Data?, Bool) -> Void
     func makeCoordinator() -> Coordinator { Coordinator(completion) }
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var config = PHPickerConfiguration()
@@ -422,11 +422,11 @@ struct BloomBoxMediaPhotosPicker: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: PHPickerViewController, context: Context) {}
 
     final class Coordinator: NSObject, PHPickerViewControllerDelegate {
-        let completion: (Data?) -> Void
-        init(_ completion: @escaping (Data?) -> Void) { self.completion = completion }
+        let completion: (Data?, Bool) -> Void
+        init(_ completion: @escaping (Data?, Bool) -> Void) { self.completion = completion }
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
             guard let provider = results.first?.itemProvider else {
-                DispatchQueue.main.async { self.completion(nil) }
+                DispatchQueue.main.async { self.completion(nil, false) }
                 return
             }
             // Request a concrete format; 'public.image' is an abstract UTType,
@@ -451,7 +451,7 @@ struct BloomBoxMediaPhotosPicker: UIViewControllerRepresentable {
             provider.loadDataRepresentation(forTypeIdentifier: identifier) { [weak self] data, _ in
                 guard let self else { return }
                 if let data, !data.isEmpty {
-                    DispatchQueue.main.async { self.completion(data) }
+                    DispatchQueue.main.async { self.completion(data, true) }
                 } else {
                     self.fallbackToImageObject(provider)
                 }
@@ -459,14 +459,14 @@ struct BloomBoxMediaPhotosPicker: UIViewControllerRepresentable {
         }
         private func fallbackToImageObject(_ provider: NSItemProvider) {
             guard provider.canLoadObject(ofClass: UIImage.self) else {
-                DispatchQueue.main.async { self.completion(nil) }
+                DispatchQueue.main.async { self.completion(nil, true) }
                 return
             }
             provider.loadObject(ofClass: UIImage.self) { [weak self] object, _ in
                 guard let self else { return }
                 let image = object as? UIImage
                 let data = image?.pngData() ?? image?.jpegData(compressionQuality: 0.9)
-                DispatchQueue.main.async { self.completion(data) }
+                DispatchQueue.main.async { self.completion(data, true) }
             }
         }
     }
