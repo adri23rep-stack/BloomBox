@@ -2013,6 +2013,29 @@ struct LiveBoardHomeScreen: View {
             .accessibilityIdentifier("bloombox.widget.\(widget.id)")
     }
 
+    /// Normal taps launch the configured target. Editing/dragging do not.
+    private func runWidgetTapAction(_ widget: BloomBoxPlacedWidget) {
+        guard !editing, let target = widget.tapActionKey else { return }
+        switch target {
+        case "widget:jit": jitSetup = true
+        case "widget:desktop": desktopSettings = true
+        case "widget:wallpaper": customizing = true
+        case "widget:interface": openInterface()
+        case "widget:apps": openManagement()
+        case "widget:settings": openTab(.settings)
+        case "widget:sources": openTab(.sources)
+        case Self.sideStoreKey, Self.installKey, Self.tweakStoreKey,
+             Self.appStoreKey, Self.modulesKey:
+            launchLibraryKey(target)
+        default:
+            guard let app = appMap[target] else {
+                widgetMediaError = "La aplicación asignada ya no está instalada. Mantén presionado el widget para elegir otra acción."
+                return
+            }
+            requestLaunch(app)
+        }
+    }
+
     private func editWidgetOptionsHandle(_ widget: BloomBoxPlacedWidget,
                                          pageIndex index: Int) -> some View {
         Menu {
@@ -2032,6 +2055,57 @@ struct LiveBoardHomeScreen: View {
 
     @ViewBuilder private func homeWidgetMenu(_ widget: BloomBoxPlacedWidget,
                                              pageIndex index: Int) -> some View {
+        Menu("Acción al tocar", systemImage: "hand.tap.fill") {
+            Button("Comportamiento normal", systemImage: "hand.tap") {
+                updateWidget(widget.id) { $0.tapActionKey = nil }
+            }
+            Menu("Apps de BloomBox", systemImage: "square.grid.2x2.fill") {
+                Button("App Store", systemImage: "bag.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = Self.appStoreKey }
+                }
+                Button("Módulos", systemImage: "square.stack.3d.up.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = Self.modulesKey }
+                }
+                Button("Tweak Store", systemImage: "puzzlepiece.extension.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = Self.tweakStoreKey }
+                }
+                Button("SideStore", systemImage: "square.stack.3d.up.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = Self.sideStoreKey }
+                }
+                Button("Instalar app", systemImage: "square.and.arrow.down.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = Self.installKey }
+                }
+            }
+            Menu("Herramientas y módulos", systemImage: "slider.horizontal.3") {
+                Button("JIT", systemImage: "bolt.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = "widget:jit" }
+                }
+                Button("Escritorio", systemImage: "square.grid.3x3.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = "widget:desktop" }
+                }
+                Button("Wallpapers", systemImage: "photo.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = "widget:wallpaper" }
+                }
+                Button("Personalizar interfaz", systemImage: "paintbrush.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = "widget:interface" }
+                }
+                Button("Administrar apps", systemImage: "square.grid.2x2.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = "widget:apps" }
+                }
+                Button("Ajustes", systemImage: "gearshape.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = "widget:settings" }
+                }
+            }
+            Menu("Abrir app instalada", systemImage: "app.badge") {
+                ForEach(appKeys.filter { appMap[$0] != nil }.sorted {
+                    title($0).localizedCaseInsensitiveCompare(title($1)) == .orderedAscending
+                }, id: \.self) { key in
+                    Button(title(key)) {
+                        updateWidget(widget.id) { $0.tapActionKey = key }
+                    }
+                }
+            }
+        }
         Button("Mover widget", systemImage: "hand.draw.fill") {
             selectedWidgetID = widget.id
             enterEditMode()
