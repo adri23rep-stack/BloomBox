@@ -243,6 +243,9 @@ struct BloomBoxPlacedWidget: Codable, Equatable, Identifiable {
     var mediaName: String? = nil
     var fill: Bool = true
     var glass: Bool = true
+    /// Optional launcher key selected by the user. Nil keeps legacy tap behavior.
+    /// Old saved widget JSON decodes without this key.
+    var tapActionKey: String? = nil
 }
 
 enum BloomBoxWidgetGrid {
