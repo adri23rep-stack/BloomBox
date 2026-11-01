@@ -270,6 +270,9 @@ private extension AltStoreSourcesViewModel {
     }
     
     func storeCache(_ data: Data, for url: URL) {
+        // Some Archive items have huge file lists. Keep the on-device catalogue
+        // cache bounded; a large list may be refreshed without saving it.
+        guard data.count <= 4 * 1024 * 1024 else { return }
         guard let fileURL = cacheFileURL(for: url) else { return }
         do {
             try data.write(to: fileURL, options: .atomic)
@@ -316,7 +319,21 @@ private extension AltStoreSourcesViewModel {
 
 enum AltStoreSourceLoader {
     static func load(from url: URL) async throws -> (AltStoreSource, Data) {
-        let (data, response) = try await URLSession.shared.data(from: url)
+        // A pasted Internet Archive details link is an item, not AltStore JSON.
+        // Ask Archive's metadata API for its file list without downloading any IPA.
+        let fetchURL: URL
+        if let identifier = archiveIdentifier(for: url) {
+            guard let metadataURL = URL(string: "https://archive.org/metadata/\(identifier)") else {
+                throw sourceError("Enlace de Internet Archive inválido.")
+            }
+            fetchURL = metadataURL
+        } else {
+            guard url.isFileURL || ["https", "http"].contains(url.scheme?.lowercased() ?? "") else {
+                throw sourceError("Solo se admiten archivos locales y enlaces HTTP(S).")
+            }
+            fetchURL = url
+        }
+        let (data, response) = try await URLSession.shared.data(from: fetchURL)
         if let httpResponse = response as? HTTPURLResponse,
            !(200...299).contains(httpResponse.statusCode) {
             throw NSError(domain: "AltStoreSource", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "HTTP \(httpResponse.statusCode)"])
@@ -329,7 +346,105 @@ enum AltStoreSourceLoader {
         try decodeSource(from: data, baseURL: baseURL)
     }
     
+    // Only an Archive item URL is treated as an Archive source. We do not
+    // scrape search results, guess filenames, or pre-bundle third-party lists.
+    private static func archiveIdentifier(for url: URL) -> String? {
+        guard url.scheme?.lowercased() == "https",
+              ["archive.org", "www.archive.org"].contains(url.host?.lowercased() ?? "") else {
+            return nil
+        }
+        let segments = url.pathComponents.filter { $0 != "/" }
+        guard segments.count >= 2,
+              ["details", "download", "metadata"].contains(segments[0]) else {
+            return nil
+        }
+        let identifier = segments[1]
+        guard identifier.count <= 120,
+              identifier.range(of: "^[A-Za-z0-9._-]+$", options: .regularExpression) != nil,
+              identifier != ".", identifier != ".." else {
+            return nil
+        }
+        return identifier
+    }
+
+    private static func sourceError(_ message: String) -> NSError {
+        NSError(domain: "BloomBoxSources", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: message])
+    }
+
+    private static func decodeArchiveItem(from data: Data, identifier: String) throws -> AltStoreSource {
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let files = root["files"] as? [[String: Any]] else {
+            throw sourceError("No se pudo leer la lista de archivos de Internet Archive.")
+        }
+        let metadata = root["metadata"] as? [String: Any] ?? [:]
+        let title = (metadata["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sourceName = (title?.isEmpty == false) ? title! : identifier
+        let details = URL(string: "https://archive.org/details/\(identifier)")
+        let icon = URL(string: "https://archive.org/services/img/\(identifier)")
+        let items = Array(files.lazy.compactMap { file -> AltStoreSourceApp? in
+            guard let filename = file["name"] as? String,
+                  filename.lowercased().hasSuffix(".ipa"),
+                  filename.utf8.count <= 1024,
+                  file["private"] as? String != "true" else {
+                return nil
+            }
+            let components = filename.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+            guard !components.isEmpty,
+                  !components.contains(where: { $0 == "." || $0 == ".." || $0.hasPrefix(".") }) else {
+                return nil
+            }
+            var download = URL(string: "https://archive.org/download/\(identifier)")!
+            for component in components {
+                download.appendPathComponent(component)
+            }
+            let name = ((components.last ?? filename) as NSString).deletingPathExtension
+            let sizeString = file["size"] as? String
+            let size = sizeString.flatMap(Int64.init)
+            let version = AltStoreSourceAppVersion(
+                version: "IPA",
+                buildVersion: nil,
+                releaseDate: nil,
+                localizedDescription: "Archivo público alojado en Internet Archive.",
+                downloadURL: download,
+                size: size
+            )
+            return AltStoreSourceApp(
+                name: name,
+                // Archive metadata does not contain the internal IPA bundle ID.
+                // This is only a catalogue identifier, never the app's signed ID.
+                bundleIdentifier: "archive:\(identifier)/\(filename)",
+                developerName: nil,
+                subtitle: size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) },
+                description: "El identificador, la versión y la firma reales se leen al instalar el IPA.",
+                iconURL: nil,
+                tintColor: nil,
+                screenshots: [],
+                versions: [version],
+                latestVersion: version,
+                isBeta: false
+            )
+        }.prefix(500))
+        guard !items.isEmpty else {
+            throw sourceError("Este elemento no contiene archivos .ipa públicos.")
+        }
+        return AltStoreSource(
+            name: sourceName,
+            identifier: "archive:\(identifier)",
+            subtitle: "Internet Archive · \(items.count) archivos IPA",
+            description: "Fuente agregada manualmente. BloomBox no aloja estos archivos.",
+            iconURL: icon,
+            headerURL: nil,
+            tintColor: nil,
+            website: details,
+            apps: items
+        )
+    }
+
     private static func decodeSource(from data: Data, baseURL: URL) throws -> AltStoreSource {
+        if let identifier = archiveIdentifier(for: baseURL) {
+            return try decodeArchiveItem(from: data, identifier: identifier)
+        }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom({ decoder in
             let container = try decoder.singleValueContainer()
@@ -500,7 +615,7 @@ struct LCSourcesView: View {
                         Image(systemName: "link.badge.plus")
                             .font(.system(size: 48))
                             .foregroundColor(.secondary)
-                        Text("lc.sources.empty".loc)
+                        Text("Importa tus catálogos JSON o un enlace de archive.org/details/ para explorar archivos IPA.")
                             .multilineTextAlignment(.center)
                             .foregroundStyle(.secondary)
                     }
@@ -540,7 +655,7 @@ struct LCSourcesView: View {
                     }
                 }
             }
-            .navigationTitle("lc.tabView.sources".loc)
+            .navigationTitle("Mis fuentes")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     if viewModel.isRefreshingAll {
@@ -763,10 +878,26 @@ private struct ManageSourcesSheet: View {
                 } header: {
                     Text("lc.sources.manage.current".loc)
                 }
+                if !viewModel.sources.isEmpty {
+                    Section {
+                        Button {
+                            UIPasteboard.general.string = viewModel.sources
+                                .map { $0.url.absoluteString }
+                                .joined(separator: "\n")
+                        } label: {
+                            Label("Copiar lista de fuentes", systemImage: "doc.on.doc")
+                        }
+                    } footer: {
+                        Text("Puedes guardar o compartir los enlaces; no se exportan datos privados ni archivos IPA.")
+                    }
+                }
                 
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
-                        TextField("https://example.com/source.json", text: $manualSourceValue)
+                        Text("Pega una fuente AltStore (.json) o el enlace a un elemento de Internet Archive que contenga archivos .ipa.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        TextField("https://archive.org/details/identificador", text: $manualSourceValue)
                             .textContentType(.URL)
                             .keyboardType(.URL)
                             .autocapitalization(.none)
@@ -789,11 +920,13 @@ private struct ManageSourcesSheet: View {
                     }
                     .padding(.vertical, 4)
                 } header: {
-                    Text("lc.sources.manage.manual".loc)
+                    Text("Mis fuentes · Importación manual")
+                } footer: {
+                    Text("Se guarda solo en este dispositivo. Los archivos se descargan desde el servidor original cuando eliges instalar. Verifica el origen y los permisos de distribución.")
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("lc.sources.addSource".loc)
+            .navigationTitle("Mis fuentes")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("lc.common.close".loc) {
@@ -967,6 +1100,9 @@ private struct LCSourceAppBanner: View {
     }
     
     private var metadataText: String {
+        if source.identifier?.hasPrefix("archive:") == true {
+            return "Archivo IPA · \(app.subtitle ?? "Tamaño desconocido")"
+        }
         guard let latest = app.latestVersion else {
             return app.bundleIdentifier
         }

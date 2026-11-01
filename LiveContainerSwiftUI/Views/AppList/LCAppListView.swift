@@ -840,13 +840,17 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
         let decompressProgress = Progress.discreteProgress(totalUnitCount: 100)
         installProgress.addChild(decompressProgress, withPendingUnitCount: 80)
-        let payloadPath = fm.temporaryDirectory.appendingPathComponent("Payload")
-        if fm.fileExists(atPath: payloadPath.path) {
-            try fm.removeItem(at: payloadPath)
-        }
-        
-        // decompress
-        guard await decompress(url.path, fm.temporaryDirectory.path, decompressProgress) == 0 else {
+        // Extract into a private, uniquely named staging folder. IPA archives may
+        // contain root-level metadata outside Payload; extraction directly into the
+        // global temp directory used to leave those files behind indefinitely.
+        let extractionRoot = fm.temporaryDirectory
+            .appendingPathComponent("BloomBoxInstall-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: extractionRoot, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: extractionRoot) }
+        let payloadPath = extractionRoot.appendingPathComponent("Payload", isDirectory: true)
+
+        // Every success, failure and cancellation removes all staged files.
+        guard await decompress(url.path, extractionRoot.path, decompressProgress) == 0 else {
             throw "lc.appList.urlFileIsNotIpaError".loc
         }
 
@@ -1200,11 +1204,13 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         
         do {
             let fileManager = FileManager.default
-            let destinationURL = fileManager.temporaryDirectory.appendingPathComponent(installUrl.lastPathComponent)
-            if fileManager.fileExists(atPath: destinationURL.path) {
-                try fileManager.removeItem(at: destinationURL)
-            }
-            
+            // Unique destination prevents simultaneous downloads with the same filename
+            // from overwriting one another. Always clean it up, including install errors,
+            // hash mismatches and user cancellation (which used to leave large IPAs).
+            let temporaryName = UUID().uuidString + "-" + installUrl.lastPathComponent
+            let destinationURL = fileManager.temporaryDirectory.appendingPathComponent(temporaryName)
+            defer { try? fileManager.removeItem(at: destinationURL) }
+
             try await downloadHelper.download(url: installUrl, to: destinationURL)
             if downloadHelper.cancelled {
                 return
@@ -1225,7 +1231,6 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 }
             }
             try await installIpaFile(destinationURL)
-            try fileManager.removeItem(at: destinationURL)
         } catch {
             errorInfo = error.localizedDescription
             errorShow = true

@@ -20,6 +20,12 @@ struct LCAppStorageContainerItem: Identifiable {
     let isExternalContainer: Bool
 }
 
+struct LCStorageTemporaryEntry: Identifiable {
+    let name: String
+    let size: Int64
+    var id: String { name }
+}
+
 struct LCStorageBreakdown {
     let totalSize: Int64
     let appBundleSize: Int64
@@ -28,6 +34,10 @@ struct LCStorageBreakdown {
     let appGroupSize: Int64
     let tweaksSize: Int64
     let otherSize: Int64
+    // Installed BloomBox bundle lives outside Documents; it must not be counted as app data.
+    let hostBundleSize: Int64
+    let temporaryEntries: [LCStorageTemporaryEntry]
+    let scannedAt: Date
 
     let appItems: [LCAppStorageItem]
 }
@@ -92,12 +102,9 @@ final class LCStorageManagementModel: ObservableObject {
         sizesByCategory[.appBundle] = 0
         sizesByCategory[.containers] = 0
         
-        var sideStoreContainerSize: Int64 = 0
         for appItem in appItems {
             if !(appItem.appModel.appInfo is BuiltInSideStoreAppInfo) {
                 sizesByCategory[.appBundle]! += appItem.bundleSize ?? 0
-            } else {
-                sideStoreContainerSize = appItem.containersSize
             }
             
             for containerDetail in appItem.containerDetails {
@@ -108,11 +115,10 @@ final class LCStorageManagementModel: ObservableObject {
             }
         }
 
-        try await withThrowingTaskGroup(of: (StorageCategory, Int64).self) { group in
+        let temporaryEntries = try await calculateTemporaryEntries()
+        sizesByCategory[.temporaryFiles] = temporaryEntries.reduce(0) { $0 + $1.size }
 
-            group.addTask(priority: .utility) {
-                (.temporaryFiles, try await calculateSize(at: FileManager.default.temporaryDirectory))
-            }
+        try await withThrowingTaskGroup(of: (StorageCategory, Int64).self) { group in
 
             group.addTask(priority: .utility) {
                 (.appGroup, try await calculateCombinedSize(of: appGroupRoots))
@@ -134,6 +140,7 @@ final class LCStorageManagementModel: ObservableObject {
         let appGroupSize = sizesByCategory[.appGroup] ?? 0
         let tweaksSize = sizesByCategory[.tweaks] ?? 0
         let knownRootsSize = try await calculateCombinedSize(of: knownRoots)
+        let hostBundleSize = try await calculateSize(at: Bundle.main.bundleURL)
         var librarySize: Int64 = 0
         if let libraryPath = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first {
             librarySize = try await calculateSize(at: libraryPath)
@@ -150,6 +157,9 @@ final class LCStorageManagementModel: ObservableObject {
             appGroupSize: appGroupSize,
             tweaksSize: tweaksSize,
             otherSize: otherSize,
+            hostBundleSize: hostBundleSize,
+            temporaryEntries: temporaryEntries,
+            scannedAt: Date(),
             appItems: appItems
         )
     }
@@ -186,6 +196,18 @@ final class LCStorageManagementModel: ObservableObject {
         }
 
 
+        // Unlike ordinary guests, SideStore's persistent data is in Documents/SideStore,
+        // not in an LCContainer. Show the actual data instead of an empty row.
+        if input.appInfo is BuiltInSideStoreAppInfo {
+            let sideStoreURL = LCPath.docPath.appendingPathComponent("SideStore", isDirectory: true)
+            let sideStoreBytes = try await calculateSize(at: sideStoreURL)
+            containersSize += sideStoreBytes
+            containerDetails.append(LCAppStorageContainerItem(
+                id: UUID(), name: "Datos de SideStore", size: sideStoreBytes,
+                isExternalContainer: false
+            ))
+        }
+
         let bundleSize: Int64?
         if let bundlePath = input.appInfo.bundlePath() {
             bundleSize = try await calculateSize(at: URL(fileURLWithPath: bundlePath))
@@ -216,17 +238,24 @@ final class LCStorageManagementModel: ObservableObject {
         var appItems: [LCAppStorageItem] = []
         appItems.reserveCapacity(inputs.count)
 
+        // Disk scans are expensive: limit concurrent guests so the diagnostic
+        // screen does not flood the file system when many apps are installed.
         try await withThrowingTaskGroup(of: LCAppStorageItem.self) { group in
-            for input in inputs {
-                group.addTask(priority: .utility) {
-                    try await calculateAppItem(
-                        from: input
-                    )
+            var remaining = inputs.makeIterator()
+            for _ in 0..<min(inputs.count, 3) {
+                if let input = remaining.next() {
+                    group.addTask(priority: .utility) {
+                        try await calculateAppItem(from: input)
+                    }
                 }
             }
-
-            for try await item in group {
+            while let item = try await group.next() {
                 appItems.append(item)
+                if let input = remaining.next() {
+                    group.addTask(priority: .utility) {
+                        try await calculateAppItem(from: input)
+                    }
+                }
             }
         }
 
@@ -236,6 +265,23 @@ final class LCStorageManagementModel: ObservableObject {
             }
             return $0.totalSize > $1.totalSize
         }
+    }
+
+    // List the *same* temp-root contents that contribute to the displayed total.
+    // A later cleanup may correctly report zero: /tmp is volatile and this is a snapshot.
+    nonisolated private static func calculateTemporaryEntries() async throws -> [LCStorageTemporaryEntry] {
+        let directory = FileManager.default.temporaryDirectory
+        let children = try FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil, options: []
+        )
+        var entries: [LCStorageTemporaryEntry] = []
+        entries.reserveCapacity(children.count)
+        for url in children {
+            try Task.checkCancellation()
+            let size = try await calculateSize(at: url)
+            entries.append(LCStorageTemporaryEntry(name: url.lastPathComponent, size: size))
+        }
+        return entries.sorted { $0.size > $1.size }
     }
 
     nonisolated private static func calculateCombinedSize(of urls: [URL]) async throws -> Int64 {
@@ -273,10 +319,21 @@ final class LCStorageManagementModel: ObservableObject {
         let fileManager = FileManager.default
         let resourceKeys: Set<URLResourceKey> = [
             .isRegularFileKey,
+            .isSymbolicLinkKey,
             .totalFileAllocatedSizeKey,
             .fileAllocatedSizeKey,
             .fileSizeKey
         ]
+        // An entry in /tmp can be a regular file, not only a folder.
+        // FileManager.enumerator(at:) does not enumerate the root regular file.
+        if let fileValues = try? url.resourceValues(forKeys: resourceKeys) {
+            if fileValues.isSymbolicLink == true { return 0 }
+            if fileValues.isRegularFile == true {
+                return Int64(fileValues.totalFileAllocatedSize
+                    ?? fileValues.fileAllocatedSize
+                    ?? fileValues.fileSize ?? 0)
+            }
+        }
         guard let enumerator = fileManager.enumerator(
             at: url,
             includingPropertiesForKeys: Array(resourceKeys),

@@ -1,6 +1,7 @@
 import SwiftUI
 
 private enum LCStorageSummaryCategory {
+    case hostBundle
     case appBundle
     case containers
     case appGroup
@@ -17,6 +18,8 @@ private struct LCStorageSummaryDisplayItem: Identifiable {
 
     var title: String {
         switch category {
+        case .hostBundle:
+            return "BloomBox (aplicación)"
         case .appBundle:
             return "lc.storage.appBundle".loc
         case .containers:
@@ -34,6 +37,8 @@ private struct LCStorageSummaryDisplayItem: Identifiable {
 
     var color: Color {
         switch category {
+        case .hostBundle:
+            return .cyan
         case .appBundle:
             return .blue
         case .containers:
@@ -103,7 +108,7 @@ struct LCStorageSummarySection: View {
                 }
 
                 if let breakdown {
-                    Text(formatStorageSize(breakdown.totalSize))
+                    Text(formatStorageSize(breakdown.totalSize + breakdown.hostBundleSize))
                         .font(.title2)
                         .fontWeight(.semibold)
                 }
@@ -123,6 +128,9 @@ struct LCStorageSummarySection: View {
                     }
 
                     // Keep the larger category set flattened into one settings-style summary so total-first scanning still works.
+                    Text("Incluye BloomBox, SideStore, las apps invitadas y los datos accesibles. No mide apps externas ni archivos del sistema iOS.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     VStack(spacing: 0) {
                         // Hide zero-sized categories to keep the expanded summary readable even with the larger category set.
                         ForEach(displayItems) { item in
@@ -142,6 +150,10 @@ struct LCStorageSummarySection: View {
         }
 
         var items: [LCStorageSummaryDisplayItem] = []
+
+        if breakdown.hostBundleSize > 0 {
+            items.append(LCStorageSummaryDisplayItem(category: .hostBundle, size: breakdown.hostBundleSize))
+        }
 
         if breakdown.appBundleSize > 0 {
             items.append(
@@ -230,6 +242,24 @@ struct LCInstalledAppsSection: View {
 
     var body: some View {
         Section("lc.storage.installedApps".loc) {
+            if let breakdown {
+                HStack(spacing: 12) {
+                    Image(systemName: "externaldrive.fill")
+                        .foregroundStyle(.cyan)
+                        .frame(width: 28, height: 28)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("BloomBox").fontWeight(.semibold)
+                        Text("Total en este contenedor · incluye las apps de abajo")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text(formatStorageSize(breakdown.totalSize + breakdown.hostBundleSize))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .accessibilityIdentifier("bloombox.storage.hostTotal")
+            }
             content
         }
     }
