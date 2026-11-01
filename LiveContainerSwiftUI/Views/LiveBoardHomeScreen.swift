@@ -74,36 +74,42 @@ private struct BloomBoxWidgetMediaPresentation: ViewModifier {
     }
 }
 
-/// A GIF or a borderless widget isn't necessarily a hit-testable SwiftUI
-/// surface: the animated CALayer intentionally disables its own hit testing.
-/// Keep the entire rectangular tile interactive regardless of appearance.
-///
-/// Normal mode owns the context menu; edit mode owns drag. Combining both
-/// long-press recognizers was causing disappearing GIF snapshots and menus
-/// opening instead of a drag. The drag preview is static and never captures
-/// the playing GIF's AV/CALayer contents.
+/// Keep a stable tile identity throughout editing. A local drag on an explicit
+/// handle avoids UIKit lifting/hiding the animated media view for drag-and-drop.
 private struct BloomBoxWidgetInteraction<MenuContent: View>: ViewModifier {
-    let widgetID: String
     let editing: Bool
+    let select: () -> Void
+    let move: (CGSize) -> Void
     let menu: () -> MenuContent
+    @GestureState private var translation = CGSize.zero
 
-    @ViewBuilder func body(content: Content) -> some View {
-        if editing {
-            content
-                .contentShape(Rectangle())
-                .onDrag({
-                    NSItemProvider(object: ("bloombox-widget:" + widgetID) as NSString)
-                }, preview: {
-                    Label("Mover widget", systemImage: "square.grid.2x2.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .padding(16)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-                })
-        } else {
-            content
-                .contentShape(Rectangle())
-                .contextMenu(menuItems: menu)
-        }
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
+            .contextMenu(menuItems: menu)
+            .overlay(alignment: .bottomLeading) {
+                if editing {
+                    Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(.black.opacity(0.72), in: Circle())
+                        .contentShape(Rectangle())
+                        .padding(4)
+                        .highPriorityGesture(
+                            DragGesture(minimumDistance: 2, coordinateSpace: .named("bloombox.alive.viewport"))
+                                .updating($translation) { value, state, _ in
+                                    state = value.translation
+                                }
+                                .onChanged { _ in select() }
+                                .onEnded { value in move(value.translation) }
+                        )
+                        .accessibilityLabel("Arrastrar widget")
+                        .accessibilityHint("Usa Opciones para moverlo a otra página")
+                }
+            }
+            .offset(translation)
+            .zIndex(translation == .zero ? 0 : 10)
     }
 }
 
@@ -179,6 +185,7 @@ struct LiveBoardHomeScreen: View {
     @State private var desktopSettings = false
     @State private var editing = false
     @State private var showWidgetGallery = false
+    @State private var selectedWidgetID: String?
     @AppStorage("ManzanaPageWidgets", store: LCUtils.appGroupUserDefault) private var pageWidgetsJSON = "{}"
     @AppStorage("BloomBoxPlacedWidgetsV2", store: LCUtils.appGroupUserDefault) private var placedWidgetsJSON = "{}"
     @AppStorage("BloomBoxPlacedWidgetsMigrated", store: LCUtils.appGroupUserDefault) private var placedWidgetsMigrated = false
@@ -1732,15 +1739,8 @@ struct LiveBoardHomeScreen: View {
         savePlacedWidgets(all)
         moveIconsOutOfWidgetArea()
         page = targetPage + 1
-        // Dragging enters edit mode, but edit mode intentionally disables the
-        // long-press context menu. Exit after the drop so the relocated widget
-        // is immediately selectable again. Defer one short tick to let UIKit
-        // finish the drag/drop snapshot before rebuilding the tile.
-        if editing {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-                finishEditing()
-            }
-        }
+        selectedWidgetID = id
+        UISelectionFeedbackGenerator().selectionChanged()
     }
     private func moveIconsOutOfWidgetArea() {
         // Reflow, never discard app keys or modify their data. A fully occupied
@@ -1789,7 +1789,7 @@ struct LiveBoardHomeScreen: View {
                     }
                 }
                 Section {
-                    Text("Mueve los widgets arrastrándolos como iconos. Mantén pulsado para ajustar tamaño, fondo y posición.")
+                    Text("Toca un widget para seleccionarlo. Arrastra el botón de flechas para moverlo y toca ••• para cambiar tamaño, imagen o fondo. Pulsa Listo al terminar.")
                         .font(.footnote)
                 }
             }
@@ -1893,10 +1893,13 @@ struct LiveBoardHomeScreen: View {
                         max(72, (height - (editing ? 69 : 39)) / 6))
         return homeIconGrid(index, width: width, height: height)
             .overlay(alignment: .topLeading) {
-                ForEach(widgets(on: index)) { widget in
-                    homeWidgetTile(widget, pageIndex: index,
-                                   cellWidth: cellWidth, pitch: pitch)
+                ZStack(alignment: .topLeading) {
+                    ForEach(widgets(on: index)) { widget in
+                        homeWidgetTile(widget, pageIndex: index,
+                                       cellWidth: cellWidth, pitch: pitch)
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
     }
 
@@ -1911,28 +1914,53 @@ struct LiveBoardHomeScreen: View {
             + Double(widget.slot / 4) * 0.026
         return BloomBoxGridWidgetView(widget: widget, width: w, height: h,
                                       active: page == index + 1)
+            .allowsHitTesting(false)
             .modifier(aliveEntrance(for: index, delay: delay))
             .frame(width: w, height: h)
-            .contentShape(Rectangle())
-            .overlay(alignment: .topTrailing) {
+            .overlay {
+                // SwiftUI owns input, independently of transparent GIF pixels.
+                Rectangle().fill(Color.clear).contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedWidgetID = widget.id
+                        if !editing && widget.kind == "media" && widget.mediaName == nil {
+                            requestWidgetMedia(for: widget.id)
+                        } else {
+                            enterEditMode()
+                        }
+                    }
+            }
+            .overlay {
                 if editing {
-                    editWidgetOptionsHandle(widget, pageIndex: index)
+                    RoundedRectangle(cornerRadius: 19)
+                        .strokeBorder(selectedWidgetID == widget.id ? Color.cyan : Color.white.opacity(0.55),
+                                      style: StrokeStyle(lineWidth: 2, dash: selectedWidgetID == widget.id ? [] : [5, 4]))
+                        .allowsHitTesting(false)
                 }
             }
-            .onTapGesture {
-                if !editing && widget.kind == "media" {
-                    requestWidgetMedia(for: widget.id)
-                }
+            .overlay(alignment: .topTrailing) {
+                if editing { editWidgetOptionsHandle(widget, pageIndex: index) }
             }
+            .modifier(BloomBoxWidgetInteraction(editing: editing, select: {
+                selectedWidgetID = widget.id
+            }, move: { translation in
+                let column = min(4 - widget.columns, max(0,
+                    widget.slot % 4 + Int((translation.width / cellWidth).rounded())))
+                let row = min(6 - widget.rows, max(0,
+                    widget.slot / 4 + Int((translation.height / pitch).rounded())))
+                let slot = row * 4 + column
+                guard let cells = BloomBoxWidgetGrid.cells(slot: slot, columns: widget.columns, rows: widget.rows),
+                      cells.isDisjoint(with: occupiedCells(on: index, excluding: widget.id)) else {
+                    UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                    return
+                }
+                movePlacedWidget(widget.id, to: index, slot: slot)
+            }, menu: {
+                homeWidgetMenu(widget, pageIndex: index)
+            }))
+            // Position the entire interaction surface, including every gesture.
             .offset(x: 14 + CGFloat(widget.slot % 4) * cellWidth,
                     y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch)
-            // Grid slots beneath the widget own drop handling. Adding an
-            // onDrop recognizer to the widget itself interfered with tapping
-            // transparent GIFs and with the context menu after relocation.
-            .modifier(BloomBoxWidgetInteraction(widgetID: widget.id,
-                                                 editing: editing) {
-                homeWidgetMenu(widget, pageIndex: index)
-            })
+            .zIndex(selectedWidgetID == widget.id ? 2 : 1)
             .accessibilityIdentifier("bloombox.widget.\(widget.id)")
     }
 
@@ -1956,6 +1984,7 @@ struct LiveBoardHomeScreen: View {
     @ViewBuilder private func homeWidgetMenu(_ widget: BloomBoxPlacedWidget,
                                              pageIndex index: Int) -> some View {
         Button("Mover widget", systemImage: "hand.draw.fill") {
+            selectedWidgetID = widget.id
             enterEditMode()
         }
         if widget.kind == "notes" {
@@ -2750,6 +2779,7 @@ struct LiveBoardHomeScreen: View {
     }
 
     private func finishEditing() {
+        selectedWidgetID = nil
         pendingRemovalKey = nil
         withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
             editing = false
