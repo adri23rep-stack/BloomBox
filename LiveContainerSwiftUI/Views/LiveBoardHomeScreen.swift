@@ -2334,6 +2334,18 @@ struct LiveBoardHomeScreen: View {
                 Button("24 horas") { updateWidget(widget.id) { $0.clock24Hour = true } }
                 Button("12 horas") { updateWidget(widget.id) { $0.clock24Hour = false } }
             }
+            if widget.clockStyle == "pixel" {
+                Menu("Brillo Pixel Time", systemImage: "sun.max") {
+                    ForEach([0, 25, 50, 75, 100], id: \.self) { value in
+                        Button("\(value)%") {
+                            updateWidget(widget.id) { $0.pixelGlow = Double(value) / 100 }
+                        }
+                    }
+                }
+                Button("Animar barra Pixel Time · activar/desactivar") {
+                    updateWidget(widget.id) { $0.pixelAnimatedBar = !($0.pixelAnimatedBar ?? false) }
+                }
+            }
         }
         Menu("Living Widget · Movimiento", systemImage: "sparkles.rectangle.stack") {
             Button("Sin movimiento") { setLivingSettings(widget.id) { $0.mode = "none" } }
