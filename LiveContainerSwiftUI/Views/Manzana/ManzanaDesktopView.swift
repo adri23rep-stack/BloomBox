@@ -44,7 +44,6 @@ struct ManzanaDesktopView: View {
                                 .font(.system(size: 34, weight: .light, design: .rounded))
                                 .minimumScaleFactor(0.65)
                                 .lineLimit(1)
-                                .contentTransition(.numericText())
                             Text(context.date, format: .dateTime.weekday(.wide).day().month(.wide))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
