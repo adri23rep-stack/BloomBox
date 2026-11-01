@@ -30,11 +30,16 @@ private enum LiveBoardMode: String, CaseIterable, Identifiable {
 struct LiveBoardRootView: View {
     @EnvironmentObject private var sharedModel: SharedModel
     @AppStorage("LiveBoardMode", store: LCUtils.appGroupUserDefault) private var mode = "ios"
+    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault) private var preferredLanguage = "system"
+    private var selectedLocale: Locale {
+        Locale(identifier: preferredLanguage == "system" ? (Locale.preferredLanguages.first ?? "en") : preferredLanguage)
+    }
     @State private var interfacePresented = false
     @State private var destinationPresented = false
 
     var body: some View {
         LCAppListView(openInterface: { interfacePresented = true })
+        .environment(\.locale, selectedLocale)
         .preferredColorScheme(.dark)
         .sheet(isPresented: $interfacePresented, onDismiss: { NotificationCenter.default.post(name: LiveBoardControllerInput.resumeNotification, object: nil) }) {
             NavigationView {
@@ -62,6 +67,7 @@ struct LiveBoardRootView: View {
                 .navigationTitle("Interface")
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { interfacePresented = false } } }
             }.navigationViewStyle(.stack)
+             .environment(\.locale, selectedLocale)
         }
         .sheet(isPresented: $destinationPresented, onDismiss: { sharedModel.selectedTab = .apps; NotificationCenter.default.post(name: LiveBoardControllerInput.resumeNotification, object: nil) }) {
             VStack(spacing: 0) {
