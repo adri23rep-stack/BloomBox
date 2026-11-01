@@ -250,6 +250,10 @@ struct BloomBoxPlacedWidget: Codable, Equatable, Identifiable {
     /// Optional launcher key selected by the user. Nil keeps legacy tap behavior.
     /// Old saved widget JSON decodes without this key.
     var tapActionKey: String? = nil
+    /// Optional: old layouts continue to decode with their original clock.
+    var clockStyle: String? = nil
+    var clockTint: String? = nil
+    var clock24Hour: Bool? = nil
 }
 
 enum BloomBoxWidgetGrid {
@@ -335,6 +339,164 @@ enum BloomBoxWidgetMedia {
     }
 }
 
+
+/// Native SwiftUI clock faces. No remote code, assets, or dependencies required.
+private struct BloomBoxClockFace: View {
+    let widget: BloomBoxPlacedWidget
+
+    private var tint: Color {
+        switch widget.clockTint {
+        case "mint": return Color(red: 0.38, green: 0.96, blue: 0.78)
+        case "pink": return Color(red: 1.0, green: 0.61, blue: 0.82)
+        case "amber": return Color(red: 1.0, green: 0.76, blue: 0.38)
+        default: return .white
+        }
+    }
+
+    private var style: String { widget.clockStyle ?? "minimal" }
+    private var tiny: Bool { widget.columns == 1 || widget.rows == 1 }
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let components = Calendar.current.dateComponents([.hour, .minute, .second], from: context.date)
+            let hour = components.hour ?? 0
+            let minute = components.minute ?? 0
+            let second = components.second ?? 0
+            let displayHour = (widget.clock24Hour ?? true) ? hour : (hour % 12 == 0 ? 12 : hour % 12)
+            let value = String(format: "%02d:%02d", displayHour, minute)
+            Group {
+                switch style {
+                case "flip":
+                    flipFace(value: value, date: context.date)
+                case "analog":
+                    analogFace(hour: hour, minute: minute, second: second)
+                case "pixel":
+                    pixelFace(value: value, second: second)
+                default:
+                    minimalFace(value: value, date: context.date)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .foregroundStyle(tint)
+            .accessibilityLabel("Hora: \(value)")
+        }
+    }
+
+    private func minimalFace(value: String, date: Date) -> some View {
+        VStack(spacing: tiny ? 1 : 5) {
+            Text(value)
+                .font(.system(size: tiny ? 23 : 36, weight: .light, design: .rounded))
+                .monospacedDigit()
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+            if !tiny {
+                Text(date, format: .dateTime.weekday(.wide).day().month(.abbreviated))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .opacity(0.82)
+            }
+        }
+        .padding(8)
+    }
+
+    private func flipFace(value: String, date: Date) -> some View {
+        VStack(spacing: 5) {
+            HStack(spacing: tiny ? 2 : 4) {
+                ForEach(Array(value.enumerated()), id: \.offset) { _, character in
+                    if character == ":" {
+                        Text(":").font(.system(size: tiny ? 17 : 31, weight: .bold, design: .monospaced))
+                    } else {
+                        Text(String(character))
+                            .font(.system(size: tiny ? 18 : 31, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, tiny ? 6 : 11)
+                            .background {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .fill(Color.black.opacity(0.72))
+                                    .overlay(alignment: .center) {
+                                        Rectangle().fill(.white.opacity(0.12)).frame(height: 1)
+                                    }
+                            }
+                    }
+                }
+            }
+            if !tiny {
+                Text(date, format: .dateTime.day().month(.abbreviated))
+                    .font(.caption2)
+            }
+        }
+        .padding(.horizontal, 7)
+        .animation(.easeInOut(duration: 0.25), value: value)
+    }
+
+    private func analogFace(hour: Int, minute: Int, second: Int) -> some View {
+        GeometryReader { geo in
+            let side = min(geo.size.width, geo.size.height) * 0.87
+            ZStack {
+                Circle().strokeBorder(tint.opacity(0.78), lineWidth: 2)
+                ForEach(0..<12, id: \.self) { tick in
+                    Capsule()
+                        .fill(tint.opacity(tick.isMultiple(of: 3) ? 0.95 : 0.55))
+                        .frame(width: tick.isMultiple(of: 3) ? 2.5 : 1.5, height: side * 0.075)
+                        .offset(y: -side * 0.40)
+                        .rotationEffect(.degrees(Double(tick) * 30))
+                }
+                Capsule()
+                    .fill(tint)
+                    .frame(width: 4, height: side * 0.27)
+                    .offset(y: -side * 0.13)
+                    .rotationEffect(.degrees(Double(hour % 12) * 30 + Double(minute) * 0.5))
+                Capsule()
+                    .fill(tint)
+                    .frame(width: 2.5, height: side * 0.37)
+                    .offset(y: -side * 0.17)
+                    .rotationEffect(.degrees(Double(minute) * 6 + Double(second) * 0.1))
+                Capsule()
+                    .fill(Color.red.opacity(0.9))
+                    .frame(width: 1.5, height: side * 0.43)
+                    .offset(y: -side * 0.14)
+                    .rotationEffect(.degrees(Double(second) * 6))
+                Circle().fill(tint).frame(width: 7, height: 7)
+            }
+            .frame(width: side, height: side)
+            .position(x: geo.size.width / 2, y: geo.size.height / 2)
+        }
+        .padding(7)
+    }
+
+    private func pixelFace(value: String, second: Int) -> some View {
+        VStack(spacing: tiny ? 2 : 6) {
+            HStack(spacing: 4) {
+                Image(systemName: "gamecontroller.fill").font(.system(size: tiny ? 10 : 15))
+                if !tiny { Text("PIXEL TIME").font(.system(size: 9, weight: .bold, design: .monospaced)) }
+            }
+            .opacity(0.8)
+            Text(value)
+                .font(.system(size: tiny ? 20 : 33, weight: .black, design: .monospaced))
+                .monospacedDigit()
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+                .shadow(color: tint.opacity(0.75), radius: 7)
+            if !tiny {
+                HStack(spacing: 3) {
+                    ForEach(0..<12, id: \.self) { index in
+                        Rectangle()
+                            .fill(index <= (second / 5) ? tint : tint.opacity(0.13))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 4)
+                    }
+                }
+            }
+        }
+        .padding(9)
+        .background(Color.black.opacity(0.27), in: RoundedRectangle(cornerRadius: 11))
+        .padding(5)
+    }
+}
+
 struct BloomBoxGridWidgetView: View {
     let widget: BloomBoxPlacedWidget
     let width: CGFloat
@@ -353,20 +515,7 @@ struct BloomBoxGridWidgetView: View {
             Group {
                 switch widget.kind {
                 case "clock":
-                    TimelineView(.periodic(from: .now, by: 60)) { context in
-                        VStack(spacing: 2) {
-                            Text(context.date, format: .dateTime.hour().minute())
-                                .font(.system(size: widget.columns == 1 ? 15 : 31,
-                                              weight: .medium, design: .rounded))
-                                .lineLimit(1).minimumScaleFactor(0.5)
-                            if widget.rows > 1 {
-                                Text(context.date, format: .dateTime.day().month(.abbreviated))
-                                    .font(.caption2)
-                            }
-                        }
-                        .foregroundStyle(.white)
-                        .padding(7)
-                    }
+                    BloomBoxClockFace(widget: widget)
                 case "notes":
                     Text(note.isEmpty ? "Notas" : note)
                         .font(.system(size: widget.columns == 1 ? 11 : 16))
