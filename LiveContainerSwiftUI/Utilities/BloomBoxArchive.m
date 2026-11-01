@@ -326,7 +326,9 @@ static NSString *debTweakFile(NSString *path) {
     archive_read_support_filter_all(payload); // gzip, xz, zstd, etc.
     ok = archive_read_open_filename(payload, temporary.fileSystemRepresentation, 65536) == ARCHIVE_OK;
     message = ok ? @"El contenido del .deb no es un TAR válido." : archiveMessage(payload);
-    if (ok && ![fm createDirectoryAtURL:destination withIntermediateDirectories:NO attributes:nil error:error]) ok = NO;
+    if (ok && ![fm createDirectoryAtURL:destination withIntermediateDirectories:NO attributes:nil error:error]) {
+        ok = NO; message = @"No se pudo crear la carpeta del tweak.";
+    }
     NSMutableSet<NSString *> *seen = [NSMutableSet set];
     NSUInteger files = 0, binaries = 0;
     uint64_t unpacked = 0;
