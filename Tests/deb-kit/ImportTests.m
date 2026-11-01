@@ -10,6 +10,7 @@ int main(int argc, const char *argv[]) {
         NSFileManager *fm = NSFileManager.defaultManager;
         NSURL *folder = [NSURL fileURLWithPath:[NSTemporaryDirectory()
             stringByAppendingPathComponent: NSUUID.UUID.UUIDString] isDirectory:YES];
+        [fm createDirectoryAtURL:folder withIntermediateDirectories:YES attributes:nil error:nil];
         NSError *error = nil;
         NSURL *destination = [folder URLByAppendingPathComponent:@"valid"];
         if (![BloomBoxArchive importDEB:[NSURL fileURLWithPath:@(argv[1])]
