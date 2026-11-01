@@ -110,6 +110,13 @@ struct LiveBoardHomeScreen: View {
     @State private var editing = false
     @State private var showWidgetGallery = false
     @AppStorage("ManzanaPageWidgets", store: LCUtils.appGroupUserDefault) private var pageWidgetsJSON = "{}"
+    @AppStorage("BloomBoxPlacedWidgetsV2", store: LCUtils.appGroupUserDefault) private var placedWidgetsJSON = "{}"
+    @AppStorage("BloomBoxPlacedWidgetsMigrated", store: LCUtils.appGroupUserDefault) private var placedWidgetsMigrated = false
+    @State private var widgetMediaID: String?
+    @State private var choosingWidgetFile = false
+    @State private var choosingWidgetPhoto = false
+    @State private var widgetMediaError: String?
+    @State private var startupNoticesEnabled = false
     @State private var pendingRemovalKey: String?
     @State private var pendingUninstall: LCAppModel?
     @State private var pendingTweakApp: LCAppModel?
@@ -225,10 +232,6 @@ struct LiveBoardHomeScreen: View {
                 ZStack(alignment: .bottom) {
                     TabView(selection: $page) {
                         ManzanaDesktopView(openSettings: { desktopSettings = true })
-                            .safeAreaInset(edge: .bottom, spacing: 0) {
-                                // Keep the last widget reachable above page controls.
-                                Color.clear.frame(height: 54)
-                            }
                             .tag(0)
                         ForEach(visiblePageIndices, id: \.self) { index in
                             homePage(index,
@@ -247,14 +250,14 @@ struct LiveBoardHomeScreen: View {
                     .blur(radius: openFolder == nil ? 0 : 18)
 
                     // Overlay instead of taking height away from the pages.
-                    // Widgets: keep navigation, hide only the app Dock.
-                    // Library: hide both controls to maximize scrolling space.
+                    // Widgets and Library both hide floating navigation and Dock.
+                    // On the widgets page, swiping still switches Home pages.
                     VStack(spacing: 0) {
                         pageControl
                             .padding(.bottom, 18)
-                            .opacity(page == libraryPageIndex ? 0 : 1)
-                            .allowsHitTesting(page != libraryPageIndex)
-                            .accessibilityHidden(page == libraryPageIndex)
+                            .opacity(page == libraryPageIndex || page == 0 ? 0 : 1)
+                            .allowsHitTesting(page != libraryPageIndex && page != 0)
+                            .accessibilityHidden(page == libraryPageIndex || page == 0)
                         dock(width: geometry.size.width)
                             .padding(.horizontal, 12)
                             .padding(.bottom, -22)
@@ -413,6 +416,8 @@ struct LiveBoardHomeScreen: View {
                 Task { await tweakCatalog.refreshIfNeeded() }
                 layout = LiveBoardHomeLayout.decode(savedLayout)
                 reconcile()
+                migrateLegacyPageWidgets()
+                restoreWidgetSpace()
                 homeHasAppeared = true
                 wallpaper = UIImage(contentsOfFile: wallpaperURL.path)
                 if #available(iOS 16.2, *) {
@@ -422,6 +427,13 @@ struct LiveBoardHomeScreen: View {
                     page = (visiblePageIndices.first ?? 0) + 1
                 }
                 startBloomBoxAlive()
+            }
+            .task {
+                // Noncritical popups and status notices are intentionally quiet
+                // for the first 10 seconds. App launches/security prompts are not delayed.
+                do { try await Task.sleep(nanoseconds: 10_000_000_000) }
+                catch { return }
+                startupNoticesEnabled = true
             }
             .task(id: scenePhase) {
                 // Task cancellation also stops this loop when the screen goes away.
@@ -449,7 +461,7 @@ struct LiveBoardHomeScreen: View {
             }
         }
         .overlay(alignment: .bottom) {
-            if ramPlus.needsAttention {
+            if ramPlus.needsAttention && startupNoticesEnabled {
                 Button { modulesPresented = true } label: {
                     Label("RAM+ solicitada, pero el permiso no está confirmado. Toca para revisar.", systemImage: "exclamationmark.triangle.fill")
                         .font(.footnote.weight(.semibold))
@@ -464,7 +476,7 @@ struct LiveBoardHomeScreen: View {
         }
         .overlay { if importingMotionWallpaper { ProgressView("Preparando fondo…").padding(20).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20)) } }
         .overlay(alignment: .top) {
-            if let networkNoticeText {
+            if startupNoticesEnabled, let networkNoticeText {
                 HStack(spacing: 12) {
                     Image(systemName: "wifi.slash")
                         .font(.system(size: 19, weight: .semibold))
@@ -774,8 +786,58 @@ struct LiveBoardHomeScreen: View {
         .sheet(isPresented: $iconCustomization) { iconCustomizationSheet }
         .sheet(isPresented: $showWidgetGallery) {
             if page > 0 && page <= layout.pages.count {
-                ManzanaWidgetGallery(pageSelection: Set(widgets(on: page - 1)), onToggle: { toggleWidget($0, on: page - 1) })
-            } else { ManzanaWidgetGallery() }
+                widgetAddSheet
+            } else {
+                ManzanaWidgetGallery()
+            }
+        }
+        .confirmationDialog("Foto o GIF para el widget", isPresented: Binding(
+            get: { widgetMediaID != nil },
+            set: { if !$0 { widgetMediaID = nil } }
+        ), titleVisibility: .visible) {
+            Button("Elegir de Fotos") { choosingWidgetPhoto = true }
+            Button("Importar de Archivos") { choosingWidgetFile = true }
+            Button("Cancelar", role: .cancel) { widgetMediaID = nil }
+        }
+        .sheet(isPresented: $choosingWidgetPhoto) {
+            BloomBoxMediaPhotosPicker { data in
+                choosingWidgetPhoto = false
+                guard let data else { widgetMediaID = nil; return }
+                let target = widgetMediaID
+                widgetMediaID = nil
+                Task {
+                    do {
+                        let name = try await Task.detached(priority: .userInitiated) {
+                            try BloomBoxWidgetMedia.importData(data)
+                        }.value
+                        if let target { setWidgetMedia(target, name: name) }
+                    } catch { widgetMediaError = error.localizedDescription }
+                }
+            }
+        }
+        .fileImporter(isPresented: $choosingWidgetFile, allowedContentTypes: [.image, .gif]) { result in
+            let target = widgetMediaID
+            widgetMediaID = nil
+            if case .success(let file) = result {
+                Task {
+                    do {
+                        let name = try await Task.detached(priority: .userInitiated) {
+                            try BloomBoxWidgetMedia.importFile(file)
+                        }.value
+                        if let target { setWidgetMedia(target, name: name) }
+                    } catch { widgetMediaError = error.localizedDescription }
+                }
+            } else if case .failure(let error) = result {
+                widgetMediaError = error.localizedDescription
+            }
+        }
+        .alert("Widget de foto o GIF", isPresented: Binding(
+            get: { widgetMediaError != nil },
+            set: { if !$0 { widgetMediaError = nil } }
+        )) {
+            Button("Aceptar") { widgetMediaError = nil }
+        } message: {
+            Text(widgetMediaError ?? "")
         }
         .fileImporter(isPresented: $choosingMotionWallpaper, allowedContentTypes: [.movie, .gif]) { result in
             switch result {
@@ -1370,17 +1432,204 @@ struct LiveBoardHomeScreen: View {
     private var pageWidgets: [Int: [String]] {
         (try? JSONDecoder().decode([Int: [String]].self, from: Data(pageWidgetsJSON.utf8))) ?? [:]
     }
-    private func widgets(on index: Int) -> [String] { pageWidgets[index] ?? [] }
-    private func saveWidgets(_ values: [Int: [String]]) {
-        if let data = try? JSONEncoder().encode(values), let value = String(data: data, encoding: .utf8) { pageWidgetsJSON = value }
+    private var placedWidgets: [Int: [BloomBoxPlacedWidget]] {
+        (try? JSONDecoder().decode([Int: [BloomBoxPlacedWidget]].self,
+                                   from: Data(placedWidgetsJSON.utf8))) ?? [:]
     }
-    private func toggleWidget(_ id: String, on index: Int) {
-        guard layout.pages.indices.contains(index) else { return }
-        var values = pageWidgets
-        if values[index, default: []].contains(id) { values[index]?.removeAll { $0 == id } }
-        else { values[index, default: []].append(id) }
-        saveWidgets(values)
+    private func savePlacedWidgets(_ values: [Int: [BloomBoxPlacedWidget]]) {
+        if let data = try? JSONEncoder().encode(values),
+           let encoded = String(data: data, encoding: .utf8) {
+            placedWidgetsJSON = encoded
+        }
     }
+    private func widgets(on index: Int) -> [BloomBoxPlacedWidget] {
+        placedWidgets[index] ?? []
+    }
+    private func occupiedCells(on index: Int, excluding id: String? = nil) -> Set<Int> {
+        widgets(on: index).filter { $0.id != id }.reduce(into: Set<Int>()) { cells, widget in
+            cells.formUnion(BloomBoxWidgetGrid.cells(slot: widget.slot,
+                           columns: widget.columns, rows: widget.rows) ?? [])
+        }
+    }
+    private func migrateLegacyPageWidgets() {
+        guard !placedWidgetsMigrated else { return }
+        var all = placedWidgets
+        for (index, values) in pageWidgets where layout.pages.indices.contains(index) {
+            for kind in values where ["clock", "photo", "notes"].contains(kind) {
+                let occupied = all[index, default: []].reduce(into: Set<Int>()) { result, widget in
+                    result.formUnion(BloomBoxWidgetGrid.cells(slot: widget.slot,
+                                    columns: widget.columns, rows: widget.rows) ?? [])
+                }
+                guard let slot = BloomBoxWidgetGrid.firstAvailable(
+                    columns: 4, rows: 2, occupied: occupied) else { continue }
+                all[index, default: []].append(
+                    BloomBoxPlacedWidget(kind: kind, slot: slot, columns: 4, rows: 2))
+            }
+        }
+        savePlacedWidgets(all)
+        placedWidgetsMigrated = true
+    }
+    private func addPlacedWidget(_ kind: String, columns: Int = 2, rows: Int = 2) {
+        guard page > 0, layout.pages.indices.contains(page - 1) else { return }
+        var all = placedWidgets
+        var target = page - 1
+        var slot = BloomBoxWidgetGrid.firstAvailable(
+            columns: columns, rows: rows, occupied: occupiedCells(on: target))
+        if slot == nil {
+            layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity))
+            target = layout.pages.count - 1
+            slot = 0
+        }
+        guard let slot else { return }
+        let widget = BloomBoxPlacedWidget(kind: kind, slot: slot,
+                                         columns: columns, rows: rows)
+        all[target, default: []].append(widget)
+        savePlacedWidgets(all)
+        moveIconsOutOfWidgetArea()
+        page = target + 1
+        if kind == "media" { widgetMediaID = widget.id }
+    }
+    private func setWidgetMedia(_ id: String, name: String) {
+        var all = placedWidgets
+        var updated = false
+        for index in all.keys {
+            guard let position = all[index]?.firstIndex(where: { $0.id == id }) else { continue }
+            all[index]?[position].mediaName = name
+            updated = true
+        }
+        if updated { savePlacedWidgets(all) }
+        else if let url = BloomBoxWidgetMedia.url(for: name) {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+    private func updateWidget(_ id: String, change: (inout BloomBoxPlacedWidget) -> Void) {
+        var all = placedWidgets
+        for index in all.keys {
+            if let position = all[index]?.firstIndex(where: { $0.id == id }) {
+                change(&all[index]![position])
+                savePlacedWidgets(all)
+                return
+            }
+        }
+    }
+    private func removePlacedWidget(_ id: String) {
+        var all = placedWidgets
+        let original = all.values.flatMap { $0 }.first { $0.id == id }
+        for index in all.keys { all[index]?.removeAll { $0.id == id } }
+        savePlacedWidgets(all)
+        if let name = original?.mediaName,
+           let file = BloomBoxWidgetMedia.url(for: name),
+           !all.values.flatMap({ $0 }).contains(where: { $0.mediaName == name }) {
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
+    private func resizeWidget(_ id: String, columns: Int, rows: Int) {
+        guard let entry = placedWidgets.first(where: { $0.value.contains(where: { $0.id == id }) }),
+              let widget = entry.value.first(where: { $0.id == id }) else { return }
+        let occupied = occupiedCells(on: entry.key, excluding: id)
+        let samePosition = BloomBoxWidgetGrid.cells(slot: widget.slot,
+                            columns: columns, rows: rows)
+        let newSlot = (samePosition != nil && samePosition!.isDisjoint(with: occupied))
+            ? widget.slot : BloomBoxWidgetGrid.firstAvailable(
+                            columns: columns, rows: rows, occupied: occupied)
+        guard let newSlot else {
+            widgetMediaError = "No hay espacio para ese tamaño. Prueba otra página."
+            return
+        }
+        updateWidget(id) { item in
+            item.columns = columns; item.rows = rows; item.slot = newSlot
+        }
+        moveIconsOutOfWidgetArea()
+    }
+    private func movePlacedWidget(_ id: String, to targetPage: Int, slot: Int?) {
+        guard targetPage >= 0, layout.pages.indices.contains(targetPage),
+              let source = placedWidgets.first(where: { $0.value.contains(where: { $0.id == id }) }),
+              let widget = source.value.first(where: { $0.id == id }) else { return }
+        var all = placedWidgets
+        let occupied = (all[targetPage] ?? [])
+            .filter { $0.id != id }
+            .reduce(into: Set<Int>()) { result, widget in
+                result.formUnion(BloomBoxWidgetGrid.cells(slot: widget.slot,
+                                 columns: widget.columns, rows: widget.rows) ?? [])
+            }
+        let chosen = slot.flatMap { candidate -> Int? in
+            guard let cells = BloomBoxWidgetGrid.cells(
+                slot: candidate, columns: widget.columns, rows: widget.rows),
+                cells.isDisjoint(with: occupied) else { return nil }
+            return candidate
+        } ?? BloomBoxWidgetGrid.firstAvailable(
+                columns: widget.columns, rows: widget.rows, occupied: occupied)
+        guard let chosen else {
+            widgetMediaError = "No cabe ese widget en la página seleccionada."
+            return
+        }
+        all[source.key]?.removeAll { $0.id == id }
+        var moved = widget; moved.slot = chosen
+        all[targetPage, default: []].append(moved)
+        savePlacedWidgets(all)
+        moveIconsOutOfWidgetArea()
+        page = targetPage + 1
+    }
+    private func moveIconsOutOfWidgetArea() {
+        // Reflow, never discard app keys or modify their data. A fully occupied
+        // page spills excess icons onto the next available Home page.
+        for index in layout.pages.indices {
+            let occupied = occupiedCells(on: index)
+            var displaced: [String] = []
+            for slot in occupied where layout.pages[index].indices.contains(slot) {
+                if let key = layout.pages[index][slot] {
+                    displaced.append(key)
+                    layout.pages[index][slot] = nil
+                }
+            }
+            for key in displaced {
+                var target = index
+                while true {
+                    if !layout.pages.indices.contains(target) {
+                        layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity))
+                    }
+                    let reserved = occupiedCells(on: target)
+                    if let free = layout.pages[target].indices.first(where: {
+                        layout.pages[target][$0] == nil && !reserved.contains($0)
+                    }) {
+                        layout.pages[target][free] = key
+                        break
+                    }
+                    target += 1
+                }
+            }
+        }
+    }
+    private func restoreWidgetSpace() { moveIconsOutOfWidgetArea() }
+
+    private var widgetAddSheet: some View {
+        NavigationView {
+            List {
+                Section("Añade tantos como quieras") {
+                    Button { addPlacedWidget("clock"); showWidgetGallery = false } label: {
+                        Label("Reloj", systemImage: "clock.fill")
+                    }
+                    Button { addPlacedWidget("notes"); showWidgetGallery = false } label: {
+                        Label("Notas", systemImage: "note.text")
+                    }
+                    Button { addPlacedWidget("media"); showWidgetGallery = false } label: {
+                        Label("Imagen o GIF animado", systemImage: "photo.on.rectangle.angled")
+                    }
+                }
+                Section {
+                    Text("Mueve los widgets arrastrándolos como iconos. Mantén pulsado para ajustar tamaño, fondo y posición.")
+                        .font(.footnote)
+                }
+            }
+            .navigationTitle("Añadir widget")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Listo") { showWidgetGallery = false }
+                }
+            }
+        }.navigationViewStyle(.stack)
+    }
+
     private func stopAlivePlayfulness() {
         aliveLastInteraction = Date()
         guard alivePlayfulKey != nil || alivePlayfulActive else { return }
