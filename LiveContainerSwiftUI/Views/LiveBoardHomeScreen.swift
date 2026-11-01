@@ -2073,6 +2073,9 @@ struct LiveBoardHomeScreen: View {
         var mode: String = "float"
         var speed: Double = 75
         var travel: Double = 60
+        var depth: Bool? = nil
+        var glow: Bool? = nil
+        var adaptiveGlass: Bool? = nil
     }
 
     private func livingSettings(for id: String) -> LivingSettings {
@@ -2153,6 +2156,17 @@ struct LiveBoardHomeScreen: View {
                     y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch)
             .modifier(BloomBoxLivingMotion(mode: living.mode, speed: living.speed, travel: living.travel,
                 enabled: scenePhase == .active && page == index + 1 && !editing && !reduceMotion && !searching))
+            .shadow(color: (living.depth ?? false) && !editing ? Color.black.opacity(0.38) : .clear,
+                    radius: (living.depth ?? false) && !editing ? 15 : 0, x: 0, y: 12)
+            .shadow(color: (living.glow ?? false) && !editing ? Color(red: 0.28, green: 0.95, blue: 0.72).opacity(0.48) : .clear,
+                    radius: (living.glow ?? false) && !editing ? 20 : 0, x: 0, y: 8)
+            .overlay {
+                if (living.adaptiveGlass ?? false) && widget.glass && !editing {
+                    RoundedRectangle(cornerRadius: 19)
+                        .strokeBorder(Color(red: 0.28, green: 0.95, blue: 0.72).opacity(0.34), lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+            }
             .zIndex(selectedWidgetID == widget.id ? 2 : 1)
             // Animate the entire interactive tile, not only its disabled
             // GIF/photo content. Editing still tracks the finger instantly.
@@ -2335,6 +2349,17 @@ struct LiveBoardHomeScreen: View {
                 ForEach([10, 25, 40, 60, 80, 100], id: \.self) { value in
                     Button("\(value)%") { setLivingSettings(widget.id) { $0.travel = Double(value) } }
                 }
+            }
+        }
+        Menu("Profundidad y cristal", systemImage: "square.3.layers.3d") {
+            Button("Sombra flotante · activar/desactivar") {
+                setLivingSettings(widget.id) { $0.depth = !($0.depth ?? false) }
+            }
+            Button("Brillo inferior · activar/desactivar") {
+                setLivingSettings(widget.id) { $0.glow = !($0.glow ?? false) }
+            }
+            Button("Borde verde sobre cristal · activar/desactivar") {
+                setLivingSettings(widget.id) { $0.adaptiveGlass = !($0.adaptiveGlass ?? false) }
             }
         }
         Menu("Tamaño del widget", systemImage: "arrow.up.left.and.arrow.down.right") {
