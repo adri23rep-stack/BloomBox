@@ -240,7 +240,7 @@ struct LiveBoardHomeScreen: View {
                                         page = libraryPageIndex
                                     }
                                 }
-                            } label: { Text("Edit").font(.system(size: 16, weight: .semibold)).padding(.horizontal, 18).padding(.vertical, 8) }
+                            } label: { Text("Editar").font(.system(size: 16, weight: .semibold)).padding(.horizontal, 18).padding(.vertical, 8) }
                             .liveBoardGlass(radius: 18)
                             Spacer()
                             Button("Listo") { finishEditing() }.font(.system(size: 16, weight: .semibold))
@@ -2104,8 +2104,13 @@ private struct BloomBoxModulesPanel: View {
     let apps: [LCAppModel]
     let onSelect: (Destination) -> Void
     @Environment(\.dismiss) private var dismiss
-    private let columns = [GridItem(.flexible(), spacing: 12),
-                           GridItem(.flexible(), spacing: 12)]
+    @ObservedObject private var ramPlus = BloomBoxRAMPlus.shared
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    private var columns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible(), spacing: 12)]
+            : [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+    }
 
     var body: some View {
         NavigationView {
@@ -2116,12 +2121,24 @@ private struct BloomBoxModulesPanel: View {
                         VStack(alignment: .leading, spacing: 5) {
                             Text("Módulos")
                                 .font(.system(size: 31, weight: .bold, design: .rounded))
-                            Text("Funciones y herramientas de BloomBox")
+                            Text("Tu centro de control, sin menús escondidos")
                                 .font(.subheadline)
                                 .foregroundStyle(.white.opacity(0.7))
                         }
                     }
                     .padding(.top, 16)
+                    HStack(spacing: 10) {
+                        Label("\(Module.allCases.count) herramientas", systemImage: "square.grid.2x2.fill")
+                            .foregroundStyle(.white.opacity(0.72))
+                        Spacer()
+                        Label(ramPlus.validation.confirmed ? "RAM+ activa" :
+                              (ramPlus.needsAttention ? "Revisar RAM+" : "RAM+ sin confirmar"),
+                              systemImage: ramPlus.validation.confirmed ? "checkmark.shield.fill" : "cpu")
+                            .foregroundStyle(ramPlus.validation.confirmed ? Color.green : Color.white.opacity(0.78))
+                    }
+                    .font(.caption.weight(.medium))
+                    .padding(.horizontal, 3)
+                    .accessibilityElement(children: .combine)
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(Module.allCases) { module in
                             NavigationLink(destination: detail(for: module)) {
@@ -2131,7 +2148,7 @@ private struct BloomBoxModulesPanel: View {
                             .accessibilityIdentifier("bloombox.modules.\(module.rawValue)")
                         }
                     }
-                    Text("RAM+ comprueba el permiso de la instalación actual y te guía para completar su activación.")
+                    Text("Accesos directos a funciones reales. JIT y RAM+ conservan sus comprobaciones y permisos originales.")
                         .font(.footnote)
                         .foregroundStyle(.white.opacity(0.66))
                         .padding(.horizontal, 4)
@@ -2178,15 +2195,24 @@ private struct BloomBoxModulesPanel: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: 165)
-        .background(Color(red: 0.15, green: 0.16, blue: 0.23).opacity(0.88),
-                    in: RoundedRectangle(cornerRadius: 24))
-        .overlay {
-            RoundedRectangle(cornerRadius: 24)
-                .strokeBorder(LinearGradient(colors: [module.tint.opacity(0.72), .white.opacity(0.13)],
-                                             startPoint: .topLeading, endPoint: .bottomTrailing),
-                              lineWidth: 1)
+        .frame(minHeight: 154)
+        .background {
+            // Transparent color surfaces, intentionally no Liquid Glass.
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(red: 0.105, green: 0.12, blue: 0.18).opacity(0.88))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(LinearGradient(colors: [module.tint.opacity(0.17), .clear],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing))
+                }
         }
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(LinearGradient(colors: [module.tint.opacity(0.62), .white.opacity(0.10)],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(module.title). \(module.subtitle)")
     }
 
     @ViewBuilder private func detail(for module: Module) -> some View {
@@ -3367,6 +3393,43 @@ private struct BloomBoxTweakMatch: Identifiable {
     }
 }
 
+// BloomBox 2.0: shared, lightweight header style for the integrated stores.
+private struct BloomBoxV2StoreHeader: View {
+    let symbol: String
+    let title: String
+    let subtitle: String
+    let accent: Color
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: symbol)
+                .font(.system(size: 27, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 62, height: 62)
+                .background(
+                    LinearGradient(colors: [accent, accent.opacity(0.7)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing),
+                    in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 19, style: .continuous)
+                        .strokeBorder(.white.opacity(0.24), lineWidth: 1)
+                }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.system(size: 22, weight: .bold, design: .rounded))
+                Text(subtitle).font(.footnote).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(accent.opacity(0.085)))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(accent.opacity(0.20), lineWidth: 1)
+        }
+    }
+}
+
 private struct BloomBoxTweakStore: View {
     let apps: [LCAppModel]
     let focusedApp: LCAppModel?
@@ -3403,19 +3466,12 @@ private struct BloomBoxTweakStore: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    HStack(spacing: 14) {
-                        Image(systemName: "puzzlepiece.extension.fill")
-                            .font(.system(size: 30, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 65, height: 65)
-                            .background(Color(red: 0.48, green: 0.32, blue: 0.76),
-                                        in: RoundedRectangle(cornerRadius: 18))
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("BloomBox Tweaks").font(.title2.bold())
-                            Text("Catálogo comunitario remoto")
-                                .font(.footnote).foregroundStyle(.secondary)
-                        }
-                    }
+                    BloomBoxV2StoreHeader(
+                        symbol: "puzzlepiece.extension.fill",
+                        title: "Tweak Store",
+                        subtitle: "Correcciones, personalización y herramientas",
+                        accent: Color(red: 0.48, green: 0.32, blue: 0.76)
+                    )
                     HStack {
                         Label("\(catalog.entries.count) tweaks en catálogo", systemImage: "arrow.triangle.2.circlepath")
                             .font(.caption).foregroundStyle(.secondary)
@@ -4072,19 +4128,12 @@ private struct BloomBoxAppStore: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    HStack(spacing: 14) {
-                        Image(systemName: "bag.fill")
-                            .font(.system(size: 30, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 65, height: 65)
-                            .background(Color(red: 0.20, green: 0.55, blue: 0.77),
-                                        in: RoundedRectangle(cornerRadius: 18))
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("BloomBox App Store").font(.title2.bold())
-                            Text("Aplicaciones de creadores independientes")
-                                .font(.footnote).foregroundStyle(.secondary)
-                        }
-                    }
+                    BloomBoxV2StoreHeader(
+                        symbol: "bag.fill",
+                        title: "BloomBox App Store",
+                        subtitle: "Aplicaciones de creadores independientes",
+                        accent: Color(red: 0.20, green: 0.55, blue: 0.77)
+                    )
 
                     HStack {
                         Label("\(catalog.listings.count) apps en catálogo",
