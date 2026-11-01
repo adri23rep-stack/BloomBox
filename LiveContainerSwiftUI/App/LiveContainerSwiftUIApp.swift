@@ -28,7 +28,12 @@ struct LiveContainerSwiftUIApp : SwiftUI.App {
                 if !appDir.hasSuffix(".app") {
                     continue
                 }
-                let newApp = LCAppInfo(bundlePath: "\(LCPath.bundlePath.path)/\(appDir)")!
+                guard let newApp = LCAppInfo(bundlePath: "\(LCPath.bundlePath.path)/\(appDir)") else {
+                    // Leave incomplete bundles untouched so they can be
+                    // recovered; one bad IPA must never crash the launcher.
+                    NSLog("[BloomBox] Skipping unreadable private guest bundle: %@", appDir)
+                    continue
+                }
                 newApp.relativeBundlePath = appDir
                 newApp.isShared = false
                 let model = LCAppModel(appInfo: newApp)
@@ -36,7 +41,7 @@ struct LiveContainerSwiftUIApp : SwiftUI.App {
                     tempHiddenApps.append(model)
                 } else {
                     tempApps.append(model)
-                    tempURLSchemes?.formUnion(newApp.urlSchemes() as! [String])
+                    tempURLSchemes?.formUnion((newApp.urlSchemes() as? [String]) ?? [])
                 }
                 if newApp.is32bitEmulator {
                     tempArm32EmuApps.append(model)
@@ -49,7 +54,10 @@ struct LiveContainerSwiftUIApp : SwiftUI.App {
                     if !appDir.hasSuffix(".app") {
                         continue
                     }
-                    let newApp = LCAppInfo(bundlePath: "\(LCPath.lcGroupBundlePath.path)/\(appDir)")!
+                    guard let newApp = LCAppInfo(bundlePath: "\(LCPath.lcGroupBundlePath.path)/\(appDir)") else {
+                        NSLog("[BloomBox] Skipping unreadable shared guest bundle: %@", appDir)
+                        continue
+                    }
                     newApp.relativeBundlePath = appDir
                     newApp.isShared = true
                     let model = LCAppModel(appInfo: newApp)
@@ -57,7 +65,7 @@ struct LiveContainerSwiftUIApp : SwiftUI.App {
                         tempHiddenApps.append(model)
                     } else {
                         tempApps.append(model)
-                        tempURLSchemes?.formUnion(newApp.urlSchemes() as! [String])
+                        tempURLSchemes?.formUnion((newApp.urlSchemes() as? [String]) ?? [])
                     }
                     if newApp.is32bitEmulator {
                         tempArm32EmuApps.append(model)
