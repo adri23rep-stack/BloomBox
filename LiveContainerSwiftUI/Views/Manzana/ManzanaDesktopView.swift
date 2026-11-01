@@ -410,7 +410,7 @@ private struct BloomBoxClockFace: View {
                         Text(String(character))
                             .font(.system(size: tiny ? 18 : 31, weight: .semibold, design: .rounded))
                             .monospacedDigit()
-                            .contentTransition(.numericText())
+                            // Keep iOS 15 deployment compatibility; flip changes animate via parent.
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, tiny ? 6 : 11)
                             .background {
