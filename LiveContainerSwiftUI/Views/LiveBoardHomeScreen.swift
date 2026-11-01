@@ -2292,12 +2292,12 @@ struct LiveBoardHomeScreen: View {
             Button("Paseo suave ✦") { setLivingSettings(widget.id) { $0.mode = "wander" } }
             Menu("Velocidad") {
                 ForEach([10, 25, 50, 75, 100], id: \.self) { value in
-                    Button("\\(value)%") { setLivingSettings(widget.id) { $0.speed = Double(value) } }
+                    Button("\(value)%") { setLivingSettings(widget.id) { $0.speed = Double(value) } }
                 }
             }
             Menu("Recorrido") {
                 ForEach([10, 25, 40, 60, 80, 100], id: \.self) { value in
-                    Button("\\(value)%") { setLivingSettings(widget.id) { $0.travel = Double(value) } }
+                    Button("\(value)%") { setLivingSettings(widget.id) { $0.travel = Double(value) } }
                 }
             }
         }
