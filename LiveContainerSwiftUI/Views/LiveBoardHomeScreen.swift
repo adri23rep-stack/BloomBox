@@ -1904,12 +1904,23 @@ struct LiveBoardHomeScreen: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.21) {
                 guard aliveBooting else { return }
                 aliveRevealed = true
-                // Four gentle taps, each aligned to one Dock icon's arrival.
+                // UIKit feedback was previously too soft and arrived without
+                // preparing the engine; prewarm each clearly separated tick.
+                // Four pulses only, matched to the actual Dock entrances.
                 for slot in 0..<min(layout.dock.count, 4) {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.69 + Double(slot) * 0.065) {
-                        guard aliveBooting, aliveStartupPage == page, scenePhase == .active,
-                              !reduceMotion, !editing, !searching, openFolder == nil else { return }
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.58)
+                    let offset = 0.69 + Double(slot) * 0.16
+                    DispatchQueue.main.asyncAfter(deadline: .now() + offset - 0.09) {
+                        guard aliveBooting, aliveStartupPage == page, !reduceMotion,
+                              !editing, !searching, openFolder == nil,
+                              UIApplication.shared.applicationState == .active else { return }
+                        let haptic = UIImpactFeedbackGenerator(style: .medium)
+                        haptic.prepare()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
+                            guard aliveBooting, aliveStartupPage == page, !reduceMotion,
+                                  !editing, !searching, openFolder == nil,
+                                  UIApplication.shared.applicationState == .active else { return }
+                            haptic.impactOccurred(intensity: 1.0)
+                        }
                     }
                 }
                 // Final dock icon has entered before we end the startup gate.
@@ -2453,7 +2464,7 @@ struct LiveBoardHomeScreen: View {
                     if layout.dock.indices.contains(slot) {
                         homeItem(layout.dock[slot], showLabel: false)
                             .modifier(aliveEntrance(for: max(0, page - 1),
-                                 delay: 0.69 + Double(slot) * 0.065))
+                                 delay: 0.69 + Double(slot) * 0.16))
                     } else {
                         Color.clear
                             .frame(width: largeIcons ? 76 : 64, height: largeIcons ? 76 : 80)
