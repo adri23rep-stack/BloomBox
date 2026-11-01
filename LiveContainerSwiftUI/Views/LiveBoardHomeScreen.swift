@@ -101,6 +101,9 @@ struct LiveBoardHomeScreen: View {
     @State private var alivePlayfulStyle = 0
     @State private var alivePlayfulActive = false
     @State private var aliveLastInteraction = Date()
+    @State private var aliveSplashLine = "El desmadre está por comenzar."
+    @AppStorage("BloomBoxAlivePreviousSplash", store: LCUtils.appGroupUserDefault)
+    private var alivePreviousSplash = ""
     @AppStorage("ManzanaNote", store: LCUtils.appGroupUserDefault) private var miniatureNote = ""
     @State private var miniatureWidgetPhoto: UIImage?
     @State private var desktopSettings = false
@@ -152,6 +155,35 @@ struct LiveBoardHomeScreen: View {
     private static let tweakStoreKey = "manzana:tweakstore"
     private static let appStoreKey = "manzana:appstore"
     private static let modulesKey = "manzana:modules"
+
+    // Original, short rotating splash messages — reminiscent of playful game menus.
+    private static let aliveSplashLines = [
+        "El desmadre está por comenzar.",
+        "Más vivo que nunca. 🫧",
+        "¿Y si le movemos a todo?",
+        "No despiertes a los widgets.",
+        "40 GB… yo no fui. 👀",
+        "Cuidado: iconos hiperactivos.",
+        "JIT me if you can. ⚡",
+        "La RAM no crece en árboles.",
+        "La ola ya viene. 🌊",
+        "Si brinca, no es un bug.",
+        "Yamcha no vio venir esto.",
+        "Modo travesura activado.",
+        "¿Quién dejó suelto al Dock?",
+        "No es magia, es BloomBox.",
+        "Se aceptan ideas locas.",
+        "Despertando a los iconos…",
+        "Tu iPhone no esperaba esto.",
+        "Esto se está poniendo bueno.",
+        "¡Ya llegó el relajo!",
+        "100 % hecho con desmadre.",
+        "Más personalidad, menos menús.",
+        "¿Otra IPA? Va, dale.",
+        "Los widgets tienen sueño.",
+        "Si tiembla, saluda.",
+        "La siguiente pantalla te espera."
+    ]
     private enum DesktopAction { case interface, sources, tweaks, wallpaper, apps, settings, jit }
 
     private var appKeys: [String] {
@@ -281,9 +313,16 @@ struct LiveBoardHomeScreen: View {
                                 .font(.system(size: 53, weight: .bold, design: .rounded))
                                 .tracking(-2)
                                 .shadow(color: .white.opacity(0.28), radius: 23)
-                            Text("El desmadre está por comenzar.")
-                                .font(.system(size: 16, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.78))
+                            Text(aliveSplashLine)
+                                .font(.system(size: 18, weight: .heavy, design: .rounded))
+                                .foregroundStyle(Color(red: 1, green: 0.87, blue: 0.38))
+                                .shadow(color: .black.opacity(0.55), radius: 8, y: 3)
+                                .rotationEffect(.degrees(-5))
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.72)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 30)
+                                .accessibilityLabel(aliveSplashLine)
                         }
                         .scaleEffect(aliveIntroVisible ? 1 : 1.05)
                     }
@@ -388,26 +427,18 @@ struct LiveBoardHomeScreen: View {
                 // Task cancellation also stops this loop when the screen goes away.
                 while !Task.isCancelled {
                     do {
-                        try await Task.sleep(nanoseconds: UInt64.random(in: 35...60) * 1_000_000_000)
+                        try await Task.sleep(nanoseconds: UInt64.random(in: 18...32) * 1_000_000_000)
                     } catch { break }
                     guard scenePhase == .active, aliveEnabled, aliveIdleEnabled,
-                          Date().timeIntervalSince(aliveLastInteraction) >= 32,
+                          Date().timeIntervalSince(aliveLastInteraction) >= 12,
                           !reduceMotion, !aliveBooting, !editing, !searching,
                           openFolder == nil, !pageManager, !customizing,
                           !desktopSettings, !appStorePresented, !tweakStorePresented,
                           !modulesPresented, !jitSetup,
                           page > 0, page < libraryPageIndex,
                           layout.pages.indices.contains(page - 1) else { continue }
-                    // Do not animate a hidden page or an icon scrolled below a widget.
-                    let candidates = layout.pages[page - 1].compactMap { $0 }
-                        .filter { aliveVisibleIcons.contains($0) && appMap[$0] != nil }
-                    guard let chosen = candidates.randomElement() else { continue }
-                    alivePlayfulKey = chosen
-                    alivePlayfulStyle = Int.random(in: 0...2)
-                    withAnimation(.spring(response: 0.22, dampingFraction: 0.36)) {
-                        alivePlayfulActive = true
-                    }
-                    do { try await Task.sleep(nanoseconds: 520_000_000) } catch { break }
+                    guard triggerAliveIconTrick() else { continue }
+                    do { try await Task.sleep(nanoseconds: 620_000_000) } catch { break }
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.60)) {
                         alivePlayfulActive = false
                     }
@@ -1356,12 +1387,55 @@ struct LiveBoardHomeScreen: View {
         alivePlayfulActive = false
     }
 
+    private func aliveEligibleIconKeys() -> [String] {
+        guard page > 0, page < libraryPageIndex,
+              layout.pages.indices.contains(page - 1) else { return [] }
+
+        let builtinIcons: Set<String> = [
+            Self.sideStoreKey, Self.installKey, Self.tweakStoreKey,
+            Self.appStoreKey, Self.modulesKey
+        ]
+        // If TabView does not bubble icon frame preferences, the first two
+        // grid rows are safely inside the viewport only on icon-only pages.
+        // Widget pages never use this fallback because they can scroll.
+        let pageHasWidgets = !widgets(on: page - 1).isEmpty
+        return layout.pages[page - 1].enumerated().compactMap { slot, entry -> String? in
+            guard let key = entry,
+                  appMap[key] != nil || builtinIcons.contains(key) else { return nil }
+            let onscreen = aliveVisibleIcons.contains(key) ||
+                (!pageHasWidgets && slot < 8)
+            return onscreen ? key : nil
+        }
+    }
+
+    @discardableResult
+    private func triggerAliveIconTrick() -> Bool {
+        guard aliveEnabled, aliveIdleEnabled, !reduceMotion,
+              !aliveBooting, !editing, !searching,
+              openFolder == nil, !pageManager, scenePhase == .active,
+              let chosen = aliveEligibleIconKeys().randomElement() else {
+            return false
+        }
+        alivePlayfulKey = chosen
+        alivePlayfulStyle = Int.random(in: 0...2)
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.36)) {
+            alivePlayfulActive = true
+        }
+        return true
+    }
+
     private func startBloomBoxAlive() {
         guard !aliveStartupPlayed else { return }
         aliveStartupPlayed = true
         guard aliveEnabled, !reduceMotion,
               page > 0, page < libraryPageIndex else { return }
         aliveStartupPage = page
+        // Never show the same phrase on consecutive starts.
+        let choices = Self.aliveSplashLines.filter { $0 != alivePreviousSplash }
+        aliveSplashLine = (choices.isEmpty ? Self.aliveSplashLines : choices).randomElement()
+            ?? "El desmadre está por comenzar."
+        alivePreviousSplash = aliveSplashLine
+        stopAlivePlayfulness()
         aliveBooting = true
         aliveIntroVisible = true
         aliveRevealed = false
@@ -2053,6 +2127,33 @@ struct LiveBoardHomeScreen: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     Toggle("Dark app icons", isOn: $darkIcons)
+                }
+                Section("BloomBox Alive") {
+                    Button("Probar brinco de un icono") {
+                        customizing = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.48) {
+                            if triggerAliveIconTrick() {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.66) {
+                                    withAnimation(.spring(response: 0.29, dampingFraction: 0.60)) {
+                                        alivePlayfulActive = false
+                                    }
+                                    alivePlayfulKey = nil
+                                }
+                            }
+                        }
+                    }
+                    .disabled(!aliveEnabled || !aliveIdleEnabled || reduceMotion)
+                    Button("Repetir ola de bienvenida") {
+                        customizing = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.40) {
+                            aliveStartupPlayed = false
+                            startBloomBoxAlive()
+                        }
+                    }
+                    .disabled(!aliveEnabled || reduceMotion)
+                    Text("La frase cambia en cada inicio. El brinco solo elige iconos visibles de la página actual.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
                 Section("Home Screen") {
                     Button("Edit Home Screen") { customizing = false; editing = true }
