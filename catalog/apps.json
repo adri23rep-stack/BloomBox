@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogID": "bloombox.official-community.apps",
-  "updatedAt": "2026-10-31",
+  "updatedAt": "2026-11-01",
   "purpose": "Community app listings. App binaries remain hosted by their verified original publishers.",
   "apps": [
     {
@@ -111,6 +111,49 @@
         "App no oficial de Google; la suma SHA-256 no demuestra ausencia de malware.",
         "El tweak modifica inicio de sesión y llavero; la IPA final no ha sido auditada.",
         "No se ha probado dentro de BloomBox."
+      ]
+    },
+    {
+      "id": "dolphinios-public-beta",
+      "name": "DolphiniOS (Public Beta)",
+      "creator": "OatmealDome / DolphiniOS contributors",
+      "category": "emulation",
+      "description": "Emulador de Nintendo GameCube y Wii para iPhone y iPad. La versión beta 5.0.0b6 incorpora soporte JIT para iOS 27 beta; la ejecución dentro de BloomBox aún no está verificada.",
+      "officialWebsite": "https://dolphinios.oatmealdome.me/",
+      "officialReleases": "https://github.com/OatmealDome/dolphin-ios/releases/tag/v5.0.0b6",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "OatmealDome",
+        "repo": "dolphin-ios",
+        "assetFileName": "Non-Jailbroken.ipa"
+      },
+      "currentOfficialRelease": "5.0.0b6",
+      "directDownloadURL": "https://github.com/OatmealDome/dolphin-ios/releases/download/v5.0.0b6/Non-Jailbroken.ipa",
+      "fileName": "Non-Jailbroken.ipa",
+      "releaseResolution": "official-release-asset-no-verified-sha256",
+      "installMode": "external",
+      "sourceVerified": true,
+      "featured": true,
+      "useAtOwnRisk": true,
+      "installsInsideBloomBox": "not-tested",
+      "bundleID": "me.oatmealdome.DolphiniOS-njb-patreon-beta",
+      "aliases": [
+        "DolphiniOS",
+        "Dolphin iOS",
+        "Dolphin",
+        "GameCube",
+        "Wii"
+      ],
+      "jit": {
+        "externalHelper": "StikDebug",
+        "scriptStatus": "upstream-recommends-stikdebug",
+        "bloomboxTested": false
+      },
+      "notes": "Enlace al IPA oficial para iPhone sin jailbreak. El instalador automático de BloomBox está desactivado hasta verificar el SHA-256 exacto de la IPA. OatmealDome recomienda SideStore para instalarlo y StikDebug para habilitar JIT; el JIT integrado de BloomBox aún requiere pruebas con esta app.",
+      "warnings": [
+        "Versión beta: puede presentar fallos y requiere JIT para un rendimiento jugable.",
+        "La compatibilidad como app invitada en BloomBox con iOS 27 no está verificada.",
+        "No incluye juegos; utiliza copias de tus propios discos."
       ]
     },
     {
