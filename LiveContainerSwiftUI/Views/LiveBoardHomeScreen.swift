@@ -1924,7 +1924,7 @@ struct LiveBoardHomeScreen: View {
                     }
                 }
                 // Final dock icon has entered before we end the startup gate.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.12) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.85) {
                     aliveBooting = false
                 }
             }
