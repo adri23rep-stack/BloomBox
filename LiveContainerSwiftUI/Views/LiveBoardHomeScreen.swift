@@ -37,6 +37,43 @@ private struct BloomBoxAliveEntrance: ViewModifier {
     }
 }
 
+// Keep multiple photo/file sheets out of the huge Home ViewBuilder expression.
+private struct BloomBoxWidgetMediaPresentation: ViewModifier {
+    @Binding var sourcePresented: Bool
+    @Binding var photoPresented: Bool
+    @Binding var filePresented: Bool
+    @Binding var importing: Bool
+    let openPhotos: () -> Void
+    let openFiles: () -> Void
+    let cancel: () -> Void
+    let photoResult: (Data?, Bool) -> Void
+    let fileResult: (Result<URL, Error>) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .confirmationDialog("Foto o GIF para el widget",
+                                isPresented: $sourcePresented,
+                                titleVisibility: .visible) {
+                Button("Elegir de Fotos", action: openPhotos)
+                Button("Importar de Archivos", action: openFiles)
+                Button("Cancelar", role: .cancel, action: cancel)
+            }
+            .sheet(isPresented: $photoPresented) {
+                BloomBoxMediaPhotosPicker(completion: photoResult)
+            }
+            .fileImporter(isPresented: $filePresented,
+                          allowedContentTypes: [.image, .gif],
+                          onCompletion: fileResult)
+            .overlay {
+                if importing {
+                    ProgressView("Importando imagen o GIF…")
+                        .padding(22)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+                }
+            }
+    }
+}
+
 struct LiveBoardHomeScreen: View {
     let apps: [LCAppModel]
     let launch: (LCAppModel) -> Void
@@ -802,13 +839,17 @@ struct LiveBoardHomeScreen: View {
                 ManzanaWidgetGallery()
             }
         }
-        .confirmationDialog("Foto o GIF para el widget",
-                            isPresented: $widgetMediaChoicePresented,
-                            titleVisibility: .visible) {
-            Button("Elegir de Fotos") { beginWidgetMediaImport(fromPhotos: true) }
-            Button("Importar de Archivos") { beginWidgetMediaImport(fromPhotos: false) }
-            Button("Cancelar", role: .cancel) { widgetMediaID = nil }
-        }
+        .modifier(BloomBoxWidgetMediaPresentation(
+            sourcePresented: $widgetMediaChoicePresented,
+            photoPresented: $choosingWidgetPhoto,
+            filePresented: $choosingWidgetFile,
+            importing: $widgetMediaImporting,
+            openPhotos: { beginWidgetMediaImport(fromPhotos: true) },
+            openFiles: { beginWidgetMediaImport(fromPhotos: false) },
+            cancel: { widgetMediaID = nil },
+            photoResult: handleWidgetPhotoResult,
+            fileResult: handleWidgetFileResult
+        ))
         .sheet(isPresented: $editingWidgetNote) {
             NavigationView {
                 TextEditor(text: $miniatureNote)
@@ -820,50 +861,6 @@ struct LiveBoardHomeScreen: View {
                         }
                     }
             }.navigationViewStyle(.stack)
-        }
-        .sheet(isPresented: $choosingWidgetPhoto) {
-            BloomBoxMediaPhotosPicker { data, pickedItem in
-                choosingWidgetPhoto = false
-                guard let data else {
-                    widgetMediaID = nil
-                    if pickedItem {
-                        widgetMediaError = "No pude leer esta imagen desde Fotos. Prueba con otra o impórtala desde Archivos."
-                    }
-                    return
-                }
-                importWidgetMedia(data: data)
-            }
-        }
-        .fileImporter(isPresented: $choosingWidgetFile, allowedContentTypes: [.image, .gif]) { result in
-            switch result {
-            case .success(let file):
-                guard let target = widgetMediaID else {
-                    widgetMediaError = "No se encontró el widget. Vuelve a tocar la imagen para importarla."
-                    return
-                }
-                widgetMediaImporting = true
-                Task {
-                    defer { widgetMediaImporting = false; widgetMediaID = nil }
-                    do {
-                        let name = try await Task.detached(priority: .userInitiated) {
-                            try BloomBoxWidgetMedia.importFile(file)
-                        }.value
-                        setWidgetMedia(target, name: name)
-                    } catch {
-                        widgetMediaError = error.localizedDescription
-                    }
-                }
-            case .failure(let error):
-                widgetMediaID = nil
-                widgetMediaError = error.localizedDescription
-            }
-        }
-        .overlay {
-            if widgetMediaImporting {
-                ProgressView("Importando imagen o GIF…")
-                    .padding(22)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
-            }
         }
         .alert("Widget de foto o GIF", isPresented: Binding(
             get: { widgetMediaError != nil },
@@ -1552,6 +1549,41 @@ struct LiveBoardHomeScreen: View {
             guard widgetMediaID != nil else { return }
             if fromPhotos { choosingWidgetPhoto = true }
             else { choosingWidgetFile = true }
+        }
+    }
+    private func handleWidgetPhotoResult(_ data: Data?, pickedItem: Bool) {
+        choosingWidgetPhoto = false
+        guard let data else {
+            widgetMediaID = nil
+            if pickedItem {
+                widgetMediaError = "No pude leer esta imagen desde Fotos. Prueba con otra o impórtala desde Archivos."
+            }
+            return
+        }
+        importWidgetMedia(data: data)
+    }
+    private func handleWidgetFileResult(_ result: Result<URL, Error>) {
+        switch result {
+        case .success(let file):
+            guard let target = widgetMediaID else {
+                widgetMediaError = "No se encontró el widget. Vuelve a tocar la imagen para importarla."
+                return
+            }
+            widgetMediaImporting = true
+            Task {
+                defer { widgetMediaImporting = false; widgetMediaID = nil }
+                do {
+                    let name = try await Task.detached(priority: .userInitiated) {
+                        try BloomBoxWidgetMedia.importFile(file)
+                    }.value
+                    setWidgetMedia(target, name: name)
+                } catch {
+                    widgetMediaError = error.localizedDescription
+                }
+            }
+        case .failure(let error):
+            widgetMediaID = nil
+            widgetMediaError = error.localizedDescription
         }
     }
     private func importWidgetMedia(data: Data) {
