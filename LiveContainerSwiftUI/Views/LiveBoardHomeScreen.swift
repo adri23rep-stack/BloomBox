@@ -3,6 +3,15 @@ import CryptoKit
 import PhotosUI
 import UniformTypeIdentifiers
 
+private struct BloomBoxThemeShareSheet: UIViewControllerRepresentable {
+    let fileURL: URL
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [fileURL], applicationActivities: nil)
+    }
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+
+
 func liveBoardAppKey(_ app: LCAppModel) -> String {
     if app.appInfo is BuiltInSideStoreAppInfo { return "builtin:sidestore" }
     return "\(app.uiIsShared ? "shared" : "local"):\(app.appInfo.relativeBundlePath ?? app.bundleIdentifier)"
@@ -179,6 +188,8 @@ struct LiveBoardHomeScreen: View {
     private var reduceMotion: Bool { systemReduceMotion || customReduceMotion }
     @AppStorage("BloomBoxBuiltInFolderMigrated", store: LCUtils.appGroupUserDefault)
     private var builtInFolderMigrated = false
+    @State private var themeExportURL: URL?
+    @State private var themeExportError: String?
     @State private var layout = LiveBoardHomeLayout()
     @State private var page = 1
     @State private var homeHasAppeared = false
@@ -447,6 +458,7 @@ struct LiveBoardHomeScreen: View {
                         Menu {
                             Button("Añadir widget", systemImage: "square.grid.2x2.badge.plus") { showWidgetGallery = true }
                             Button("Personalizar", systemImage: "paintbrush") { iconCustomization = true }
+                            Button("Exportar tema", systemImage: "square.and.arrow.up") { exportCurrentTheme() }
                             Button("Añadir página", systemImage: "plus") { addPage() }
                             Button("Gestionar páginas", systemImage: "square.grid.2x2") { pageManager = true }
                             Button("Biblioteca de apps", systemImage: "square.grid.2x2") {
@@ -470,6 +482,12 @@ struct LiveBoardHomeScreen: View {
                     }
                     .padding(.horizontal, 22)
                     .zIndex(15)
+                }
+                if let exportError = themeExportError {
+                    Color.clear.frame(width: 0, height: 0).alert("Exportar tema", isPresented: Binding(
+                        get: { themeExportError != nil }, set: { if !$0 { themeExportError = nil } })) {
+                        Button("Aceptar", role: .cancel) { themeExportError = nil }
+                    } message: { Text(exportError) }
                 }
                 if searching { searchOverlay(height: geometry.size.height) }
                 if let id = openFolder, let folder = layout.folders.first(where: { $0.id == id }) {
@@ -1851,6 +1869,30 @@ struct LiveBoardHomeScreen: View {
         alivePlayfulActive = false
     }
 
+    private func exportCurrentTheme() {
+        // Export only presentation settings, never installed app data, credentials or private files.
+        let defaults = LCUtils.appGroupUserDefault
+        let keys = ["LiveBoardHomeLayout", "LiveBoardHiddenPages", "BloomBoxPlacedWidgetsV2",
+                    "ManzanaPageWidgets", "LiveBoardLargeIcons", "darkModeIcon",
+                    "LiveBoardWallpaperStyle", "LiveBoardWallpaperFit", "LiveBoardWallpaperDim",
+                    "ManzanaIconStyle", "BloomBoxAliveEnabled", "BloomBoxAliveIdleEnabled"]
+        var settings: [String: Any] = [:]
+        for key in keys {
+            if let value = defaults.object(forKey: key) { settings[key] = value }
+        }
+        let payload: [String: Any] = ["format": "bbtheme", "version": 1,
+                                      "exportedAt": ISO8601DateFormatter().string(from: Date()),
+                                      "settings": settings]
+        do {
+            let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("BloomBox-Theme.bbtheme")
+            try data.write(to: url, options: .atomic)
+            themeExportURL = url
+        } catch {
+            themeExportError = "No se pudo exportar el tema: \(error.localizedDescription)"
+        }
+    }
+
     private func aliveEligibleIconKeys() -> [String] {
         guard page > 0, page < libraryPageIndex,
               layout.pages.indices.contains(page - 1) else { return [] }
@@ -1862,13 +1904,15 @@ struct LiveBoardHomeScreen: View {
         // The top three rows remain visible even if TabView does not send geometry.
         // Never choose an icon hidden beneath a media/widget tile.
         let blocked = occupiedCells(on: page - 1)
-        return layout.pages[page - 1].enumerated().compactMap { slot, entry -> String? in
+        let desktopKeys = layout.pages[page - 1].enumerated().compactMap { slot, entry -> String? in
             guard let key = entry,
                   appMap[key] != nil || builtinIcons.contains(key) ||
                     layout.folders.contains(where: { $0.id == key }),
                   !blocked.contains(slot) else { return nil }
             return aliveVisibleIcons.contains(key) || slot < 12 ? key : nil
         }
+        // Dock icons are visible on every home page and participate in the same random motion.
+        return Array(Set(desktopKeys + layout.dock))
     }
 
     @discardableResult
@@ -2485,7 +2529,7 @@ struct LiveBoardHomeScreen: View {
                     if layout.dock.indices.contains(slot) {
                         homeItem(layout.dock[slot], showLabel: false)
                             .modifier(aliveEntrance(for: max(0, page - 1),
-                                 delay: 0.69 + Double(slot) * 0.16))
+                                 delay: 0.69 + Double(slot) * 0.16, key: layout.dock[slot]))
                     } else {
                         Color.clear
                             .frame(width: largeIcons ? 76 : 64, height: largeIcons ? 76 : 80)
