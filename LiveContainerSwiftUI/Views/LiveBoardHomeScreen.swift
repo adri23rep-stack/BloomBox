@@ -263,6 +263,8 @@ struct LiveBoardHomeScreen: View {
     private static let tweakStoreKey = "manzana:tweakstore"
     private static let appStoreKey = "manzana:appstore"
     private static let modulesKey = "manzana:modules"
+    // Permanent shortcut ID for future theme export and import.
+    private static let themesKey = "manzana:themes"
 
     // Original, short rotating splash messages — reminiscent of playful game menus.
     private static let aliveSplashLines = [
@@ -296,7 +298,7 @@ struct LiveBoardHomeScreen: View {
 
     private var appKeys: [String] {
         apps.filter { !($0.appInfo is BuiltInSideStoreAppInfo) }.map(liveBoardAppKey)
-            + [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey]
+            + [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey, Self.themesKey]
     }
     private var appMap: [String: LCAppModel] {
         Dictionary(apps.filter { !($0.appInfo is BuiltInSideStoreAppInfo) }.map {
@@ -1071,7 +1073,7 @@ struct LiveBoardHomeScreen: View {
         if let custom = assigned[key], !custom.isEmpty {
             return custom
         }
-        if key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey || key == Self.modulesKey { return "Utilidades" }
+        if [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey, Self.themesKey].contains(key) { return "Utilidades" }
         let hint = "\(title(key, appsByKey: appsByKey)) \(appsByKey[key]?.bundleIdentifier ?? "")".lowercased()
         func containsAny(_ words: [String]) -> Bool { words.contains { hint.contains($0) } }
         if containsAny(["youtube", "tiktok", "instagram", "whatsapp", "discord", "facebook",
@@ -1319,6 +1321,7 @@ struct LiveBoardHomeScreen: View {
         else if key == Self.tweakStoreKey { storeFocusedApp = nil; tweakStorePresented = true }
         else if key == Self.appStoreKey { appStorePresented = true }
         else if key == Self.modulesKey { modulesPresented = true }
+        else if key == Self.themesKey { return } // Placeholder; store comes later.
         else if let app = appMap[key] { requestLaunch(app) }
     }
 
@@ -1483,6 +1486,8 @@ struct LiveBoardHomeScreen: View {
             }
         } else if key == Self.modulesKey {
             BloomBoxModulesIcon(size: size)
+        } else if key == Self.themesKey {
+            BloomBoxThemesIcon(size: size)
         } else if key == Self.appStoreKey {
             Image(systemName: "bag.fill")
                 .font(.system(size: size * 0.46, weight: .semibold))
@@ -1852,7 +1857,7 @@ struct LiveBoardHomeScreen: View {
 
         let builtinIcons: Set<String> = [
             Self.sideStoreKey, Self.installKey, Self.tweakStoreKey,
-            Self.appStoreKey, Self.modulesKey
+            Self.appStoreKey, Self.modulesKey, Self.themesKey
         ]
         // The top three rows remain visible even if TabView does not send geometry.
         // Never choose an icon hidden beneath a media/widget tile.
@@ -2036,7 +2041,7 @@ struct LiveBoardHomeScreen: View {
         case "widget:settings": openTab(.settings)
         case "widget:sources": openTab(.sources)
         case Self.sideStoreKey, Self.installKey, Self.tweakStoreKey,
-             Self.appStoreKey, Self.modulesKey:
+             Self.appStoreKey, Self.modulesKey, Self.themesKey:
             launchLibraryKey(target)
         default:
             guard let app = appMap[target] else {
@@ -2215,7 +2220,7 @@ struct LiveBoardHomeScreen: View {
         Group {
             if let folder = layout.folders.first(where: { $0.id == key }) {
                 folderIcon(folder, showLabel: showLabel)
-            } else if key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey || key == Self.modulesKey {
+            } else if [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey, Self.themesKey].contains(key) {
                 shortcutIcon(key, showLabel: showLabel)
             } else if let app = appMap[key] {
                 LiveBoardHomeIcon(app: app, title: title(key), size: largeIcons ? 76 : 64,
@@ -2253,18 +2258,22 @@ struct LiveBoardHomeScreen: View {
         let isTweakStore = key == Self.tweakStoreKey
         let isAppStore = key == Self.appStoreKey
         let isModules = key == Self.modulesKey
+        let isThemes = key == Self.themesKey
         return Button {
             guard !editing else { return }
             if isSideStore { openSideStore() }
             else if isTweakStore { tweakStorePresented = true }
             else if isAppStore { appStorePresented = true }
             else if isModules { modulesPresented = true }
+            else if isThemes { return } // Intentionally no action until theme store ships.
             else { openInstall() }
         } label: {
             VStack(spacing: 5) {
                 ZStack {
                     if isModules {
                         BloomBoxModulesIcon(size: size)
+                    } else if isThemes {
+                        BloomBoxThemesIcon(size: size)
                     } else {
                         RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
                             .fill(isSideStore ? Color(red: 0.14, green: 0.26, blue: 0.69)
@@ -2287,7 +2296,7 @@ struct LiveBoardHomeScreen: View {
                 .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
                          phase: isSideStore ? 0.7 : 2.1))
                 if showLabel {
-                    Text(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : isModules ? "Módulos" : "Instalar app")
+                    Text(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : isModules ? "Módulos" : isThemes ? "Temas" : "Instalar app")
                         .font(.system(size: 12))
                         .lineLimit(1)
                         .foregroundStyle(.white)
@@ -2564,14 +2573,16 @@ struct LiveBoardHomeScreen: View {
                                 if let app = appMap[key] {
                                     LiveBoardIconImage(app: app, dark: darkIcons)
                                 } else if [Self.modulesKey, Self.tweakStoreKey, Self.appStoreKey,
-                                           Self.installKey, Self.sideStoreKey].contains(key) {
+                                           Self.installKey, Self.sideStoreKey, Self.themesKey].contains(key) {
                                     ZStack {
                                         RoundedRectangle(cornerRadius: 4)
-                                            .fill(key == Self.modulesKey ? Color.indigo :
+                                            .fill(key == Self.themesKey ? Color(red: 0.56, green: 0.30, blue: 0.84) :
+                                                  key == Self.modulesKey ? Color.indigo :
                                                   key == Self.tweakStoreKey ? Color.purple :
                                                   key == Self.appStoreKey ? Color.blue :
                                                   key == Self.sideStoreKey ? Color(red: 0.14, green: 0.26, blue: 0.69) : Color.cyan)
-                                        Image(systemName: key == Self.modulesKey ? "square.grid.2x2.fill" :
+                                        Image(systemName: key == Self.themesKey ? "square.on.square.fill" :
+                                              key == Self.modulesKey ? "square.grid.2x2.fill" :
                                               key == Self.tweakStoreKey ? "puzzlepiece.extension.fill" :
                                               key == Self.appStoreKey ? "bag.fill" :
                                               key == Self.installKey ? "square.and.arrow.down.fill" : "square.stack.3d.up.fill")
@@ -2971,7 +2982,7 @@ struct LiveBoardHomeScreen: View {
         let hadSavedLayout = layout.initialized
         let knownKeys = Set(layout.pages.flatMap { $0.compactMap { $0 } }
             + layout.dock + layout.folders.flatMap { $0.apps } + layout.hidden)
-        let needsShortcuts = [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey]
+        let needsShortcuts = [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey, Self.themesKey]
             .filter { !knownKeys.contains($0) }
         // Only installed guest apps not seen before, never icons the user hid.
         let newGuestKeys = hadSavedLayout
@@ -3014,6 +3025,7 @@ struct LiveBoardHomeScreen: View {
         if key == Self.tweakStoreKey { return "Tweak Store" }
         if key == Self.appStoreKey { return "App Store" }
         if key == Self.modulesKey { return "Módulos" }
+        if key == Self.themesKey { return "Temas" }
         if let folder = layout.folders.first(where: { $0.id == key }) { return folder.name }
         return (appsByKey ?? appMap)[key].map { appCustomization.name($0) } ?? "App"
     }
@@ -3056,7 +3068,7 @@ struct LiveBoardHomeScreen: View {
                     guard appMap[key] != nil ||
                           layout.folders.contains(where: { $0.id == key }) ||
                           [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey,
-                           Self.appStoreKey, Self.modulesKey].contains(key) else { return }
+                           Self.appStoreKey, Self.modulesKey, Self.themesKey].contains(key) else { return }
                     withAnimation(reduceMotion ? nil : .spring(response: 0.25,
                                                               dampingFraction: 0.85)) {
                         layout.place(key, on: pageIndex, slot: slot)
@@ -3080,7 +3092,7 @@ struct LiveBoardHomeScreen: View {
                 } else if appMap[key] != nil ||
                           layout.folders.contains(where: { $0.id == key }) ||
                           [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey,
-                           Self.appStoreKey, Self.modulesKey].contains(key) {
+                           Self.appStoreKey, Self.modulesKey, Self.themesKey].contains(key) {
                     layout.place(key, on: pageIndex)
                     page = pageIndex + 1
                     reconcile()
@@ -3096,7 +3108,7 @@ struct LiveBoardHomeScreen: View {
             guard let key = value as? String else { return }
             DispatchQueue.main.async {
                 guard appMap[key] != nil ||
-                      key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey || key == Self.modulesKey ||
+                      key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey || key == Self.modulesKey || key == Self.themesKey ||
                       layout.folders.contains(where: { $0.id == key }) else { return }
                 apply(key)
             }
@@ -3105,6 +3117,43 @@ struct LiveBoardHomeScreen: View {
     }
 }
 
+
+/// Visual-only shortcut. Future .bbtheme exports will retain this stable key.
+private struct BloomBoxThemesIcon: View {
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
+                .fill(LinearGradient(colors: [
+                    Color(red: 0.35, green: 0.18, blue: 0.70),
+                    Color(red: 0.55, green: 0.30, blue: 0.89),
+                    Color(red: 0.21, green: 0.51, blue: 0.86)
+                ], startPoint: .topLeading, endPoint: .bottomTrailing))
+            RoundedRectangle(cornerRadius: size * 0.10, style: .continuous)
+                .fill(Color.white.opacity(0.20))
+                .frame(width: size * 0.44, height: size * 0.46)
+                .rotationEffect(.degrees(-18))
+                .offset(x: -size * 0.075, y: size * 0.045)
+            RoundedRectangle(cornerRadius: size * 0.10, style: .continuous)
+                .fill(LinearGradient(colors: [
+                    .white.opacity(0.96),
+                    Color(red: 0.83, green: 0.84, blue: 1)
+                ], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .frame(width: size * 0.43, height: size * 0.46)
+                .rotationEffect(.degrees(10))
+                .offset(x: size * 0.085, y: -size * 0.025)
+                .overlay {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: size * 0.23, weight: .semibold))
+                        .foregroundStyle(Color(red: 0.48, green: 0.27, blue: 0.79))
+                        .offset(x: size * 0.09, y: -size * 0.02)
+                }
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel("Temas")
+    }
+}
 
 private struct BloomBoxModulesIcon: View {
     let size: CGFloat
