@@ -139,6 +139,28 @@ private struct BloomBoxWidgetInteraction<MenuContent: View>: ViewModifier {
     }
 }
 
+// Living Widgets 1.0: independent, low-cost motion with no timers when offscreen.
+private struct BloomBoxLivingMotion: ViewModifier {
+    let mode: String
+    let speed: Double
+    let travel: Double
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !enabled || mode == "none")) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            let frequency = 0.15 + max(0, min(100, speed)) / 100.0 * 0.75
+            let phase = t * frequency * .pi * 2
+            let distance = CGFloat(max(0, min(100, travel))) * 0.65
+            let dx: CGFloat = mode == "horizontal" ? sin(phase) * distance :
+                mode == "wander" ? sin(phase * 0.63) * distance : 0
+            let dy: CGFloat = mode == "float" ? sin(phase) * distance * 0.45 :
+                mode == "wander" ? cos(phase * 0.79) * distance * 0.35 : 0
+            content.offset(x: enabled ? dx : 0, y: enabled ? dy : 0)
+        }
+    }
+}
+
 struct LiveBoardHomeScreen: View {
     let apps: [LCAppModel]
     let launch: (LCAppModel) -> Void
@@ -189,7 +211,7 @@ struct LiveBoardHomeScreen: View {
     @AppStorage("BloomBoxBuiltInFolderMigrated", store: LCUtils.appGroupUserDefault)
     private var builtInFolderMigrated = false
     @AppStorage("BloomBoxWidgetMissingAppFallbacks", store: LCUtils.appGroupUserDefault)
-    private var widgetFallbacksJSON = "{}"
+    private var widgetFallbacksJSON = "{}"\n    @AppStorage("BloomBoxLivingWidgetSettings", store: LCUtils.appGroupUserDefault)\n    private var livingWidgetSettingsJSON = "{}"
     @State private var themeExportURL: URL?
     @State private var themeExportError: String?
     @State private var layout = LiveBoardHomeLayout()
@@ -1901,7 +1923,7 @@ struct LiveBoardHomeScreen: View {
             media["motion-wallpaper"] = bytes.base64EncodedString()
             settings["ManzanaMotionWallpaper"] = motionWallpaper
         }
-        settings["BloomBoxWidgetMissingAppFallbacks"] = widgetFallbacksJSON
+        settings["BloomBoxWidgetMissingAppFallbacks"] = widgetFallbacksJSON\n        settings["BloomBoxLivingWidgetSettings"] = livingWidgetSettingsJSON
         let payload: [String: Any] = ["format": "bbtheme", "version": 2,
                                       "mediaBase64": media,
                                       "exportedAt": ISO8601DateFormatter().string(from: Date()),
@@ -2032,12 +2054,36 @@ struct LiveBoardHomeScreen: View {
 
     /// Keep each GIF tile in its own SwiftUI expression so the huge Home
     /// screen does not time out when type-checking drag + context menus.
+    private struct LivingSettings: Codable {
+        var mode: String = "none"
+        var speed: Double = 75
+        var travel: Double = 60
+    }
+
+    private func livingSettings(for id: String) -> LivingSettings {
+        let values = (try? JSONDecoder().decode([String: LivingSettings].self,
+            from: Data(livingWidgetSettingsJSON.utf8))) ?? [:]
+        return values[id] ?? LivingSettings()
+    }
+
+    private func setLivingSettings(_ id: String, change: (inout LivingSettings) -> Void) {
+        var values = (try? JSONDecoder().decode([String: LivingSettings].self,
+            from: Data(livingWidgetSettingsJSON.utf8))) ?? [:]
+        var settings = values[id] ?? LivingSettings()
+        change(&settings)
+        values[id] = settings
+        if let data = try? JSONEncoder().encode(values),
+           let json = String(data: data, encoding: .utf8) {
+            livingWidgetSettingsJSON = json
+        }
+    }
+
     private func homeWidgetTile(_ widget: BloomBoxPlacedWidget,
                                 pageIndex index: Int,
                                 cellWidth: CGFloat, pitch: CGFloat) -> some View {
         let w = CGFloat(widget.columns) * cellWidth - 5
         let h = CGFloat(widget.rows) * pitch - 5
-        let delay = Double(widget.slot % 4) * 0.145
+        let living = livingSettings(for: widget.id)\n        let delay = Double(widget.slot % 4) * 0.145
             + Double(widget.slot / 4) * 0.026
         return BloomBoxGridWidgetView(widget: widget, width: w, height: h,
                                       active: page == index + 1)
@@ -2089,7 +2135,7 @@ struct LiveBoardHomeScreen: View {
             // Position the entire interaction surface, including every gesture.
             .offset(x: 14 + CGFloat(widget.slot % 4) * cellWidth,
                     y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch)
-            .zIndex(selectedWidgetID == widget.id ? 2 : 1)
+            .modifier(BloomBoxLivingMotion(mode: living.mode, speed: living.speed, travel: living.travel,\n                enabled: scenePhase == .active && page == index + 1 && !editing && !reduceMotion && !searching))\n            .zIndex(selectedWidgetID == widget.id ? 2 : 1)
             // Animate the entire interactive tile, not only its disabled
             // GIF/photo content. Editing still tracks the finger instantly.
             .modifier(aliveEntrance(for: index, delay: delay))
@@ -2237,6 +2283,22 @@ struct LiveBoardHomeScreen: View {
             Button(widget.fill ? "Mostrar imagen completa" : "Rellenar widget",
                    systemImage: "arrow.up.left.and.arrow.down.right") {
                 updateWidget(widget.id) { $0.fill.toggle() }
+            }
+        }
+        Menu("Living Widget · Movimiento", systemImage: "sparkles.rectangle.stack") {
+            Button("Sin movimiento") { setLivingSettings(widget.id) { $0.mode = "none" } }
+            Button("Flotar ↕") { setLivingSettings(widget.id) { $0.mode = "float" } }
+            Button("Izquierda y derecha ↔") { setLivingSettings(widget.id) { $0.mode = "horizontal" } }
+            Button("Paseo suave ✦") { setLivingSettings(widget.id) { $0.mode = "wander" } }
+            Menu("Velocidad") {
+                ForEach([10, 25, 50, 75, 100], id: \.self) { value in
+                    Button("\\(value)%") { setLivingSettings(widget.id) { $0.speed = Double(value) } }
+                }
+            }
+            Menu("Recorrido") {
+                ForEach([10, 25, 40, 60, 80, 100], id: \.self) { value in
+                    Button("\\(value)%") { setLivingSettings(widget.id) { $0.travel = Double(value) } }
+                }
             }
         }
         Menu("Tamaño del widget", systemImage: "arrow.up.left.and.arrow.down.right") {
