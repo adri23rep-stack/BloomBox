@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <string.h>
 
 static BOOL fail(NSError **error, NSString *message) {
     if (error) *error = [NSError errorWithDomain:@"BloomBoxBackup" code:1 userInfo:@{NSLocalizedDescriptionKey: message}];
@@ -335,6 +336,8 @@ static NSString *debTweakFile(NSString *path) {
         const char *cpath = archive_entry_pathname(entry);
         NSString *raw = cpath ? [NSString stringWithUTF8String:cpath] : nil;
         NSString *path = debRelativePath(raw);
+        if (raw && ([raw isEqualToString:@"."] || [raw isEqualToString:@"./"]) &&
+            archive_entry_filetype(entry) == AE_IFDIR) continue;
         if (!path || archive_entry_symlink(entry) || archive_entry_hardlink(entry) ||
             (archive_entry_filetype(entry) != AE_IFREG && archive_entry_filetype(entry) != AE_IFDIR) ||
             archive_entry_size(entry) < 0) {
