@@ -342,11 +342,114 @@ enum BloomBoxWidgetMedia {
 }
 
 
+/// Shared widget accent palette. Automatic mode samples a bounded 24x24
+/// thumbnail of the first image/GIF frame, never the full animated media.
+/// The result is cached by imported media path, so moving widgets is cheap.
+enum BloomBoxWidgetGlowPalette {
+    private static let thumbnailCache = NSCache<NSString, UIColor>()
+    private static let mint = UIColor(red: 0.38, green: 0.96, blue: 0.78, alpha: 1)
+
+    static func color(_ preset: String?, for widget: BloomBoxPlacedWidget) -> Color {
+        switch preset {
+        case "mint": return Color(red: 0.38, green: 0.96, blue: 0.78)
+        case "blue": return Color(red: 0.25, green: 0.72, blue: 1.0)
+        case "pink": return Color(red: 1.0, green: 0.45, blue: 0.78)
+        case "amber": return Color(red: 1.0, green: 0.76, blue: 0.32)
+        case "red": return Color(red: 1.0, green: 0.32, blue: 0.38)
+        case "white": return .white
+        default: return automatic(for: widget)
+        }
+    }
+
+    private static func automatic(for widget: BloomBoxPlacedWidget) -> Color {
+        if widget.kind == "clock" {
+            switch widget.clockTint {
+            case "pink": return color("pink", for: widget)
+            case "mint": return color("mint", for: widget)
+            case "amber": return color("amber", for: widget)
+            case "white", nil: return .white
+            default: return Color(uiColor: mint)
+            }
+        }
+        guard widget.kind == "media",
+              let url = BloomBoxWidgetMedia.url(for: widget.mediaName),
+              FileManager.default.fileExists(atPath: url.path) else {
+            return Color(uiColor: mint)
+        }
+        let key = url.path as NSString
+        if let previous = thumbnailCache.object(forKey: key) {
+            return Color(uiColor: previous)
+        }
+        let accent = sampleMediaColor(url) ?? mint
+        thumbnailCache.setObject(accent, forKey: key)
+        return Color(uiColor: accent)
+    }
+
+    private static func sampleMediaColor(_ url: URL) -> UIColor? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: 24,
+            kCGImageSourceShouldCache: false
+        ]
+        guard let preview = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+        else { return nil }
+
+        let side = 24
+        var pixels = [UInt8](repeating: 0, count: side * side * 4)
+        let space = CGColorSpaceCreateDeviceRGB()
+        guard let context = CGContext(data: &pixels,
+                                      width: side, height: side,
+                                      bitsPerComponent: 8, bytesPerRow: side * 4,
+                                      space: space,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        else { return nil }
+        context.interpolationQuality = .medium
+        context.draw(preview, in: CGRect(x: 0, y: 0, width: side, height: side))
+
+        // Vote by vivid color family rather than averaging against black or transparency.
+        var votes = [Double](repeating: 0, count: 12)
+        var hueSums = [Double](repeating: 0, count: 12)
+        for offset in stride(from: 0, to: pixels.count, by: 4) {
+            let alpha = Double(pixels[offset + 3]) / 255
+            guard alpha > 0.4 else { continue }
+            let red = min(1, Double(pixels[offset]) / (255 * alpha))
+            let green = min(1, Double(pixels[offset + 1]) / (255 * alpha))
+            let blue = min(1, Double(pixels[offset + 2]) / (255 * alpha))
+            let maximum = max(red, max(green, blue))
+            let minimum = min(red, min(green, blue))
+            let difference = maximum - minimum
+            guard maximum > 0.18, difference > 0.1,
+                  difference / maximum > 0.23 else { continue }
+            var hue: Double
+            if maximum == red {
+                hue = (green - blue) / difference
+            } else if maximum == green {
+                hue = (blue - red) / difference + 2
+            } else {
+                hue = (red - green) / difference + 4
+            }
+            if hue < 0 { hue += 6 }
+            let fraction = hue / 6
+            let bucket = min(11, Int(fraction * 12))
+            let score = alpha * (difference / maximum) * maximum
+            votes[bucket] += score
+            hueSums[bucket] += score * fraction
+        }
+        guard let selected = (0..<votes.count).max(by: { votes[$0] < votes[$1] }),
+              votes[selected] > 0 else { return nil }
+        return UIColor(hue: CGFloat(hueSums[selected] / votes[selected]),
+                       saturation: 0.79, brightness: 0.98, alpha: 1)
+    }
+}
+
 /// Native SwiftUI clock faces. No remote code, assets, or dependencies required.
 private struct BloomBoxClockFace: View {
     let widget: BloomBoxPlacedWidget
+    let accentOverride: Color?
 
     private var tint: Color {
+        if let accentOverride, widget.clockStyle == "pixel" { return accentOverride }
         switch widget.clockTint {
         case "mint": return Color(red: 0.38, green: 0.96, blue: 0.78)
         case "pink": return Color(red: 1.0, green: 0.61, blue: 0.82)
@@ -504,6 +607,7 @@ struct BloomBoxGridWidgetView: View {
     let width: CGFloat
     let height: CGFloat
     var active = true
+    var clockAccentColor: Color? = nil
     @AppStorage("ManzanaNote", store: LCUtils.appGroupUserDefault) private var note = ""
     @Environment(\.scenePhase) private var scenePhase
 
@@ -517,7 +621,7 @@ struct BloomBoxGridWidgetView: View {
             Group {
                 switch widget.kind {
                 case "clock":
-                    BloomBoxClockFace(widget: widget)
+                    BloomBoxClockFace(widget: widget, accentOverride: clockAccentColor)
                 case "notes":
                     Text(note.isEmpty ? "Notas" : note)
                         .font(.system(size: widget.columns == 1 ? 11 : 16))

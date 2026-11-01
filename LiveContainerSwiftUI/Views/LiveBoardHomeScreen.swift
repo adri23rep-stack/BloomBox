@@ -2076,6 +2076,9 @@ struct LiveBoardHomeScreen: View {
         var depth: Bool? = nil
         var glow: Bool? = nil
         var adaptiveGlass: Bool? = nil
+        // Nil preserves old themes. "auto" samples the first image/GIF frame once.
+        var glowColor: String? = nil
+        var pixelFollowGlow: Bool? = nil
     }
 
     private func livingSettings(for id: String) -> LivingSettings {
@@ -2102,10 +2105,14 @@ struct LiveBoardHomeScreen: View {
         let w = CGFloat(widget.columns) * cellWidth - 5
         let h = CGFloat(widget.rows) * pitch - 5
         let living = livingSettings(for: widget.id)
+        let accent = BloomBoxWidgetGlowPalette.color(living.glowColor, for: widget)
+        let pixelAccent: Color? = (living.pixelFollowGlow ?? false) && widget.clockStyle == "pixel"
+            ? accent : nil
         let delay = Double(widget.slot % 4) * 0.145
             + Double(widget.slot / 4) * 0.026
         return BloomBoxGridWidgetView(widget: widget, width: w, height: h,
-                                      active: page == index + 1)
+                                      active: page == index + 1,
+                                      clockAccentColor: pixelAccent)
             .allowsHitTesting(false)
             .frame(width: w, height: h)
             .overlay {
@@ -2158,12 +2165,12 @@ struct LiveBoardHomeScreen: View {
                 enabled: scenePhase == .active && page == index + 1 && !editing && !reduceMotion && !searching))
             .shadow(color: (living.depth ?? false) && !editing ? Color.black.opacity(0.38) : .clear,
                     radius: (living.depth ?? false) && !editing ? 15 : 0, x: 0, y: 12)
-            .shadow(color: (living.glow ?? false) && !editing ? Color(red: 0.28, green: 0.95, blue: 0.72).opacity(0.48) : .clear,
+            .shadow(color: (living.glow ?? false) && !editing ? accent.opacity(0.48) : .clear,
                     radius: (living.glow ?? false) && !editing ? 20 : 0, x: 0, y: 8)
             .overlay {
                 if (living.adaptiveGlass ?? false) && widget.glass && !editing {
                     RoundedRectangle(cornerRadius: 19)
-                        .strokeBorder(Color(red: 0.28, green: 0.95, blue: 0.72).opacity(0.34), lineWidth: 1)
+                        .strokeBorder(accent.opacity(0.34), lineWidth: 1)
                         .allowsHitTesting(false)
                 }
             }
@@ -2345,6 +2352,11 @@ struct LiveBoardHomeScreen: View {
                 Button("Animar barra Pixel Time · activar/desactivar") {
                     updateWidget(widget.id) { $0.pixelAnimatedBar = !($0.pixelAnimatedBar ?? false) }
                 }
+                Button((livingSettings(for: widget.id).pixelFollowGlow ?? false)
+                    ? "Pixel Time: volver a su color original"
+                    : "Pixel Time: usar el color del brillo") {
+                    setLivingSettings(widget.id) { $0.pixelFollowGlow = !($0.pixelFollowGlow ?? false) }
+                }
             }
         }
         Menu("Living Widget · Movimiento", systemImage: "sparkles.rectangle.stack") {
@@ -2370,8 +2382,31 @@ struct LiveBoardHomeScreen: View {
             Button("Brillo inferior · activar/desactivar") {
                 setLivingSettings(widget.id) { $0.glow = !($0.glow ?? false) }
             }
-            Button("Borde verde sobre cristal · activar/desactivar") {
+            Button("Borde del color del brillo · activar/desactivar") {
                 setLivingSettings(widget.id) { $0.adaptiveGlass = !($0.adaptiveGlass ?? false) }
+            }
+            Menu("Color del brillo", systemImage: "paintpalette.fill") {
+                Button("Automático · imagen o reloj") {
+                    setLivingSettings(widget.id) { $0.glowColor = "auto"; $0.glow = true }
+                }
+                Button("Menta") {
+                    setLivingSettings(widget.id) { $0.glowColor = "mint"; $0.glow = true }
+                }
+                Button("Azul") {
+                    setLivingSettings(widget.id) { $0.glowColor = "blue"; $0.glow = true }
+                }
+                Button("Rosa") {
+                    setLivingSettings(widget.id) { $0.glowColor = "pink"; $0.glow = true }
+                }
+                Button("Ámbar") {
+                    setLivingSettings(widget.id) { $0.glowColor = "amber"; $0.glow = true }
+                }
+                Button("Rojo") {
+                    setLivingSettings(widget.id) { $0.glowColor = "red"; $0.glow = true }
+                }
+                Button("Blanco") {
+                    setLivingSettings(widget.id) { $0.glowColor = "white"; $0.glow = true }
+                }
             }
         }
         Menu("Tamaño del widget", systemImage: "arrow.up.left.and.arrow.down.right") {
