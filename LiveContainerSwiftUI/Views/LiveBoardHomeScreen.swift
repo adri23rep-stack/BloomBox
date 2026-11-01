@@ -1475,8 +1475,18 @@ struct LiveBoardHomeScreen: View {
                 }
                 guard let slot = BloomBoxWidgetGrid.firstAvailable(
                     columns: 4, rows: 2, occupied: occupied) else { continue }
-                all[index, default: []].append(
-                    BloomBoxPlacedWidget(kind: kind, slot: slot, columns: 4, rows: 2))
+                var migrated = BloomBoxPlacedWidget(kind: kind == "photo" ? "media" : kind,
+                                                    slot: slot, columns: 4, rows: 2)
+                if kind == "photo" {
+                    let oldPhoto = FileManager.default.urls(for: .applicationSupportDirectory,
+                                                            in: .userDomainMask)[0]
+                        .appendingPathComponent("BloomBox/widget-photo.jpg")
+                    if let data = try? Data(contentsOf: oldPhoto),
+                       let file = try? BloomBoxWidgetMedia.importData(data) {
+                        migrated.mediaName = file
+                    }
+                }
+                all[index, default: []].append(migrated)
             }
         }
         savePlacedWidgets(all)
