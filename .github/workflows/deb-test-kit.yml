@@ -30,8 +30,8 @@ jobs:
         run: |
           file deb-test-kit/Payload/BloomBoxDebTest.app/BloomBoxDebTest
           file deb-test-kit/BloomBoxDebProbe.dylib
-          xcrun lipo -verify_arch arm64 deb-test-kit/Payload/BloomBoxDebTest.app/BloomBoxDebTest
-          xcrun lipo -verify_arch arm64 deb-test-kit/BloomBoxDebProbe.dylib
+          xcrun lipo deb-test-kit/Payload/BloomBoxDebTest.app/BloomBoxDebTest -verify_arch arm64
+          xcrun lipo deb-test-kit/BloomBoxDebProbe.dylib -verify_arch arm64
           unzip -t deb-test-kit/BloomBoxDebTest.ipa | tail -1
       - uses: actions/upload-artifact@v4
         with:
