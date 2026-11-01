@@ -70,7 +70,13 @@ struct LCTabView: View {
         }
         .task {
             closeDuplicatedWindow()
-            checkLastLaunchError()
+            // Allow the Home animation to complete before displaying
+            // noncritical errors carried over from the previous guest launch.
+            Task {
+                do { try await Task.sleep(nanoseconds: 10_000_000_000) }
+                catch { return }
+                checkLastLaunchError()
+            }
             checkTeamId()
             checkAndSaveBundleId()
             checkGetTaskAllow()
