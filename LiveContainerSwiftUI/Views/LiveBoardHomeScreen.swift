@@ -3959,6 +3959,67 @@ private struct LiveBoardRibbonWallpaper: View {
     private var accent: Color { blue ? Color(red: 0.04, green: 0.25, blue: 0.85) : Color(red: 0.7, green: 0.035, blue: 0.01) }
 }
 
+/// Photos' provider URL is temporary: copy the original GIF/video
+/// into BloomBox storage before the callback returns.
+private struct BloomBoxMotionWallpaperPhotosPicker: UIViewControllerRepresentable {
+    let completion: (Result<String, Error>?) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(completion) }
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var config = PHPickerConfiguration()
+        config.filter = .any(of: [.videos, .images])
+        config.selectionLimit = 1
+        config.preferredAssetRepresentationMode = .current
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = context.coordinator
+        return picker
+    }
+    func updateUIViewController(_ controller: PHPickerViewController, context: Context) {}
+
+    final class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        let completion: (Result<String, Error>?) -> Void
+        init(_ completion: @escaping (Result<String, Error>?) -> Void) {
+            self.completion = completion
+        }
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            guard let provider = results.first?.itemProvider else {
+                DispatchQueue.main.async { self.completion(nil) }
+                return
+            }
+            let isGIF = provider.hasItemConformingToTypeIdentifier(UTType.gif.identifier)
+            let type = isGIF ? UTType.gif.identifier :
+                provider.registeredTypeIdentifiers.first(where: {
+                    UTType($0)?.conforms(to: .movie) == true
+                })
+            guard let type else {
+                DispatchQueue.main.async {
+                    self.completion(.failure(ManzanaWallpaperMedia.failure(
+                        "Ese archivo no es un GIF ni un video. Para fotos normales usa Elegir foto."
+                    )))
+                }
+                return
+            }
+            provider.loadFileRepresentation(forTypeIdentifier: type) { url, error in
+                let result: Result<String, Error>
+                if let url {
+                    do {
+                        let ext = isGIF ? "gif" : (UTType(type)?.preferredFilenameExtension ?? "mov")
+                        let name = try ManzanaWallpaperMedia.importFile(url, fileExtension: ext)
+                        result = .success(name)
+                    } catch {
+                        result = .failure(error)
+                    }
+                } else {
+                    result = .failure(error ?? ManzanaWallpaperMedia.failure(
+                        "Fotos no pudo entregar el video o GIF. Prueba importarlo desde Archivos."
+                    ))
+                }
+                DispatchQueue.main.async { self.completion(result) }
+            }
+        }
+    }
+}
+
 struct LiveBoardWallpaperPicker: UIViewControllerRepresentable {
     let completion: (UIImage?) -> Void
     func makeCoordinator() -> Coordinator { Coordinator(completion) }
