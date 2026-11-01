@@ -81,12 +81,16 @@ private struct BloomBoxWidgetInteraction<MenuContent: View>: ViewModifier {
     let select: () -> Void
     let move: (CGSize) -> Void
     let menu: () -> MenuContent
-    @GestureState private var translation = CGSize.zero
+    @GestureState(resetTransaction: Transaction(animation: nil)) private var translation = CGSize.zero
 
     func body(content: Content) -> some View {
         content
             .contentShape(Rectangle())
-            .contextMenu(menuItems: menu)
+            .contextMenu {
+                // Editing has its own options button; do not let a long-press
+                // menu recognizer compete with the movement handle.
+                if !editing { menu() }
+            }
             .overlay(alignment: .bottomLeading) {
                 if editing {
                     Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
@@ -97,8 +101,12 @@ private struct BloomBoxWidgetInteraction<MenuContent: View>: ViewModifier {
                         .contentShape(Rectangle())
                         .padding(4)
                         .highPriorityGesture(
-                            DragGesture(minimumDistance: 2, coordinateSpace: .named("bloombox.alive.viewport"))
-                                .updating($translation) { value, state, _ in
+                            // The page sits inside TabView's UIKit host. Use the fixed
+                            // screen coordinate space, never the moving tile/page space.
+                            DragGesture(minimumDistance: 2, coordinateSpace: .global)
+                                .updating($translation) { value, state, transaction in
+                                    transaction.animation = nil
+                                    transaction.disablesAnimations = true
                                     state = value.translation
                                 }
                                 .onChanged { _ in select() }
@@ -109,7 +117,12 @@ private struct BloomBoxWidgetInteraction<MenuContent: View>: ViewModifier {
                 }
             }
             .offset(translation)
-            .zIndex(translation == .zero ? 0 : 10)
+            // Finger tracking must be immediate, including gesture reset and
+            // the grid-position commit. Never interpolate successive samples.
+            .transaction { transaction in
+                transaction.animation = nil
+                transaction.disablesAnimations = true
+            }
     }
 }
 
@@ -435,15 +448,15 @@ struct LiveBoardHomeScreen: View {
                             }
                         } label: {
                             Text("Editar").font(.system(size: 16, weight: .semibold))
-                                .frame(minWidth: 68, minHeight: 44)
-                                .padding(.horizontal, 10)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 8)
                         }
                         .liveBoardGlass(radius: 18, interactive: false)
                         Spacer()
                         Button("Listo") { finishEditing() }
                             .font(.system(size: 16, weight: .semibold))
-                            .frame(minWidth: 68, minHeight: 44)
-                            .padding(.horizontal, 10)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 8)
                             .liveBoardGlass(radius: 18, interactive: false)
                     }
                     .padding(.horizontal, 22)
@@ -1941,7 +1954,8 @@ struct LiveBoardHomeScreen: View {
                 if editing { editWidgetOptionsHandle(widget, pageIndex: index) }
             }
             .modifier(BloomBoxWidgetInteraction(editing: editing, select: {
-                selectedWidgetID = widget.id
+                // Avoid invalidating the entire Home tree on every finger sample.
+                if selectedWidgetID != widget.id { selectedWidgetID = widget.id }
             }, move: { translation in
                 let column = min(4 - widget.columns, max(0,
                     widget.slot % 4 + Int((translation.width / cellWidth).rounded())))
