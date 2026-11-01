@@ -295,7 +295,7 @@ struct LiveBoardHomeScreen: View {
 
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
+            ZStack(alignment: .top) {
                 background
                     .blur(radius: (searching || page == libraryPageIndex) ? 14 : 0)
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.38), value: page == libraryPageIndex)
@@ -411,27 +411,36 @@ struct LiveBoardHomeScreen: View {
                     .zIndex(20)
                 }
                 if editing && !searching {
-                    VStack {
-                        HStack {
-                            Menu {
-                                Button("Añadir widget", systemImage: "square.grid.2x2.badge.plus") { showWidgetGallery = true }
-                                Button("Personalizar", systemImage: "paintbrush") { iconCustomization = true }
-                                Button("Añadir página", systemImage: "plus") { addPage() }
-                                Button("Gestionar páginas", systemImage: "square.grid.2x2") { pageManager = true }
-                                Button("Biblioteca de apps", systemImage: "square.grid.2x2") {
-                                    finishEditing()
-                                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.4)) {
-                                        page = libraryPageIndex
-                                    }
+                    // Keep the editing toolbar only as tall as its actual
+                    // buttons. The previous full-screen VStack + Spacer was a
+                    // topmost interaction layer over page controls and widgets.
+                    HStack {
+                        Menu {
+                            Button("Añadir widget", systemImage: "square.grid.2x2.badge.plus") { showWidgetGallery = true }
+                            Button("Personalizar", systemImage: "paintbrush") { iconCustomization = true }
+                            Button("Añadir página", systemImage: "plus") { addPage() }
+                            Button("Gestionar páginas", systemImage: "square.grid.2x2") { pageManager = true }
+                            Button("Biblioteca de apps", systemImage: "square.grid.2x2") {
+                                finishEditing()
+                                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.4)) {
+                                    page = libraryPageIndex
                                 }
-                            } label: { Text("Editar").font(.system(size: 16, weight: .semibold)).padding(.horizontal, 18).padding(.vertical, 8) }
-                            .liveBoardGlass(radius: 18)
-                            Spacer()
-                            Button("Listo") { finishEditing() }.font(.system(size: 16, weight: .semibold))
-                                .padding(.horizontal, 18).padding(.vertical, 8).liveBoardGlass(radius: 18)
-                        }.padding(.horizontal, 22)
+                            }
+                        } label: {
+                            Text("Editar").font(.system(size: 16, weight: .semibold))
+                                .frame(minWidth: 68, minHeight: 44)
+                                .padding(.horizontal, 10)
+                        }
+                        .liveBoardGlass(radius: 18, interactive: false)
                         Spacer()
-                    }.padding(.top, 0)
+                        Button("Listo") { finishEditing() }
+                            .font(.system(size: 16, weight: .semibold))
+                            .frame(minWidth: 68, minHeight: 44)
+                            .padding(.horizontal, 10)
+                            .liveBoardGlass(radius: 18, interactive: false)
+                    }
+                    .padding(.horizontal, 22)
+                    .zIndex(15)
                 }
                 if searching { searchOverlay(height: geometry.size.height) }
                 if let id = openFolder, let folder = layout.folders.first(where: { $0.id == id }) {
@@ -1917,10 +1926,9 @@ struct LiveBoardHomeScreen: View {
             }
             .offset(x: 14 + CGFloat(widget.slot % 4) * cellWidth,
                     y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch)
-            .onDrop(of: [UTType.text],
-                    delegate: LiveBoardMoveDropDelegate { providers in
-                acceptHomeDrop(providers, pageIndex: index, slot: widget.slot)
-            })
+            // Grid slots beneath the widget own drop handling. Adding an
+            // onDrop recognizer to the widget itself interfered with tapping
+            // transparent GIFs and with the context menu after relocation.
             .modifier(BloomBoxWidgetInteraction(widgetID: widget.id,
                                                  editing: editing) {
                 homeWidgetMenu(widget, pageIndex: index)
@@ -2329,15 +2337,19 @@ struct LiveBoardHomeScreen: View {
             }.accessibilityLabel("Search")
             Rectangle().fill(.white.opacity(0.22)).frame(width: 0.5, height: 12).padding(.trailing, 3)
             ForEach([0] + visiblePageIndices.map { $0 + 1 }, id: \.self) { index in
-                Button { page = index } label: {
+                Button {
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
+                        page = index
+                    }
+                } label: {
                     Circle().fill(.white.opacity(page == index ? 1 : 0.35))
-                        .frame(width: 6, height: 6).frame(width: 18, height: 32)
+                        .frame(width: 6, height: 6)
+                        .frame(width: 27, height: 40)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel(index == 0 ? "Widgets" : "Página \(index)")
-                .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
-                    guard index > 0 else { return false }
-                    return acceptPageDrop(providers, pageIndex: index - 1)
-                })
+                // Do not attach a drop target to navigation buttons; it can
+                // consume taps. Use the widget's "Mover a página" menu instead.
             }
             Button {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.4)) {
@@ -2365,8 +2377,8 @@ struct LiveBoardHomeScreen: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 8)
-        .frame(height: 32)
-        .liveBoardGlass(radius: 16)
+        .frame(height: 40)
+        .liveBoardGlass(radius: 16, interactive: false)
         .blur(radius: openFolder == nil ? 0 : 18)
         .accessibilityIdentifier("home.pages")
     }
