@@ -254,6 +254,8 @@ struct BloomBoxPlacedWidget: Codable, Equatable, Identifiable {
     var clockStyle: String? = nil
     var clockTint: String? = nil
     var clock24Hour: Bool? = nil
+    var pixelGlow: Double? = nil
+    var pixelAnimatedBar: Bool? = nil
 }
 
 enum BloomBoxWidgetGrid {
@@ -479,12 +481,12 @@ private struct BloomBoxClockFace: View {
                 .monospacedDigit()
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
-                .shadow(color: tint.opacity(0.75), radius: 7)
+                .shadow(color: tint.opacity(0.75 * max(0, min(1, widget.pixelGlow ?? 1))), radius: 7 * max(0, min(1, widget.pixelGlow ?? 1)))
             if !tiny {
                 HStack(spacing: 3) {
                     ForEach(0..<12, id: \.self) { index in
                         Rectangle()
-                            .fill(index <= (second / 5) ? tint : tint.opacity(0.13))
+                            .fill(index <= ((widget.pixelAnimatedBar ?? false) ? (second / 5) : 5) ? tint : tint.opacity(0.13))
                             .frame(maxWidth: .infinity)
                             .frame(height: 4)
                     }
