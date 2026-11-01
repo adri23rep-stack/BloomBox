@@ -506,7 +506,16 @@ private struct BloomBoxRemoteNewsSection: View {
     private var preferredLanguage = "system"
     private var english: Bool { (preferredLanguage == "system" ? (Locale.preferredLanguages.first ?? "en") : preferredLanguage).lowercased().hasPrefix("en") }
     private var defaultFeed: String { "https://raw.githubusercontent.com/adri23rep-stack/BloomBox-Catalog/main/news/\(english ? "en" : "es").json" }
-    private var activeFeed: String { feedAddress.isEmpty ? defaultFeed : feedAddress }
+    // Earlier builds persisted the old built-in feed URL. Treat that legacy
+    // default as automatic so upgrades use BloomBox-Catalog and its locale feeds.
+    // Preserve any genuinely custom HTTPS news source selected by the user.
+    private var activeFeed: String {
+        let saved = feedAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        if saved.isEmpty || saved == "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/feature/bloombox-2-ui-foundation-20261031/remote/news.json" || saved == "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/main/remote/news.json" {
+            return defaultFeed
+        }
+        return saved
+    }
     @State private var posts: [BloomBoxNewsPost] = []
     @State private var loading = false
     @State private var error: String?
