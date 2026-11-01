@@ -1716,34 +1716,65 @@ struct LiveBoardHomeScreen: View {
     }
 
     @ViewBuilder private func homePage(_ index: Int, width: CGFloat, height: CGFloat) -> some View {
-        if widgets(on: index).isEmpty { homeIconGrid(index, width: width, height: height) }
-        else {
-            ScrollView {
-                VStack(spacing: 14) {
-                    ForEach(widgets(on: index), id: \.self) { id in
-                        ManzanaDesktopView(openSettings: { desktopSettings = true }, singleWidget: id)
-                            .modifier(aliveEntrance(for: index, delay: 0.08 + Double(widgets(on: index).firstIndex(of: id) ?? 0) * 0.085))
-                            .contextMenu {
-                                Menu("Mover a página") {
-                                    ForEach(Array(layout.pages.indices), id: \.self) { target in
-                                        Button("Página \(target + 1)") {
-                                            var values = pageWidgets
-                                            values[index]?.removeAll { $0 == id }
-                                            if !values[target, default: []].contains(id) { values[target, default: []].append(id) }
-                                            saveWidgets(values)
-                                            var hidden = hiddenPageIndices; hidden.remove(target); persistHiddenPages(hidden)
-                                            page = target + 1
-                                        }.disabled(target == index)
-                                    }
+        homeIconGrid(index, width: width, height: height)
+            .overlay(alignment: .topLeading) {
+                let cellWidth = (width - 28) / 4
+                let pitch = min(editing ? 92 : 99,
+                                max(72, (height - (editing ? 69 : 39)) / 6))
+                ForEach(widgets(on: index)) { widget in
+                    let widgetWidth = CGFloat(widget.columns) * cellWidth - 5
+                    let widgetHeight = CGFloat(widget.rows) * pitch - 5
+                    BloomBoxGridWidgetView(widget: widget,
+                                           width: widgetWidth, height: widgetHeight)
+                        .modifier(aliveEntrance(for: index,
+                            delay: Double(widget.slot % 4) * 0.145
+                                + Double(widget.slot / 4) * 0.026))
+                        .frame(width: widgetWidth, height: widgetHeight)
+                        .offset(
+                            x: 14 + CGFloat(widget.slot % 4) * cellWidth,
+                            y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch
+                        )
+                        .onDrag {
+                            NSItemProvider(object: ("bloombox-widget:" + widget.id) as NSString)
+                        }
+                        .onDrop(of: [UTType.text],
+                                delegate: LiveBoardMoveDropDelegate { providers in
+                            acceptHomeDrop(providers, pageIndex: index, slot: widget.slot)
+                        })
+                        .contextMenu {
+                            if widget.kind == "media" {
+                                Button("Cambiar imagen o GIF", systemImage: "photo.badge.plus") {
+                                    widgetMediaID = widget.id
                                 }
-                                Button("Quitar widget", role: .destructive) { toggleWidget(id, on: index) }
+                                Button(widget.fill ? "Mostrar imagen completa" : "Rellenar widget",
+                                       systemImage: "arrow.up.left.and.arrow.down.right") {
+                                    updateWidget(widget.id) { $0.fill.toggle() }
+                                }
                             }
-                            .padding(.horizontal, 20)
-                    }
-                    homeIconGrid(index, width: width, height: height).frame(height: height)
-                }.padding(.top, editing ? 50 : 20)
+                            Menu("Tamaño del widget", systemImage: "arrow.up.left.and.arrow.down.right") {
+                                Button("Pequeño · 1×1") { resizeWidget(widget.id, columns: 1, rows: 1) }
+                                Button("Cuadrado · 2×2") { resizeWidget(widget.id, columns: 2, rows: 2) }
+                                Button("Ancho · 4×2") { resizeWidget(widget.id, columns: 4, rows: 2) }
+                                Button("Grande · 4×4") { resizeWidget(widget.id, columns: 4, rows: 4) }
+                            }
+                            Button(widget.glass ? "Sin Liquid Glass" : "Activar Liquid Glass",
+                                   systemImage: "square.on.square") {
+                                updateWidget(widget.id) { $0.glass.toggle() }
+                            }
+                            Menu("Mover a página", systemImage: "rectangle.on.rectangle") {
+                                ForEach(layout.pages.indices, id: \.self) { target in
+                                    Button("Página \(target + 1)") {
+                                        movePlacedWidget(widget.id, to: target, slot: nil)
+                                    }.disabled(target == index)
+                                }
+                            }
+                            Button("Eliminar widget", systemImage: "trash", role: .destructive) {
+                                removePlacedWidget(widget.id)
+                            }
+                        }
+                        .accessibilityIdentifier("bloombox.widget.\(widget.id)")
+                }
             }
-        }
     }
     private func homeIconGrid(_ index: Int, width: CGFloat, height: CGFloat) -> some View {
         let cellWidth = (width - 28) / 4
@@ -1755,7 +1786,7 @@ struct LiveBoardHomeScreen: View {
                         let slot = row * 4 + column
                         let key = layout.pages[index][slot]
                         ZStack(alignment: .top) {
-                            if let key {
+                            if let key, !occupiedCells(on: index).contains(slot) {
                                 homeItem(key, showLabel: !largeIcons)
                                     .modifier(aliveEntrance(for: index,
                                         delay: Double(column) * 0.145 + Double(row) * 0.026,
@@ -1780,11 +1811,7 @@ struct LiveBoardHomeScreen: View {
                         .frame(width: cellWidth, height: pitch, alignment: .top)
                         .contentShape(Rectangle())
                         .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
-                            acceptDrop(providers) { key in
-                                withAnimation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.85)) {
-                                    layout.place(key, on: index, slot: slot); reconcile()
-                                }
-                            }
+                            acceptHomeDrop(providers, pageIndex: index, slot: slot)
                         })
                     }
                 }
@@ -2099,9 +2126,7 @@ struct LiveBoardHomeScreen: View {
                 .accessibilityLabel(index == 0 ? "Widgets" : "Página \(index)")
                 .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
                     guard index > 0 else { return false }
-                    return acceptDrop(providers) { key in
-                        layout.place(key, on: index - 1); page = index; reconcile()
-                    }
+                    return acceptPageDrop(providers, pageIndex: index - 1)
                 })
             }
             Button {
@@ -2468,7 +2493,16 @@ struct LiveBoardHomeScreen: View {
         let targetPage = min(index, layout.pages.count - 2)
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.26)) {
             if layout.removePage(at: index) {
-                saveWidgets(ManzanaPageWidgetLayout.removingPage(index, target: targetPage, from: pageWidgets))
+                var widgetMap = placedWidgets
+                let moving = widgetMap.removeValue(forKey: index) ?? []
+                var shifted: [Int: [BloomBoxPlacedWidget]] = [:]
+                for (old, items) in widgetMap {
+                    shifted[old > index ? old - 1 : old] = items
+                }
+                savePlacedWidgets(shifted)
+                for widget in moving {
+                    moveWidgetToAvailablePage(widget, preferred: targetPage)
+                }
                 var shifted = Set(previouslyHidden.compactMap { value -> Int? in
                     if value == index { return nil }
                     return value > index ? value - 1 : value
@@ -2533,6 +2567,7 @@ struct LiveBoardHomeScreen: View {
                 }
             }
         }
+        if placedWidgetsMigrated { moveIconsOutOfWidgetArea() }
     }
     private func title(_ key: String, appsByKey: [String: LCAppModel]? = nil) -> String {
         if key == Self.sideStoreKey { return "SideStore" }
@@ -2548,6 +2583,73 @@ struct LiveBoardHomeScreen: View {
         var map = (try? JSONDecoder().decode([String: String].self, from: Data(categories.utf8))) ?? [:]
         map[key] = value
         if let data = try? JSONEncoder().encode(map), let string = String(data: data, encoding: .utf8) { categories = string }
+    }
+    private func moveWidgetToAvailablePage(_ widget: BloomBoxPlacedWidget, preferred: Int) {
+        var target = min(max(0, preferred), max(0, layout.pages.count - 1))
+        var occupied = occupiedCells(on: target)
+        var chosen = BloomBoxWidgetGrid.firstAvailable(columns: widget.columns,
+                                   rows: widget.rows, occupied: occupied)
+        if chosen == nil {
+            layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity))
+            target = layout.pages.count - 1
+            occupied = occupiedCells(on: target)
+            chosen = BloomBoxWidgetGrid.firstAvailable(columns: widget.columns,
+                                   rows: widget.rows, occupied: occupied)
+        }
+        guard let chosen else { return }
+        var all = placedWidgets
+        var moved = widget
+        moved.slot = chosen
+        all[target, default: []].append(moved)
+        savePlacedWidgets(all)
+        moveIconsOutOfWidgetArea()
+    }
+    private func acceptHomeDrop(_ providers: [NSItemProvider], pageIndex: Int, slot: Int) -> Bool {
+        guard let provider = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) })
+        else { return false }
+        provider.loadObject(ofClass: NSString.self) { object, _ in
+            guard let key = object as? String else { return }
+            DispatchQueue.main.async {
+                if key.hasPrefix("bloombox-widget:") {
+                    movePlacedWidget(String(key.dropFirst("bloombox-widget:".count)),
+                                     to: pageIndex, slot: slot)
+                } else {
+                    guard appMap[key] != nil ||
+                          layout.folders.contains(where: { $0.id == key }) ||
+                          [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey,
+                           Self.appStoreKey, Self.modulesKey].contains(key) else { return }
+                    withAnimation(reduceMotion ? nil : .spring(response: 0.25,
+                                                              dampingFraction: 0.85)) {
+                        layout.place(key, on: pageIndex, slot: slot)
+                        reconcile()
+                        moveIconsOutOfWidgetArea()
+                    }
+                }
+            }
+        }
+        return true
+    }
+    private func acceptPageDrop(_ providers: [NSItemProvider], pageIndex: Int) -> Bool {
+        guard let provider = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) })
+        else { return false }
+        provider.loadObject(ofClass: NSString.self) { object, _ in
+            guard let key = object as? String else { return }
+            DispatchQueue.main.async {
+                if key.hasPrefix("bloombox-widget:") {
+                    movePlacedWidget(String(key.dropFirst("bloombox-widget:".count)),
+                                     to: pageIndex, slot: nil)
+                } else if appMap[key] != nil ||
+                          layout.folders.contains(where: { $0.id == key }) ||
+                          [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey,
+                           Self.appStoreKey, Self.modulesKey].contains(key) {
+                    layout.place(key, on: pageIndex)
+                    page = pageIndex + 1
+                    reconcile()
+                    moveIconsOutOfWidgetArea()
+                }
+            }
+        }
+        return true
     }
     private func acceptDrop(_ providers: [NSItemProvider], apply: @escaping (String) -> Void) -> Bool {
         guard let provider = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else { return false }
