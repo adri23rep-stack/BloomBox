@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - fix/finish-astra-home-20261101
+      - feature/living-widgets-1-20261101
       - experimental/melonx-26-jit
       - fix/jit-dynamic-rsd-port-ios27
       - experimental/melonx-script-other-guests
