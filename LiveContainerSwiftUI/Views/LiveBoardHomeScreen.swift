@@ -173,6 +173,8 @@ struct LiveBoardHomeScreen: View {
     @AppStorage("LiveBoardReduceMotion", store: LCUtils.appGroupUserDefault) private var customReduceMotion = false
     @AppStorage("LiveBoardHiddenPages", store: LCUtils.appGroupUserDefault) private var hiddenPagesJSON = "[]"
     private var reduceMotion: Bool { systemReduceMotion || customReduceMotion }
+    @AppStorage("BloomBoxBuiltInFolderMigrated", store: LCUtils.appGroupUserDefault)
+    private var builtInFolderMigrated = false
     @State private var layout = LiveBoardHomeLayout()
     @State private var page = 1
     @State private var homeHasAppeared = false
@@ -233,6 +235,7 @@ struct LiveBoardHomeScreen: View {
     @State private var iconCustomization = false
     @State private var choosingWallpaper = false
     @State private var choosingMotionWallpaper = false
+    @State private var choosingMotionWallpaperPhotos = false
     @State private var importingMotionWallpaper = false
     @AppStorage("ManzanaMotionWallpaper", store: LCUtils.appGroupUserDefault) private var motionWallpaper = ""
     @AppStorage("ManzanaPauseWallpaper", store: LCUtils.appGroupUserDefault) private var pauseWallpaper = false
@@ -542,10 +545,10 @@ struct LiveBoardHomeScreen: View {
                 // Task cancellation also stops this loop when the screen goes away.
                 while !Task.isCancelled {
                     do {
-                        try await Task.sleep(nanoseconds: UInt64.random(in: 18...32) * 1_000_000_000)
+                        try await Task.sleep(nanoseconds: UInt64.random(in: 9...16) * 1_000_000_000)
                     } catch { break }
                     guard scenePhase == .active, aliveEnabled, aliveIdleEnabled,
-                          Date().timeIntervalSince(aliveLastInteraction) >= 12,
+                          Date().timeIntervalSince(aliveLastInteraction) >= 5,
                           !reduceMotion, !aliveBooting, !editing, !searching,
                           openFolder == nil, !pageManager, !customizing,
                           !desktopSettings, !appStorePresented, !tweakStorePresented,
@@ -1830,16 +1833,15 @@ struct LiveBoardHomeScreen: View {
             Self.sideStoreKey, Self.installKey, Self.tweakStoreKey,
             Self.appStoreKey, Self.modulesKey
         ]
-        // If TabView does not bubble icon frame preferences, the first two
-        // grid rows are safely inside the viewport only on icon-only pages.
-        // Widget pages never use this fallback because they can scroll.
-        let pageHasWidgets = !widgets(on: page - 1).isEmpty
+        // The top three rows remain visible even if TabView does not send geometry.
+        // Never choose an icon hidden beneath a media/widget tile.
+        let blocked = occupiedCells(on: page - 1)
         return layout.pages[page - 1].enumerated().compactMap { slot, entry -> String? in
             guard let key = entry,
-                  appMap[key] != nil || builtinIcons.contains(key) else { return nil }
-            let onscreen = aliveVisibleIcons.contains(key) ||
-                (!pageHasWidgets && slot < 8)
-            return onscreen ? key : nil
+                  appMap[key] != nil || builtinIcons.contains(key) ||
+                    layout.folders.contains(where: { $0.id == key }),
+                  !blocked.contains(slot) else { return nil }
+            return aliveVisibleIcons.contains(key) || slot < 12 ? key : nil
         }
     }
 
@@ -1881,6 +1883,14 @@ struct LiveBoardHomeScreen: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.21) {
                 guard aliveBooting else { return }
                 aliveRevealed = true
+                // Four gentle taps, each aligned to one Dock icon's arrival.
+                for slot in 0..<min(layout.dock.count, 4) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.69 + Double(slot) * 0.065) {
+                        guard aliveBooting, aliveStartupPage == page, scenePhase == .active,
+                              !reduceMotion, !editing, !searching, openFolder == nil else { return }
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.58)
+                    }
+                }
                 // Final dock icon has entered before we end the startup gate.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.12) {
                     aliveBooting = false
@@ -2360,7 +2370,7 @@ struct LiveBoardHomeScreen: View {
                         }
                     }
                 })
-                .accessibilityIdentifier("home.dock.slot.(slot)")
+                .accessibilityIdentifier("home.dock.slot.\(slot)")
             }
         }
         .frame(height: 110)
@@ -2431,7 +2441,7 @@ struct LiveBoardHomeScreen: View {
         return Button {
             guard !editing else { return }
             folderPage = 0
-            withAnimation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.82)) {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.46, dampingFraction: 0.78)) {
                 openFolder = folder.id
             }
         } label: {
@@ -2499,7 +2509,9 @@ struct LiveBoardHomeScreen: View {
             }.offset(y: -25)
         }
         .accessibilityAddTraits(.isModal)
-        .transition(reduceMotion ? .opacity : .scale(scale: 0.95).combined(with: .opacity))
+        .transition(reduceMotion ? .opacity :
+            .asymmetric(insertion: .scale(scale: 0.58, anchor: .center).combined(with: .opacity),
+                        removal: .scale(scale: 0.78, anchor: .center).combined(with: .opacity)))
     }
 
     private var controls: some View {
@@ -2643,6 +2655,11 @@ struct LiveBoardHomeScreen: View {
         NavigationView {
             Form {
                 Section("Wallpaper") {
+                    Button("Elegir video o GIF (Fotos)") {
+                        customizing = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { choosingMotionWallpaperPhotos = true }
+                    }
+                    .disabled(importingMotionWallpaper)
                     Button("Importar video o GIF (Archivos)") { customizing = false; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { choosingMotionWallpaper = true } }
                         .disabled(importingMotionWallpaper)
                     if importingMotionWallpaper { ProgressView("Preparando fondo…") }
@@ -2814,6 +2831,13 @@ struct LiveBoardHomeScreen: View {
         layout.reconcile(appKeys, favorites: favoriteKeys)
         for key in needsShortcuts.reversed() {
             layout.place(key, on: 0)
+        }
+        if !builtInFolderMigrated {
+            layout.groupBuiltInShortcuts([
+                Self.modulesKey, Self.tweakStoreKey, Self.appStoreKey,
+                Self.installKey, Self.sideStoreKey
+            ])
+            builtInFolderMigrated = true
         }
         if !newGuestKeys.isEmpty {
             let prior = recentLibraryKeys
