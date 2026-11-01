@@ -13,7 +13,7 @@ int main(int argc, const char *argv[]) {
         NSError *error = nil;
         NSURL *destination = [folder URLByAppendingPathComponent:@"valid"];
         if (![BloomBoxArchive importDEB:[NSURL fileURLWithPath:@(argv[1])]
-                            destination:destination error:&error]) {
+                            toDirectory:destination error:&error]) {
             NSLog(@"Unexpected valid DEB error: %@", error);
             return 1;
         }
@@ -24,14 +24,14 @@ int main(int argc, const char *argv[]) {
         }
         NSError *againError = nil;
         if ([BloomBoxArchive importDEB:[NSURL fileURLWithPath:@(argv[1])]
-                           destination:destination error:&againError]) {
+                           toDirectory:destination error:&againError]) {
             NSLog(@"Destination overwrite was accepted.");
             return 1;
         }
         NSURL *unsafe = [folder URLByAppendingPathComponent:@"unsafe"];
         NSError *unsafeError = nil;
         if ([BloomBoxArchive importDEB:[NSURL fileURLWithPath:@(argv[2])]
-                           destination:unsafe error:&unsafeError] ||
+                           toDirectory:unsafe error:&unsafeError] ||
             [fm fileExistsAtPath:unsafe.path] ||
             [fm fileExistsAtPath:[[folder URLByAppendingPathComponent:@"escape.dylib"] path]]) {
             NSLog(@"Unsafe archive was not rejected correctly.");
