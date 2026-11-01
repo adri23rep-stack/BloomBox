@@ -482,6 +482,10 @@ struct LiveBoardHomeScreen: View {
                     }
                     .padding(.horizontal, 22)
                     .zIndex(15)
+                    .sheet(isPresented: Binding(get: { themeExportURL != nil },
+                                                set: { if !$0 { themeExportURL = nil } })) {
+                        if let url = themeExportURL { BloomBoxThemeShareSheet(fileURL: url) }
+                    }
                 }
                 if let exportError = themeExportError {
                     Color.clear.frame(width: 0, height: 0).alert("Exportar tema", isPresented: Binding(
