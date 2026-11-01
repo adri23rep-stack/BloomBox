@@ -1869,92 +1869,103 @@ struct LiveBoardHomeScreen: View {
         )
     }
 
-    @ViewBuilder private func homePage(_ index: Int, width: CGFloat, height: CGFloat) -> some View {
-        homeIconGrid(index, width: width, height: height)
+    private func homePage(_ index: Int, width: CGFloat, height: CGFloat) -> some View {
+        let cellWidth = (width - 28) / 4
+        let pitch = min(editing ? 92 : 99,
+                        max(72, (height - (editing ? 69 : 39)) / 6))
+        return homeIconGrid(index, width: width, height: height)
             .overlay(alignment: .topLeading) {
-                let cellWidth = (width - 28) / 4
-                let pitch = min(editing ? 92 : 99,
-                                max(72, (height - (editing ? 69 : 39)) / 6))
                 ForEach(widgets(on: index)) { widget in
-                    let widgetWidth = CGFloat(widget.columns) * cellWidth - 5
-                    let widgetHeight = CGFloat(widget.rows) * pitch - 5
-                    BloomBoxGridWidgetView(widget: widget,
-                                           width: widgetWidth, height: widgetHeight,
-                                           active: page == index + 1)
-                        .modifier(aliveEntrance(for: index,
-                            delay: Double(widget.slot % 4) * 0.145
-                                + Double(widget.slot / 4) * 0.026))
-                        .frame(width: widgetWidth, height: widgetHeight)
-                        // Full rectangle remains selectable even with transparent
-                        // GIF frames and Liquid Glass disabled.
-                        .contentShape(Rectangle())
-                        .overlay(alignment: .topTrailing) {
-                            if editing {
-                                Image(systemName: "hand.draw.fill")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .padding(7)
-                                    .background(.black.opacity(0.62), in: Circle())
-                                    .padding(6)
-                                    .allowsHitTesting(false)
-                            }
-                        }
-                        .onTapGesture {
-                            if !editing && widget.kind == "media" {
-                                requestWidgetMedia(for: widget.id)
-                            }
-                        }
-                        .offset(
-                            x: 14 + CGFloat(widget.slot % 4) * cellWidth,
-                            y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch
-                        )
-                        .onDrop(of: [UTType.text],
-                                delegate: LiveBoardMoveDropDelegate { providers in
-                            acceptHomeDrop(providers, pageIndex: index, slot: widget.slot)
-                        })
-                        .modifier(BloomBoxWidgetInteraction(widgetID: widget.id, editing: editing) {
-                            Button("Mover widget", systemImage: "hand.draw.fill") {
-                                enterEditMode()
-                            }
-                            if widget.kind == "notes" {
-                                Button("Editar nota", systemImage: "square.and.pencil") {
-                                    editingWidgetNote = true
-                                }
-                            }
-                            if widget.kind == "media" {
-                                Button("Cambiar imagen o GIF", systemImage: "photo.badge.plus") {
-                                    requestWidgetMedia(for: widget.id)
-                                }
-                                Button(widget.fill ? "Mostrar imagen completa" : "Rellenar widget",
-                                       systemImage: "arrow.up.left.and.arrow.down.right") {
-                                    updateWidget(widget.id) { $0.fill.toggle() }
-                                }
-                            }
-                            Menu("Tamaño del widget", systemImage: "arrow.up.left.and.arrow.down.right") {
-                                Button("Pequeño · 1×1") { resizeWidget(widget.id, columns: 1, rows: 1) }
-                                Button("Cuadrado · 2×2") { resizeWidget(widget.id, columns: 2, rows: 2) }
-                                Button("Ancho · 4×2") { resizeWidget(widget.id, columns: 4, rows: 2) }
-                                Button("Grande · 4×4") { resizeWidget(widget.id, columns: 4, rows: 4) }
-                            }
-                            Button(widget.glass ? "Sin Liquid Glass" : "Activar Liquid Glass",
-                                   systemImage: "square.on.square") {
-                                updateWidget(widget.id) { $0.glass.toggle() }
-                            }
-                            Menu("Mover a página", systemImage: "rectangle.on.rectangle") {
-                                ForEach(layout.pages.indices, id: \.self) { target in
-                                    Button("Página \(target + 1)") {
-                                        movePlacedWidget(widget.id, to: target, slot: nil)
-                                    }.disabled(target == index)
-                                }
-                            }
-                            Button("Eliminar widget", systemImage: "trash", role: .destructive) {
-                                removePlacedWidget(widget.id)
-                            }
-                        })
-                        .accessibilityIdentifier("bloombox.widget.\(widget.id)")
+                    homeWidgetTile(widget, pageIndex: index,
+                                   cellWidth: cellWidth, pitch: pitch)
                 }
             }
     }
+
+    /// Keep each GIF tile in its own SwiftUI expression so the huge Home
+    /// screen does not time out when type-checking drag + context menus.
+    private func homeWidgetTile(_ widget: BloomBoxPlacedWidget,
+                                pageIndex index: Int,
+                                cellWidth: CGFloat, pitch: CGFloat) -> some View {
+        let w = CGFloat(widget.columns) * cellWidth - 5
+        let h = CGFloat(widget.rows) * pitch - 5
+        let delay = Double(widget.slot % 4) * 0.145
+            + Double(widget.slot / 4) * 0.026
+        return BloomBoxGridWidgetView(widget: widget, width: w, height: h,
+                                      active: page == index + 1)
+            .modifier(aliveEntrance(for: index, delay: delay))
+            .frame(width: w, height: h)
+            .contentShape(Rectangle())
+            .overlay(alignment: .topTrailing) {
+                if editing {
+                    Image(systemName: "hand.draw.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(7)
+                        .background(.black.opacity(0.62), in: Circle())
+                        .padding(6)
+                        .allowsHitTesting(false)
+                }
+            }
+            .onTapGesture {
+                if !editing && widget.kind == "media" {
+                    requestWidgetMedia(for: widget.id)
+                }
+            }
+            .offset(x: 14 + CGFloat(widget.slot % 4) * cellWidth,
+                    y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch)
+            .onDrop(of: [UTType.text],
+                    delegate: LiveBoardMoveDropDelegate { providers in
+                acceptHomeDrop(providers, pageIndex: index, slot: widget.slot)
+            })
+            .modifier(BloomBoxWidgetInteraction(widgetID: widget.id,
+                                                 editing: editing) {
+                homeWidgetMenu(widget, pageIndex: index)
+            })
+            .accessibilityIdentifier("bloombox.widget.\(widget.id)")
+    }
+
+    @ViewBuilder private func homeWidgetMenu(_ widget: BloomBoxPlacedWidget,
+                                             pageIndex index: Int) -> some View {
+        Button("Mover widget", systemImage: "hand.draw.fill") {
+            enterEditMode()
+        }
+        if widget.kind == "notes" {
+            Button("Editar nota", systemImage: "square.and.pencil") {
+                editingWidgetNote = true
+            }
+        }
+        if widget.kind == "media" {
+            Button("Cambiar imagen o GIF", systemImage: "photo.badge.plus") {
+                requestWidgetMedia(for: widget.id)
+            }
+            Button(widget.fill ? "Mostrar imagen completa" : "Rellenar widget",
+                   systemImage: "arrow.up.left.and.arrow.down.right") {
+                updateWidget(widget.id) { $0.fill.toggle() }
+            }
+        }
+        Menu("Tamaño del widget", systemImage: "arrow.up.left.and.arrow.down.right") {
+            Button("Pequeño · 1×1") { resizeWidget(widget.id, columns: 1, rows: 1) }
+            Button("Cuadrado · 2×2") { resizeWidget(widget.id, columns: 2, rows: 2) }
+            Button("Ancho · 4×2") { resizeWidget(widget.id, columns: 4, rows: 2) }
+            Button("Grande · 4×4") { resizeWidget(widget.id, columns: 4, rows: 4) }
+        }
+        Button(widget.glass ? "Sin Liquid Glass" : "Activar Liquid Glass",
+               systemImage: "square.on.square") {
+            updateWidget(widget.id) { $0.glass.toggle() }
+        }
+        Menu("Mover a página", systemImage: "rectangle.on.rectangle") {
+            ForEach(layout.pages.indices, id: \.self) { target in
+                Button("Página \(target + 1)") {
+                    movePlacedWidget(widget.id, to: target, slot: nil)
+                }.disabled(target == index)
+            }
+        }
+        Button("Eliminar widget", systemImage: "trash", role: .destructive) {
+            removePlacedWidget(widget.id)
+        }
+    }
+
     private func homeIconGrid(_ index: Int, width: CGFloat, height: CGFloat) -> some View {
         let cellWidth = (width - 28) / 4
         let pitch = min(editing ? 92 : 99, max(72, (height - (editing ? 69 : 39)) / 6))
