@@ -188,6 +188,8 @@ struct LiveBoardHomeScreen: View {
     private var reduceMotion: Bool { systemReduceMotion || customReduceMotion }
     @AppStorage("BloomBoxBuiltInFolderMigrated", store: LCUtils.appGroupUserDefault)
     private var builtInFolderMigrated = false
+    @AppStorage("BloomBoxWidgetMissingAppFallbacks", store: LCUtils.appGroupUserDefault)
+    private var widgetFallbacksJSON = "{}"
     @State private var themeExportURL: URL?
     @State private var themeExportError: String?
     @State private var layout = LiveBoardHomeLayout()
@@ -1884,7 +1886,24 @@ struct LiveBoardHomeScreen: View {
         for key in keys {
             if let value = defaults.object(forKey: key) { settings[key] = value }
         }
-        let payload: [String: Any] = ["format": "bbtheme", "version": 1,
+        var media: [String: String] = [:]
+        for widget in placedWidgets.values.flatMap({ $0 }) {
+            guard let name = widget.mediaName,
+                  let url = BloomBoxWidgetMedia.url(for: name),
+                  let bytes = try? Data(contentsOf: url) else { continue }
+            media[name] = bytes.base64EncodedString()
+        }
+        if let wallpaper = try? Data(contentsOf: wallpaperURL) {
+            media["wallpaper.jpg"] = wallpaper.base64EncodedString()
+        }
+        if let url = ManzanaWallpaperMedia.url(motionWallpaper),
+           let bytes = try? Data(contentsOf: url) {
+            media["motion-wallpaper"] = bytes.base64EncodedString()
+            settings["ManzanaMotionWallpaper"] = motionWallpaper
+        }
+        settings["BloomBoxWidgetMissingAppFallbacks"] = widgetFallbacksJSON
+        let payload: [String: Any] = ["format": "bbtheme", "version": 2,
+                                      "mediaBase64": media,
                                       "exportedAt": ISO8601DateFormatter().string(from: Date()),
                                       "settings": settings]
         do {
@@ -2078,6 +2097,16 @@ struct LiveBoardHomeScreen: View {
     }
 
     /// Normal taps launch the configured target. Editing/dragging do not.
+    private func setWidgetFallback(_ id: String, value: String?) {
+        var values = (try? JSONDecoder().decode([String: String].self,
+            from: Data(widgetFallbacksJSON.utf8))) ?? [:]
+        values[id] = value
+        if let data = try? JSONEncoder().encode(values),
+           let string = String(data: data, encoding: .utf8) {
+            widgetFallbacksJSON = string
+        }
+    }
+
     private func runWidgetTapAction(_ widget: BloomBoxPlacedWidget) {
         guard !editing, let target = widget.tapActionKey else { return }
         switch target {
@@ -2093,7 +2122,15 @@ struct LiveBoardHomeScreen: View {
             launchLibraryKey(target)
         default:
             guard let app = appMap[target] else {
-                widgetMediaError = "La aplicación asignada ya no está instalada. Mantén presionado el widget para elegir otra acción."
+                let fallbacks = (try? JSONDecoder().decode([String: String].self,
+                    from: Data(widgetFallbacksJSON.utf8))) ?? [:]
+                if fallbacks[widget.id] == "appstore" {
+                    launchLibraryKey(Self.appStoreKey)
+                } else if fallbacks[widget.id] == "installer" {
+                    launchLibraryKey(Self.installKey)
+                } else {
+                    widgetMediaError = "La aplicación asignada no está instalada. Configura una acción alternativa en el menú del widget."
+                }
                 return
             }
             requestLaunch(app)
@@ -2167,6 +2204,20 @@ struct LiveBoardHomeScreen: View {
                     Button(title(key)) {
                         updateWidget(widget.id) { $0.tapActionKey = key }
                     }
+                }
+            }
+        }
+        if let target = widget.tapActionKey, !target.hasPrefix("widget:"),
+           !target.hasPrefix("manzana:") {
+            Menu("Si falta la app", systemImage: "arrow.triangle.branch") {
+                Button("Abrir App Store de BloomBox", systemImage: "bag.fill") {
+                    setWidgetFallback(widget.id, value: "appstore")
+                }
+                Button("Abrir instalador de BloomBox", systemImage: "square.and.arrow.down") {
+                    setWidgetFallback(widget.id, value: "installer")
+                }
+                Button("Solo mostrar aviso", systemImage: "exclamationmark.bubble") {
+                    setWidgetFallback(widget.id, value: nil)
                 }
             }
         }
