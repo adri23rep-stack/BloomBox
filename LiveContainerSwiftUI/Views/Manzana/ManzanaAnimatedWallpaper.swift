@@ -7,11 +7,12 @@ struct ManzanaAnimatedWallpaper: View {
     let url: URL
     let fit: Bool
     let paused: Bool
+    var clearBackground = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var visible = false
     var body: some View {
-        ManzanaMotionSurface(url: url, fit: fit, playing: visible && scenePhase == .active && !paused && !reduceMotion)
+        ManzanaMotionSurface(url: url, fit: fit, playing: visible && scenePhase == .active && !paused && !reduceMotion, clearBackground: clearBackground)
             .onAppear { visible = true }.onDisappear { visible = false }
             .allowsHitTesting(false).accessibilityHidden(true)
     }
@@ -21,8 +22,9 @@ private struct ManzanaMotionSurface: UIViewRepresentable {
     let url: URL
     let fit: Bool
     let playing: Bool
+    let clearBackground: Bool
     func makeUIView(context: Context) -> MotionView { MotionView() }
-    func updateUIView(_ view: MotionView, context: Context) { view.configure(url: url, fit: fit, playing: playing) }
+    func updateUIView(_ view: MotionView, context: Context) { view.configure(url: url, fit: fit, playing: playing, clearBackground: clearBackground) }
     static func dismantleUIView(_ view: MotionView, coordinator: ()) { view.stop() }
 
     final class MotionView: UIView {
@@ -45,7 +47,8 @@ private struct ManzanaMotionSurface: UIViewRepresentable {
             videoLayer.frame = bounds; imageLayer.frame = bounds
             CATransaction.commit()
         }
-        func configure(url: URL, fit: Bool, playing: Bool) {
+        func configure(url: URL, fit: Bool, playing: Bool, clearBackground: Bool) {
+            backgroundColor = clearBackground && url.pathExtension.lowercased() == "gif" ? .clear : .black
             wantsPlayback = playing
             videoLayer.videoGravity = fit ? .resizeAspect : .resizeAspectFill
             imageLayer.contentsGravity = fit ? .resizeAspect : .resizeAspectFill
