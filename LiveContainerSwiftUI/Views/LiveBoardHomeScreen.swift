@@ -438,12 +438,13 @@ struct LiveBoardHomeScreen: View {
                           page > 0, page < libraryPageIndex,
                           layout.pages.indices.contains(page - 1) else { continue }
                     guard triggerAliveIconTrick() else { continue }
+                    let selectedKey = alivePlayfulKey
                     do { try await Task.sleep(nanoseconds: 620_000_000) } catch { break }
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.60)) {
                         alivePlayfulActive = false
                     }
                     do { try await Task.sleep(nanoseconds: 400_000_000) } catch { break }
-                    if alivePlayfulKey == chosen { alivePlayfulKey = nil }
+                    if alivePlayfulKey == selectedKey { alivePlayfulKey = nil }
                 }
             }
         }
