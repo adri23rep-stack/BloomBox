@@ -120,8 +120,12 @@ private struct BloomBoxWidgetInteraction<MenuContent: View>: ViewModifier {
             // Finger tracking must be immediate, including gesture reset and
             // the grid-position commit. Never interpolate successive samples.
             .transaction { transaction in
-                transaction.animation = nil
-                transaction.disablesAnimations = true
+                // Live drag never lerps behind the finger; normal widgets
+                // must still receive the BloomBox Alive entrance spring.
+                if editing {
+                    transaction.animation = nil
+                    transaction.disablesAnimations = true
+                }
             }
     }
 }
@@ -1955,16 +1959,17 @@ struct LiveBoardHomeScreen: View {
         return BloomBoxGridWidgetView(widget: widget, width: w, height: h,
                                       active: page == index + 1)
             .allowsHitTesting(false)
-            .modifier(aliveEntrance(for: index, delay: delay))
             .frame(width: w, height: h)
             .overlay {
                 // SwiftUI owns input, independently of transparent GIF pixels.
                 Rectangle().fill(Color.clear).contentShape(Rectangle())
                     .onTapGesture {
-                        selectedWidgetID = widget.id
-                        if !editing && widget.kind == "media" && widget.mediaName == nil {
+                        if selectedWidgetID != widget.id { selectedWidgetID = widget.id }
+                        if !editing, widget.tapActionKey != nil {
+                            runWidgetTapAction(widget)
+                        } else if !editing && widget.kind == "media" && widget.mediaName == nil {
                             requestWidgetMedia(for: widget.id)
-                        } else {
+                        } else if !editing {
                             enterEditMode()
                         }
                     }
@@ -2002,6 +2007,9 @@ struct LiveBoardHomeScreen: View {
             .offset(x: 14 + CGFloat(widget.slot % 4) * cellWidth,
                     y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch)
             .zIndex(selectedWidgetID == widget.id ? 2 : 1)
+            // Animate the entire interactive tile, not only its disabled
+            // GIF/photo content. Editing still tracks the finger instantly.
+            .modifier(aliveEntrance(for: index, delay: delay))
             .accessibilityIdentifier("bloombox.widget.\(widget.id)")
     }
 
@@ -2453,9 +2461,9 @@ struct LiveBoardHomeScreen: View {
         .accessibilityIdentifier("home.pages")
     }
 
-    private func folderIcon(_ folder: LiveBoardHomeLayout.Folder, showLabel: Bool) -> some View {
+    @ViewBuilder private func folderIcon(_ folder: LiveBoardHomeLayout.Folder, showLabel: Bool) -> some View {
         let size: CGFloat = largeIcons ? 76 : 64
-        return Button {
+        let folderTile = Button {
             guard !editing else { return }
             folderPage = 0
             withAnimation(reduceMotion ? nil : .spring(response: 0.46, dampingFraction: 0.78)) {
@@ -2493,22 +2501,43 @@ struct LiveBoardHomeScreen: View {
                 }
                 .padding(6).frame(width: size, height: size)
                 .liveBoardGlass(radius: size * 0.23)
-                .modifier(LiveBoardEditWobble(active: editing && !reduceMotion, phase: Double(abs(folder.id.hashValue % 31)) / 7))
+                .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
+                                                phase: Double(abs(folder.id.hashValue % 31)) / 7,
+                                                speed: 8.0, amplitude: 1.0))
                 if showLabel { Text(folder.name).font(.system(size: 12)).lineLimit(1).shadow(color: .black.opacity(0.8), radius: 2, y: 1).frame(width: 80) }
             }
         }.buttonStyle(.plain)
-        .contextMenu {
-            Button("Edit Home Screen", systemImage: "square.grid.3x3") { enterEditMode() }
-            Button("Rename", systemImage: "pencil") { renameKey = folder.id; renameValue = folder.name }
-            Menu("Move to Page") {
-                ForEach(layout.pages.indices, id: \.self) { index in Button("Page \(index + 1)") { layout.place(folder.id, on: index) } }
-            }
-            Button("Remove Folder", systemImage: "folder.badge.minus", role: .destructive) { layout.dissolveFolder(folder.id); reconcile() }
+        if editing {
+            // While editing it is a drag *source*, not a competing drop
+            // target/context menu. The parent homeItem's onDrag can lift it.
+            folderTile
+                .accessibilityLabel("\(folder.name), carpeta movible")
+        } else {
+            folderTile
+                .contextMenu {
+                    Button("Editar pantalla de inicio", systemImage: "square.grid.3x3") { enterEditMode() }
+                    Button("Renombrar", systemImage: "pencil") {
+                        renameKey = folder.id; renameValue = folder.name
+                    }
+                    Menu("Mover a página") {
+                        ForEach(layout.pages.indices, id: \.self) { index in
+                            Button("Página \(index + 1)") {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
+                                    layout.place(folder.id, on: index)
+                                    reconcile()
+                                }
+                            }
+                        }
+                    }
+                    Button("Eliminar carpeta", systemImage: "folder.badge.minus", role: .destructive) {
+                        layout.dissolveFolder(folder.id); reconcile()
+                    }
+                }
+                .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
+                    acceptDrop(providers) { key in layout.put(key, in: folder.id); reconcile() }
+                })
+                .accessibilityLabel("\(folder.name), carpeta, \(folder.apps.count) apps")
         }
-        .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
-            acceptDrop(providers) { key in layout.put(key, in: folder.id); reconcile() }
-        })
-        .accessibilityLabel("\(folder.name), folder, \(folder.apps.count) apps")
     }
 
     private func folderOverlay(_ folder: LiveBoardHomeLayout.Folder, width: CGFloat) -> some View {
