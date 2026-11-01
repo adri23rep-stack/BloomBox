@@ -821,7 +821,30 @@ int LiveContainerMain(int argc, char *argv[]) {
         }
         NSString *appError = invokeAppMain(selectedApp, selectedContainer, argc, argv);
         if (appError) {
-            if(isLiveProcess) {
+            // A previously installed guest can disappear or have a damaged
+            // Info.plist after a restore or an interrupted installation.
+            // Do not turn an inaccessible guest into an inaccessible BloomBox.
+            // This recovery is intentionally narrow: only failures that happen
+            // *before* the guest launches, only in the main container process.
+            // Never remove a guest bundle or its data container here.
+            BOOL missingGuestBundle = !isLiveProcess && !isSideStore &&
+                ([appError isEqualToString:@"App not found"] ||
+                 [appError isEqualToString:@"App bundle not found! Unable to read LCAppInfo.plist."]);
+            if (missingGuestBundle) {
+                NSLog(@"[BloomBox] Guest bundle unavailable at startup: %@ (%@). Opening launcher instead.",
+                      selectedApp, appError);
+                NSString *message = [NSString stringWithFormat:
+                    @"BloomBox no pudo abrir la app invitada \"%@\" porque su instalación no está disponible o está incompleta. Se abrió el escritorio para que puedas revisarla o reinstalar su IPA. Tus datos no se han borrado.",
+                    selectedApp ?: @"desconocida"];
+                [lcUserDefaults setObject:message forKey:@"error"];
+                [lcUserDefaults removeObjectForKey:@"selected"];
+                [lcUserDefaults removeObjectForKey:@"selectedContainer"];
+                [lcUserDefaults removeObjectForKey:@"launchAppUrlScheme"];
+                // The old deep link must not be replayed after entering the UI.
+                lcLaunchURL = nil;
+                guestAppInfo = nil;
+                isSharedBundle = false;
+            } else if(isLiveProcess) {
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(100 * NSEC_PER_MSEC)), dispatch_get_main_queue(), ^{
                     NSExtensionContext *context = [NSClassFromString(@"LiveProcessHandler") extensionContext];
                     [context cancelRequestWithError:[NSError errorWithDomain:@"LiveProcess" code:1 userInfo:@{NSLocalizedDescriptionKey: appError}]];
@@ -831,7 +854,8 @@ int LiveContainerMain(int argc, char *argv[]) {
                 CFRunLoopRun();
             } else {
                 [lcUserDefaults setObject:appError forKey:@"error"];
-                // potentially unrecovable state, exit now
+                // Some guest failures can alter process state; do not proceed
+                // into the UI unless it was an early, safe missing-bundle case.
                 return 1;
             }
         }
