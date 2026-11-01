@@ -152,10 +152,10 @@ private struct BloomBoxLivingMotion: ViewModifier {
             let frequency = 0.15 + max(0, min(100, speed)) / 100.0 * 0.75
             let phase = t * frequency * .pi * 2
             let distance = CGFloat(max(0, min(100, travel))) * 0.65
-            let dx: CGFloat = mode == "horizontal" ? sin(phase) * distance :
-                mode == "wander" ? sin(phase * 0.63) * distance : 0
-            let dy: CGFloat = mode == "float" ? sin(phase) * distance * 0.45 :
-                mode == "wander" ? cos(phase * 0.79) * distance * 0.35 : 0
+            let dx: CGFloat = mode == "horizontal" ? CGFloat(sin(phase)) * distance :
+                mode == "wander" ? CGFloat(sin(phase * 0.63)) * distance : 0
+            let dy: CGFloat = mode == "float" ? CGFloat(sin(phase)) * distance * 0.45 :
+                mode == "wander" ? CGFloat(cos(phase * 0.79)) * distance * 0.35 : 0
             content.offset(x: enabled ? dx : 0, y: enabled ? dy : 0)
         }
     }
