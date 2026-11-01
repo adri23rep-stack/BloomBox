@@ -13,12 +13,16 @@ enum ManzanaWallpaperMedia {
         guard name.hasPrefix("motion-"), name == (name as NSString).lastPathComponent else { return nil }
         return directory.appendingPathComponent(name)
     }
-    static func importFile(_ source: URL) throws -> String {
+    static func importFile(_ source: URL, fileExtension: String? = nil) throws -> String {
+        let ext = (fileExtension ?? source.pathExtension).lowercased()
+        guard ["gif", "mp4", "mov", "m4v"].contains(ext) else {
+            throw failure("Elige un GIF o un video MP4/MOV compatible.")
+        }
         let access = source.startAccessingSecurityScopedResource()
         defer { if access { source.stopAccessingSecurityScopedResource() } }
         let fm = FileManager.default
         try fm.createDirectory(at: directory, withIntermediateDirectories: true)
-        let staging = directory.appendingPathComponent("motion-" + UUID().uuidString + "." + source.pathExtension.lowercased())
+        let staging = directory.appendingPathComponent("motion-" + UUID().uuidString + "." + ext)
         do {
             var coordinationError: NSError?
             var copyError: Error?
