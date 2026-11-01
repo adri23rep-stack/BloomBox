@@ -392,6 +392,15 @@ struct BloomBoxGridWidgetView: View {
             .clipped()
         }
         .frame(width: width, height: height)
+        // UIKit-rendered GIFs and a clear/no-glass background can leave no
+        // hit-testable SwiftUI pixels. This nearly invisible backing surface
+        // keeps the whole widget tile touchable without adding glass.
+        .background {
+            RoundedRectangle(cornerRadius: 19)
+                .fill(Color.black.opacity(0.002))
+                .contentShape(Rectangle())
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 19))
         .clipShape(RoundedRectangle(cornerRadius: 19))
         .overlay {
             if widget.glass {
