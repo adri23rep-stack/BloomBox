@@ -4423,7 +4423,7 @@ private final class BloomBoxTweakCatalog: ObservableObject {
     private static let lastSyncKey = "BloomBoxTweakCatalogLastSuccessfulSync-v2"
     private static let cacheKey = "BloomBoxTweakCatalogVerifiedCache-v2"
     private static let catalogURL = URL(string:
-        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/tweaks-v2.json")!
+        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox-Catalog/main/catalog/tweaks-v2.json")!
 
     private init() {
         lastSuccessfulSync = UserDefaults.standard.object(forKey: Self.lastSyncKey) as? Date
@@ -5136,9 +5136,9 @@ private final class BloomBoxAppCatalog: ObservableObject {
     private static let cacheKey = "BloomBoxAppStoreCatalogueVerified-v1"
     private static let syncKey = "BloomBoxAppStoreCatalogueLastSync-v1"
     private static let source = URL(string:
-        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/apps.json")!
+        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox-Catalog/main/catalog/apps.json")!
     private static let githubContents = URL(string:
-        "https://api.github.com/repos/adri23rep-stack/BloomBox/contents/catalog/apps.json?ref=store-catalog")!
+        "https://api.github.com/repos/adri23rep-stack/BloomBox-Catalog/contents/catalog/apps.json?ref=main")!
 
     private struct GitHubFile: Decodable {
         let content: String
