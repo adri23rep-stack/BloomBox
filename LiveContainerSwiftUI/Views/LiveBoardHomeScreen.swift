@@ -211,7 +211,9 @@ struct LiveBoardHomeScreen: View {
     @AppStorage("BloomBoxBuiltInFolderMigrated", store: LCUtils.appGroupUserDefault)
     private var builtInFolderMigrated = false
     @AppStorage("BloomBoxWidgetMissingAppFallbacks", store: LCUtils.appGroupUserDefault)
-    private var widgetFallbacksJSON = "{}"\n    @AppStorage("BloomBoxLivingWidgetSettings", store: LCUtils.appGroupUserDefault)\n    private var livingWidgetSettingsJSON = "{}"
+    private var widgetFallbacksJSON = "{}"
+    @AppStorage("BloomBoxLivingWidgetSettings", store: LCUtils.appGroupUserDefault)
+    private var livingWidgetSettingsJSON = "{}"
     @State private var themeExportURL: URL?
     @State private var themeExportError: String?
     @State private var layout = LiveBoardHomeLayout()
@@ -1923,7 +1925,8 @@ struct LiveBoardHomeScreen: View {
             media["motion-wallpaper"] = bytes.base64EncodedString()
             settings["ManzanaMotionWallpaper"] = motionWallpaper
         }
-        settings["BloomBoxWidgetMissingAppFallbacks"] = widgetFallbacksJSON\n        settings["BloomBoxLivingWidgetSettings"] = livingWidgetSettingsJSON
+        settings["BloomBoxWidgetMissingAppFallbacks"] = widgetFallbacksJSON
+        settings["BloomBoxLivingWidgetSettings"] = livingWidgetSettingsJSON
         let payload: [String: Any] = ["format": "bbtheme", "version": 2,
                                       "mediaBase64": media,
                                       "exportedAt": ISO8601DateFormatter().string(from: Date()),
@@ -2055,7 +2058,7 @@ struct LiveBoardHomeScreen: View {
     /// Keep each GIF tile in its own SwiftUI expression so the huge Home
     /// screen does not time out when type-checking drag + context menus.
     private struct LivingSettings: Codable {
-        var mode: String = "none"
+        var mode: String = "float"
         var speed: Double = 75
         var travel: Double = 60
     }
@@ -2083,7 +2086,8 @@ struct LiveBoardHomeScreen: View {
                                 cellWidth: CGFloat, pitch: CGFloat) -> some View {
         let w = CGFloat(widget.columns) * cellWidth - 5
         let h = CGFloat(widget.rows) * pitch - 5
-        let living = livingSettings(for: widget.id)\n        let delay = Double(widget.slot % 4) * 0.145
+        let living = livingSettings(for: widget.id)
+        let delay = Double(widget.slot % 4) * 0.145
             + Double(widget.slot / 4) * 0.026
         return BloomBoxGridWidgetView(widget: widget, width: w, height: h,
                                       active: page == index + 1)
@@ -2135,7 +2139,9 @@ struct LiveBoardHomeScreen: View {
             // Position the entire interaction surface, including every gesture.
             .offset(x: 14 + CGFloat(widget.slot % 4) * cellWidth,
                     y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch)
-            .modifier(BloomBoxLivingMotion(mode: living.mode, speed: living.speed, travel: living.travel,\n                enabled: scenePhase == .active && page == index + 1 && !editing && !reduceMotion && !searching))\n            .zIndex(selectedWidgetID == widget.id ? 2 : 1)
+            .modifier(BloomBoxLivingMotion(mode: living.mode, speed: living.speed, travel: living.travel,
+                enabled: scenePhase == .active && page == index + 1 && !editing && !reduceMotion && !searching))
+            .zIndex(selectedWidgetID == widget.id ? 2 : 1)
             // Animate the entire interactive tile, not only its disabled
             // GIF/photo content. Editing still tracks the finger instantly.
             .modifier(aliveEntrance(for: index, delay: delay))
