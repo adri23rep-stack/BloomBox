@@ -3193,6 +3193,8 @@ private struct BloomBoxModulesIcon: View {
 }
 
 private struct BloomBoxModulesPanel: View {
+    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
+    private var preferredLanguage = "system"
     @AppStorage("BloomBoxRAMPlusExperimentalControls", store: LCUtils.appGroupUserDefault)
     private var ramExperimentalControlsEnabled = false
     @AppStorage("BloomBoxJITTryMeloNXScriptForOtherAppsV2", store: LCUtils.appGroupUserDefault)
@@ -3456,6 +3458,16 @@ private struct BloomBoxModulesPanel: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Experimentos · Funciones avanzadas", systemImage: "flask.fill")
                         .font(.headline)
+                    Picker("Idioma de BloomBox", selection: $preferredLanguage) {
+                        Text("Automático (iPhone)").tag("system")
+                        Text("Español").tag("es")
+                        Text("English").tag("en")
+                    }
+                    .accessibilityIdentifier("bloombox.experiments.language.picker")
+                    Text("Preferencia experimental para probar los catálogos de noticias por idioma. No cambia el idioma del iPhone; la traducción completa de la interfaz se incorporará por etapas.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Divider()
                     NavigationLink {
                         LCStorageManagementView()
                     } label: {
