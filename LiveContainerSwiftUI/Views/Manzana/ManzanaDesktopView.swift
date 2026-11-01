@@ -281,18 +281,31 @@ enum BloomBoxWidgetMedia {
         else { throw ManzanaWallpaperMedia.failure("Selecciona una imagen o GIF válido de hasta 30 MB.") }
 
         let isGIF = type == UTType.gif.identifier
-        // Validate before saving. Reuse the bounded GIF decoder to prevent
-        // unbounded animation memory from imported files.
+        // Image providers can return HEIC/HEIF/TIFF and other iPhone formats.
+        // The old importer mislabeled these bytes as .jpg, making the widget
+        // fail to display. Convert unsupported static formats to a real JPEG.
         let extensionName: String
-        if isGIF { extensionName = "gif" }
-        else if type == UTType.png.identifier { extensionName = "png" }
-        else if type == UTType.webP.identifier { extensionName = "webp" }
-        else { extensionName = "jpg" }
+        let payload: Data
+        if isGIF {
+            extensionName = "gif"; payload = data
+        } else if type == UTType.png.identifier {
+            extensionName = "png"; payload = data
+        } else if type == UTType.jpeg.identifier {
+            extensionName = "jpg"; payload = data
+        } else if type == UTType.webP.identifier {
+            extensionName = "webp"; payload = data
+        } else {
+            guard let image = UIImage(data: data),
+                  let converted = image.jpegData(compressionQuality: 0.9) else {
+                throw ManzanaWallpaperMedia.failure("No se pudo convertir esa foto. Prueba con JPG, PNG o GIF.")
+            }
+            extensionName = "jpg"; payload = converted
+        }
         let file = "widget-" + UUID().uuidString + "." + extensionName
         let target = directory.appendingPathComponent(file)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         do {
-            try data.write(to: target, options: .atomic)
+            try payload.write(to: target, options: .atomic)
             if isGIF { _ = try ManzanaWallpaperMedia.gifFrames(target) }
             return file
         } catch {
@@ -401,6 +414,7 @@ struct BloomBoxMediaPhotosPicker: UIViewControllerRepresentable {
         var config = PHPickerConfiguration()
         config.filter = .images
         config.selectionLimit = 1
+        config.preferredAssetRepresentationMode = .current
         let picker = PHPickerViewController(configuration: config)
         picker.delegate = context.coordinator
         return picker
@@ -411,13 +425,47 @@ struct BloomBoxMediaPhotosPicker: UIViewControllerRepresentable {
         let completion: (Data?) -> Void
         init(_ completion: @escaping (Data?) -> Void) { self.completion = completion }
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-            picker.dismiss(animated: true)
             guard let provider = results.first?.itemProvider else {
-                DispatchQueue.main.async { self.completion(nil) }; return
+                DispatchQueue.main.async { self.completion(nil) }
+                return
             }
-            let identifier = provider.hasItemConformingToTypeIdentifier(UTType.gif.identifier)
-                ? UTType.gif.identifier : UTType.image.identifier
-            provider.loadDataRepresentation(forTypeIdentifier: identifier) { data, _ in
+            // Request a concrete format; 'public.image' is an abstract UTType,
+            // and some Photos providers return nil for that identifier.
+            let preference = [
+                UTType.gif.identifier,
+                UTType.png.identifier,
+                UTType.jpeg.identifier,
+                UTType.heic.identifier,
+                UTType.webP.identifier
+            ]
+            let identifier = preference.first(where: {
+                provider.hasItemConformingToTypeIdentifier($0)
+            }) ?? provider.registeredTypeIdentifiers.first(where: {
+                guard let candidate = UTType($0) else { return false }
+                return candidate.conforms(to: .image)
+            })
+            guard let identifier else {
+                fallbackToImageObject(provider)
+                return
+            }
+            provider.loadDataRepresentation(forTypeIdentifier: identifier) { [weak self] data, _ in
+                guard let self else { return }
+                if let data, !data.isEmpty {
+                    DispatchQueue.main.async { self.completion(data) }
+                } else {
+                    self.fallbackToImageObject(provider)
+                }
+            }
+        }
+        private func fallbackToImageObject(_ provider: NSItemProvider) {
+            guard provider.canLoadObject(ofClass: UIImage.self) else {
+                DispatchQueue.main.async { self.completion(nil) }
+                return
+            }
+            provider.loadObject(ofClass: UIImage.self) { [weak self] object, _ in
+                guard let self else { return }
+                let image = object as? UIImage
+                let data = image?.pngData() ?? image?.jpegData(compressionQuality: 0.9)
                 DispatchQueue.main.async { self.completion(data) }
             }
         }
