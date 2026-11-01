@@ -1,0 +1,70 @@
+name: BloomBox - DEB Test Kit
+
+on:
+  push:
+    branches:
+      - feature/deb-import-test-kit
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-kit:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.2'
+      - name: Compile demo IPA and .deb tweak
+        run: python3 Scripts/build-deb-test-kit.py
+      - name: Test actual archive import on macOS
+        run: |
+          clang -fobjc-arc -framework Foundation -larchive -I LiveContainerSwiftUI/Utilities \
+            Tests/deb-kit/ImportTests.m LiveContainerSwiftUI/Utilities/BloomBoxArchive.m \
+            -o "$RUNNER_TEMP/deb-import-tests"
+          "$RUNNER_TEMP/deb-import-tests" \
+            deb-test-kit/BloomBoxDebProbe.deb deb-test-kit/UnsafeTraversalFixture.deb
+      - name: Confirm iOS ARM64 binaries
+        run: |
+          file deb-test-kit/Payload/BloomBoxDebTest.app/BloomBoxDebTest
+          file deb-test-kit/BloomBoxDebProbe.dylib
+          xcrun lipo -verify_arch arm64 deb-test-kit/Payload/BloomBoxDebTest.app/BloomBoxDebTest
+          xcrun lipo -verify_arch arm64 deb-test-kit/BloomBoxDebProbe.dylib
+          unzip -t deb-test-kit/BloomBoxDebTest.ipa | tail -1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BloomBox-DEB-Test-Kit
+          path: |
+            deb-test-kit/BloomBoxDebTest.ipa
+            deb-test-kit/BloomBoxDebProbe.deb
+          if-no-files-found: error
+
+  prerelease:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/deb-import-test-kit'
+    needs: test-kit
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: BloomBox-DEB-Test-Kit
+          path: kit
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: deb-test-kit-0.1
+          target_commitish: ${{ github.sha }}
+          name: BloomBox DEB Test Kit (experimental)
+          prerelease: true
+          make_latest: false
+          files: |
+            kit/BloomBoxDebTest.ipa
+            kit/BloomBoxDebProbe.deb
+          body: |
+            Experimental, independently built, self-contained injection test.
+            Install the IPA into BloomBox. Import the DEB into Tweaks, select its
+            DEB-BloomBoxDebProbe tweak folder in the test app's settings and relaunch.
+            A green success message means the dylib actually ran inside the app.
+            For iOS 27 testing; not proof that other Debian tweaks will work.
