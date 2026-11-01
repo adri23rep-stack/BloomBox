@@ -210,7 +210,7 @@ struct LCTweakFolderView : View {
             }
         }
         .fileImporter(isPresented: $choosingTweak,
-                      allowedContentTypes: [.dylib, .lcFramework],
+                      allowedContentTypes: [.dylib, .lcFramework, UTType(filenameExtension: "deb") ?? .data],
                       allowsMultipleSelection: true) { result in
             switch result {
             case .success(let fileURLs):
@@ -377,8 +377,37 @@ struct LCTweakFolderView : View {
                 let fileName = fileUrl.lastPathComponent
                 let isFramework = fileName.lowercased().hasSuffix(".framework")
                 let isTweak = fileName.lowercased().hasSuffix(".dylib")
-                guard isFramework || isTweak else {
-                    throw "Solo se pueden importar archivos .dylib o carpetas .framework."
+                let isDeb = fileName.lowercased().hasSuffix(".deb")
+                guard isFramework || isTweak || isDeb else {
+                    throw "Solo se pueden importar archivos .deb, .dylib o carpetas .framework."
+                }
+                if isDeb {
+                    let originalName = fileUrl.deletingPathExtension().lastPathComponent
+                    let name = String(originalName.unicodeScalars.filter {
+                        CharacterSet.alphanumerics.contains($0) || $0 == "-" || $0 == "_"
+                    }.prefix(50))
+                    let folderName = "DEB-" + (name.isEmpty ? "tweak" : name)
+                    let destination = baseUrl.appendingPathComponent(folderName, isDirectory: true)
+                    guard !fm.fileExists(atPath: destination.path) else {
+                        throw "Ya existe \(folderName). Borra la carpeta anterior antes de reinstalarlo."
+                    }
+                    // Only copy tweak libraries/resources; never run Debian installation scripts.
+                    try BloomBoxArchive.importDEB(fileUrl, destination: destination)
+                    if let enumerator = fm.enumerator(at: destination, includingPropertiesForKeys: nil) {
+                        for case let extracted as URL in enumerator where extracted.pathExtension.lowercased() == "dylib" {
+                            LCParseMachO((extracted.path as NSString).utf8String, false) { path, header, _, _ in
+                                LCPatchAddRPath(path, header)
+                            }
+                        }
+                    }
+                    tweakItems.append(LCTweakItem(
+                        fileUrl: destination, isFolder: true,
+                        isFramework: false, isTweak: false, isEnabled: true
+                    ))
+                    if isRoot && !sharedModel.tweakFolderNames.contains(folderName) {
+                        sharedModel.tweakFolderNames.append(folderName)
+                    }
+                    continue
                 }
                 let destination = baseUrl.appendingPathComponent(fileName)
                 guard !fm.fileExists(atPath: destination.path) else {
