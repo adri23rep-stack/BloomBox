@@ -1723,6 +1723,15 @@ struct LiveBoardHomeScreen: View {
         savePlacedWidgets(all)
         moveIconsOutOfWidgetArea()
         page = targetPage + 1
+        // Dragging enters edit mode, but edit mode intentionally disables the
+        // long-press context menu. Exit after the drop so the relocated widget
+        // is immediately selectable again. Defer one short tick to let UIKit
+        // finish the drag/drop snapshot before rebuilding the tile.
+        if editing {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                finishEditing()
+            }
+        }
     }
     private func moveIconsOutOfWidgetArea() {
         // Reflow, never discard app keys or modify their data. A fully occupied
@@ -1898,13 +1907,7 @@ struct LiveBoardHomeScreen: View {
             .contentShape(Rectangle())
             .overlay(alignment: .topTrailing) {
                 if editing {
-                    Image(systemName: "hand.draw.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .padding(7)
-                        .background(.black.opacity(0.62), in: Circle())
-                        .padding(6)
-                        .allowsHitTesting(false)
+                    editWidgetOptionsHandle(widget, pageIndex: index)
                 }
             }
             .onTapGesture {
@@ -1923,6 +1926,23 @@ struct LiveBoardHomeScreen: View {
                 homeWidgetMenu(widget, pageIndex: index)
             })
             .accessibilityIdentifier("bloombox.widget.\(widget.id)")
+    }
+
+    private func editWidgetOptionsHandle(_ widget: BloomBoxPlacedWidget,
+                                         pageIndex index: Int) -> some View {
+        Menu {
+            homeWidgetMenu(widget, pageIndex: index)
+        } label: {
+            Image(systemName: "ellipsis.circle.fill")
+                .font(.title3)
+                .foregroundStyle(.white)
+                .padding(7)
+                .background(.black.opacity(0.72), in: Circle())
+                .padding(6)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Opciones del widget")
     }
 
     @ViewBuilder private func homeWidgetMenu(_ widget: BloomBoxPlacedWidget,
