@@ -100,6 +100,7 @@ struct LiveBoardHomeScreen: View {
     @State private var alivePlayfulKey: String?
     @State private var alivePlayfulStyle = 0
     @State private var alivePlayfulActive = false
+    @State private var aliveLastInteraction = Date()
     @AppStorage("ManzanaNote", store: LCUtils.appGroupUserDefault) private var miniatureNote = ""
     @State private var miniatureWidgetPhoto: UIImage?
     @State private var desktopSettings = false
@@ -271,7 +272,9 @@ struct LiveBoardHomeScreen: View {
                 if aliveEnabled && aliveBooting && aliveStartupPage == page && !reduceMotion {
                     // A blurred welcome layer that never intercepts taps or swipes.
                     ZStack {
-                        background.blur(radius: 25)
+                        // Blur the *existing* wallpaper, do not create a second
+                        // video/GIF player just for the welcome screen.
+                        Rectangle().fill(.regularMaterial)
                         Color.black.opacity(0.22)
                         VStack(spacing: 12) {
                             Text("BloomBox")
@@ -336,12 +339,14 @@ struct LiveBoardHomeScreen: View {
                 }
             }
             .simultaneousGesture(DragGesture(minimumDistance: 35).onEnded { value in
+                stopAlivePlayfulness()
                 if !searching && !editing && openFolder == nil && page > 0 && page < libraryPageIndex &&
                     value.translation.height > 65 && abs(value.translation.height) > abs(value.translation.width) * 1.4 {
                     beginSearch()
                 }
             })
             .onChange(of: scenePhase) { phase in
+                stopAlivePlayfulness()
                 if phase == .active { ramPlus.refresh() }
                 if phase == .active, #available(iOS 16.2, *) {
                     Task { await ManzanaExpiryReminderCenter.shared.synchronize() }
@@ -386,6 +391,7 @@ struct LiveBoardHomeScreen: View {
                         try await Task.sleep(nanoseconds: UInt64.random(in: 35...60) * 1_000_000_000)
                     } catch { break }
                     guard scenePhase == .active, aliveEnabled, aliveIdleEnabled,
+                          Date().timeIntervalSince(aliveLastInteraction) >= 32,
                           !reduceMotion, !aliveBooting, !editing, !searching,
                           openFolder == nil, !pageManager, !customizing,
                           !desktopSettings, !appStorePresented, !tweakStorePresented,
@@ -1344,6 +1350,7 @@ struct LiveBoardHomeScreen: View {
         saveWidgets(values)
     }
     private func stopAlivePlayfulness() {
+        aliveLastInteraction = Date()
         guard alivePlayfulKey != nil || alivePlayfulActive else { return }
         alivePlayfulKey = nil
         alivePlayfulActive = false
