@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogID": "bloombox.official-community.apps",
-  "updatedAt": "2026-10-29",
+  "updatedAt": "2026-10-31",
   "purpose": "Community app listings. App binaries remain hosted by their verified original publishers.",
   "apps": [
     {
@@ -38,6 +38,79 @@
       "warnings": [
         "Compatibilidad de la versión 0.12.21 como app invitada de BloomBox todavía no comprobada.",
         "Por las restricciones de iOS, la app invitada no obtiene acceso automático a archivos privados de otras apps ni a todo el sistema."
+      ]
+    },
+    {
+      "id": "youtube-plus-mrdrvt99",
+      "name": "YouTube Plus (YouProEXTRA)",
+      "creator": "mrdrvt99 (IPA) / itzzace (patch) / dayanch96 (tweak)",
+      "category": "apps",
+      "description": "Cliente de YouTube modificado para iOS con descargas, reproducción en segundo plano y personalización. No es una app oficial de Google.",
+      "officialWebsite": "https://github.com/mrdrvt99/YouProEXTRA",
+      "officialReleases": "https://github.com/mrdrvt99/YouProEXTRA/releases/tag/ytl-ipa6",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "mrdrvt99",
+        "repo": "YouProEXTRA",
+        "assetFileName": "YouTubePlus_21.43.5_6.0b2.ipa"
+      },
+      "currentOfficialRelease": "YouTube 21.43.5 / Plus 6.0b2 (beta)",
+      "directDownloadURL": "https://github.com/mrdrvt99/YouProEXTRA/releases/download/ytl-ipa6/YouTubePlus_21.43.5_6.0b2.ipa",
+      "fileName": "YouTubePlus_21.43.5_6.0b2.ipa",
+      "sha256": "9dda50a09f21b999d036dd00d5e128211b79a3576b1bf1617a00f51fa37fd911",
+      "releaseResolution": "verified-github-release-asset-digest-only",
+      "installMode": "guest",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "installsInsideBloomBox": "not-tested",
+      "bundleID": "com.google.ios.youtube",
+      "aliases": [
+        "YouTube Plus",
+        "YouTubePlus",
+        "YouProEXTRA"
+      ],
+      "notes": "Seguridad sin verificar: se validó la procedencia y el SHA-256 publicado por GitHub, pero NO se auditó completamente la IPA. Contiene bibliotecas modificadas de terceros; una app maliciosa podría leer datos de sesión de Google. Se recomienda una cuenta secundaria.",
+      "warnings": [
+        "App no oficial de Google; integridad de archivo no equivale a seguridad.",
+        "Binarios de terceros sin auditoría completa y versión beta.",
+        "Compatibilidad con BloomBox como app invitada aún sin pruebas."
+      ]
+    },
+    {
+      "id": "ytmusicultimate-mrdrvt99",
+      "name": "YTMusicUltimate",
+      "creator": "mrdrvt99 (fork y compilación) / dayanch96 (tweak original)",
+      "category": "apps",
+      "description": "YouTube Music modificado para iOS con reproducción en segundo plano, bloqueo de anuncios y ajustes de audio. No es una app oficial de Google.",
+      "officialWebsite": "https://github.com/mrdrvt99/YTMusicUltimate",
+      "officialReleases": "https://github.com/mrdrvt99/YTMusicUltimate/releases/tag/ytmu-ipa39",
+      "releaseSource": {
+        "type": "github-releases",
+        "owner": "mrdrvt99",
+        "repo": "YTMusicUltimate",
+        "assetFileName": "YTMusicUltimate_9.43.2_2.4.1.ipa"
+      },
+      "currentOfficialRelease": "YouTube Music 9.43.2 / Ultimate 2.4.1",
+      "directDownloadURL": "https://github.com/mrdrvt99/YTMusicUltimate/releases/download/ytmu-ipa39/YTMusicUltimate_9.43.2_2.4.1.ipa",
+      "fileName": "YTMusicUltimate_9.43.2_2.4.1.ipa",
+      "sha256": "755040db9227441242ebc05f134b05ed15fd49409bee3282bb2a9b0bf8254bfc",
+      "releaseResolution": "verified-github-release-asset-digest-only",
+      "installMode": "guest",
+      "sourceVerified": true,
+      "featured": false,
+      "useAtOwnRisk": true,
+      "installsInsideBloomBox": "not-tested",
+      "bundleID": "com.google.ios.youtubemusic",
+      "aliases": [
+        "YouTube Music Ultimate",
+        "YouTube Music"
+      ],
+      "notes": "Seguridad sin verificar: el enlace y SHA-256 del release están confirmados. Revisar parte del código del fork no equivale a auditar la IPA; el inicio de sesión entrega datos de sesión a la app. Para cuentas sensibles usa una cuenta secundaria.",
+      "warnings": [
+        "App no oficial de Google; la suma SHA-256 no demuestra ausencia de malware.",
+        "El tweak modifica inicio de sesión y llavero; la IPA final no ha sido auditada.",
+        "No se ha probado dentro de BloomBox."
       ]
     },
     {
