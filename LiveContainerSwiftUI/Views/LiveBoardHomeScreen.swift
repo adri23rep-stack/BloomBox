@@ -8,6 +8,35 @@ func liveBoardAppKey(_ app: LCAppModel) -> String {
     return "\(app.uiIsShared ? "shared" : "local"):\(app.appInfo.relativeBundlePath ?? app.bundleIdentifier)"
 }
 
+// BloomBox Alive: view-only motion, no launcher state or guest app data changes.
+private struct BloomBoxAliveIconFrames: PreferenceKey {
+    static var defaultValue: [String: CGRect] = [:]
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, latest in latest })
+    }
+}
+
+private struct BloomBoxAliveEntrance: ViewModifier {
+    let entranceEnabled: Bool
+    let revealed: Bool
+    let delay: Double
+    let playfulStyle: Int?
+    let playfulActive: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(!entranceEnabled || revealed ? 1 : 0)
+            .scaleEffect(!entranceEnabled || revealed ? 1 : 0.46, anchor: .bottom)
+            .offset(y: entranceEnabled && !revealed ? 22 : 0)
+            .offset(y: playfulActive && playfulStyle == 0 ? -11 : 0)
+            .offset(x: playfulActive && playfulStyle == 1 ? 4 : 0)
+            .rotationEffect(.degrees(playfulActive && playfulStyle == 2 ? 9 : 0))
+            .animation(.spring(response: 0.39, dampingFraction: 0.59).delay(entranceEnabled ? delay : 0),
+                       value: revealed)
+            .animation(.spring(response: 0.21, dampingFraction: 0.35), value: playfulActive)
+    }
+}
+
 struct LiveBoardHomeScreen: View {
     let apps: [LCAppModel]
     let launch: (LCAppModel) -> Void
@@ -58,6 +87,19 @@ struct LiveBoardHomeScreen: View {
     @State private var layout = LiveBoardHomeLayout()
     @State private var page = 1
     @State private var homeHasAppeared = false
+    @AppStorage("BloomBoxAliveEnabled", store: LCUtils.appGroupUserDefault)
+    private var aliveEnabled = true
+    @AppStorage("BloomBoxAliveIdleEnabled", store: LCUtils.appGroupUserDefault)
+    private var aliveIdleEnabled = true
+    @State private var aliveStartupPlayed = false
+    @State private var aliveBooting = false
+    @State private var aliveIntroVisible = false
+    @State private var aliveRevealed = true
+    @State private var aliveStartupPage = 1
+    @State private var aliveVisibleIcons: Set<String> = []
+    @State private var alivePlayfulKey: String?
+    @State private var alivePlayfulStyle = 0
+    @State private var alivePlayfulActive = false
     @AppStorage("ManzanaNote", store: LCUtils.appGroupUserDefault) private var miniatureNote = ""
     @State private var miniatureWidgetPhoto: UIImage?
     @State private var desktopSettings = false
@@ -226,6 +268,29 @@ struct LiveBoardHomeScreen: View {
                     .accessibilityValue("(Int(min(1, max(0, installProgress)) * 100)) por ciento")
                     .transition(.opacity)
                 }
+                if aliveEnabled && aliveBooting && aliveStartupPage == page && !reduceMotion {
+                    // A blurred welcome layer that never intercepts taps or swipes.
+                    ZStack {
+                        background.blur(radius: 25)
+                        Color.black.opacity(0.22)
+                        VStack(spacing: 12) {
+                            Text("BloomBox")
+                                .font(.system(size: 53, weight: .bold, design: .rounded))
+                                .tracking(-2)
+                                .shadow(color: .white.opacity(0.28), radius: 23)
+                            Text("El desmadre está por comenzar.")
+                                .font(.system(size: 16, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.78))
+                        }
+                        .scaleEffect(aliveIntroVisible ? 1 : 1.05)
+                    }
+                    .ignoresSafeArea()
+                    .opacity(aliveIntroVisible ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.27), value: aliveIntroVisible)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                    .zIndex(20)
+                }
                 if editing && !searching {
                     VStack {
                         HStack {
@@ -256,6 +321,20 @@ struct LiveBoardHomeScreen: View {
             }
             .foregroundColor(.white)
             .frame(width: geometry.size.width, height: geometry.size.height)
+            .coordinateSpace(name: "bloombox.alive.viewport")
+            .onPreferenceChange(BloomBoxAliveIconFrames.self) { frames in
+                let viewport = CGRect(origin: .zero, size: geometry.size)
+                let visible = Set(frames.compactMap { name, rect in
+                    rect.width > 0 && rect.height > 0 && rect.intersects(viewport) ? name : nil
+                })
+                if visible != aliveVisibleIcons {
+                    aliveVisibleIcons = visible
+                    if let current = alivePlayfulKey, !visible.contains(current) {
+                        alivePlayfulKey = nil
+                        alivePlayfulActive = false
+                    }
+                }
+            }
             .simultaneousGesture(DragGesture(minimumDistance: 35).onEnded { value in
                 if !searching && !editing && openFolder == nil && page > 0 && page < libraryPageIndex &&
                     value.translation.height > 65 && abs(value.translation.height) > abs(value.translation.width) * 1.4 {
@@ -266,6 +345,18 @@ struct LiveBoardHomeScreen: View {
                 if phase == .active { ramPlus.refresh() }
                 if phase == .active, #available(iOS 16.2, *) {
                     Task { await ManzanaExpiryReminderCenter.shared.synchronize() }
+                }
+            }
+            .onChange(of: page) { _ in stopAlivePlayfulness() }
+            .onChange(of: editing) { _ in stopAlivePlayfulness() }
+            .onChange(of: searching) { _ in stopAlivePlayfulness() }
+            .onChange(of: openFolder) { _ in stopAlivePlayfulness() }
+            .onChange(of: aliveEnabled) { enabled in
+                if !enabled {
+                    aliveBooting = false
+                    aliveIntroVisible = false
+                    aliveRevealed = true
+                    stopAlivePlayfulness()
                 }
             }
             .onChange(of: appKeys) { _ in reconcile() }
@@ -285,6 +376,37 @@ struct LiveBoardHomeScreen: View {
                 }
                 if page > 0 && hiddenPageIndices.contains(page - 1) {
                     page = (visiblePageIndices.first ?? 0) + 1
+                }
+                startBloomBoxAlive()
+            }
+            .task(id: scenePhase) {
+                // Task cancellation also stops this loop when the screen goes away.
+                while !Task.isCancelled {
+                    do {
+                        try await Task.sleep(nanoseconds: UInt64.random(in: 35...60) * 1_000_000_000)
+                    } catch { break }
+                    guard scenePhase == .active, aliveEnabled, aliveIdleEnabled,
+                          !reduceMotion, !aliveBooting, !editing, !searching,
+                          openFolder == nil, !pageManager, !customizing,
+                          !desktopSettings, !appStorePresented, !tweakStorePresented,
+                          !modulesPresented, !jitSetup,
+                          page > 0, page < libraryPageIndex,
+                          layout.pages.indices.contains(page - 1) else { continue }
+                    // Do not animate a hidden page or an icon scrolled below a widget.
+                    let candidates = layout.pages[page - 1].compactMap { $0 }
+                        .filter { aliveVisibleIcons.contains($0) && appMap[$0] != nil }
+                    guard let chosen = candidates.randomElement() else { continue }
+                    alivePlayfulKey = chosen
+                    alivePlayfulStyle = Int.random(in: 0...2)
+                    withAnimation(.spring(response: 0.22, dampingFraction: 0.36)) {
+                        alivePlayfulActive = true
+                    }
+                    do { try await Task.sleep(nanoseconds: 520_000_000) } catch { break }
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.60)) {
+                        alivePlayfulActive = false
+                    }
+                    do { try await Task.sleep(nanoseconds: 400_000_000) } catch { break }
+                    if alivePlayfulKey == chosen { alivePlayfulKey = nil }
                 }
             }
         }
@@ -1221,6 +1343,47 @@ struct LiveBoardHomeScreen: View {
         else { values[index, default: []].append(id) }
         saveWidgets(values)
     }
+    private func stopAlivePlayfulness() {
+        guard alivePlayfulKey != nil || alivePlayfulActive else { return }
+        alivePlayfulKey = nil
+        alivePlayfulActive = false
+    }
+
+    private func startBloomBoxAlive() {
+        guard !aliveStartupPlayed else { return }
+        aliveStartupPlayed = true
+        guard aliveEnabled, !reduceMotion,
+              page > 0, page < libraryPageIndex else { return }
+        aliveStartupPage = page
+        aliveBooting = true
+        aliveIntroVisible = true
+        aliveRevealed = false
+        // Welcome -> transparent horizontal wave. UI stays tappable throughout.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.67) {
+            guard aliveBooting else { return }
+            aliveIntroVisible = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.21) {
+                guard aliveBooting else { return }
+                aliveRevealed = true
+                // Final dock icon has entered before we end the startup gate.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.12) {
+                    aliveBooting = false
+                }
+            }
+        }
+    }
+
+    private func aliveEntrance(for pageIndex: Int, delay: Double, key: String? = nil) -> BloomBoxAliveEntrance {
+        let enabled = aliveEnabled && !reduceMotion && aliveBooting &&
+                      aliveStartupPage == pageIndex + 1 && page == pageIndex + 1
+        return BloomBoxAliveEntrance(
+            entranceEnabled: enabled, revealed: !enabled || aliveRevealed,
+            delay: delay, playfulStyle: key == alivePlayfulKey ? alivePlayfulStyle : nil,
+            playfulActive: key == alivePlayfulKey && alivePlayfulActive &&
+                           aliveIdleEnabled && !editing && !reduceMotion
+        )
+    }
+
     @ViewBuilder private func homePage(_ index: Int, width: CGFloat, height: CGFloat) -> some View {
         if widgets(on: index).isEmpty { homeIconGrid(index, width: width, height: height) }
         else {
@@ -1228,6 +1391,7 @@ struct LiveBoardHomeScreen: View {
                 VStack(spacing: 14) {
                     ForEach(widgets(on: index), id: \.self) { id in
                         ManzanaDesktopView(openSettings: { desktopSettings = true }, singleWidget: id)
+                            .modifier(aliveEntrance(for: index, delay: 0.08 + Double(widgets(on: index).firstIndex(of: id) ?? 0) * 0.085))
                             .contextMenu {
                                 Menu("Mover a página") {
                                     ForEach(Array(layout.pages.indices), id: \.self) { target in
@@ -1262,6 +1426,18 @@ struct LiveBoardHomeScreen: View {
                         ZStack(alignment: .top) {
                             if let key {
                                 homeItem(key, showLabel: !largeIcons)
+                                    .modifier(aliveEntrance(for: index,
+                                        delay: Double(column) * 0.145 + Double(row) * 0.026,
+                                        key: key))
+                                    .background {
+                                        GeometryReader { iconGeometry in
+                                            Color.clear.preference(
+                                                key: BloomBoxAliveIconFrames.self,
+                                                value: page == index + 1
+                                                    ? [key: iconGeometry.frame(in: .named("bloombox.alive.viewport"))]
+                                                    : [:])
+                                        }
+                                    }
                                     .transition(reduceMotion ? .opacity : .scale(scale: 0.25).combined(with: .opacity))
                             }
                             else {
@@ -1548,6 +1724,8 @@ struct LiveBoardHomeScreen: View {
                 ZStack {
                     if layout.dock.indices.contains(slot) {
                         homeItem(layout.dock[slot], showLabel: false)
+                            .modifier(aliveEntrance(for: max(0, page - 1),
+                                 delay: 0.69 + Double(slot) * 0.065))
                     } else {
                         Color.clear
                             .frame(width: largeIcons ? 76 : 64, height: largeIcons ? 76 : 80)
@@ -1861,6 +2039,12 @@ struct LiveBoardHomeScreen: View {
                 Section("Appearance") {
                     Toggle("Large icons", isOn: $largeIcons)
                     Toggle("Reduce motion", isOn: $customReduceMotion)
+                    Toggle("BloomBox Alive al iniciar", isOn: $aliveEnabled)
+                    Toggle("Iconos traviesos en reposo", isOn: $aliveIdleEnabled)
+                        .disabled(!aliveEnabled || reduceMotion)
+                    Text("La ola va de izquierda a derecha. Los iconos solo se mueven cuando estás sin interactuar en la página visible.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                     Toggle("Dark app icons", isOn: $darkIcons)
                 }
                 Section("Home Screen") {
