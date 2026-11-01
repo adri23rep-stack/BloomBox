@@ -113,6 +113,9 @@ struct LiveBoardHomeScreen: View {
     @AppStorage("BloomBoxPlacedWidgetsV2", store: LCUtils.appGroupUserDefault) private var placedWidgetsJSON = "{}"
     @AppStorage("BloomBoxPlacedWidgetsMigrated", store: LCUtils.appGroupUserDefault) private var placedWidgetsMigrated = false
     @State private var widgetMediaID: String?
+    @State private var widgetMediaChoicePresented = false
+    @State private var pendingWidgetMediaAfterGallery: String?
+    @State private var widgetMediaImporting = false
     @State private var choosingWidgetFile = false
     @State private var choosingWidgetPhoto = false
     @State private var editingWidgetNote = false
@@ -785,19 +788,25 @@ struct LiveBoardHomeScreen: View {
         }
         .sheet(isPresented: $customizing) { customizeSheet }
         .sheet(isPresented: $iconCustomization) { iconCustomizationSheet }
-        .sheet(isPresented: $showWidgetGallery) {
+        .sheet(isPresented: $showWidgetGallery, onDismiss: {
+            // A picker cannot be presented while the gallery sheet is
+            // dismissing. Launch the media choice only once it is gone.
+            if let target = pendingWidgetMediaAfterGallery {
+                pendingWidgetMediaAfterGallery = nil
+                requestWidgetMedia(for: target)
+            }
+        }) {
             if page > 0 && page <= layout.pages.count {
                 widgetAddSheet
             } else {
                 ManzanaWidgetGallery()
             }
         }
-        .confirmationDialog("Foto o GIF para el widget", isPresented: Binding(
-            get: { widgetMediaID != nil },
-            set: { if !$0 { widgetMediaID = nil } }
-        ), titleVisibility: .visible) {
-            Button("Elegir de Fotos") { choosingWidgetPhoto = true }
-            Button("Importar de Archivos") { choosingWidgetFile = true }
+        .confirmationDialog("Foto o GIF para el widget",
+                            isPresented: $widgetMediaChoicePresented,
+                            titleVisibility: .visible) {
+            Button("Elegir de Fotos") { beginWidgetMediaImport(fromPhotos: true) }
+            Button("Importar de Archivos") { beginWidgetMediaImport(fromPhotos: false) }
             Button("Cancelar", role: .cancel) { widgetMediaID = nil }
         }
         .sheet(isPresented: $editingWidgetNote) {
@@ -815,33 +824,43 @@ struct LiveBoardHomeScreen: View {
         .sheet(isPresented: $choosingWidgetPhoto) {
             BloomBoxMediaPhotosPicker { data in
                 choosingWidgetPhoto = false
-                guard let data else { widgetMediaID = nil; return }
-                let target = widgetMediaID
-                widgetMediaID = nil
-                Task {
-                    do {
-                        let name = try await Task.detached(priority: .userInitiated) {
-                            try BloomBoxWidgetMedia.importData(data)
-                        }.value
-                        if let target { setWidgetMedia(target, name: name) }
-                    } catch { widgetMediaError = error.localizedDescription }
+                guard let data else {
+                    // Cancel preserves any image already assigned to the widget.
+                    widgetMediaID = nil
+                    return
                 }
+                importWidgetMedia(data: data)
             }
         }
         .fileImporter(isPresented: $choosingWidgetFile, allowedContentTypes: [.image, .gif]) { result in
-            let target = widgetMediaID
-            widgetMediaID = nil
-            if case .success(let file) = result {
+            switch result {
+            case .success(let file):
+                guard let target = widgetMediaID else {
+                    widgetMediaError = "No se encontró el widget. Vuelve a tocar la imagen para importarla."
+                    return
+                }
+                widgetMediaImporting = true
                 Task {
+                    defer { widgetMediaImporting = false; widgetMediaID = nil }
                     do {
                         let name = try await Task.detached(priority: .userInitiated) {
                             try BloomBoxWidgetMedia.importFile(file)
                         }.value
-                        if let target { setWidgetMedia(target, name: name) }
-                    } catch { widgetMediaError = error.localizedDescription }
+                        setWidgetMedia(target, name: name)
+                    } catch {
+                        widgetMediaError = error.localizedDescription
+                    }
                 }
-            } else if case .failure(let error) = result {
+            case .failure(let error):
+                widgetMediaID = nil
                 widgetMediaError = error.localizedDescription
+            }
+        }
+        .overlay {
+            if widgetMediaImporting {
+                ProgressView("Importando imagen o GIF…")
+                    .padding(22)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
             }
         }
         .alert("Widget de foto o GIF", isPresented: Binding(
@@ -1511,12 +1530,47 @@ struct LiveBoardHomeScreen: View {
         moveIconsOutOfWidgetArea()
         page = target + 1
         if kind == "media" {
-            // Wait for the gallery sheet dismissal before opening photo import.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.40) {
-                widgetMediaID = widget.id
+            // Do not chain a second modal on top of the Add Widget gallery.
+            pendingWidgetMediaAfterGallery = widget.id
+        }
+    }
+    private func requestWidgetMedia(for id: String) {
+        guard placedWidgets.values.flatMap({ $0 }).contains(where: { $0.id == id && $0.kind == "media" }) else {
+            widgetMediaError = "El widget ya no está disponible. Crea uno nuevo o vuelve a intentarlo."
+            return
+        }
+        widgetMediaID = id
+        widgetMediaChoicePresented = true
+    }
+    private func beginWidgetMediaImport(fromPhotos: Bool) {
+        // SwiftUI dismisses the confirmation dialog before opening the picker.
+        // Keep widgetMediaID until the imported data is assigned.
+        widgetMediaChoicePresented = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            guard widgetMediaID != nil else { return }
+            if fromPhotos { choosingWidgetPhoto = true }
+            else { choosingWidgetFile = true }
+        }
+    }
+    private func importWidgetMedia(data: Data) {
+        guard let target = widgetMediaID else {
+            widgetMediaError = "Se perdió la selección del widget. Vuelve a intentarlo."
+            return
+        }
+        widgetMediaImporting = true
+        Task {
+            defer { widgetMediaImporting = false; widgetMediaID = nil }
+            do {
+                let name = try await Task.detached(priority: .userInitiated) {
+                    try BloomBoxWidgetMedia.importData(data)
+                }.value
+                setWidgetMedia(target, name: name)
+            } catch {
+                widgetMediaError = error.localizedDescription
             }
         }
     }
+
     private func setWidgetMedia(_ id: String, name: String) {
         var all = placedWidgets
         var updated = false
@@ -1525,9 +1579,14 @@ struct LiveBoardHomeScreen: View {
             all[index]?[position].mediaName = name
             updated = true
         }
-        if updated { savePlacedWidgets(all) }
-        else if let url = BloomBoxWidgetMedia.url(for: name) {
-            try? FileManager.default.removeItem(at: url)
+        if updated {
+            savePlacedWidgets(all)
+        } else {
+            // Never leak the import if its target was deleted mid-operation.
+            if let url = BloomBoxWidgetMedia.url(for: name) {
+                try? FileManager.default.removeItem(at: url)
+            }
+            widgetMediaError = "No se pudo asignar la imagen: el widget ya no existe."
         }
     }
     private func updateWidget(_ id: String, change: (inout BloomBoxPlacedWidget) -> Void) {
@@ -1759,6 +1818,11 @@ struct LiveBoardHomeScreen: View {
                             delay: Double(widget.slot % 4) * 0.145
                                 + Double(widget.slot / 4) * 0.026))
                         .frame(width: widgetWidth, height: widgetHeight)
+                        .onTapGesture {
+                            if widget.kind == "media" {
+                                requestWidgetMedia(for: widget.id)
+                            }
+                        }
                         .offset(
                             x: 14 + CGFloat(widget.slot % 4) * cellWidth,
                             y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch
@@ -1778,7 +1842,7 @@ struct LiveBoardHomeScreen: View {
                             }
                             if widget.kind == "media" {
                                 Button("Cambiar imagen o GIF", systemImage: "photo.badge.plus") {
-                                    widgetMediaID = widget.id
+                                    requestWidgetMedia(for: widget.id)
                                 }
                                 Button(widget.fill ? "Mostrar imagen completa" : "Rellenar widget",
                                        systemImage: "arrow.up.left.and.arrow.down.right") {
