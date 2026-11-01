@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "catalogID": "bloombox.community.tweaks.v2",
-  "updatedAt": "2026-10-29",
+  "updatedAt": "2026-10-31",
   "safety": "Listings are third-party projects. Displaying a repo, SHA-256 or download does not mean audited or compatible. Installable binaries are user-selected and SHA-256 checked. Native code can access guest-app data.",
   "tweakEntries": [
     {
@@ -156,6 +156,30 @@
       "warnings": [
         "Uso bajo tu propio riesgo. No se ha verificado en BloomBox ni en el iPhone del usuario.",
         "No ejecutar cargadores remotos sin una revisión independiente."
+      ]
+    },
+    {
+      "id": "melocafe-wiiu-keys-reference",
+      "name": "MeloCafe – Wii U keys.txt",
+      "developer": "Abdess / retrobios (repositorio comunitario, no oficial)",
+      "officialSourceURL": "https://github.com/Abdess/retrobios/tree/main/bios/Nintendo/Wii%20U",
+      "version": "referencia",
+      "priority": "optional",
+      "description": "Referencia externa sobre el archivo keys.txt usado por MeloCafe/Cemu para abrir juegos Wii U cifrados. No es un tweak ni una app instalable.",
+      "targetAppName": "MeloCafe (Wii U)",
+      "downloadURL": "",
+      "sha256": "",
+      "fileName": "",
+      "fileType": "source",
+      "alertLevel": 0,
+      "listingOnly": true,
+      "useAtOwnRisk": true,
+      "testedInBloomBox": false,
+      "notes": "Solo consulta: BloomBox no descarga, incluye, verifica ni importa claves de Nintendo. Obtén legalmente tus propias claves desde tu consola Wii U y añade keys.txt al directorio de datos de MeloCafe. El repositorio enlazado es comunitario, no oficial, y la procedencia o autorización de sus claves no se ha comprobado.",
+      "warnings": [
+        "Las claves de cifrado de Wii U pueden estar sujetas a derechos o restricciones legales.",
+        "No se descargan keys ni se instalan automáticamente desde BloomBox; usa solamente tus propias claves obtenidas legalmente.",
+        "No es un .deb o .dylib y no debe inyectarse como tweak."
       ]
     }
   ],
