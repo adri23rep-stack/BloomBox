@@ -9,6 +9,10 @@ struct ManzanaDesktopView: View {
     // Retain the original entry point, but no longer render legacy widgets
     // on the dedicated news page. Existing Home widget data is preserved.
     var singleWidget: String? = nil
+    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
+    private var preferredLanguage = "system"
+    private var newsLocale: Locale { Locale(identifier: preferredLanguage == "system" ? (Locale.preferredLanguages.first ?? "en") : preferredLanguage) }
+    private var english: Bool { newsLocale.language.languageCode?.identifier == "en" }
 
     var body: some View {
         ScrollView {
@@ -16,7 +20,7 @@ struct ManzanaDesktopView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("BloomBox").font(.largeTitle.bold())
-                        Text("Novedades y escritorio")
+                        Text(english ? "News and desktop" : "Novedades y escritorio")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -50,7 +54,7 @@ struct ManzanaDesktopView: View {
                         }
                         Spacer(minLength: 0)
                     }
-                    .environment(\.locale, Locale(identifier: "es_MX"))
+                    .environment(\.locale, newsLocale)
                     .padding(18)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .liveBoardGlass(radius: 24)
@@ -497,7 +501,12 @@ private struct BloomBoxNewsPost: Decodable, Identifiable {
 
 private struct BloomBoxRemoteNewsSection: View {
     @AppStorage("BloomBoxNewsFeedURL", store: LCUtils.appGroupUserDefault)
-    private var feedAddress = "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/feature/bloombox-2-ui-foundation-20261031/remote/news.json"
+    private var feedAddress = ""
+    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
+    private var preferredLanguage = "system"
+    private var english: Bool { (preferredLanguage == "system" ? (Locale.preferredLanguages.first ?? "en") : preferredLanguage).lowercased().hasPrefix("en") }
+    private var defaultFeed: String { "https://raw.githubusercontent.com/adri23rep-stack/BloomBox-Catalog/main/news/\(english ? "en" : "es").json" }
+    private var activeFeed: String { feedAddress.isEmpty ? defaultFeed : feedAddress }
     @State private var posts: [BloomBoxNewsPost] = []
     @State private var loading = false
     @State private var error: String?
@@ -507,13 +516,13 @@ private struct BloomBoxRemoteNewsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
             HStack {
-                Label("Novedades de BloomBox", systemImage: "newspaper.fill")
+                Label(english ? "BloomBox News" : "Novedades de BloomBox", systemImage: "newspaper.fill")
                     .font(.headline)
                 Spacer()
                 Button { Task { await refresh() } } label: {
                     Image(systemName: "arrow.clockwise")
                 }.disabled(loading).accessibilityLabel("Actualizar novedades")
-                Button { feedDraft = feedAddress; editingFeed = true } label: {
+                Button { feedDraft = activeFeed; editingFeed = true } label: {
                     Image(systemName: "link")
                 }.accessibilityLabel("Cambiar fuente de noticias")
             }
@@ -539,7 +548,7 @@ private struct BloomBoxRemoteNewsSection: View {
                             in: RoundedRectangle(cornerRadius: 22))
             }
         }
-        .task(id: feedAddress) { await refresh() }
+        .task(id: activeFeed) { await refresh() }
         .alert("Fuente de novedades", isPresented: $editingFeed) {
             TextField("Enlace HTTPS a JSON", text: $feedDraft)
                 .textInputAutocapitalization(.never)
@@ -561,7 +570,7 @@ private struct BloomBoxRemoteNewsSection: View {
     }
 
     @MainActor private func refresh() async {
-        guard let url = URL(string: feedAddress), url.scheme?.lowercased() == "https" else {
+        guard let url = URL(string: activeFeed), url.scheme?.lowercased() == "https" else {
             error = "La fuente debe ser HTTPS."; return
         }
         loading = true
@@ -577,7 +586,7 @@ private struct BloomBoxRemoteNewsSection: View {
             posts = Array(decoded.posts.prefix(12))
             error = nil
         } catch {
-            self.error = "No se pudieron cargar las noticias. Desliza o toca actualizar para intentar otra vez."
+            self.error = english ? "Could not load news. Tap refresh to try again." : "No se pudieron cargar las noticias. Desliza o toca actualizar para intentar otra vez."
         }
     }
 }
