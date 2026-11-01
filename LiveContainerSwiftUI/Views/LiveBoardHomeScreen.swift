@@ -2605,6 +2605,17 @@ private struct BloomBoxModulesPanel: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Experimentos · Funciones avanzadas", systemImage: "flask.fill")
                         .font(.headline)
+                    NavigationLink {
+                        LCStorageManagementView()
+                    } label: {
+                        Label("Almacenamiento · BloomBox, SideStore y apps", systemImage: "externaldrive.fill")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .accessibilityIdentifier("bloombox.experiments.storage.open")
+                    Text("Mide el espacio utilizado por las apps invitadas, SideStore y BloomBox. Permite identificar datos, cachés y archivos temporales sin borrarlos.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Divider()
                     Toggle("Probar script JIT de MeloNX en otras apps", isOn: $melonScriptCrossAppEnabled)
                         .tint(Color(red: 0.72, green: 0.45, blue: 1))
                         .accessibilityIdentifier("bloombox.experiments.melonScriptCrossApp.toggle")
