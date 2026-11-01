@@ -822,11 +822,13 @@ struct LiveBoardHomeScreen: View {
             }.navigationViewStyle(.stack)
         }
         .sheet(isPresented: $choosingWidgetPhoto) {
-            BloomBoxMediaPhotosPicker { data in
+            BloomBoxMediaPhotosPicker { data, pickedItem in
                 choosingWidgetPhoto = false
                 guard let data else {
-                    // Cancel preserves any image already assigned to the widget.
                     widgetMediaID = nil
+                    if pickedItem {
+                        widgetMediaError = "No pude leer esta imagen desde Fotos. Prueba con otra o impórtala desde Archivos."
+                    }
                     return
                 }
                 importWidgetMedia(data: data)
