@@ -383,8 +383,8 @@ struct LCTweakFolderView : View {
                 }
                 if isDeb {
                     let originalName = fileUrl.deletingPathExtension().lastPathComponent
-                    let name = String(originalName.unicodeScalars.filter {
-                        CharacterSet.alphanumerics.contains($0) || $0 == "-" || $0 == "_"
+                    let name = String(originalName.filter {
+                        $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_"
                     }.prefix(50))
                     let folderName = "DEB-" + (name.isEmpty ? "tweak" : name)
                     let destination = baseUrl.appendingPathComponent(folderName, isDirectory: true)
