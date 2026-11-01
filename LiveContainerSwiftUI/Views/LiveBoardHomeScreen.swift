@@ -1649,7 +1649,7 @@ struct LiveBoardHomeScreen: View {
         savePlacedWidgets(all)
         placedWidgetsMigrated = true
     }
-    private func addPlacedWidget(_ kind: String, columns: Int = 2, rows: Int = 2) {
+    private func addPlacedWidget(_ kind: String, columns: Int = 2, rows: Int = 2, clockStyle: String? = nil) {
         guard page > 0, layout.pages.indices.contains(page - 1) else { return }
         var all = placedWidgets
         var target = page - 1
@@ -1661,8 +1661,9 @@ struct LiveBoardHomeScreen: View {
             slot = 0
         }
         guard let slot else { return }
-        let widget = BloomBoxPlacedWidget(kind: kind, slot: slot,
+        var widget = BloomBoxPlacedWidget(kind: kind, slot: slot,
                                          columns: columns, rows: rows)
+        widget.clockStyle = clockStyle
         all[target, default: []].append(widget)
         savePlacedWidgets(all)
         moveIconsOutOfWidgetArea()
@@ -1867,10 +1868,21 @@ struct LiveBoardHomeScreen: View {
     private var widgetAddSheet: some View {
         NavigationView {
             List {
-                Section("Añade tantos como quieras") {
-                    Button { addPlacedWidget("clock"); showWidgetGallery = false } label: {
-                        Label("Reloj", systemImage: "clock.fill")
+                Section("Relojes · BloomBox") {
+                    Button { addPlacedWidget("clock", clockStyle: "minimal"); showWidgetGallery = false } label: {
+                        Label("Minimalista · hora y fecha", systemImage: "clock")
                     }
+                    Button { addPlacedWidget("clock", clockStyle: "flip"); showWidgetGallery = false } label: {
+                        Label("Flip · números retro", systemImage: "rectangle.split.2x1")
+                    }
+                    Button { addPlacedWidget("clock", clockStyle: "analog"); showWidgetGallery = false } label: {
+                        Label("Analógico · manecillas", systemImage: "clock.fill")
+                    }
+                    Button { addPlacedWidget("clock", clockStyle: "pixel"); showWidgetGallery = false } label: {
+                        Label("Pixel · estilo videojuego", systemImage: "gamecontroller.fill")
+                    }
+                }
+                Section("Añade tantos como quieras") {
                     Button { addPlacedWidget("notes"); showWidgetGallery = false } label: {
                         Label("Notas", systemImage: "note.text")
                     }
@@ -2289,6 +2301,24 @@ struct LiveBoardHomeScreen: View {
             Button(widget.fill ? "Mostrar imagen completa" : "Rellenar widget",
                    systemImage: "arrow.up.left.and.arrow.down.right") {
                 updateWidget(widget.id) { $0.fill.toggle() }
+            }
+        }
+        if widget.kind == "clock" {
+            Menu("Estilo de reloj", systemImage: "clock") {
+                Button("Minimalista") { updateWidget(widget.id) { $0.clockStyle = "minimal" } }
+                Button("Flip retro") { updateWidget(widget.id) { $0.clockStyle = "flip" } }
+                Button("Analógico") { updateWidget(widget.id) { $0.clockStyle = "analog" } }
+                Button("Pixel") { updateWidget(widget.id) { $0.clockStyle = "pixel" } }
+            }
+            Menu("Color del reloj", systemImage: "paintpalette") {
+                Button("Blanco") { updateWidget(widget.id) { $0.clockTint = "white" } }
+                Button("Menta") { updateWidget(widget.id) { $0.clockTint = "mint" } }
+                Button("Rosa") { updateWidget(widget.id) { $0.clockTint = "pink" } }
+                Button("Ámbar") { updateWidget(widget.id) { $0.clockTint = "amber" } }
+            }
+            Menu("Formato de hora", systemImage: "textformat.123") {
+                Button("24 horas") { updateWidget(widget.id) { $0.clock24Hour = true } }
+                Button("12 horas") { updateWidget(widget.id) { $0.clock24Hour = false } }
             }
         }
         Menu("Living Widget · Movimiento", systemImage: "sparkles.rectangle.stack") {
