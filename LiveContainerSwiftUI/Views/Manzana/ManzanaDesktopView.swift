@@ -402,7 +402,7 @@ enum BloomBoxWidgetGlowPalette {
                                       width: side, height: side,
                                       bitsPerComponent: 8, bytesPerRow: side * 4,
                                       space: space,
-                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue)
         else { return nil }
         context.interpolationQuality = .medium
         context.draw(preview, in: CGRect(x: 0, y: 0, width: side, height: side))
