@@ -12,7 +12,7 @@ struct ManzanaDesktopView: View {
     @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
     private var preferredLanguage = "system"
     private var newsLocale: Locale { Locale(identifier: preferredLanguage == "system" ? (Locale.preferredLanguages.first ?? "en") : preferredLanguage) }
-    private var english: Bool { newsLocale.language.languageCode?.identifier == "en" }
+    private var english: Bool { newsLocale.languageCode == "en" }
 
     var body: some View {
         ScrollView {
