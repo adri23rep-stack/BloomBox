@@ -221,3 +221,163 @@ static BOOL safePath(NSString *path) {
 }
 
 @end
+
+static NSString *debRelativePath(NSString *raw) {
+    if (!raw.length || [raw hasPrefix:@"/"] || [raw containsString:@"\\"]) return nil;
+    while ([raw hasPrefix:@"./"]) raw = [raw substringFromIndex:2];
+    while ([raw hasSuffix:@"/"]) raw = [raw substringToIndex:raw.length - 1];
+    if (!raw.length) return nil;
+    for (NSString *part in [raw componentsSeparatedByString:@"/"]) {
+        if (!part.length || [part isEqualToString:@"."] || [part isEqualToString:@".."]) return nil;
+    }
+    return raw;
+}
+
+static NSString *debTweakFile(NSString *path) {
+    NSArray<NSString *> *prefixes = @[
+        @"Library/MobileSubstrate/DynamicLibraries/",
+        @"var/jb/Library/MobileSubstrate/DynamicLibraries/",
+        @"usr/lib/TweakInject/",
+        @"var/jb/usr/lib/TweakInject/",
+        @"Library/Frameworks/",
+        @"var/jb/Library/Frameworks/"
+    ];
+    for (NSString *prefix in prefixes) {
+        if (![path hasPrefix:prefix]) continue;
+        NSString *relative = [path substringFromIndex:prefix.length];
+        if (!relative.length) return nil;
+        // Ignore package scripts, executables, launch daemons and unrelated OS files.
+        BOOL known = [relative.pathExtension.lowercaseString isEqualToString:@"dylib"] ||
+                     [relative.pathExtension.lowercaseString isEqualToString:@"plist"];
+        for (NSString *part in [relative componentsSeparatedByString:@"/"]) {
+            if ([part hasSuffix:@".framework"] || [part hasSuffix:@".bundle"]) { known = YES; break; }
+        }
+        return known ? relative : nil;
+    }
+    return nil;
+}
+
+@implementation BloomBoxArchive (DebianTweaks)
++ (BOOL)importDEB:(NSURL *)source toDirectory:(NSURL *)destination error:(NSError **)error {
+    NSFileManager *fm = NSFileManager.defaultManager;
+    if ([fm fileExistsAtPath:destination.path])
+        return fail(error, @"Ya existe una carpeta con el nombre de este paquete.");
+    NSURL *temporary = [NSURL fileURLWithPath:
+        [NSTemporaryDirectory() stringByAppendingPathComponent:
+            [NSString stringWithFormat:@"bloombox-deb-%@.tar", NSUUID.UUID.UUIDString]]];
+    struct archive *outer = archive_read_new();
+    archive_read_support_format_ar(outer);
+    BOOL ok = archive_read_open_filename(outer, source.fileSystemRepresentation, 65536) == ARCHIVE_OK;
+    NSString *message = ok ? @"El .deb está incompleto o no es compatible." : archiveMessage(outer);
+    BOOL versionSeen = NO, dataSeen = NO;
+    int status = ARCHIVE_OK;
+    struct archive_entry *entry = NULL;
+    const uint64_t maxPacked = 128ULL * 1024 * 1024;
+    while (ok && (status = archive_read_next_header(outer, &entry)) == ARCHIVE_OK) {
+        const char *name = archive_entry_pathname(entry);
+        NSString *entryName = name ? [NSString stringWithUTF8String:name] : nil;
+        if (!entryName || archive_entry_filetype(entry) != AE_IFREG ||
+            archive_entry_symlink(entry) || archive_entry_hardlink(entry) ||
+            archive_entry_size(entry) < 0 || (uint64_t)archive_entry_size(entry) > maxPacked) {
+            ok = NO; message = @"El .deb contiene entradas inválidas o demasiado grandes."; break;
+        }
+        if ([entryName isEqualToString:@"debian-binary"]) {
+            char version[32] = {0};
+            la_ssize_t n = archive_read_data(outer, version, sizeof(version) - 1);
+            if (n < 3 || strncmp(version, "2.0", 3) != 0 || versionSeen) {
+                ok = NO; message = @"No es un paquete Debian 2.0 válido."; break;
+            }
+            versionSeen = YES;
+        } else if ([entryName hasPrefix:@"data.tar."] || [entryName isEqualToString:@"data.tar"]) {
+            if (dataSeen) { ok = NO; message = @"El .deb contiene datos duplicados."; break; }
+            dataSeen = YES;
+            int fd = open(temporary.fileSystemRepresentation, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+            if (fd < 0) { ok = NO; message = @"No se pudo preparar la importación."; break; }
+            char buffer[65536]; la_ssize_t n; uint64_t count = 0;
+            while ((n = archive_read_data(outer, buffer, sizeof(buffer))) > 0) {
+                if ((uint64_t)n > maxPacked - count) { ok = NO; break; }
+                count += (uint64_t)n;
+                ssize_t offset = 0;
+                while (offset < n) {
+                    ssize_t wrote = write(fd, buffer + offset, (size_t)(n - offset));
+                    if (wrote <= 0) { ok = NO; break; }
+                    offset += wrote;
+                }
+                if (!ok) break;
+            }
+            if (close(fd) != 0 || n < 0 ||
+                count != (uint64_t)archive_entry_size(entry)) ok = NO;
+            if (!ok) { message = @"El .deb está dañado o no queda espacio."; break; }
+        }
+    }
+    if (ok && status != ARCHIVE_EOF) { ok = NO; message = archiveMessage(outer); }
+    archive_read_free(outer);
+    if (ok && (!versionSeen || !dataSeen)) {
+        ok = NO; message = @"Falta el contenido data.tar o la versión Debian.";
+    }
+    if (!ok) {
+        [fm removeItemAtURL:temporary error:nil];
+        return fail(error, message);
+    }
+
+    struct archive *payload = archive_read_new();
+    archive_read_support_format_tar(payload);
+    archive_read_support_filter_all(payload); // gzip, xz, zstd, etc.
+    ok = archive_read_open_filename(payload, temporary.fileSystemRepresentation, 65536) == ARCHIVE_OK;
+    message = ok ? @"El contenido del .deb no es un TAR válido." : archiveMessage(payload);
+    if (ok && ![fm createDirectoryAtURL:destination withIntermediateDirectories:NO attributes:nil error:error]) ok = NO;
+    NSMutableSet<NSString *> *seen = [NSMutableSet set];
+    NSUInteger files = 0, binaries = 0;
+    uint64_t unpacked = 0;
+    const uint64_t maxUnpacked = 256ULL * 1024 * 1024;
+    status = ARCHIVE_OK;
+    while (ok && (status = archive_read_next_header(payload, &entry)) == ARCHIVE_OK) {
+        const char *cpath = archive_entry_pathname(entry);
+        NSString *raw = cpath ? [NSString stringWithUTF8String:cpath] : nil;
+        NSString *path = debRelativePath(raw);
+        if (!path || archive_entry_symlink(entry) || archive_entry_hardlink(entry) ||
+            (archive_entry_filetype(entry) != AE_IFREG && archive_entry_filetype(entry) != AE_IFDIR) ||
+            archive_entry_size(entry) < 0) {
+            ok = NO; message = @"El .deb contiene rutas peligrosas, enlaces o archivos especiales."; break;
+        }
+        if (archive_entry_filetype(entry) == AE_IFDIR) continue;
+        NSString *relative = debTweakFile(path);
+        if (!relative) continue;
+        if ([seen containsObject:relative] || ++files > 4096 ||
+            (uint64_t)archive_entry_size(entry) > maxUnpacked - unpacked) {
+            ok = NO; message = @"Archivos repetidos o tamaño de tweak demasiado grande."; break;
+        }
+        [seen addObject:relative];
+        NSURL *target = [destination URLByAppendingPathComponent:relative];
+        if (![fm createDirectoryAtURL:target.URLByDeletingLastPathComponent
+           withIntermediateDirectories:YES attributes:nil error:error]) { ok = NO; break; }
+        int fd = open(target.fileSystemRepresentation, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0644);
+        if (fd < 0) { ok = NO; message = @"No se pudo guardar un archivo del tweak."; break; }
+        char buffer[65536]; la_ssize_t n; uint64_t received = 0;
+        while ((n = archive_read_data(payload, buffer, sizeof(buffer))) > 0) {
+            if ((uint64_t)n > maxUnpacked - unpacked) { ok = NO; break; }
+            unpacked += (uint64_t)n; received += (uint64_t)n;
+            ssize_t offset = 0;
+            while (offset < n) {
+                ssize_t wrote = write(fd, buffer + offset, (size_t)(n - offset));
+                if (wrote <= 0) { ok = NO; break; }
+                offset += wrote;
+            }
+            if (!ok) break;
+        }
+        if (close(fd) != 0 || n < 0 ||
+            received != (uint64_t)archive_entry_size(entry)) ok = NO;
+        if (!ok) { message = @"No se pudo extraer el tweak completo."; break; }
+        if ([relative.pathExtension.lowercaseString isEqualToString:@"dylib"] ||
+            [relative containsString:@".framework/"]) binaries++;
+    }
+    if (ok && status != ARCHIVE_EOF) { ok = NO; message = archiveMessage(payload); }
+    archive_read_free(payload);
+    [fm removeItemAtURL:temporary error:nil];
+    if (ok && binaries == 0) {
+        ok = NO; message = @"Este .deb no contiene tweaks .dylib o .framework compatibles.";
+    }
+    if (!ok) [fm removeItemAtURL:destination error:nil];
+    return ok ? YES : fail(error, message);
+}
+@end
