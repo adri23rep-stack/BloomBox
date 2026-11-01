@@ -74,6 +74,39 @@ private struct BloomBoxWidgetMediaPresentation: ViewModifier {
     }
 }
 
+/// A GIF or a borderless widget isn't necessarily a hit-testable SwiftUI
+/// surface: the animated CALayer intentionally disables its own hit testing.
+/// Keep the entire rectangular tile interactive regardless of appearance.
+///
+/// Normal mode owns the context menu; edit mode owns drag. Combining both
+/// long-press recognizers was causing disappearing GIF snapshots and menus
+/// opening instead of a drag. The drag preview is static and never captures
+/// the playing GIF's AV/CALayer contents.
+private struct BloomBoxWidgetInteraction<MenuContent: View>: ViewModifier {
+    let widgetID: String
+    let editing: Bool
+    let menu: () -> MenuContent
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if editing {
+            content
+                .contentShape(Rectangle())
+                .onDrag({
+                    NSItemProvider(object: ("bloombox-widget:" + widgetID) as NSString)
+                }, preview: {
+                    Label("Mover widget", systemImage: "square.grid.2x2.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(16)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                })
+        } else {
+            content
+                .contentShape(Rectangle())
+                .contextMenu(menuItems: menu)
+        }
+    }
+}
+
 struct LiveBoardHomeScreen: View {
     let apps: [LCAppModel]
     let launch: (LCAppModel) -> Void
@@ -1852,8 +1885,22 @@ struct LiveBoardHomeScreen: View {
                             delay: Double(widget.slot % 4) * 0.145
                                 + Double(widget.slot / 4) * 0.026))
                         .frame(width: widgetWidth, height: widgetHeight)
+                        // Full rectangle remains selectable even with transparent
+                        // GIF frames and Liquid Glass disabled.
+                        .contentShape(Rectangle())
+                        .overlay(alignment: .topTrailing) {
+                            if editing {
+                                Image(systemName: "hand.draw.fill")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(7)
+                                    .background(.black.opacity(0.62), in: Circle())
+                                    .padding(6)
+                                    .allowsHitTesting(false)
+                            }
+                        }
                         .onTapGesture {
-                            if widget.kind == "media" {
+                            if !editing && widget.kind == "media" {
                                 requestWidgetMedia(for: widget.id)
                             }
                         }
@@ -1861,14 +1908,14 @@ struct LiveBoardHomeScreen: View {
                             x: 14 + CGFloat(widget.slot % 4) * cellWidth,
                             y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch
                         )
-                        .onDrag {
-                            NSItemProvider(object: ("bloombox-widget:" + widget.id) as NSString)
-                        }
                         .onDrop(of: [UTType.text],
                                 delegate: LiveBoardMoveDropDelegate { providers in
                             acceptHomeDrop(providers, pageIndex: index, slot: widget.slot)
                         })
-                        .contextMenu {
+                        .modifier(BloomBoxWidgetInteraction(widgetID: widget.id, editing: editing) {
+                            Button("Mover widget", systemImage: "hand.draw.fill") {
+                                enterEditMode()
+                            }
                             if widget.kind == "notes" {
                                 Button("Editar nota", systemImage: "square.and.pencil") {
                                     editingWidgetNote = true
@@ -1903,7 +1950,7 @@ struct LiveBoardHomeScreen: View {
                             Button("Eliminar widget", systemImage: "trash", role: .destructive) {
                                 removePlacedWidget(widget.id)
                             }
-                        }
+                        })
                         .accessibilityIdentifier("bloombox.widget.\(widget.id)")
                 }
             }
