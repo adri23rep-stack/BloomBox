@@ -935,6 +935,16 @@ struct LiveBoardHomeScreen: View {
         } message: {
             Text(widgetMediaError ?? "")
         }
+        .sheet(isPresented: $choosingMotionWallpaperPhotos) {
+            BloomBoxMotionWallpaperPhotosPicker { result in
+                choosingMotionWallpaperPhotos = false
+                guard let result else { return }
+                switch result {
+                case .success(let name): installMotionWallpaper(name)
+                case .failure(let error): wallpaperError = error.localizedDescription
+                }
+            }
+        }
         .fileImporter(isPresented: $choosingMotionWallpaper, allowedContentTypes: [.movie, .gif]) { result in
             switch result {
             case .success(let url):
@@ -942,9 +952,7 @@ struct LiveBoardHomeScreen: View {
                 Task {
                     do {
                         let name = try await Task.detached(priority: .userInitiated) { try ManzanaWallpaperMedia.importFile(url) }.value
-                        let old = motionWallpaper
-                        motionWallpaper = name; wallpaperStyle = "motion"
-                        if old != name, let oldURL = ManzanaWallpaperMedia.url(old) { try? FileManager.default.removeItem(at: oldURL) }
+                        installMotionWallpaper(name)
                     } catch { wallpaperError = error.localizedDescription }
                     importingMotionWallpaper = false
                 }
@@ -1017,6 +1025,15 @@ struct LiveBoardHomeScreen: View {
             Button("Aceptar") { appTweakError = nil }
         } message: {
             Text(appTweakError ?? "")
+        }
+    }
+
+    private func installMotionWallpaper(_ name: String) {
+        let old = motionWallpaper
+        motionWallpaper = name
+        wallpaperStyle = "motion"
+        if old != name, let oldURL = ManzanaWallpaperMedia.url(old) {
+            try? FileManager.default.removeItem(at: oldURL)
         }
     }
 
@@ -2449,8 +2466,26 @@ struct LiveBoardHomeScreen: View {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 3), spacing: 3) {
                     ForEach(0..<9, id: \.self) { slot in
                         Group {
-                            if slot < folder.apps.count, let app = appMap[folder.apps[slot]] {
-                                LiveBoardIconImage(app: app, dark: darkIcons)
+                            if slot < folder.apps.count {
+                                let key = folder.apps[slot]
+                                if let app = appMap[key] {
+                                    LiveBoardIconImage(app: app, dark: darkIcons)
+                                } else if [Self.modulesKey, Self.tweakStoreKey, Self.appStoreKey,
+                                           Self.installKey, Self.sideStoreKey].contains(key) {
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .fill(key == Self.modulesKey ? Color.indigo :
+                                                  key == Self.tweakStoreKey ? Color.purple :
+                                                  key == Self.appStoreKey ? Color.blue :
+                                                  key == Self.sideStoreKey ? Color(red: 0.14, green: 0.26, blue: 0.69) : Color.cyan)
+                                        Image(systemName: key == Self.modulesKey ? "square.grid.2x2.fill" :
+                                              key == Self.tweakStoreKey ? "puzzlepiece.extension.fill" :
+                                              key == Self.appStoreKey ? "bag.fill" :
+                                              key == Self.installKey ? "square.and.arrow.down.fill" : "square.stack.3d.up.fill")
+                                            .font(.system(size: 12, weight: .bold))
+                                            .foregroundStyle(.white)
+                                    }
+                                } else { Color.clear }
                             } else { Color.clear }
                         }.aspectRatio(1, contentMode: .fit)
             .modifier(ManzanaIconTreatment()).clipShape(RoundedRectangle(cornerRadius: 4))
