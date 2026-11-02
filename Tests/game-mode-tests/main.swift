@@ -15,4 +15,10 @@ check("Both configured", ram: true, ext: true, provider: true, debug: true, pair
 precondition(BloomBoxGameModeGate.requiresGameMode(bundleID: "com.husk.app", name: "Husk", landscapeLocked: false))
 precondition(BloomBoxGameModeGate.requiresGameMode(bundleID: "com.example.other", name: "Some Game", landscapeLocked: true))
 precondition(!BloomBoxGameModeGate.requiresGameMode(bundleID: "com.example.music", name: "Player", landscapeLocked: false))
-print("PASS: Game Mode RAM+ -> JIT gate and landscape app routing")
+// Launch-from-Game must remain Game even if @AppStorage still says iOS
+// during an iOS 27 orientation/sheet transition.
+precondition(!BloomBoxGameModeGate.shouldOfferGameSwitch(requiresGame: true, fromGameLauncher: true, persistedMode: "ios"))
+precondition(!BloomBoxGameModeGate.shouldOfferGameSwitch(requiresGame: true, fromGameLauncher: false, persistedMode: "cinematic"))
+precondition(BloomBoxGameModeGate.shouldOfferGameSwitch(requiresGame: true, fromGameLauncher: false, persistedMode: "ios"))
+precondition(!BloomBoxGameModeGate.shouldOfferGameSwitch(requiresGame: false, fromGameLauncher: false, persistedMode: "ios"))
+print("PASS: Game Mode prerequisites, landscape routing and no Game-to-Game launch loop")
