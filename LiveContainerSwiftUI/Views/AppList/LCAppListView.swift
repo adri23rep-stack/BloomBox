@@ -557,9 +557,10 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                     UserDefaults.standard.set(nil, forKey: "webPageToOpen")
                 }
                 
-                guard sharedModel.selectedTab == .apps, let link = sharedModel.deepLink else { return }
-                sharedModel.deepLink = nil
-                handleURL(url: link)
+                if sharedModel.selectedTab == .apps, let link = sharedModel.deepLink {
+                    sharedModel.deepLink = nil
+                    handleURL(url: link)
+                }
                 isViewAppeared = true
             }
             // A RAM+ self-reinstall can restart BloomBox. Preserve the pending
