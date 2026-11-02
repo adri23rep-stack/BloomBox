@@ -19,6 +19,7 @@
 @property CFTimeInterval lastResizeRequestTime;
 @property CGPoint normalizedOrigin;
 @property bool isNativeWindow;
+@property CGSize lastReportedGuestViewSize;
 @property NSUUID* identifier;
 @end
 
@@ -294,8 +295,13 @@
 }
 
 - (void)viewWillLayoutSubviews {
-    /// For native window we let iPadOS handle it however it wants, which is usually live resize (autoresizingMask set in appSceneVCWillActivateScene)
-    if(_contentView.autoresizingMask != (UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight)) {
+    [super viewWillLayoutSubviews];
+    // The iOS 27 hosted scene must learn about real window-size changes even
+    // when UIKit is autoresizing its child view. Without this, a JIT guest
+    // retains the portrait framebuffer after a landscape rotation.
+    if (self.contentView && self.presenter &&
+        !CGSizeEqualToSize(self.lastReportedGuestViewSize, self.view.bounds.size)) {
+        self.lastReportedGuestViewSize = self.view.bounds.size;
         [self updateFrameWithSettingsBlock:nil];
     }
 }
