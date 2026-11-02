@@ -70,6 +70,12 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     @State private var emulatorMissing = BloomBoxEmulatorPreflight.Missing.ramPlus
     @State private var emulatorRAMSetup = false
     @State private var emulatorJITSetup = false
+    @State private var gameGatePrompt = false
+    @State private var gameGateMissing: BloomBoxGameModeGate.Missing = .ramPlus
+    @State private var gameLastPrompted: BloomBoxGameModeGate.Missing?
+    @AppStorage("BloomBoxGamePendingApp", store: LCUtils.appGroupUserDefault) private var gamePendingAppKey = ""
+    @AppStorage("BloomBoxGamePendingEntry", store: LCUtils.appGroupUserDefault) private var gamePendingEntry = false
+    @Environment(\.scenePhase) private var gameScenePhase
     
     @StateObject private var runWhenMultitaskAlert = YesNoHelper()
     
@@ -475,7 +481,31 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 Text("RAM+ está confirmada, pero JIT necesita configuración. ¿Abrir activador JIT?")
             }
         }
-        .sheet(isPresented: $emulatorRAMSetup) {
+        .alert("Modo Game · " + (gameGateMissing == .ramPlus ? "RAM+" : "JIT"), isPresented: $gameGatePrompt) {
+            Button("Sí, habilitar") {
+                if gameGateMissing == .ramPlus { emulatorRAMSetup = true }
+                else {
+                    // Choosing Yes also enables the app's JIT policy, but never
+                    // grants private-data access or alters signed entitlements.
+                    if !gamePendingAppKey.isEmpty {
+                        BloomBoxJITGuestPolicy.setMode(.enabled, for: gamePendingAppKey,
+                            defaults: LCUtils.appGroupUserDefault)
+                    }
+                    emulatorJITSetup = true
+                }
+            }
+            Button("No", role: .cancel) {
+                clearPendingGame()
+                liveBoardMode = "ios"
+            }
+        } message: {
+            if gameGateMissing == .ramPlus {
+                Text("Modo Game necesita RAM+ activado y verificado en BloomBox y LiveProcess. ¿Quieres iniciar el proceso para habilitarlo? No se abrirá la app hasta confirmarlo.")
+            } else {
+                Text("RAM+ está lista. Modo Game también necesita JIT configurado. ¿Quieres habilitarlo? Se activará al abrir el juego; sin configurarlo no se abrirá la app.")
+            }
+        }
+        .sheet(isPresented: $emulatorRAMSetup, onDismiss: { if gamePendingEntry { evaluatePendingGame(offerPrompt: true) } }) {
             NavigationView {
                 BloomBoxRAMPlusView(openSideStore: { LCUtils.openSideStore(delegate: self) })
                     .navigationTitle("Activar RAM+")
@@ -484,7 +514,9 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                     }}
             }.navigationViewStyle(.stack)
         }
-        .sheet(isPresented: $emulatorJITSetup) { LiveBoardJITSetup() }
+        .sheet(isPresented: $emulatorJITSetup, onDismiss: {
+            if gamePendingEntry { evaluatePendingGame(offerPrompt: true) }
+        }) { LiveBoardJITSetup() }
         .sheet(isPresented: $jitAlert.show, onDismiss: {
             jitAlert.close(result: false)
         }) {
@@ -518,6 +550,24 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 sharedModel.deepLink = nil
                 handleURL(url: link)
                 isViewAppeared = true
+            }
+            // A RAM+ self-reinstall can restart BloomBox. Preserve the pending
+            // request and continue with the next missing prerequisite.
+            if liveBoardMode == "cinematic" && !gamePendingEntry {
+                if gameMissing() != nil {
+                    liveBoardMode = "ios"
+                    beginGameMode(for: nil)
+                }
+            } else if gamePendingEntry {
+                evaluatePendingGame(offerPrompt: true)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BloomBoxRequestGameMode"))) { _ in
+            beginGameMode(for: nil)
+        }
+        .onChange(of: gameScenePhase) { phase in
+            if phase == .active && gamePendingEntry {
+                evaluatePendingGame(offerPrompt: true)
             }
         }
         .onChange(of: sharedModel.deepLink) { link in
@@ -633,7 +683,67 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     }
 
     @MainActor
+    private func gameMissing() -> BloomBoxGameModeGate.Missing? {
+        BloomBoxRAMPlus.shared.refresh()
+        let ram = BloomBoxRAMPlus.shared
+        let defaults = LCUtils.appGroupUserDefault
+        return BloomBoxGameModeGate.firstMissing(
+            ramConfirmed: ram.validation.confirmed,
+            liveProcessSigned: ram.extensionSigned == true,
+            builtInJITSelected: defaults.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue,
+            debuggingAvailable: LCUtils.strataCanDebug(),
+            pairingPresent: FileManager.default.fileExists(atPath: LiveBoardBuiltInJIT.pairingURL.path))
+    }
+
+    @MainActor
+    private func clearPendingGame() {
+        gamePendingAppKey = ""
+        gamePendingEntry = false
+        gameLastPrompted = nil
+    }
+
+    @MainActor
+    private func beginGameMode(for app: LCAppModel?) {
+        gamePendingAppKey = app?.appInfo.relativeBundlePath ?? ""
+        gamePendingEntry = true
+        gameLastPrompted = nil
+        evaluatePendingGame(offerPrompt: true)
+    }
+
+    @MainActor
+    private func evaluatePendingGame(offerPrompt: Bool) {
+        guard gamePendingEntry, !gameGatePrompt, !emulatorRAMSetup, !emulatorJITSetup else { return }
+        if let missing = gameMissing() {
+            // Do not repeatedly prompt for the same missing entitlement when
+            // the user returns without completing setup.
+            if offerPrompt && gameLastPrompted != missing {
+                gameGateMissing = missing
+                gameLastPrompted = missing
+                gameGatePrompt = true
+            }
+            return
+        }
+
+        let appKey = gamePendingAppKey
+        let app = (sharedModel.apps + sharedModel.hiddenApps)
+            .first { $0.appInfo.relativeBundlePath == appKey }
+        clearPendingGame()
+        liveBoardMode = "cinematic"
+        // Give the landscape scene time to appear before attaching JIT to a
+        // fresh LiveProcess guest. Do not launch if the app disappeared.
+        if let app {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 350_000_000)
+                await launchFromLiveBoard(app, forceJIT: true)
+            }
+        }
+    }
+
+    @MainActor
     func approveEmulatorLaunch(app: LCAppModel, forceJIT: Bool?) async -> Bool {
+        // Game Mode already requires RAM+ and configured JIT before launch.
+        // Never offer the old optional/suppressible emulator warning here.
+        if liveBoardMode == "cinematic" { return gameMissing() == nil }
         let bundle = Bundle(path: app.appInfo.bundlePath())
         let version = bundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         let id = app.appInfo.bundleIdentifier()
@@ -685,6 +795,22 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             LCUtils.openSideStore(delegate: self)
             return
         }
+        let requiresGame = BloomBoxGameModeGate.requiresGameMode(
+            bundleID: app.appInfo.bundleIdentifier(), name: app.displayName,
+            landscapeLocked: app.uiOrientationLock == .Landscape)
+        if liveBoardMode == "cinematic" || (liveBoardMode == "ios" && requiresGame) {
+            if gameMissing() != nil {
+                beginGameMode(for: app)
+                return
+            }
+            if liveBoardMode != "cinematic" {
+                liveBoardMode = "cinematic"
+                try? await Task.sleep(nanoseconds: 350_000_000)
+            }
+            // Game mode is not JIT-less. Keep the same per-process attach flow
+            // that Husk already proved works on iOS 27.
+            forceJIT = true
+        }
         let appKey = app.appInfo.relativeBundlePath ?? ""
         let policy = BloomBoxJITGuestPolicy.mode(for: appKey, defaults: LCUtils.appGroupUserDefault)
         let guestBundle = Bundle(path: app.appInfo.bundlePath())
@@ -704,6 +830,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             let guestMask: UIInterfaceOrientationMask
             switch app.uiOrientationLock {
             case .Landscape: guestMask = .landscape
+            case .Disabled where liveBoardMode == "cinematic": guestMask = .landscape
             case .Portrait: guestMask = .portrait
             default: guestMask = .allButUpsideDown
             }
