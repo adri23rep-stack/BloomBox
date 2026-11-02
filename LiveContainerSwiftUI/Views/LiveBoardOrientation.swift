@@ -2,19 +2,51 @@ import SwiftUI
 import UIKit
 
 @MainActor enum LiveBoardOrientation {
+    // Home owns its usual portrait lock. A LiveProcess guest may temporarily
+    // override it, but MUST restore the previous mask when that guest exits.
     static var mask: UIInterfaceOrientationMask = .allButUpsideDown
     static var owner: UUID?
-    static func apply(_ next: UIInterfaceOrientationMask, window: UIWindow?) {
+    private static var homeMask: UIInterfaceOrientationMask = .allButUpsideDown
+    private static var guestMask: UIInterfaceOrientationMask?
+    private static var guestAppKey: String?
+
+    private static func updateScene(_ next: UIInterfaceOrientationMask, window: UIWindow?) {
         let changed = mask != next
         mask = next
         guard let scene = window?.windowScene else { return }
-        let wrongOrientation = (next == .portrait && scene.interfaceOrientation != .portrait) || (next == .landscape && !scene.interfaceOrientation.isLandscape)
+        let wrongOrientation = (next == .portrait && scene.interfaceOrientation != .portrait) ||
+            (next == .landscape && !scene.interfaceOrientation.isLandscape)
         guard changed || wrongOrientation else { return }
         if #available(iOS 16.0, *) {
             window?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
-            scene.requestGeometryUpdate(.iOS(interfaceOrientations: next)) { _ in }
+            scene.requestGeometryUpdate(.iOS(interfaceOrientations: next)) { error in
+                NSLog("BloomBox guest orientation request: %@", error.localizedDescription)
+            }
         } else { UIViewController.attemptRotationToDeviceOrientation() }
     }
+
+    static func apply(_ next: UIInterfaceOrientationMask, window: UIWindow?) {
+        homeMask = next
+        guard guestMask == nil else { return }
+        updateScene(next, window: window)
+    }
+
+    /// Only explicit guest orientation locks override Home. No auto-rotating
+    /// every JIT app to landscape: portrait-only guests must remain usable.
+    static func beginGuest(appKey: String, mask next: UIInterfaceOrientationMask, window: UIWindow?) {
+        guard !appKey.isEmpty, next == .portrait || next == .landscape else { return }
+        guestAppKey = appKey
+        guestMask = next
+        updateScene(next, window: window)
+    }
+
+    static func endGuest(appKey: String, window: UIWindow?) {
+        guard guestAppKey == appKey else { return }
+        guestMask = nil
+        guestAppKey = nil
+        updateScene(homeMask, window: window)
+    }
+
     static func setLandscape(_ enabled: Bool, window: UIWindow?) {
         owner = nil
         apply(enabled ? .landscape : .allButUpsideDown, window: window)
