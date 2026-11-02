@@ -159,24 +159,29 @@ extension String: @retroactive Error {}
 extension String: @retroactive LocalizedError {
     public var errorDescription: String? { return self }
         
-    private static var enBundle : Bundle? = {
-        let language = "en"
-        let path = Bundle.main.path(forResource:language, ofType: "lproj")
-        let bundle = Bundle(path: path!)
-        return bundle
-    }()
-    
-    var loc: String {
-        let message = NSLocalizedString(self, comment: "")
-        if message != self {
-            return message
-        }
+    // Preserve all upstream translations while honoring BloomBox's language picker.
+    // Never force-unwrap a missing language bundle.
+    private static let enBundle = Bundle.main.path(forResource: "en", ofType: "lproj").flatMap(Bundle.init(path:))
+    private static let esBundle = Bundle.main.path(forResource: "es", ofType: "lproj").flatMap(Bundle.init(path:))
 
-        if let forcedString = String.enBundle?.localizedString(forKey: self, value: nil, table: nil){
-            return forcedString
-        }else {
-            return self
+    var loc: String {
+        let choice = LCUtils.appGroupUserDefault.string(forKey: "BloomBoxPreferredLanguage") ?? "system"
+        let selectedBundle: Bundle?
+        switch choice {
+        case "en": selectedBundle = String.enBundle
+        case "es": selectedBundle = String.esBundle
+        default: selectedBundle = nil
         }
+        if let selectedBundle {
+            let value = selectedBundle.localizedString(forKey: self, value: self, table: "Localizable")
+            // Spanish UI text is the fallback when an untranslated BloomBox key
+            // has not been included in the catalog yet.
+            if value != self { return value }
+            if choice == "es", !self.hasPrefix("lc.") { return self }
+        }
+        let system = NSLocalizedString(self, comment: "")
+        if system != self { return system }
+        return String.enBundle?.localizedString(forKey: self, value: self, table: "Localizable") ?? self
     }
     
     func localizeWithFormat(_ arguments: CVarArg...) -> String{

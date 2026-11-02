@@ -93,3 +93,27 @@ assert(removedFirst[1] == ["clock", "notes"])
 let removedLast = ManzanaPageWidgetLayout.removingPage(2, target: 1, from: widgetPages)
 assert(removedLast[1] == ["photo", "notes", "clock"])
 print("Widget page deletion checks passed")
+
+
+// Themes is a placeholder today, but its placement must survive updates,
+// folder moves and later theme-file serialization.
+var themeShortcutTest = LiveBoardHomeLayout()
+themeShortcutTest.initialized = true
+themeShortcutTest.pages = [Array(repeating: nil, count: LiveBoardHomeLayout.capacity)]
+themeShortcutTest.reconcile(["manzana:themes", "A", "B"], favorites: [])
+themeShortcutTest.place("manzana:themes", on: 0, slot: 8)
+assertTrue(themeShortcutTest.pages[0][8] == "manzana:themes",
+           "Themes shortcut can be placed on the desktop")
+let serializedThemes = themeShortcutTest.encoded
+let restoredThemes = LiveBoardHomeLayout.decode(serializedThemes)
+assertTrue(restoredThemes.pages[0][8] == "manzana:themes",
+           "Themes position survives layout save and restore")
+themeShortcutTest.createFolder(name: "Mis temas", app: "A")
+let folderKey = themeShortcutTest.folders.first!.id
+themeShortcutTest.put("manzana:themes", in: folderKey)
+assertTrue(themeShortcutTest.folders.first!.apps.contains("manzana:themes"),
+           "Themes can live inside a folder")
+themeShortcutTest.reconcile(["manzana:themes", "A", "B"], favorites: [])
+assertTrue(themeShortcutTest.folders.first!.apps.contains("manzana:themes"),
+           "Themes folder position survives reconciliation")
+print("Themes placeholder placement and persistence checks passed")
