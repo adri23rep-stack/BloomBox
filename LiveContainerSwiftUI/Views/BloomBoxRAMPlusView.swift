@@ -326,7 +326,7 @@ struct BloomBoxRAMPlusView: View {
                     showWarning = ram.needsAttention
                 }))
                 .accessibilityIdentifier("bloombox.modules.ram.activate")
-                Label(ram.status, systemImage: ram.validation.confirmed ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                Label(ram.status.loc, systemImage: ram.validation.confirmed ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
                     .foregroundStyle(ram.validation.confirmed ? Color.green : Color.orange)
                 if ram.needsAttention {
                     Text("El switch está encendido, pero RAM+ todavía no está confirmada. Completa la activación y vuelve a comprobar.")
@@ -351,7 +351,7 @@ struct BloomBoxRAMPlusView: View {
                         Text("SideStore hace el inicio de sesión. BloomBox no guarda tu contraseña ni la sesión de Apple.")
                             .font(.footnote).foregroundStyle(.secondary)
                         if !ram.activationMessage.isEmpty {
-                            Label(ram.activationMessage, systemImage: ram.activationStatus == "approved" ? "checkmark.circle" : "info.circle")
+                            Label(ram.activationMessage.loc, systemImage: ram.activationStatus == "approved" ? "checkmark.circle" : "info.circle")
                                 .font(.callout)
                         }
                         if ram.activationStatus == "awaitingSession" {
@@ -363,7 +363,7 @@ struct BloomBoxRAMPlusView: View {
                                 .font(.footnote).foregroundStyle(.orange)
                         }
                         if !ram.reinstallStage.isEmpty {
-                            Label(ram.reinstallMessage, systemImage: ram.reinstallStage == "confirmed" ? "checkmark.seal.fill" : "arrow.triangle.2.circlepath")
+                            Label(ram.reinstallMessage.loc, systemImage: ram.reinstallStage == "confirmed" ? "checkmark.seal.fill" : "arrow.triangle.2.circlepath")
                                 .font(.footnote)
                             Text("Etapa: " + ([
                                 "checking": "Comprobando",
