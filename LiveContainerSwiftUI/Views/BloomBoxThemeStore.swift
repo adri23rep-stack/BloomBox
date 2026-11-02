@@ -189,7 +189,7 @@ enum BloomBoxThemeLibrary {
     }
 
     static func save(_ data: Data, named name: String) throws -> URL {
-        _ = try BloomBoxThemePackage.read(data)
+        let payload = try BloomBoxThemePackage.read(data)
         let folder = directory
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let safe = String(name.prefix(45))
@@ -198,6 +198,19 @@ enum BloomBoxThemeLibrary {
         let file = folder.appendingPathComponent((safe.isEmpty ? "Theme" : safe)
              + "-" + String(UUID().uuidString.prefix(8)) + ".bbtheme")
         try data.write(to: file, options: .atomic)
+        // Small still-image preview, never run or decode full animated GIF frames.
+        let art = payload.media["wallpaper.jpg"]
+            ?? payload.media.first(where: { $0.key.hasPrefix("widget-") })?.value
+        if let art, let source = CGImageSourceCreateWithData(art as CFData, nil),
+           let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+               kCGImageSourceCreateThumbnailFromImageAlways: true,
+               kCGImageSourceThumbnailMaxPixelSize: 192,
+               kCGImageSourceCreateThumbnailWithTransform: true
+           ] as CFDictionary),
+           let thumbnail = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.72) {
+            try? thumbnail.write(to: file.deletingPathExtension().appendingPathExtension("jpg"),
+                                 options: .atomic)
+        }
         return file
     }
 
@@ -214,13 +227,13 @@ enum BloomBoxThemeLibrary {
     }
 
     static func readFile(_ url: URL) throws -> Data {
+        let granted = url.startAccessingSecurityScopedResource()
+        defer { if granted { url.stopAccessingSecurityScopedResource() } }
         let fileSize = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
         guard url.pathExtension.lowercased() == "bbtheme",
               fileSize > 0, fileSize <= BloomBoxThemePackage.maxBytes else {
             throw BloomBoxThemePackage.ThemeError.invalid("Choose a .bbtheme file smaller than 90 MB.")
         }
-        let granted = url.startAccessingSecurityScopedResource()
-        defer { if granted { url.stopAccessingSecurityScopedResource() } }
         let data = try Data(contentsOf: url)
         _ = try BloomBoxThemePackage.read(data)
         return data
@@ -314,7 +327,7 @@ struct BloomBoxThemeStoreView: View {
                         } else {
                             ForEach(shownLibrary, id: \.path) { url in
                                 HStack(spacing: 12) {
-                                    themeArt
+                                    savedArt(url)
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text(url.deletingPathExtension().lastPathComponent)
                                             .font(.subheadline.weight(.semibold)).lineLimit(2)
@@ -327,6 +340,8 @@ struct BloomBoxThemeStoreView: View {
                                     Button(role: .destructive) {
                                         do {
                                             try FileManager.default.removeItem(at: url)
+                                            try? FileManager.default.removeItem(at:
+                                                url.deletingPathExtension().appendingPathExtension("jpg"))
                                             refresh()
                                         } catch { message = error.localizedDescription }
                                     } label: {
@@ -419,6 +434,17 @@ struct BloomBoxThemeStoreView: View {
             Button("OK") { message = nil; notice = nil }
         } message: { Text(message ?? notice ?? "") }
         .onAppear { refresh(); Task { await loadCatalog() } }
+    }
+
+    @ViewBuilder private func savedArt(_ url: URL) -> some View {
+        let preview = url.deletingPathExtension().appendingPathExtension("jpg")
+        if let image = UIImage(contentsOfFile: preview.path) {
+            Image(uiImage: image).resizable().scaledToFill()
+                .frame(width: 59, height: 59)
+                .clipShape(RoundedRectangle(cornerRadius: 15))
+        } else {
+            themeArt
+        }
     }
 
     private var themeArt: some View {
