@@ -831,6 +831,16 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
 
     @MainActor
     func approveEmulatorLaunch(app: LCAppModel, forceJIT: Bool?) async -> Bool {
+        // Apply the same first-run review when launching from the legacy
+        // LiveContainer library, not only from the BloomBox Home icons.
+        if let profile = remoteGameProfiles.profile(for: app.appInfo.bundleIdentifier()),
+           remoteGameProfiles.needsApproval(profile) {
+            compatibilityApp = app
+            compatibilityProfile = profile
+            compatibilityForceJIT = forceJIT == true
+            compatibilityPrompt = true
+            return false
+        }
         // Game Mode already requires RAM+ and configured JIT before launch.
         // Never offer the old optional/suppressible emulator warning here.
         if liveBoardMode == "cinematic" { return gameMissing(for: app) == nil }
