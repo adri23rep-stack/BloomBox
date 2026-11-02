@@ -71,6 +71,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     @State private var emulatorRAMSetup = false
     @State private var emulatorJITSetup = false
     @State private var gameGatePrompt = false
+    @State private var gameRoutePrompt = false
+    @State private var gameRouteApp: LCAppModel?
     @State private var gameGateMissing: BloomBoxGameModeGate.Missing = .ramPlus
     @State private var gameLastPrompted: BloomBoxGameModeGate.Missing?
     @AppStorage("BloomBoxGamePendingApp", store: LCUtils.appGroupUserDefault) private var gamePendingAppKey = ""
@@ -481,6 +483,15 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 Text("RAM+ está confirmada, pero JIT necesita configuración. ¿Abrir activador JIT?")
             }
         }
+        .alert("Esta app debe iniciarse en modo Game", isPresented: $gameRoutePrompt) {
+            Button("Entrar a Game") {
+                if let app = gameRouteApp { beginGameMode(for: app) }
+                gameRouteApp = nil
+            }
+            Button("Cancelar", role: .cancel) { gameRouteApp = nil }
+        } message: {
+            Text("Esta app necesita una pantalla horizontal. El escritorio iOS es vertical y podría deformar la imagen. ¿Cambiar a modo Game?")
+        }
         .alert("Modo Game · " + (gameGateMissing == .ramPlus ? "RAM+" : "JIT"), isPresented: $gameGatePrompt) {
             Button("Sí, habilitar") {
                 if gameGateMissing == .ramPlus { emulatorRAMSetup = true }
@@ -491,14 +502,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                         BloomBoxJITGuestPolicy.setMode(.enabled, for: gamePendingAppKey,
                             defaults: LCUtils.appGroupUserDefault)
                     }
-                    let pendingApp = (sharedModel.apps + sharedModel.hiddenApps).first {
-                        $0.appInfo.relativeBundlePath == gamePendingAppKey
-                    }
-                    if gameMissing(for: pendingApp) == nil {
-                        evaluatePendingGame(offerPrompt: false)
-                    } else {
-                        emulatorJITSetup = true
-                    }
+                    emulatorJITSetup = true
                 }
             }
             Button("No", role: .cancel) {
@@ -768,7 +772,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         if BloomBoxGameModeGate.requiresGameMode(
             bundleID: app.appInfo.bundleIdentifier(), name: app.displayName,
             landscapeLocked: app.uiOrientationLock == .Landscape) {
-            beginGameMode(for: app)
+            gameRouteApp = app
+            gameRoutePrompt = true
             return false
         }
         let bundle = Bundle(path: app.appInfo.bundlePath())
@@ -826,14 +831,15 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             bundleID: app.appInfo.bundleIdentifier(), name: app.displayName,
             landscapeLocked: app.uiOrientationLock == .Landscape)
         var gameJIT = forceJIT
-        if liveBoardMode == "cinematic" || (liveBoardMode == "ios" && requiresGame) {
+        if liveBoardMode == "ios" && requiresGame {
+            gameRouteApp = app
+            gameRoutePrompt = true
+            return
+        }
+        if liveBoardMode == "cinematic" {
             if gameMissing(for: app) != nil {
                 beginGameMode(for: app)
                 return
-            }
-            if liveBoardMode != "cinematic" {
-                liveBoardMode = "cinematic"
-                try? await Task.sleep(nanoseconds: 350_000_000)
             }
             // Game mode is not JIT-less. Keep the same per-process attach flow
             // that Husk already proved works on iOS 27.
