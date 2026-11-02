@@ -155,6 +155,35 @@ struct LiveBoardHomeLayout: Codable, Equatable {
         removePlacement(key)
         if let index = folders.firstIndex(where: { $0.id == folderID }) { folders[index].apps.append(key) }
     }
+    /// Group BloomBox's five built-in shortcuts only on first migration.
+    /// The user remains free to reorganize the folder afterwards.
+    mutating func groupBuiltInShortcuts(_ keys: [String]) {
+        guard !keys.isEmpty else { return }
+        let existingID = folders.first(where: { $0.name == "BloomBox" })?.id
+        let folderID = existingID ?? "folder:bloombox"
+        let alreadyPlaced = pages.contains(where: { $0.contains(folderID) })
+        for key in keys { removePlacement(key) }
+
+        // Removing the shortcuts can empty an older, manually-created folder.
+        // Remove its dead icon as well, without touching any remaining apps.
+        let emptyIDs = Set(folders.filter { $0.apps.isEmpty && $0.id != folderID }.map(\.id))
+        folders.removeAll { emptyIDs.contains($0.id) }
+        for pageIndex in pages.indices {
+            for slot in pages[pageIndex].indices {
+                if let entry = pages[pageIndex][slot], emptyIDs.contains(entry) {
+                    pages[pageIndex][slot] = nil
+                }
+            }
+        }
+
+        if let index = folders.firstIndex(where: { $0.id == folderID }) {
+            folders[index].apps = keys + folders[index].apps.filter { !keys.contains($0) }
+        } else {
+            folders.append(Folder(id: folderID, name: "BloomBox", apps: keys))
+        }
+        if !alreadyPlaced { place(folderID, on: 0) }
+    }
+
     mutating func createFolder(name: String, app: String) {
         removePlacement(app)
         let id = "folder:" + UUID().uuidString

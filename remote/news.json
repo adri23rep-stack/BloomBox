@@ -1,0 +1,16 @@
+{
+  "posts": [
+    {
+      "id": "bloombox-2-widgets",
+      "title": "BloomBox 2.0 · Tu escritorio, tus reglas 🫧",
+      "text": "¡Llegan los widgets libres! Fotos, GIFs animados y tamaños ajustables, directamente entre tus aplicaciones.",
+      "media": "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/main/screenshots/showcase/widgets.jpeg"
+    },
+    {
+      "id": "bloombox-alive",
+      "title": "BloomBox Alive 🌊",
+      "text": "La ola de iconos ya está en pruebas. Esta sección se actualiza desde GitHub sin volver a instalar la IPA.",
+      "media": ""
+    }
+  ]
+}

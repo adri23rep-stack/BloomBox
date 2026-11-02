@@ -3,9 +3,162 @@ import CryptoKit
 import PhotosUI
 import UniformTypeIdentifiers
 
+private struct BloomBoxThemeShareSheet: UIViewControllerRepresentable {
+    let fileURL: URL
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [fileURL], applicationActivities: nil)
+    }
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+
+
 func liveBoardAppKey(_ app: LCAppModel) -> String {
     if app.appInfo is BuiltInSideStoreAppInfo { return "builtin:sidestore" }
     return "\(app.uiIsShared ? "shared" : "local"):\(app.appInfo.relativeBundlePath ?? app.bundleIdentifier)"
+}
+
+// BloomBox Alive: view-only motion, no launcher state or guest app data changes.
+private struct BloomBoxAliveIconFrames: PreferenceKey {
+    static var defaultValue: [String: CGRect] = [:]
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, latest in latest })
+    }
+}
+
+private struct BloomBoxAliveEntrance: ViewModifier {
+    let entranceEnabled: Bool
+    let revealed: Bool
+    let delay: Double
+    let playfulStyle: Int?
+    let playfulActive: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(!entranceEnabled || revealed ? 1 : 0)
+            .scaleEffect(!entranceEnabled || revealed ? 1 : 0.46, anchor: .bottom)
+            .offset(y: entranceEnabled && !revealed ? 22 : 0)
+            .offset(y: playfulActive && playfulStyle == 0 ? -11 : 0)
+            .offset(x: playfulActive && playfulStyle == 1 ? 4 : 0)
+            .rotationEffect(.degrees(playfulActive && playfulStyle == 2 ? 9 : 0))
+            .animation(.spring(response: 0.39, dampingFraction: 0.59).delay(entranceEnabled ? delay : 0),
+                       value: revealed)
+            .animation(.spring(response: 0.21, dampingFraction: 0.35), value: playfulActive)
+    }
+}
+
+// Keep multiple photo/file sheets out of the huge Home ViewBuilder expression.
+private struct BloomBoxWidgetMediaPresentation: ViewModifier {
+    @Binding var sourcePresented: Bool
+    @Binding var photoPresented: Bool
+    @Binding var filePresented: Bool
+    @Binding var importing: Bool
+    let openPhotos: () -> Void
+    let openFiles: () -> Void
+    let cancel: () -> Void
+    let photoResult: (Data?, Bool) -> Void
+    let fileResult: (Result<URL, Error>) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .confirmationDialog("Foto o GIF para el widget",
+                                isPresented: $sourcePresented,
+                                titleVisibility: .visible) {
+                Button("Elegir de Fotos", action: openPhotos)
+                Button("Importar de Archivos", action: openFiles)
+                Button("Cancelar", role: .cancel, action: cancel)
+            }
+            .sheet(isPresented: $photoPresented) {
+                BloomBoxMediaPhotosPicker(completion: photoResult)
+            }
+            .fileImporter(isPresented: $filePresented,
+                          allowedContentTypes: [.image, .gif],
+                          onCompletion: fileResult)
+            .overlay {
+                if importing {
+                    ProgressView("Importando imagen o GIF…")
+                        .padding(22)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+                }
+            }
+    }
+}
+
+/// Keep a stable tile identity throughout editing. A local drag on an explicit
+/// handle avoids UIKit lifting/hiding the animated media view for drag-and-drop.
+private struct BloomBoxWidgetInteraction<MenuContent: View>: ViewModifier {
+    let editing: Bool
+    let select: () -> Void
+    let move: (CGSize) -> Void
+    let menu: () -> MenuContent
+    @GestureState(resetTransaction: Transaction(animation: nil)) private var translation = CGSize.zero
+
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
+            .contextMenu {
+                // Editing has its own options button; do not let a long-press
+                // menu recognizer compete with the movement handle.
+                if !editing { menu() }
+            }
+            .overlay(alignment: .bottomLeading) {
+                if editing {
+                    Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(.black.opacity(0.72), in: Circle())
+                        .contentShape(Rectangle())
+                        .padding(4)
+                        .highPriorityGesture(
+                            // The page sits inside TabView's UIKit host. Use the fixed
+                            // screen coordinate space, never the moving tile/page space.
+                            DragGesture(minimumDistance: 2, coordinateSpace: .global)
+                                .updating($translation) { value, state, transaction in
+                                    transaction.animation = nil
+                                    transaction.disablesAnimations = true
+                                    state = value.translation
+                                }
+                                .onChanged { _ in select() }
+                                .onEnded { value in move(value.translation) }
+                        )
+                        .accessibilityLabel("Arrastrar widget")
+                        .accessibilityHint("Usa Opciones para moverlo a otra página")
+                }
+            }
+            .offset(translation)
+            // Finger tracking must be immediate, including gesture reset and
+            // the grid-position commit. Never interpolate successive samples.
+            .transaction { transaction in
+                // Live drag never lerps behind the finger; normal widgets
+                // must still receive the BloomBox Alive entrance spring.
+                if editing {
+                    transaction.animation = nil
+                    transaction.disablesAnimations = true
+                }
+            }
+    }
+}
+
+// Living Widgets 1.0: independent, low-cost motion with no timers when offscreen.
+private struct BloomBoxLivingMotion: ViewModifier {
+    let mode: String
+    let speed: Double
+    let travel: Double
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !enabled || mode == "none")) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            let frequency = 0.15 + max(0, min(100, speed)) / 100.0 * 0.75
+            let phase = t * frequency * .pi * 2
+            let distance = CGFloat(max(0, min(100, travel))) * 0.65
+            let dx: CGFloat = mode == "horizontal" ? CGFloat(sin(phase)) * distance :
+                mode == "wander" ? CGFloat(sin(phase * 0.63)) * distance : 0
+            let dy: CGFloat = mode == "float" ? CGFloat(sin(phase)) * distance * 0.45 :
+                mode == "wander" ? CGFloat(cos(phase * 0.79)) * distance * 0.35 : 0
+            content.offset(x: enabled ? dx : 0, y: enabled ? dy : 0)
+        }
+    }
 }
 
 struct LiveBoardHomeScreen: View {
@@ -29,6 +182,14 @@ struct LiveBoardHomeScreen: View {
     @State private var tweakStorePresented = false
     @State private var appStorePresented = false
     @State private var modulesPresented = false
+    @State private var themesPresented = false
+    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
+    private var preferredLanguage = "system"
+    private var englishUI: Bool {
+        preferredLanguage == "en" ||
+        (preferredLanguage == "system" &&
+         (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("en"))
+    }
     @ObservedObject private var ramPlus = BloomBoxRAMPlus.shared
     @State private var pendingModuleDestination: BloomBoxModulesPanel.Destination?
     @State private var storeFocusedApp: LCAppModel?
@@ -55,15 +216,52 @@ struct LiveBoardHomeScreen: View {
     @AppStorage("LiveBoardReduceMotion", store: LCUtils.appGroupUserDefault) private var customReduceMotion = false
     @AppStorage("LiveBoardHiddenPages", store: LCUtils.appGroupUserDefault) private var hiddenPagesJSON = "[]"
     private var reduceMotion: Bool { systemReduceMotion || customReduceMotion }
+    @AppStorage("BloomBoxBuiltInFolderMigrated", store: LCUtils.appGroupUserDefault)
+    private var builtInFolderMigrated = false
+    @AppStorage("BloomBoxWidgetMissingAppFallbacks", store: LCUtils.appGroupUserDefault)
+    private var widgetFallbacksJSON = "{}"
+    @AppStorage("BloomBoxLivingWidgetSettings", store: LCUtils.appGroupUserDefault)
+    private var livingWidgetSettingsJSON = "{}"
+    @State private var themeExportURL: URL?
+    @State private var themeExportError: String?
     @State private var layout = LiveBoardHomeLayout()
     @State private var page = 1
     @State private var homeHasAppeared = false
+    @AppStorage("BloomBoxAliveEnabled", store: LCUtils.appGroupUserDefault)
+    private var aliveEnabled = true
+    @AppStorage("BloomBoxAliveIdleEnabled", store: LCUtils.appGroupUserDefault)
+    private var aliveIdleEnabled = true
+    @State private var aliveStartupPlayed = false
+    @State private var aliveBooting = false
+    @State private var aliveIntroVisible = false
+    @State private var aliveRevealed = true
+    @State private var aliveStartupPage = 1
+    @State private var aliveVisibleIcons: Set<String> = []
+    @State private var alivePlayfulKey: String?
+    @State private var alivePlayfulStyle = 0
+    @State private var alivePlayfulActive = false
+    @State private var aliveLastInteraction = Date()
+    @State private var aliveSplashLine = "El desmadre está por comenzar."
+    @AppStorage("BloomBoxAlivePreviousSplash", store: LCUtils.appGroupUserDefault)
+    private var alivePreviousSplash = ""
     @AppStorage("ManzanaNote", store: LCUtils.appGroupUserDefault) private var miniatureNote = ""
     @State private var miniatureWidgetPhoto: UIImage?
     @State private var desktopSettings = false
     @State private var editing = false
     @State private var showWidgetGallery = false
+    @State private var selectedWidgetID: String?
     @AppStorage("ManzanaPageWidgets", store: LCUtils.appGroupUserDefault) private var pageWidgetsJSON = "{}"
+    @AppStorage("BloomBoxPlacedWidgetsV2", store: LCUtils.appGroupUserDefault) private var placedWidgetsJSON = "{}"
+    @AppStorage("BloomBoxPlacedWidgetsMigrated", store: LCUtils.appGroupUserDefault) private var placedWidgetsMigrated = false
+    @State private var widgetMediaID: String?
+    @State private var widgetMediaChoicePresented = false
+    @State private var pendingWidgetMediaAfterGallery: String?
+    @State private var widgetMediaImporting = false
+    @State private var choosingWidgetFile = false
+    @State private var choosingWidgetPhoto = false
+    @State private var editingWidgetNote = false
+    @State private var widgetMediaError: String?
+    @State private var startupNoticesEnabled = false
     @State private var pendingRemovalKey: String?
     @State private var pendingUninstall: LCAppModel?
     @State private var pendingTweakApp: LCAppModel?
@@ -86,6 +284,7 @@ struct LiveBoardHomeScreen: View {
     @State private var iconCustomization = false
     @State private var choosingWallpaper = false
     @State private var choosingMotionWallpaper = false
+    @State private var choosingMotionWallpaperPhotos = false
     @State private var importingMotionWallpaper = false
     @AppStorage("ManzanaMotionWallpaper", store: LCUtils.appGroupUserDefault) private var motionWallpaper = ""
     @AppStorage("ManzanaPauseWallpaper", store: LCUtils.appGroupUserDefault) private var pauseWallpaper = false
@@ -109,11 +308,42 @@ struct LiveBoardHomeScreen: View {
     private static let tweakStoreKey = "manzana:tweakstore"
     private static let appStoreKey = "manzana:appstore"
     private static let modulesKey = "manzana:modules"
+    // Permanent shortcut ID for future theme export and import.
+    private static let themesKey = "manzana:themes"
+
+    // Original, short rotating splash messages — reminiscent of playful game menus.
+    private static let aliveSplashLines = [
+        "El desmadre está por comenzar.",
+        "Más vivo que nunca. 🫧",
+        "¿Y si le movemos a todo?",
+        "No despiertes a los widgets.",
+        "40 GB… yo no fui. 👀",
+        "Cuidado: iconos hiperactivos.",
+        "JIT me if you can. ⚡",
+        "La RAM no crece en árboles.",
+        "La ola ya viene. 🌊",
+        "Si brinca, no es un bug.",
+        "Yamcha no vio venir esto.",
+        "Modo travesura activado.",
+        "¿Quién dejó suelto al Dock?",
+        "No es magia, es BloomBox.",
+        "Se aceptan ideas locas.",
+        "Despertando a los iconos…",
+        "Tu iPhone no esperaba esto.",
+        "Esto se está poniendo bueno.",
+        "¡Ya llegó el relajo!",
+        "100 % hecho con desmadre.",
+        "Más personalidad, menos menús.",
+        "¿Otra IPA? Va, dale.",
+        "Los widgets tienen sueño.",
+        "Si tiembla, saluda.",
+        "La siguiente pantalla te espera."
+    ]
     private enum DesktopAction { case interface, sources, tweaks, wallpaper, apps, settings, jit }
 
     private var appKeys: [String] {
         apps.filter { !($0.appInfo is BuiltInSideStoreAppInfo) }.map(liveBoardAppKey)
-            + [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey]
+            + [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey, Self.themesKey]
     }
     private var appMap: [String: LCAppModel] {
         Dictionary(apps.filter { !($0.appInfo is BuiltInSideStoreAppInfo) }.map {
@@ -139,7 +369,7 @@ struct LiveBoardHomeScreen: View {
 
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
+            ZStack(alignment: .top) {
                 background
                     .blur(radius: (searching || page == libraryPageIndex) ? 14 : 0)
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.38), value: page == libraryPageIndex)
@@ -150,10 +380,6 @@ struct LiveBoardHomeScreen: View {
                 ZStack(alignment: .bottom) {
                     TabView(selection: $page) {
                         ManzanaDesktopView(openSettings: { desktopSettings = true })
-                            .safeAreaInset(edge: .bottom, spacing: 0) {
-                                // Keep the last widget reachable above page controls.
-                                Color.clear.frame(height: 54)
-                            }
                             .tag(0)
                         ForEach(visiblePageIndices, id: \.self) { index in
                             homePage(index,
@@ -172,14 +398,14 @@ struct LiveBoardHomeScreen: View {
                     .blur(radius: openFolder == nil ? 0 : 18)
 
                     // Overlay instead of taking height away from the pages.
-                    // Widgets: keep navigation, hide only the app Dock.
-                    // Library: hide both controls to maximize scrolling space.
+                    // Widgets and Library both hide floating navigation and Dock.
+                    // On the widgets page, swiping still switches Home pages.
                     VStack(spacing: 0) {
                         pageControl
                             .padding(.bottom, 18)
-                            .opacity(page == libraryPageIndex ? 0 : 1)
-                            .allowsHitTesting(page != libraryPageIndex)
-                            .accessibilityHidden(page == libraryPageIndex)
+                            .opacity(page == libraryPageIndex || page == 0 ? 0 : 1)
+                            .allowsHitTesting(page != libraryPageIndex && page != 0)
+                            .accessibilityHidden(page == libraryPageIndex || page == 0)
                         dock(width: geometry.size.width)
                             .padding(.horizontal, 12)
                             .padding(.bottom, -22)
@@ -226,28 +452,80 @@ struct LiveBoardHomeScreen: View {
                     .accessibilityValue("(Int(min(1, max(0, installProgress)) * 100)) por ciento")
                     .transition(.opacity)
                 }
+                if aliveEnabled && aliveBooting && aliveStartupPage == page && !reduceMotion {
+                    // A blurred welcome layer that never intercepts taps or swipes.
+                    ZStack {
+                        // Blur the *existing* wallpaper, do not create a second
+                        // video/GIF player just for the welcome screen.
+                        Rectangle().fill(.regularMaterial)
+                        Color.black.opacity(0.22)
+                        VStack(spacing: 12) {
+                            Text("BloomBox")
+                                .font(.system(size: 53, weight: .bold, design: .rounded))
+                                .tracking(-2)
+                                .shadow(color: .white.opacity(0.28), radius: 23)
+                            Text(LocalizedStringKey(aliveSplashLine))
+                                .font(.system(size: 18, weight: .heavy, design: .rounded))
+                                .foregroundStyle(Color(red: 1, green: 0.87, blue: 0.38))
+                                .shadow(color: .black.opacity(0.55), radius: 8, y: 3)
+                                .rotationEffect(.degrees(-5))
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.72)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 30)
+                                .accessibilityLabel(aliveSplashLine.loc)
+                        }
+                        .scaleEffect(aliveIntroVisible ? 1 : 1.05)
+                    }
+                    .ignoresSafeArea()
+                    .opacity(aliveIntroVisible ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.27), value: aliveIntroVisible)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                    .zIndex(20)
+                }
                 if editing && !searching {
-                    VStack {
-                        HStack {
-                            Menu {
-                                Button("Añadir widget", systemImage: "square.grid.2x2.badge.plus") { showWidgetGallery = true }
-                                Button("Personalizar", systemImage: "paintbrush") { iconCustomization = true }
-                                Button("Añadir página", systemImage: "plus") { addPage() }
-                                Button("Gestionar páginas", systemImage: "square.grid.2x2") { pageManager = true }
-                                Button("Biblioteca de apps", systemImage: "square.grid.2x2") {
-                                    finishEditing()
-                                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.4)) {
-                                        page = libraryPageIndex
-                                    }
+                    // Keep the editing toolbar only as tall as its actual
+                    // buttons. The previous full-screen VStack + Spacer was a
+                    // topmost interaction layer over page controls and widgets.
+                    HStack {
+                        Menu {
+                            Button("Añadir widget", systemImage: "square.grid.2x2.badge.plus") { showWidgetGallery = true }
+                            Button("Personalizar", systemImage: "paintbrush") { iconCustomization = true }
+                            Button("Exportar tema", systemImage: "square.and.arrow.up") { exportCurrentTheme() }
+                            Button("Añadir página", systemImage: "plus") { addPage() }
+                            Button("Gestionar páginas", systemImage: "square.grid.2x2") { pageManager = true }
+                            Button("Biblioteca de apps", systemImage: "square.grid.2x2") {
+                                finishEditing()
+                                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.4)) {
+                                    page = libraryPageIndex
                                 }
-                            } label: { Text("Edit").font(.system(size: 16, weight: .semibold)).padding(.horizontal, 18).padding(.vertical, 8) }
-                            .liveBoardGlass(radius: 18)
-                            Spacer()
-                            Button("Listo") { finishEditing() }.font(.system(size: 16, weight: .semibold))
-                                .padding(.horizontal, 18).padding(.vertical, 8).liveBoardGlass(radius: 18)
-                        }.padding(.horizontal, 22)
+                            }
+                        } label: {
+                            Text("Editar").font(.system(size: 16, weight: .semibold))
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 8)
+                        }
+                        .liveBoardGlass(radius: 18, interactive: false)
                         Spacer()
-                    }.padding(.top, 0)
+                        Button("Listo") { finishEditing() }
+                            .font(.system(size: 16, weight: .semibold))
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 8)
+                            .liveBoardGlass(radius: 18, interactive: false)
+                    }
+                    .padding(.horizontal, 22)
+                    .zIndex(15)
+                    .sheet(isPresented: Binding(get: { themeExportURL != nil },
+                                                set: { if !$0 { themeExportURL = nil } })) {
+                        if let url = themeExportURL { BloomBoxThemeShareSheet(fileURL: url) }
+                    }
+                }
+                if let exportError = themeExportError {
+                    Color.clear.frame(width: 0, height: 0).alert("Exportar tema", isPresented: Binding(
+                        get: { themeExportError != nil }, set: { if !$0 { themeExportError = nil } })) {
+                        Button("Aceptar", role: .cancel) { themeExportError = nil }
+                    } message: { Text(exportError) }
                 }
                 if searching { searchOverlay(height: geometry.size.height) }
                 if let id = openFolder, let folder = layout.folders.first(where: { $0.id == id }) {
@@ -256,16 +534,44 @@ struct LiveBoardHomeScreen: View {
             }
             .foregroundColor(.white)
             .frame(width: geometry.size.width, height: geometry.size.height)
+            .coordinateSpace(name: "bloombox.alive.viewport")
+            .onPreferenceChange(BloomBoxAliveIconFrames.self) { frames in
+                let viewport = CGRect(origin: .zero, size: geometry.size)
+                let visible = Set(frames.compactMap { name, rect in
+                    rect.width > 0 && rect.height > 0 && rect.intersects(viewport) ? name : nil
+                })
+                if visible != aliveVisibleIcons {
+                    aliveVisibleIcons = visible
+                    if let current = alivePlayfulKey, !visible.contains(current) {
+                        alivePlayfulKey = nil
+                        alivePlayfulActive = false
+                    }
+                }
+            }
             .simultaneousGesture(DragGesture(minimumDistance: 35).onEnded { value in
+                stopAlivePlayfulness()
                 if !searching && !editing && openFolder == nil && page > 0 && page < libraryPageIndex &&
                     value.translation.height > 65 && abs(value.translation.height) > abs(value.translation.width) * 1.4 {
                     beginSearch()
                 }
             })
             .onChange(of: scenePhase) { phase in
+                stopAlivePlayfulness()
                 if phase == .active { ramPlus.refresh() }
                 if phase == .active, #available(iOS 16.2, *) {
                     Task { await ManzanaExpiryReminderCenter.shared.synchronize() }
+                }
+            }
+            .onChange(of: page) { _ in stopAlivePlayfulness() }
+            .onChange(of: editing) { _ in stopAlivePlayfulness() }
+            .onChange(of: searching) { _ in stopAlivePlayfulness() }
+            .onChange(of: openFolder) { _ in stopAlivePlayfulness() }
+            .onChange(of: aliveEnabled) { enabled in
+                if !enabled {
+                    aliveBooting = false
+                    aliveIntroVisible = false
+                    aliveRevealed = true
+                    stopAlivePlayfulness()
                 }
             }
             .onChange(of: appKeys) { _ in reconcile() }
@@ -273,11 +579,20 @@ struct LiveBoardHomeScreen: View {
                 savedLayout = $0.encoded
                 page = min(page, libraryPageIndex)
             }
+            .sheet(isPresented: $themesPresented) {
+                BloomBoxThemeStoreView(onApply: { data in
+                    try applyImportedTheme(data)
+                }, onSaveCurrent: {
+                    try currentThemeData()
+                })
+            }
             .onAppear {
                 ramPlus.refresh()
                 Task { await tweakCatalog.refreshIfNeeded() }
                 layout = LiveBoardHomeLayout.decode(savedLayout)
                 reconcile()
+                migrateLegacyPageWidgets()
+                restoreWidgetSpace()
                 homeHasAppeared = true
                 wallpaper = UIImage(contentsOfFile: wallpaperURL.path)
                 if #available(iOS 16.2, *) {
@@ -286,10 +601,42 @@ struct LiveBoardHomeScreen: View {
                 if page > 0 && hiddenPageIndices.contains(page - 1) {
                     page = (visiblePageIndices.first ?? 0) + 1
                 }
+                startBloomBoxAlive()
+            }
+            .task {
+                // Noncritical popups and status notices are intentionally quiet
+                // for the first 10 seconds. App launches/security prompts are not delayed.
+                do { try await Task.sleep(nanoseconds: 10_000_000_000) }
+                catch { return }
+                startupNoticesEnabled = true
+            }
+            .task(id: scenePhase) {
+                // Task cancellation also stops this loop when the screen goes away.
+                while !Task.isCancelled {
+                    do {
+                        try await Task.sleep(nanoseconds: UInt64.random(in: 9...16) * 1_000_000_000)
+                    } catch { break }
+                    guard scenePhase == .active, aliveEnabled, aliveIdleEnabled,
+                          Date().timeIntervalSince(aliveLastInteraction) >= 5,
+                          !reduceMotion, !aliveBooting, !editing, !searching,
+                          openFolder == nil, !pageManager, !customizing,
+                          !desktopSettings, !appStorePresented, !tweakStorePresented,
+                          !modulesPresented, !jitSetup,
+                          page > 0, page < libraryPageIndex,
+                          layout.pages.indices.contains(page - 1) else { continue }
+                    guard triggerAliveIconTrick() else { continue }
+                    let selectedKey = alivePlayfulKey
+                    do { try await Task.sleep(nanoseconds: 620_000_000) } catch { break }
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.60)) {
+                        alivePlayfulActive = false
+                    }
+                    do { try await Task.sleep(nanoseconds: 400_000_000) } catch { break }
+                    if alivePlayfulKey == selectedKey { alivePlayfulKey = nil }
+                }
             }
         }
         .overlay(alignment: .bottom) {
-            if ramPlus.needsAttention {
+            if ramPlus.needsAttention && startupNoticesEnabled {
                 Button { modulesPresented = true } label: {
                     Label("RAM+ solicitada, pero el permiso no está confirmado. Toca para revisar.", systemImage: "exclamationmark.triangle.fill")
                         .font(.footnote.weight(.semibold))
@@ -304,7 +651,7 @@ struct LiveBoardHomeScreen: View {
         }
         .overlay { if importingMotionWallpaper { ProgressView("Preparando fondo…").padding(20).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20)) } }
         .overlay(alignment: .top) {
-            if let networkNoticeText {
+            if startupNoticesEnabled, let networkNoticeText {
                 HStack(spacing: 12) {
                     Image(systemName: "wifi.slash")
                         .font(.system(size: 19, weight: .semibold))
@@ -612,10 +959,60 @@ struct LiveBoardHomeScreen: View {
         }
         .sheet(isPresented: $customizing) { customizeSheet }
         .sheet(isPresented: $iconCustomization) { iconCustomizationSheet }
-        .sheet(isPresented: $showWidgetGallery) {
+        .sheet(isPresented: $showWidgetGallery, onDismiss: {
+            // A picker cannot be presented while the gallery sheet is
+            // dismissing. Launch the media choice only once it is gone.
+            if let target = pendingWidgetMediaAfterGallery {
+                pendingWidgetMediaAfterGallery = nil
+                requestWidgetMedia(for: target)
+            }
+        }) {
             if page > 0 && page <= layout.pages.count {
-                ManzanaWidgetGallery(pageSelection: Set(widgets(on: page - 1)), onToggle: { toggleWidget($0, on: page - 1) })
-            } else { ManzanaWidgetGallery() }
+                widgetAddSheet
+            } else {
+                ManzanaWidgetGallery()
+            }
+        }
+        .modifier(BloomBoxWidgetMediaPresentation(
+            sourcePresented: $widgetMediaChoicePresented,
+            photoPresented: $choosingWidgetPhoto,
+            filePresented: $choosingWidgetFile,
+            importing: $widgetMediaImporting,
+            openPhotos: { beginWidgetMediaImport(fromPhotos: true) },
+            openFiles: { beginWidgetMediaImport(fromPhotos: false) },
+            cancel: { widgetMediaID = nil },
+            photoResult: handleWidgetPhotoResult,
+            fileResult: handleWidgetFileResult
+        ))
+        .sheet(isPresented: $editingWidgetNote) {
+            NavigationView {
+                TextEditor(text: $miniatureNote)
+                    .padding()
+                    .navigationTitle("Notas")
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Listo") { editingWidgetNote = false }
+                        }
+                    }
+            }.navigationViewStyle(.stack)
+        }
+        .alert("Widget de foto o GIF", isPresented: Binding(
+            get: { widgetMediaError != nil },
+            set: { if !$0 { widgetMediaError = nil } }
+        )) {
+            Button("Aceptar") { widgetMediaError = nil }
+        } message: {
+            Text(widgetMediaError ?? "")
+        }
+        .sheet(isPresented: $choosingMotionWallpaperPhotos) {
+            BloomBoxMotionWallpaperPhotosPicker { result in
+                choosingMotionWallpaperPhotos = false
+                guard let result else { return }
+                switch result {
+                case .success(let name): installMotionWallpaper(name)
+                case .failure(let error): wallpaperError = error.localizedDescription
+                }
+            }
         }
         .fileImporter(isPresented: $choosingMotionWallpaper, allowedContentTypes: [.movie, .gif]) { result in
             switch result {
@@ -624,9 +1021,7 @@ struct LiveBoardHomeScreen: View {
                 Task {
                     do {
                         let name = try await Task.detached(priority: .userInitiated) { try ManzanaWallpaperMedia.importFile(url) }.value
-                        let old = motionWallpaper
-                        motionWallpaper = name; wallpaperStyle = "motion"
-                        if old != name, let oldURL = ManzanaWallpaperMedia.url(old) { try? FileManager.default.removeItem(at: oldURL) }
+                        installMotionWallpaper(name)
                     } catch { wallpaperError = error.localizedDescription }
                     importingMotionWallpaper = false
                 }
@@ -702,6 +1097,15 @@ struct LiveBoardHomeScreen: View {
         }
     }
 
+    private func installMotionWallpaper(_ name: String) {
+        let old = motionWallpaper
+        motionWallpaper = name
+        wallpaperStyle = "motion"
+        if old != name, let oldURL = ManzanaWallpaperMedia.url(old) {
+            try? FileManager.default.removeItem(at: oldURL)
+        }
+    }
+
     private var background: some View { wallpaperBackground(paused: pageManager) }
 
     private func wallpaperBackground(paused: Bool) -> some View {
@@ -732,7 +1136,7 @@ struct LiveBoardHomeScreen: View {
         if let custom = assigned[key], !custom.isEmpty {
             return custom
         }
-        if key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey || key == Self.modulesKey { return "Utilidades" }
+        if [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey, Self.themesKey].contains(key) { return "Utilidades" }
         let hint = "\(title(key, appsByKey: appsByKey)) \(appsByKey[key]?.bundleIdentifier ?? "")".lowercased()
         func containsAny(_ words: [String]) -> Bool { words.contains { hint.contains($0) } }
         if containsAny(["youtube", "tiktok", "instagram", "whatsapp", "discord", "facebook",
@@ -980,6 +1384,7 @@ struct LiveBoardHomeScreen: View {
         else if key == Self.tweakStoreKey { storeFocusedApp = nil; tweakStorePresented = true }
         else if key == Self.appStoreKey { appStorePresented = true }
         else if key == Self.modulesKey { modulesPresented = true }
+        else if key == Self.themesKey { themesPresented = true }
         else if let app = appMap[key] { requestLaunch(app) }
     }
 
@@ -994,8 +1399,8 @@ struct LiveBoardHomeScreen: View {
                     VStack(spacing: 0) {
                         if !widgets(on: index).isEmpty {
                             HStack {
-                                ForEach(widgets(on: index), id: \.self) { id in
-                                    Image(systemName: id == "clock" ? "clock" : id == "photo" ? "photo" : "note.text")
+                                ForEach(widgets(on: index)) { widget in
+                                    Image(systemName: widget.kind == "clock" ? "clock" : widget.kind == "media" ? "photo" : "note.text")
                                         .font(.caption).frame(maxWidth: .infinity).padding(6).liveBoardGlass(radius: 8)
                                 }
                             }.padding(8)
@@ -1144,6 +1549,8 @@ struct LiveBoardHomeScreen: View {
             }
         } else if key == Self.modulesKey {
             BloomBoxModulesIcon(size: size)
+        } else if key == Self.themesKey {
+            BloomBoxThemesIcon(size: size)
         } else if key == Self.appStoreKey {
             Image(systemName: "bag.fill")
                 .font(.system(size: size * 0.46, weight: .semibold))
@@ -1210,46 +1617,857 @@ struct LiveBoardHomeScreen: View {
     private var pageWidgets: [Int: [String]] {
         (try? JSONDecoder().decode([Int: [String]].self, from: Data(pageWidgetsJSON.utf8))) ?? [:]
     }
-    private func widgets(on index: Int) -> [String] { pageWidgets[index] ?? [] }
-    private func saveWidgets(_ values: [Int: [String]]) {
-        if let data = try? JSONEncoder().encode(values), let value = String(data: data, encoding: .utf8) { pageWidgetsJSON = value }
+    private var placedWidgets: [Int: [BloomBoxPlacedWidget]] {
+        (try? JSONDecoder().decode([Int: [BloomBoxPlacedWidget]].self,
+                                   from: Data(placedWidgetsJSON.utf8))) ?? [:]
     }
-    private func toggleWidget(_ id: String, on index: Int) {
-        guard layout.pages.indices.contains(index) else { return }
-        var values = pageWidgets
-        if values[index, default: []].contains(id) { values[index]?.removeAll { $0 == id } }
-        else { values[index, default: []].append(id) }
-        saveWidgets(values)
+    private func savePlacedWidgets(_ values: [Int: [BloomBoxPlacedWidget]]) {
+        if let data = try? JSONEncoder().encode(values),
+           let encoded = String(data: data, encoding: .utf8) {
+            placedWidgetsJSON = encoded
+        }
     }
-    @ViewBuilder private func homePage(_ index: Int, width: CGFloat, height: CGFloat) -> some View {
-        if widgets(on: index).isEmpty { homeIconGrid(index, width: width, height: height) }
-        else {
-            ScrollView {
-                VStack(spacing: 14) {
-                    ForEach(widgets(on: index), id: \.self) { id in
-                        ManzanaDesktopView(openSettings: { desktopSettings = true }, singleWidget: id)
-                            .contextMenu {
-                                Menu("Mover a página") {
-                                    ForEach(Array(layout.pages.indices), id: \.self) { target in
-                                        Button("Página \(target + 1)") {
-                                            var values = pageWidgets
-                                            values[index]?.removeAll { $0 == id }
-                                            if !values[target, default: []].contains(id) { values[target, default: []].append(id) }
-                                            saveWidgets(values)
-                                            var hidden = hiddenPageIndices; hidden.remove(target); persistHiddenPages(hidden)
-                                            page = target + 1
-                                        }.disabled(target == index)
-                                    }
-                                }
-                                Button("Quitar widget", role: .destructive) { toggleWidget(id, on: index) }
-                            }
-                            .padding(.horizontal, 20)
+    private func widgets(on index: Int) -> [BloomBoxPlacedWidget] {
+        placedWidgets[index] ?? []
+    }
+    private func occupiedCells(on index: Int, excluding id: String? = nil) -> Set<Int> {
+        widgets(on: index).filter { $0.id != id }.reduce(into: Set<Int>()) { cells, widget in
+            cells.formUnion(BloomBoxWidgetGrid.cells(slot: widget.slot,
+                           columns: widget.columns, rows: widget.rows) ?? [])
+        }
+    }
+    private func migrateLegacyPageWidgets() {
+        guard !placedWidgetsMigrated else { return }
+        var all = placedWidgets
+        for (index, values) in pageWidgets where layout.pages.indices.contains(index) {
+            for kind in values where ["clock", "photo", "notes"].contains(kind) {
+                let occupied = all[index, default: []].reduce(into: Set<Int>()) { result, widget in
+                    result.formUnion(BloomBoxWidgetGrid.cells(slot: widget.slot,
+                                    columns: widget.columns, rows: widget.rows) ?? [])
+                }
+                guard let slot = BloomBoxWidgetGrid.firstAvailable(
+                    columns: 4, rows: 2, occupied: occupied) else { continue }
+                var migrated = BloomBoxPlacedWidget(kind: kind == "photo" ? "media" : kind,
+                                                    slot: slot, columns: 4, rows: 2)
+                if kind == "photo" {
+                    let oldPhoto = FileManager.default.urls(for: .applicationSupportDirectory,
+                                                            in: .userDomainMask)[0]
+                        .appendingPathComponent("BloomBox/widget-photo.jpg")
+                    if let data = try? Data(contentsOf: oldPhoto),
+                       let file = try? BloomBoxWidgetMedia.importData(data) {
+                        migrated.mediaName = file
                     }
-                    homeIconGrid(index, width: width, height: height).frame(height: height)
-                }.padding(.top, editing ? 50 : 20)
+                }
+                all[index, default: []].append(migrated)
+            }
+        }
+        savePlacedWidgets(all)
+        placedWidgetsMigrated = true
+    }
+    private func addPlacedWidget(_ kind: String, columns: Int = 2, rows: Int = 2, clockStyle: String? = nil) {
+        guard page > 0, layout.pages.indices.contains(page - 1) else { return }
+        var all = placedWidgets
+        var target = page - 1
+        var slot = BloomBoxWidgetGrid.firstAvailable(
+            columns: columns, rows: rows, occupied: occupiedCells(on: target))
+        if slot == nil {
+            layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity))
+            target = layout.pages.count - 1
+            slot = 0
+        }
+        guard let slot else { return }
+        var widget = BloomBoxPlacedWidget(kind: kind, slot: slot,
+                                         columns: columns, rows: rows)
+        widget.clockStyle = clockStyle
+        all[target, default: []].append(widget)
+        savePlacedWidgets(all)
+        moveIconsOutOfWidgetArea()
+        page = target + 1
+        if kind == "media" {
+            // Do not chain a second modal on top of the Add Widget gallery.
+            pendingWidgetMediaAfterGallery = widget.id
+        }
+    }
+    private func requestWidgetMedia(for id: String) {
+        guard placedWidgets.values.flatMap({ $0 }).contains(where: { $0.id == id && $0.kind == "media" }) else {
+            widgetMediaError = "El widget ya no está disponible. Crea uno nuevo o vuelve a intentarlo."
+            return
+        }
+        widgetMediaID = id
+        widgetMediaChoicePresented = true
+    }
+    private func beginWidgetMediaImport(fromPhotos: Bool) {
+        // SwiftUI dismisses the confirmation dialog before opening the picker.
+        // Keep widgetMediaID until the imported data is assigned.
+        widgetMediaChoicePresented = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            guard widgetMediaID != nil else { return }
+            if fromPhotos { choosingWidgetPhoto = true }
+            else { choosingWidgetFile = true }
+        }
+    }
+    private func handleWidgetPhotoResult(_ data: Data?, pickedItem: Bool) {
+        choosingWidgetPhoto = false
+        guard let data else {
+            widgetMediaID = nil
+            if pickedItem {
+                widgetMediaError = "No pude leer esta imagen desde Fotos. Prueba con otra o impórtala desde Archivos."
+            }
+            return
+        }
+        importWidgetMedia(data: data)
+    }
+    private func handleWidgetFileResult(_ result: Result<URL, Error>) {
+        switch result {
+        case .success(let file):
+            guard let target = widgetMediaID else {
+                widgetMediaError = "No se encontró el widget. Vuelve a tocar la imagen para importarla."
+                return
+            }
+            widgetMediaImporting = true
+            Task {
+                defer { widgetMediaImporting = false; widgetMediaID = nil }
+                do {
+                    let name = try await Task.detached(priority: .userInitiated) {
+                        try BloomBoxWidgetMedia.importFile(file)
+                    }.value
+                    setWidgetMedia(target, name: name)
+                } catch {
+                    widgetMediaError = error.localizedDescription
+                }
+            }
+        case .failure(let error):
+            widgetMediaID = nil
+            widgetMediaError = error.localizedDescription
+        }
+    }
+    private func importWidgetMedia(data: Data) {
+        guard let target = widgetMediaID else {
+            widgetMediaError = "Se perdió la selección del widget. Vuelve a intentarlo."
+            return
+        }
+        widgetMediaImporting = true
+        Task {
+            defer { widgetMediaImporting = false; widgetMediaID = nil }
+            do {
+                let name = try await Task.detached(priority: .userInitiated) {
+                    try BloomBoxWidgetMedia.importData(data)
+                }.value
+                setWidgetMedia(target, name: name)
+            } catch {
+                widgetMediaError = error.localizedDescription
             }
         }
     }
+
+    private func setWidgetMedia(_ id: String, name: String) {
+        var all = placedWidgets
+        var updated = false
+        for index in all.keys {
+            guard let position = all[index]?.firstIndex(where: { $0.id == id }) else { continue }
+            all[index]?[position].mediaName = name
+            updated = true
+        }
+        if updated {
+            savePlacedWidgets(all)
+        } else {
+            // Never leak the import if its target was deleted mid-operation.
+            if let url = BloomBoxWidgetMedia.url(for: name) {
+                try? FileManager.default.removeItem(at: url)
+            }
+            widgetMediaError = "No se pudo asignar la imagen: el widget ya no existe."
+        }
+    }
+    private func updateWidget(_ id: String, change: (inout BloomBoxPlacedWidget) -> Void) {
+        var all = placedWidgets
+        for index in all.keys {
+            if let position = all[index]?.firstIndex(where: { $0.id == id }) {
+                change(&all[index]![position])
+                savePlacedWidgets(all)
+                return
+            }
+        }
+    }
+    private func removePlacedWidget(_ id: String) {
+        var all = placedWidgets
+        let original = all.values.flatMap { $0 }.first { $0.id == id }
+        for index in all.keys { all[index]?.removeAll { $0.id == id } }
+        savePlacedWidgets(all)
+        if let name = original?.mediaName,
+           let file = BloomBoxWidgetMedia.url(for: name),
+           !all.values.flatMap({ $0 }).contains(where: { $0.mediaName == name }) {
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
+    private func resizeWidget(_ id: String, columns: Int, rows: Int) {
+        guard let entry = placedWidgets.first(where: { $0.value.contains(where: { $0.id == id }) }),
+              let widget = entry.value.first(where: { $0.id == id }) else { return }
+        let occupied = occupiedCells(on: entry.key, excluding: id)
+        let samePosition = BloomBoxWidgetGrid.cells(slot: widget.slot,
+                            columns: columns, rows: rows)
+        let newSlot = (samePosition != nil && samePosition!.isDisjoint(with: occupied))
+            ? widget.slot : BloomBoxWidgetGrid.firstAvailable(
+                            columns: columns, rows: rows, occupied: occupied)
+        guard let newSlot else {
+            widgetMediaError = "No hay espacio para ese tamaño. Prueba otra página."
+            return
+        }
+        updateWidget(id) { item in
+            item.columns = columns; item.rows = rows; item.slot = newSlot
+        }
+        moveIconsOutOfWidgetArea()
+    }
+    private func movePlacedWidget(_ id: String, to targetPage: Int, slot: Int?) {
+        guard targetPage >= 0, layout.pages.indices.contains(targetPage),
+              let source = placedWidgets.first(where: { $0.value.contains(where: { $0.id == id }) }),
+              let widget = source.value.first(where: { $0.id == id }) else { return }
+        var all = placedWidgets
+        let occupied = (all[targetPage] ?? [])
+            .filter { $0.id != id }
+            .reduce(into: Set<Int>()) { result, widget in
+                result.formUnion(BloomBoxWidgetGrid.cells(slot: widget.slot,
+                                 columns: widget.columns, rows: widget.rows) ?? [])
+            }
+        let chosen = slot.flatMap { candidate -> Int? in
+            guard let cells = BloomBoxWidgetGrid.cells(
+                slot: candidate, columns: widget.columns, rows: widget.rows),
+                cells.isDisjoint(with: occupied) else { return nil }
+            return candidate
+        } ?? BloomBoxWidgetGrid.firstAvailable(
+                columns: widget.columns, rows: widget.rows, occupied: occupied)
+        guard let chosen else {
+            widgetMediaError = "No cabe ese widget en la página seleccionada."
+            return
+        }
+        all[source.key]?.removeAll { $0.id == id }
+        var moved = widget; moved.slot = chosen
+        all[targetPage, default: []].append(moved)
+        savePlacedWidgets(all)
+        moveIconsOutOfWidgetArea()
+        page = targetPage + 1
+        selectedWidgetID = id
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
+    private func moveIconsOutOfWidgetArea() {
+        // Reflow, never discard app keys or modify their data. A fully occupied
+        // page spills excess icons onto the next available Home page.
+        for index in layout.pages.indices {
+            let occupied = occupiedCells(on: index)
+            var displaced: [String] = []
+            for slot in occupied where layout.pages[index].indices.contains(slot) {
+                if let key = layout.pages[index][slot] {
+                    displaced.append(key)
+                    layout.pages[index][slot] = nil
+                }
+            }
+            for key in displaced {
+                var target = index
+                while true {
+                    if !layout.pages.indices.contains(target) {
+                        layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity))
+                    }
+                    let reserved = occupiedCells(on: target)
+                    if let free = layout.pages[target].indices.first(where: {
+                        layout.pages[target][$0] == nil && !reserved.contains($0)
+                    }) {
+                        layout.pages[target][free] = key
+                        break
+                    }
+                    target += 1
+                }
+            }
+        }
+    }
+    private func restoreWidgetSpace() { moveIconsOutOfWidgetArea() }
+
+    private var widgetAddSheet: some View {
+        NavigationView {
+            List {
+                Section("Relojes · BloomBox") {
+                    Button { addPlacedWidget("clock", clockStyle: "minimal"); showWidgetGallery = false } label: {
+                        Label("Minimalista · hora y fecha", systemImage: "clock")
+                    }
+                    Button { addPlacedWidget("clock", clockStyle: "flip"); showWidgetGallery = false } label: {
+                        Label("Flip · números retro", systemImage: "rectangle.split.2x1")
+                    }
+                    Button { addPlacedWidget("clock", clockStyle: "analog"); showWidgetGallery = false } label: {
+                        Label("Analógico · manecillas", systemImage: "clock.fill")
+                    }
+                    Button { addPlacedWidget("clock", clockStyle: "pixel"); showWidgetGallery = false } label: {
+                        Label("Pixel · estilo videojuego", systemImage: "gamecontroller.fill")
+                    }
+                }
+                Section("Añade tantos como quieras") {
+                    Button { addPlacedWidget("notes"); showWidgetGallery = false } label: {
+                        Label("Notas", systemImage: "note.text")
+                    }
+                    Button { addPlacedWidget("media"); showWidgetGallery = false } label: {
+                        Label("Imagen o GIF animado", systemImage: "photo.on.rectangle.angled")
+                    }
+                }
+                Section {
+                    Text("Toca un widget para seleccionarlo. Arrastra el botón de flechas para moverlo y toca ••• para cambiar tamaño, imagen o fondo. Pulsa Listo al terminar.")
+                        .font(.footnote)
+                }
+            }
+            .navigationTitle("Añadir widget")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Listo") { showWidgetGallery = false }
+                }
+            }
+        }.navigationViewStyle(.stack)
+    }
+
+    private func stopAlivePlayfulness() {
+        aliveLastInteraction = Date()
+        guard alivePlayfulKey != nil || alivePlayfulActive else { return }
+        alivePlayfulKey = nil
+        alivePlayfulActive = false
+    }
+
+    private func currentThemeData() throws -> Data {
+        // Export only presentation settings, never installed app data, credentials or private files.
+        let defaults = LCUtils.appGroupUserDefault
+        let keys = ["LiveBoardHomeLayout", "LiveBoardHiddenPages", "BloomBoxPlacedWidgetsV2",
+                    "ManzanaPageWidgets", "LiveBoardLargeIcons", "darkModeIcon",
+                    "LiveBoardWallpaperStyle", "LiveBoardWallpaperFit", "LiveBoardWallpaperDim",
+                    "ManzanaIconStyle", "BloomBoxAliveEnabled", "BloomBoxAliveIdleEnabled"]
+        var settings: [String: Any] = [:]
+        for key in keys {
+            if let value = defaults.object(forKey: key) { settings[key] = value }
+        }
+        var media: [String: String] = [:]
+        for widget in placedWidgets.values.flatMap({ $0 }) {
+            guard let name = widget.mediaName,
+                  let url = BloomBoxWidgetMedia.url(for: name),
+                  let bytes = try? Data(contentsOf: url) else { continue }
+            media[name] = bytes.base64EncodedString()
+        }
+        if let wallpaper = try? Data(contentsOf: wallpaperURL) {
+            media["wallpaper.jpg"] = wallpaper.base64EncodedString()
+        }
+        if let url = ManzanaWallpaperMedia.url(motionWallpaper),
+           let bytes = try? Data(contentsOf: url) {
+            media["motion-wallpaper"] = bytes.base64EncodedString()
+            settings["ManzanaMotionWallpaper"] = motionWallpaper
+        }
+        settings["BloomBoxWidgetMissingAppFallbacks"] = widgetFallbacksJSON
+        settings["BloomBoxLivingWidgetSettings"] = livingWidgetSettingsJSON
+        let payload: [String: Any] = ["format": "bbtheme", "version": 2,
+                                      "mediaBase64": media,
+                                      "exportedAt": ISO8601DateFormatter().string(from: Date()),
+                                      "settings": settings]
+        return try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+    }
+
+    private func exportCurrentTheme() {
+        do {
+            let data = try currentThemeData()
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("BloomBox-Theme.bbtheme")
+            try data.write(to: url, options: .atomic)
+            themeExportURL = url
+        } catch {
+            themeExportError = "No se pudo exportar el tema: \(error.localizedDescription)"
+        }
+    }
+
+    private func applyImportedTheme(_ data: Data) throws {
+        // Validate and save a recovery copy before applying any new visual settings.
+        _ = try BloomBoxThemePackage.read(data)
+        let old = try currentThemeData()
+        _ = try BloomBoxThemeLibrary.save(old, named: "Recovery")
+        let newLayout = try BloomBoxThemePackage.apply(
+            data, defaults: LCUtils.appGroupUserDefault,
+            currentLayout: layout, appKeys: appKeys, favorites: favoriteKeys,
+            wallpaperURL: wallpaperURL)
+        layout = newLayout
+        savedLayout = newLayout.encoded
+        // AppStorage and the Home model now observe the imported settings.
+        wallpaper = UIImage(contentsOfFile: wallpaperURL.path)
+        page = 1
+        selectedWidgetID = nil
+        finishEditing()
+    }
+
+    private func aliveEligibleIconKeys() -> [String] {
+        guard page > 0, page < libraryPageIndex,
+              layout.pages.indices.contains(page - 1) else { return [] }
+
+        let builtinIcons: Set<String> = [
+            Self.sideStoreKey, Self.installKey, Self.tweakStoreKey,
+            Self.appStoreKey, Self.modulesKey, Self.themesKey
+        ]
+        // The top three rows remain visible even if TabView does not send geometry.
+        // Never choose an icon hidden beneath a media/widget tile.
+        let blocked = occupiedCells(on: page - 1)
+        let desktopKeys = layout.pages[page - 1].enumerated().compactMap { slot, entry -> String? in
+            guard let key = entry,
+                  appMap[key] != nil || builtinIcons.contains(key) ||
+                    layout.folders.contains(where: { $0.id == key }),
+                  !blocked.contains(slot) else { return nil }
+            return aliveVisibleIcons.contains(key) || slot < 12 ? key : nil
+        }
+        // Dock icons are visible on every home page and participate in the same random motion.
+        return Array(Set(desktopKeys + layout.dock))
+    }
+
+    @discardableResult
+    private func triggerAliveIconTrick() -> Bool {
+        guard aliveEnabled, aliveIdleEnabled, !reduceMotion,
+              !aliveBooting, !editing, !searching,
+              openFolder == nil, !pageManager, scenePhase == .active,
+              let chosen = aliveEligibleIconKeys().randomElement() else {
+            return false
+        }
+        alivePlayfulKey = chosen
+        alivePlayfulStyle = Int.random(in: 0...2)
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.36)) {
+            alivePlayfulActive = true
+        }
+        return true
+    }
+
+    private func startBloomBoxAlive() {
+        guard !aliveStartupPlayed else { return }
+        aliveStartupPlayed = true
+        guard aliveEnabled, !reduceMotion,
+              page > 0, page < libraryPageIndex else { return }
+        aliveStartupPage = page
+        // Never show the same phrase on consecutive starts.
+        let choices = Self.aliveSplashLines.filter { $0 != alivePreviousSplash }
+        aliveSplashLine = (choices.isEmpty ? Self.aliveSplashLines : choices).randomElement()
+            ?? "El desmadre está por comenzar."
+        alivePreviousSplash = aliveSplashLine
+        stopAlivePlayfulness()
+        aliveBooting = true
+        aliveIntroVisible = true
+        aliveRevealed = false
+        // Welcome -> transparent horizontal wave. UI stays tappable throughout.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.67) {
+            guard aliveBooting else { return }
+            aliveIntroVisible = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.21) {
+                guard aliveBooting else { return }
+                aliveRevealed = true
+                // UIKit feedback was previously too soft and arrived without
+                // preparing the engine; prewarm each clearly separated tick.
+                // Four pulses only, matched to the actual Dock entrances.
+                for slot in 0..<min(layout.dock.count, 4) {
+                    let offset = 0.69 + Double(slot) * 0.16
+                    DispatchQueue.main.asyncAfter(deadline: .now() + offset - 0.09) {
+                        guard aliveBooting, aliveStartupPage == page, !reduceMotion,
+                              !editing, !searching, openFolder == nil,
+                              UIApplication.shared.applicationState == .active else { return }
+                        let haptic = UIImpactFeedbackGenerator(style: .medium)
+                        haptic.prepare()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
+                            guard aliveBooting, aliveStartupPage == page, !reduceMotion,
+                                  !editing, !searching, openFolder == nil,
+                                  UIApplication.shared.applicationState == .active else { return }
+                            haptic.impactOccurred(intensity: 1.0)
+                        }
+                    }
+                }
+                // Final dock icon has entered before we end the startup gate.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.85) {
+                    aliveBooting = false
+                }
+            }
+        }
+    }
+
+    private func aliveEntrance(for pageIndex: Int, delay: Double, key: String? = nil) -> BloomBoxAliveEntrance {
+        let enabled = aliveEnabled && !reduceMotion && aliveBooting &&
+                      aliveStartupPage == pageIndex + 1 && page == pageIndex + 1
+        return BloomBoxAliveEntrance(
+            entranceEnabled: enabled, revealed: !enabled || aliveRevealed,
+            delay: delay, playfulStyle: key == alivePlayfulKey ? alivePlayfulStyle : nil,
+            playfulActive: key == alivePlayfulKey && alivePlayfulActive &&
+                           aliveIdleEnabled && !editing && !reduceMotion
+        )
+    }
+
+    private func homePage(_ index: Int, width: CGFloat, height: CGFloat) -> some View {
+        let cellWidth = (width - 28) / 4
+        let pitch = min(editing ? 92 : 99,
+                        max(72, (height - (editing ? 69 : 39)) / 6))
+        return homeIconGrid(index, width: width, height: height)
+            .overlay(alignment: .topLeading) {
+                ZStack(alignment: .topLeading) {
+                    ForEach(widgets(on: index)) { widget in
+                        homeWidgetTile(widget, pageIndex: index,
+                                       cellWidth: cellWidth, pitch: pitch)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+    }
+
+    /// Keep each GIF tile in its own SwiftUI expression so the huge Home
+    /// screen does not time out when type-checking drag + context menus.
+    private struct LivingSettings: Codable {
+        var mode: String = "float"
+        var speed: Double = 75
+        var travel: Double = 60
+        var depth: Bool? = nil
+        var glow: Bool? = nil
+        var adaptiveGlass: Bool? = nil
+        // Nil preserves old themes. "auto" samples the first image/GIF frame once.
+        var glowColor: String? = nil
+        var pixelFollowGlow: Bool? = nil
+    }
+
+    private func livingSettings(for id: String) -> LivingSettings {
+        let values = (try? JSONDecoder().decode([String: LivingSettings].self,
+            from: Data(livingWidgetSettingsJSON.utf8))) ?? [:]
+        return values[id] ?? LivingSettings()
+    }
+
+    private func setLivingSettings(_ id: String, change: (inout LivingSettings) -> Void) {
+        var values = (try? JSONDecoder().decode([String: LivingSettings].self,
+            from: Data(livingWidgetSettingsJSON.utf8))) ?? [:]
+        var settings = values[id] ?? LivingSettings()
+        change(&settings)
+        values[id] = settings
+        if let data = try? JSONEncoder().encode(values),
+           let json = String(data: data, encoding: .utf8) {
+            livingWidgetSettingsJSON = json
+        }
+    }
+
+    private func homeWidgetTile(_ widget: BloomBoxPlacedWidget,
+                                pageIndex index: Int,
+                                cellWidth: CGFloat, pitch: CGFloat) -> some View {
+        let w = CGFloat(widget.columns) * cellWidth - 5
+        let h = CGFloat(widget.rows) * pitch - 5
+        let living = livingSettings(for: widget.id)
+        let accent = BloomBoxWidgetGlowPalette.color(living.glowColor, for: widget)
+        let pixelAccent: Color? = (living.pixelFollowGlow ?? false) && widget.clockStyle == "pixel"
+            ? accent : nil
+        let delay = Double(widget.slot % 4) * 0.145
+            + Double(widget.slot / 4) * 0.026
+        return BloomBoxGridWidgetView(widget: widget, width: w, height: h,
+                                      active: page == index + 1,
+                                      clockAccentColor: pixelAccent)
+            .allowsHitTesting(false)
+            .frame(width: w, height: h)
+            .overlay {
+                // SwiftUI owns input, independently of transparent GIF pixels.
+                Rectangle().fill(Color.clear).contentShape(Rectangle())
+                    .onTapGesture {
+                        if selectedWidgetID != widget.id { selectedWidgetID = widget.id }
+                        if !editing, widget.tapActionKey != nil {
+                            runWidgetTapAction(widget)
+                        } else if !editing && widget.kind == "media" && widget.mediaName == nil {
+                            requestWidgetMedia(for: widget.id)
+                        } else if !editing {
+                            enterEditMode()
+                        }
+                    }
+            }
+            .overlay {
+                if editing {
+                    RoundedRectangle(cornerRadius: 19)
+                        .strokeBorder(selectedWidgetID == widget.id ? Color.cyan : Color.white.opacity(0.55),
+                                      style: StrokeStyle(lineWidth: 2, dash: selectedWidgetID == widget.id ? [] : [5, 4]))
+                        .allowsHitTesting(false)
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if editing { editWidgetOptionsHandle(widget, pageIndex: index) }
+            }
+            .modifier(BloomBoxWidgetInteraction(editing: editing, select: {
+                // Avoid invalidating the entire Home tree on every finger sample.
+                if selectedWidgetID != widget.id { selectedWidgetID = widget.id }
+            }, move: { translation in
+                let column = min(4 - widget.columns, max(0,
+                    widget.slot % 4 + Int((translation.width / cellWidth).rounded())))
+                let row = min(6 - widget.rows, max(0,
+                    widget.slot / 4 + Int((translation.height / pitch).rounded())))
+                let slot = row * 4 + column
+                guard let cells = BloomBoxWidgetGrid.cells(slot: slot, columns: widget.columns, rows: widget.rows),
+                      cells.isDisjoint(with: occupiedCells(on: index, excluding: widget.id)) else {
+                    UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                    return
+                }
+                movePlacedWidget(widget.id, to: index, slot: slot)
+            }, menu: {
+                homeWidgetMenu(widget, pageIndex: index)
+            }))
+            // Position the entire interaction surface, including every gesture.
+            .offset(x: 14 + CGFloat(widget.slot % 4) * cellWidth,
+                    y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch)
+            .modifier(BloomBoxLivingMotion(mode: living.mode, speed: living.speed, travel: living.travel,
+                enabled: scenePhase == .active && page == index + 1 && !editing && !reduceMotion && !searching))
+            .shadow(color: (living.depth ?? false) && !editing ? Color.black.opacity(0.38) : .clear,
+                    radius: (living.depth ?? false) && !editing ? 15 : 0, x: 0, y: 12)
+            .shadow(color: (living.glow ?? false) && !editing ? accent.opacity(0.48) : .clear,
+                    radius: (living.glow ?? false) && !editing ? 20 : 0, x: 0, y: 8)
+            .overlay {
+                if (living.adaptiveGlass ?? false) && widget.glass && !editing {
+                    RoundedRectangle(cornerRadius: 19)
+                        .strokeBorder(accent.opacity(0.34), lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+            }
+            .zIndex(selectedWidgetID == widget.id ? 2 : 1)
+            // Animate the entire interactive tile, not only its disabled
+            // GIF/photo content. Editing still tracks the finger instantly.
+            .modifier(aliveEntrance(for: index, delay: delay))
+            .accessibilityIdentifier("bloombox.widget.\(widget.id)")
+    }
+
+    /// Normal taps launch the configured target. Editing/dragging do not.
+    private func setWidgetFallback(_ id: String, value: String?) {
+        var values = (try? JSONDecoder().decode([String: String].self,
+            from: Data(widgetFallbacksJSON.utf8))) ?? [:]
+        values[id] = value
+        if let data = try? JSONEncoder().encode(values),
+           let string = String(data: data, encoding: .utf8) {
+            widgetFallbacksJSON = string
+        }
+    }
+
+    private func runWidgetTapAction(_ widget: BloomBoxPlacedWidget) {
+        guard !editing, let target = widget.tapActionKey else { return }
+        switch target {
+        case "widget:jit": jitSetup = true
+        case "widget:desktop": desktopSettings = true
+        case "widget:wallpaper": customizing = true
+        case "widget:interface": openInterface()
+        case "widget:apps": openManagement()
+        case "widget:settings": openTab(.settings)
+        case "widget:sources": openTab(.sources)
+        case Self.sideStoreKey, Self.installKey, Self.tweakStoreKey,
+             Self.appStoreKey, Self.modulesKey, Self.themesKey:
+            launchLibraryKey(target)
+        default:
+            guard let app = appMap[target] else {
+                let fallbacks = (try? JSONDecoder().decode([String: String].self,
+                    from: Data(widgetFallbacksJSON.utf8))) ?? [:]
+                if fallbacks[widget.id] == "appstore" {
+                    launchLibraryKey(Self.appStoreKey)
+                } else if fallbacks[widget.id] == "installer" {
+                    launchLibraryKey(Self.installKey)
+                } else {
+                    widgetMediaError = "La aplicación asignada no está instalada. Configura una acción alternativa en el menú del widget."
+                }
+                return
+            }
+            requestLaunch(app)
+        }
+    }
+
+    private func editWidgetOptionsHandle(_ widget: BloomBoxPlacedWidget,
+                                         pageIndex index: Int) -> some View {
+        Menu {
+            homeWidgetMenu(widget, pageIndex: index)
+        } label: {
+            Image(systemName: "ellipsis.circle.fill")
+                .font(.title3)
+                .foregroundStyle(.white)
+                .padding(7)
+                .background(.black.opacity(0.72), in: Circle())
+                .padding(6)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Opciones del widget")
+    }
+
+    @ViewBuilder private func homeWidgetMenu(_ widget: BloomBoxPlacedWidget,
+                                             pageIndex index: Int) -> some View {
+        Menu("Acción al tocar", systemImage: "hand.tap.fill") {
+            Button("Comportamiento normal", systemImage: "hand.tap") {
+                updateWidget(widget.id) { $0.tapActionKey = nil }
+            }
+            Menu("Apps de BloomBox", systemImage: "square.grid.2x2.fill") {
+                Button("App Store", systemImage: "bag.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = Self.appStoreKey }
+                }
+                Button("Módulos", systemImage: "square.stack.3d.up.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = Self.modulesKey }
+                }
+                Button("Tweak Store", systemImage: "puzzlepiece.extension.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = Self.tweakStoreKey }
+                }
+                Button("SideStore", systemImage: "square.stack.3d.up.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = Self.sideStoreKey }
+                }
+                Button("Instalar app", systemImage: "square.and.arrow.down.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = Self.installKey }
+                }
+            }
+            Menu("Herramientas y módulos", systemImage: "slider.horizontal.3") {
+                Button("JIT", systemImage: "bolt.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = "widget:jit" }
+                }
+                Button("Escritorio", systemImage: "square.grid.3x3.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = "widget:desktop" }
+                }
+                Button("Wallpapers", systemImage: "photo.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = "widget:wallpaper" }
+                }
+                Button("Personalizar interfaz", systemImage: "paintbrush.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = "widget:interface" }
+                }
+                Button("Administrar apps", systemImage: "square.grid.2x2.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = "widget:apps" }
+                }
+                Button("Ajustes", systemImage: "gearshape.fill") {
+                    updateWidget(widget.id) { $0.tapActionKey = "widget:settings" }
+                }
+            }
+            Menu("Abrir app instalada", systemImage: "app.badge") {
+                ForEach(appKeys.filter { appMap[$0] != nil }.sorted {
+                    title($0).localizedCaseInsensitiveCompare(title($1)) == .orderedAscending
+                }, id: \.self) { key in
+                    Button(title(key)) {
+                        updateWidget(widget.id) { $0.tapActionKey = key }
+                    }
+                }
+            }
+        }
+        if let target = widget.tapActionKey, !target.hasPrefix("widget:"),
+           !target.hasPrefix("manzana:") {
+            Menu("Si falta la app", systemImage: "arrow.triangle.branch") {
+                Button("Abrir App Store de BloomBox", systemImage: "bag.fill") {
+                    setWidgetFallback(widget.id, value: "appstore")
+                }
+                Button("Abrir instalador de BloomBox", systemImage: "square.and.arrow.down") {
+                    setWidgetFallback(widget.id, value: "installer")
+                }
+                Button("Solo mostrar aviso", systemImage: "exclamationmark.bubble") {
+                    setWidgetFallback(widget.id, value: nil)
+                }
+            }
+        }
+        Button("Mover widget", systemImage: "hand.draw.fill") {
+            selectedWidgetID = widget.id
+            enterEditMode()
+        }
+        if widget.kind == "notes" {
+            Button("Editar nota", systemImage: "square.and.pencil") {
+                editingWidgetNote = true
+            }
+        }
+        if widget.kind == "media" {
+            Button("Cambiar imagen o GIF", systemImage: "photo.badge.plus") {
+                requestWidgetMedia(for: widget.id)
+            }
+            Button(widget.fill ? "Mostrar imagen completa" : "Rellenar widget",
+                   systemImage: "arrow.up.left.and.arrow.down.right") {
+                updateWidget(widget.id) { $0.fill.toggle() }
+            }
+        }
+        if widget.kind == "clock" {
+            Menu("Estilo de reloj", systemImage: "clock") {
+                Button("Minimalista") { updateWidget(widget.id) { $0.clockStyle = "minimal" } }
+                Button("Flip retro") { updateWidget(widget.id) { $0.clockStyle = "flip" } }
+                Button("Analógico") { updateWidget(widget.id) { $0.clockStyle = "analog" } }
+                Button("Pixel") { updateWidget(widget.id) { $0.clockStyle = "pixel" } }
+            }
+            Menu("Color del reloj", systemImage: "paintpalette") {
+                Button("Blanco") { updateWidget(widget.id) { $0.clockTint = "white" } }
+                Button("Menta") { updateWidget(widget.id) { $0.clockTint = "mint" } }
+                Button("Rosa") { updateWidget(widget.id) { $0.clockTint = "pink" } }
+                Button("Ámbar") { updateWidget(widget.id) { $0.clockTint = "amber" } }
+            }
+            Menu("Formato de hora", systemImage: "textformat.123") {
+                Button("24 horas") { updateWidget(widget.id) { $0.clock24Hour = true } }
+                Button("12 horas") { updateWidget(widget.id) { $0.clock24Hour = false } }
+            }
+            if widget.clockStyle == "pixel" {
+                Menu("Brillo Pixel Time", systemImage: "sun.max") {
+                    ForEach([0, 25, 50, 75, 100], id: \.self) { value in
+                        Button("\(value)%") {
+                            updateWidget(widget.id) { $0.pixelGlow = Double(value) / 100 }
+                        }
+                    }
+                }
+                Button("Animar barra Pixel Time · activar/desactivar") {
+                    updateWidget(widget.id) { $0.pixelAnimatedBar = !($0.pixelAnimatedBar ?? false) }
+                }
+                Button((livingSettings(for: widget.id).pixelFollowGlow ?? false)
+                    ? "Pixel Time: volver a su color original"
+                    : "Pixel Time: usar el color del brillo") {
+                    setLivingSettings(widget.id) { $0.pixelFollowGlow = !($0.pixelFollowGlow ?? false) }
+                }
+            }
+        }
+        Menu("Living Widget · Movimiento", systemImage: "sparkles.rectangle.stack") {
+            Button("Sin movimiento") { setLivingSettings(widget.id) { $0.mode = "none" } }
+            Button("Flotar ↕") { setLivingSettings(widget.id) { $0.mode = "float" } }
+            Button("Izquierda y derecha ↔") { setLivingSettings(widget.id) { $0.mode = "horizontal" } }
+            Button("Paseo suave ✦") { setLivingSettings(widget.id) { $0.mode = "wander" } }
+            Menu("Velocidad") {
+                ForEach([10, 25, 50, 75, 100], id: \.self) { value in
+                    Button("\(value)%") { setLivingSettings(widget.id) { $0.speed = Double(value) } }
+                }
+            }
+            Menu("Recorrido") {
+                ForEach([10, 25, 40, 60, 80, 100], id: \.self) { value in
+                    Button("\(value)%") { setLivingSettings(widget.id) { $0.travel = Double(value) } }
+                }
+            }
+        }
+        Menu("Profundidad y cristal", systemImage: "square.3.layers.3d") {
+            Button("Sombra flotante · activar/desactivar") {
+                setLivingSettings(widget.id) { $0.depth = !($0.depth ?? false) }
+            }
+            Button("Brillo inferior · activar/desactivar") {
+                setLivingSettings(widget.id) { $0.glow = !($0.glow ?? false) }
+            }
+            Button("Borde del color del brillo · activar/desactivar") {
+                setLivingSettings(widget.id) { $0.adaptiveGlass = !($0.adaptiveGlass ?? false) }
+            }
+            Menu("Color del brillo", systemImage: "paintpalette.fill") {
+                Button("Automático · imagen o reloj") {
+                    setLivingSettings(widget.id) { $0.glowColor = "auto"; $0.glow = true }
+                }
+                Button("Menta") {
+                    setLivingSettings(widget.id) { $0.glowColor = "mint"; $0.glow = true }
+                }
+                Button("Azul") {
+                    setLivingSettings(widget.id) { $0.glowColor = "blue"; $0.glow = true }
+                }
+                Button("Rosa") {
+                    setLivingSettings(widget.id) { $0.glowColor = "pink"; $0.glow = true }
+                }
+                Button("Ámbar") {
+                    setLivingSettings(widget.id) { $0.glowColor = "amber"; $0.glow = true }
+                }
+                Button("Rojo") {
+                    setLivingSettings(widget.id) { $0.glowColor = "red"; $0.glow = true }
+                }
+                Button("Blanco") {
+                    setLivingSettings(widget.id) { $0.glowColor = "white"; $0.glow = true }
+                }
+            }
+        }
+        Menu("Tamaño del widget", systemImage: "arrow.up.left.and.arrow.down.right") {
+            Button("Pequeño · 1×1") { resizeWidget(widget.id, columns: 1, rows: 1) }
+            Button("Cuadrado · 2×2") { resizeWidget(widget.id, columns: 2, rows: 2) }
+            Button("Ancho · 4×2") { resizeWidget(widget.id, columns: 4, rows: 2) }
+            Button("Grande · 4×4") { resizeWidget(widget.id, columns: 4, rows: 4) }
+        }
+        Button(widget.glass ? "Sin Liquid Glass" : "Activar Liquid Glass",
+               systemImage: "square.on.square") {
+            updateWidget(widget.id) { $0.glass.toggle() }
+        }
+        Menu("Mover a página", systemImage: "rectangle.on.rectangle") {
+            ForEach(layout.pages.indices, id: \.self) { target in
+                Button("Página \(target + 1)") {
+                    movePlacedWidget(widget.id, to: target, slot: nil)
+                }.disabled(target == index)
+            }
+        }
+        Button("Eliminar widget", systemImage: "trash", role: .destructive) {
+            removePlacedWidget(widget.id)
+        }
+    }
+
     private func homeIconGrid(_ index: Int, width: CGFloat, height: CGFloat) -> some View {
         let cellWidth = (width - 28) / 4
         let pitch = min(editing ? 92 : 99, max(72, (height - (editing ? 69 : 39)) / 6))
@@ -1260,8 +2478,20 @@ struct LiveBoardHomeScreen: View {
                         let slot = row * 4 + column
                         let key = layout.pages[index][slot]
                         ZStack(alignment: .top) {
-                            if let key {
+                            if let key, !occupiedCells(on: index).contains(slot) {
                                 homeItem(key, showLabel: !largeIcons)
+                                    .modifier(aliveEntrance(for: index,
+                                        delay: Double(column) * 0.145 + Double(row) * 0.026,
+                                        key: key))
+                                    .background {
+                                        GeometryReader { iconGeometry in
+                                            Color.clear.preference(
+                                                key: BloomBoxAliveIconFrames.self,
+                                                value: page == index + 1
+                                                    ? [key: iconGeometry.frame(in: .named("bloombox.alive.viewport"))]
+                                                    : [:])
+                                        }
+                                    }
                                     .transition(reduceMotion ? .opacity : .scale(scale: 0.25).combined(with: .opacity))
                             }
                             else {
@@ -1273,11 +2503,7 @@ struct LiveBoardHomeScreen: View {
                         .frame(width: cellWidth, height: pitch, alignment: .top)
                         .contentShape(Rectangle())
                         .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
-                            acceptDrop(providers) { key in
-                                withAnimation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.85)) {
-                                    layout.place(key, on: index, slot: slot); reconcile()
-                                }
-                            }
+                            acceptHomeDrop(providers, pageIndex: index, slot: slot)
                         })
                     }
                 }
@@ -1300,7 +2526,7 @@ struct LiveBoardHomeScreen: View {
         Group {
             if let folder = layout.folders.first(where: { $0.id == key }) {
                 folderIcon(folder, showLabel: showLabel)
-            } else if key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey || key == Self.modulesKey {
+            } else if [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey, Self.themesKey].contains(key) {
                 shortcutIcon(key, showLabel: showLabel)
             } else if let app = appMap[key] {
                 LiveBoardHomeIcon(app: app, title: title(key), size: largeIcons ? 76 : 64,
@@ -1338,18 +2564,22 @@ struct LiveBoardHomeScreen: View {
         let isTweakStore = key == Self.tweakStoreKey
         let isAppStore = key == Self.appStoreKey
         let isModules = key == Self.modulesKey
+        let isThemes = key == Self.themesKey
         return Button {
             guard !editing else { return }
             if isSideStore { openSideStore() }
             else if isTweakStore { tweakStorePresented = true }
             else if isAppStore { appStorePresented = true }
             else if isModules { modulesPresented = true }
+            else if isThemes { themesPresented = true }
             else { openInstall() }
         } label: {
             VStack(spacing: 5) {
                 ZStack {
                     if isModules {
                         BloomBoxModulesIcon(size: size)
+                    } else if isThemes {
+                        BloomBoxThemesIcon(size: size)
                     } else {
                         RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
                             .fill(isSideStore ? Color(red: 0.14, green: 0.26, blue: 0.69)
@@ -1372,7 +2602,7 @@ struct LiveBoardHomeScreen: View {
                 .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
                          phase: isSideStore ? 0.7 : 2.1))
                 if showLabel {
-                    Text(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : isModules ? "Módulos" : "Instalar app")
+                    Text(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : isModules ? "Módulos" : isThemes ? "Temas" : "Instalar app")
                         .font(.system(size: 12))
                         .lineLimit(1)
                         .foregroundStyle(.white)
@@ -1400,8 +2630,26 @@ struct LiveBoardHomeScreen: View {
                     }
                 }
             }
+            Menu(englishUI ? "Folder" : "Carpeta", systemImage: "folder") {
+                Button(englishUI ? "New Folder" : "Nueva carpeta", systemImage: "folder.badge.plus") {
+                    newFolderApp = key
+                    folderName = "BloomBox"
+                }
+                ForEach(layout.folders) { folder in
+                    Button(folder.name, systemImage: "folder") {
+                        layout.put(key, in: folder.id)
+                        reconcile()
+                    }
+                }
+                if layout.folders.contains(where: { $0.apps.contains(key) }) {
+                    Button(englishUI ? "Move Out of Folder" : "Sacar de carpeta", systemImage: "folder.badge.minus") {
+                        layout.place(key, on: max(0, page - 1))
+                        reconcile()
+                    }
+                }
+            }
         }
-        .accessibilityLabel(isSideStore ? "Abrir SideStore" : isTweakStore ? "Abrir Tweak Store" : isAppStore ? "Abrir App Store" : "Instalar IPA en LiveContainer")
+        .accessibilityLabel(isThemes ? "Temas" : title(key))
     }
 
     @ViewBuilder private func appMenu(_ key: String, app: LCAppModel) -> some View {
@@ -1548,6 +2796,8 @@ struct LiveBoardHomeScreen: View {
                 ZStack {
                     if layout.dock.indices.contains(slot) {
                         homeItem(layout.dock[slot], showLabel: false)
+                            .modifier(aliveEntrance(for: max(0, page - 1),
+                                 delay: 0.69 + Double(slot) * 0.16, key: layout.dock[slot]))
                     } else {
                         Color.clear
                             .frame(width: largeIcons ? 76 : 64, height: largeIcons ? 76 : 80)
@@ -1563,7 +2813,7 @@ struct LiveBoardHomeScreen: View {
                         }
                     }
                 })
-                .accessibilityIdentifier("home.dock.slot.(slot)")
+                .accessibilityIdentifier("home.dock.slot.\(slot)")
             }
         }
         .frame(height: 110)
@@ -1583,17 +2833,19 @@ struct LiveBoardHomeScreen: View {
             }.accessibilityLabel("Search")
             Rectangle().fill(.white.opacity(0.22)).frame(width: 0.5, height: 12).padding(.trailing, 3)
             ForEach([0] + visiblePageIndices.map { $0 + 1 }, id: \.self) { index in
-                Button { page = index } label: {
+                Button {
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
+                        page = index
+                    }
+                } label: {
                     Circle().fill(.white.opacity(page == index ? 1 : 0.35))
-                        .frame(width: 6, height: 6).frame(width: 18, height: 32)
+                        .frame(width: 6, height: 6)
+                        .frame(width: 27, height: 40)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel(index == 0 ? "Widgets" : "Página \(index)")
-                .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
-                    guard index > 0 else { return false }
-                    return acceptDrop(providers) { key in
-                        layout.place(key, on: index - 1); page = index; reconcile()
-                    }
-                })
+                // Do not attach a drop target to navigation buttons; it can
+                // consume taps. Use the widget's "Mover a página" menu instead.
             }
             Button {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.4)) {
@@ -1621,18 +2873,18 @@ struct LiveBoardHomeScreen: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 8)
-        .frame(height: 32)
-        .liveBoardGlass(radius: 16)
+        .frame(height: 40)
+        .liveBoardGlass(radius: 16, interactive: false)
         .blur(radius: openFolder == nil ? 0 : 18)
         .accessibilityIdentifier("home.pages")
     }
 
-    private func folderIcon(_ folder: LiveBoardHomeLayout.Folder, showLabel: Bool) -> some View {
+    @ViewBuilder private func folderIcon(_ folder: LiveBoardHomeLayout.Folder, showLabel: Bool) -> some View {
         let size: CGFloat = largeIcons ? 76 : 64
-        return Button {
+        let folderTile = Button {
             guard !editing else { return }
             folderPage = 0
-            withAnimation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.82)) {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.46, dampingFraction: 0.78)) {
                 openFolder = folder.id
             }
         } label: {
@@ -1640,8 +2892,28 @@ struct LiveBoardHomeScreen: View {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 3), spacing: 3) {
                     ForEach(0..<9, id: \.self) { slot in
                         Group {
-                            if slot < folder.apps.count, let app = appMap[folder.apps[slot]] {
-                                LiveBoardIconImage(app: app, dark: darkIcons)
+                            if slot < folder.apps.count {
+                                let key = folder.apps[slot]
+                                if let app = appMap[key] {
+                                    LiveBoardIconImage(app: app, dark: darkIcons)
+                                } else if [Self.modulesKey, Self.tweakStoreKey, Self.appStoreKey,
+                                           Self.installKey, Self.sideStoreKey, Self.themesKey].contains(key) {
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .fill(key == Self.themesKey ? Color(red: 0.56, green: 0.30, blue: 0.84) :
+                                                  key == Self.modulesKey ? Color.indigo :
+                                                  key == Self.tweakStoreKey ? Color.purple :
+                                                  key == Self.appStoreKey ? Color.blue :
+                                                  key == Self.sideStoreKey ? Color(red: 0.14, green: 0.26, blue: 0.69) : Color.cyan)
+                                        Image(systemName: key == Self.themesKey ? "square.on.square.fill" :
+                                              key == Self.modulesKey ? "square.grid.2x2.fill" :
+                                              key == Self.tweakStoreKey ? "puzzlepiece.extension.fill" :
+                                              key == Self.appStoreKey ? "bag.fill" :
+                                              key == Self.installKey ? "square.and.arrow.down.fill" : "square.stack.3d.up.fill")
+                                            .font(.system(size: 12, weight: .bold))
+                                            .foregroundStyle(.white)
+                                    }
+                                } else { Color.clear }
                             } else { Color.clear }
                         }.aspectRatio(1, contentMode: .fit)
             .modifier(ManzanaIconTreatment()).clipShape(RoundedRectangle(cornerRadius: 4))
@@ -1649,22 +2921,43 @@ struct LiveBoardHomeScreen: View {
                 }
                 .padding(6).frame(width: size, height: size)
                 .liveBoardGlass(radius: size * 0.23)
-                .modifier(LiveBoardEditWobble(active: editing && !reduceMotion, phase: Double(abs(folder.id.hashValue % 31)) / 7))
+                .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
+                                                phase: Double(abs(folder.id.hashValue % 31)) / 7,
+                                                speed: 8.0, amplitude: 1.0))
                 if showLabel { Text(folder.name).font(.system(size: 12)).lineLimit(1).shadow(color: .black.opacity(0.8), radius: 2, y: 1).frame(width: 80) }
             }
         }.buttonStyle(.plain)
-        .contextMenu {
-            Button("Edit Home Screen", systemImage: "square.grid.3x3") { enterEditMode() }
-            Button("Rename", systemImage: "pencil") { renameKey = folder.id; renameValue = folder.name }
-            Menu("Move to Page") {
-                ForEach(layout.pages.indices, id: \.self) { index in Button("Page \(index + 1)") { layout.place(folder.id, on: index) } }
-            }
-            Button("Remove Folder", systemImage: "folder.badge.minus", role: .destructive) { layout.dissolveFolder(folder.id); reconcile() }
+        if editing {
+            // While editing it is a drag *source*, not a competing drop
+            // target/context menu. The parent homeItem's onDrag can lift it.
+            folderTile
+                .accessibilityLabel("\(folder.name), carpeta movible")
+        } else {
+            folderTile
+                .contextMenu {
+                    Button("Editar pantalla de inicio", systemImage: "square.grid.3x3") { enterEditMode() }
+                    Button("Renombrar", systemImage: "pencil") {
+                        renameKey = folder.id; renameValue = folder.name
+                    }
+                    Menu("Mover a página") {
+                        ForEach(layout.pages.indices, id: \.self) { index in
+                            Button("Página \(index + 1)") {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
+                                    layout.place(folder.id, on: index)
+                                    reconcile()
+                                }
+                            }
+                        }
+                    }
+                    Button("Eliminar carpeta", systemImage: "folder.badge.minus", role: .destructive) {
+                        layout.dissolveFolder(folder.id); reconcile()
+                    }
+                }
+                .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
+                    acceptDrop(providers) { key in layout.put(key, in: folder.id); reconcile() }
+                })
+                .accessibilityLabel("\(folder.name), carpeta, \(folder.apps.count) apps")
         }
-        .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
-            acceptDrop(providers) { key in layout.put(key, in: folder.id); reconcile() }
-        })
-        .accessibilityLabel("\(folder.name), folder, \(folder.apps.count) apps")
     }
 
     private func folderOverlay(_ folder: LiveBoardHomeLayout.Folder, width: CGFloat) -> some View {
@@ -1700,7 +2993,9 @@ struct LiveBoardHomeScreen: View {
             }.offset(y: -25)
         }
         .accessibilityAddTraits(.isModal)
-        .transition(reduceMotion ? .opacity : .scale(scale: 0.95).combined(with: .opacity))
+        .transition(reduceMotion ? .opacity :
+            .asymmetric(insertion: .scale(scale: 0.58, anchor: .center).combined(with: .opacity),
+                        removal: .scale(scale: 0.78, anchor: .center).combined(with: .opacity)))
     }
 
     private var controls: some View {
@@ -1844,6 +3139,11 @@ struct LiveBoardHomeScreen: View {
         NavigationView {
             Form {
                 Section("Wallpaper") {
+                    Button("Elegir video o GIF (Fotos)") {
+                        customizing = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { choosingMotionWallpaperPhotos = true }
+                    }
+                    .disabled(importingMotionWallpaper)
                     Button("Importar video o GIF (Archivos)") { customizing = false; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { choosingMotionWallpaper = true } }
                         .disabled(importingMotionWallpaper)
                     if importingMotionWallpaper { ProgressView("Preparando fondo…") }
@@ -1861,7 +3161,40 @@ struct LiveBoardHomeScreen: View {
                 Section("Appearance") {
                     Toggle("Large icons", isOn: $largeIcons)
                     Toggle("Reduce motion", isOn: $customReduceMotion)
+                    Toggle("BloomBox Alive al iniciar", isOn: $aliveEnabled)
+                    Toggle("Iconos traviesos en reposo", isOn: $aliveIdleEnabled)
+                        .disabled(!aliveEnabled || reduceMotion)
+                    Text("La ola va de izquierda a derecha. Los iconos solo se mueven cuando estás sin interactuar en la página visible.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                     Toggle("Dark app icons", isOn: $darkIcons)
+                }
+                Section("BloomBox Alive") {
+                    Button("Probar brinco de un icono") {
+                        customizing = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.48) {
+                            if triggerAliveIconTrick() {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.66) {
+                                    withAnimation(.spring(response: 0.29, dampingFraction: 0.60)) {
+                                        alivePlayfulActive = false
+                                    }
+                                    alivePlayfulKey = nil
+                                }
+                            }
+                        }
+                    }
+                    .disabled(!aliveEnabled || !aliveIdleEnabled || reduceMotion)
+                    Button("Repetir ola de bienvenida") {
+                        customizing = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.40) {
+                            aliveStartupPlayed = false
+                            startBloomBoxAlive()
+                        }
+                    }
+                    .disabled(!aliveEnabled || reduceMotion)
+                    Text("La frase cambia en cada inicio. El brinco solo elige iconos visibles de la página actual.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
                 Section("Home Screen") {
                     Button("Edit Home Screen") { customizing = false; editing = true }
@@ -1926,7 +3259,16 @@ struct LiveBoardHomeScreen: View {
         let targetPage = min(index, layout.pages.count - 2)
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.26)) {
             if layout.removePage(at: index) {
-                saveWidgets(ManzanaPageWidgetLayout.removingPage(index, target: targetPage, from: pageWidgets))
+                var widgetMap = placedWidgets
+                let moving = widgetMap.removeValue(forKey: index) ?? []
+                var shiftedWidgets: [Int: [BloomBoxPlacedWidget]] = [:]
+                for (old, items) in widgetMap {
+                    shiftedWidgets[old > index ? old - 1 : old] = items
+                }
+                savePlacedWidgets(shiftedWidgets)
+                for widget in moving {
+                    moveWidgetToAvailablePage(widget, preferred: targetPage)
+                }
                 var shifted = Set(previouslyHidden.compactMap { value -> Int? in
                     if value == index { return nil }
                     return value > index ? value - 1 : value
@@ -1952,6 +3294,7 @@ struct LiveBoardHomeScreen: View {
     }
 
     private func finishEditing() {
+        selectedWidgetID = nil
         pendingRemovalKey = nil
         withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
             editing = false
@@ -1963,7 +3306,7 @@ struct LiveBoardHomeScreen: View {
         let hadSavedLayout = layout.initialized
         let knownKeys = Set(layout.pages.flatMap { $0.compactMap { $0 } }
             + layout.dock + layout.folders.flatMap { $0.apps } + layout.hidden)
-        let needsShortcuts = [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey]
+        let needsShortcuts = [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey, Self.themesKey]
             .filter { !knownKeys.contains($0) }
         // Only installed guest apps not seen before, never icons the user hid.
         let newGuestKeys = hadSavedLayout
@@ -1972,6 +3315,13 @@ struct LiveBoardHomeScreen: View {
         layout.reconcile(appKeys, favorites: favoriteKeys)
         for key in needsShortcuts.reversed() {
             layout.place(key, on: 0)
+        }
+        if !builtInFolderMigrated {
+            layout.groupBuiltInShortcuts([
+                Self.modulesKey, Self.tweakStoreKey, Self.appStoreKey,
+                Self.installKey, Self.sideStoreKey
+            ])
+            builtInFolderMigrated = true
         }
         if !newGuestKeys.isEmpty {
             let prior = recentLibraryKeys
@@ -1991,6 +3341,7 @@ struct LiveBoardHomeScreen: View {
                 }
             }
         }
+        if placedWidgetsMigrated { moveIconsOutOfWidgetArea() }
     }
     private func title(_ key: String, appsByKey: [String: LCAppModel]? = nil) -> String {
         if key == Self.sideStoreKey { return "SideStore" }
@@ -1998,6 +3349,7 @@ struct LiveBoardHomeScreen: View {
         if key == Self.tweakStoreKey { return "Tweak Store" }
         if key == Self.appStoreKey { return "App Store" }
         if key == Self.modulesKey { return "Módulos" }
+        if key == Self.themesKey { return "Temas" }
         if let folder = layout.folders.first(where: { $0.id == key }) { return folder.name }
         return (appsByKey ?? appMap)[key].map { appCustomization.name($0) } ?? "App"
     }
@@ -2007,13 +3359,80 @@ struct LiveBoardHomeScreen: View {
         map[key] = value
         if let data = try? JSONEncoder().encode(map), let string = String(data: data, encoding: .utf8) { categories = string }
     }
+    private func moveWidgetToAvailablePage(_ widget: BloomBoxPlacedWidget, preferred: Int) {
+        var target = min(max(0, preferred), max(0, layout.pages.count - 1))
+        var occupied = occupiedCells(on: target)
+        var chosen = BloomBoxWidgetGrid.firstAvailable(columns: widget.columns,
+                                   rows: widget.rows, occupied: occupied)
+        if chosen == nil {
+            layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity))
+            target = layout.pages.count - 1
+            occupied = occupiedCells(on: target)
+            chosen = BloomBoxWidgetGrid.firstAvailable(columns: widget.columns,
+                                   rows: widget.rows, occupied: occupied)
+        }
+        guard let chosen else { return }
+        var all = placedWidgets
+        var moved = widget
+        moved.slot = chosen
+        all[target, default: []].append(moved)
+        savePlacedWidgets(all)
+        moveIconsOutOfWidgetArea()
+    }
+    private func acceptHomeDrop(_ providers: [NSItemProvider], pageIndex: Int, slot: Int) -> Bool {
+        guard let provider = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) })
+        else { return false }
+        provider.loadObject(ofClass: NSString.self) { object, _ in
+            guard let key = object as? String else { return }
+            DispatchQueue.main.async {
+                if key.hasPrefix("bloombox-widget:") {
+                    movePlacedWidget(String(key.dropFirst("bloombox-widget:".count)),
+                                     to: pageIndex, slot: slot)
+                } else {
+                    guard appMap[key] != nil ||
+                          layout.folders.contains(where: { $0.id == key }) ||
+                          [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey,
+                           Self.appStoreKey, Self.modulesKey, Self.themesKey].contains(key) else { return }
+                    withAnimation(reduceMotion ? nil : .spring(response: 0.25,
+                                                              dampingFraction: 0.85)) {
+                        layout.place(key, on: pageIndex, slot: slot)
+                        reconcile()
+                        moveIconsOutOfWidgetArea()
+                    }
+                }
+            }
+        }
+        return true
+    }
+    private func acceptPageDrop(_ providers: [NSItemProvider], pageIndex: Int) -> Bool {
+        guard let provider = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) })
+        else { return false }
+        provider.loadObject(ofClass: NSString.self) { object, _ in
+            guard let key = object as? String else { return }
+            DispatchQueue.main.async {
+                if key.hasPrefix("bloombox-widget:") {
+                    movePlacedWidget(String(key.dropFirst("bloombox-widget:".count)),
+                                     to: pageIndex, slot: nil)
+                } else if appMap[key] != nil ||
+                          layout.folders.contains(where: { $0.id == key }) ||
+                          [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey,
+                           Self.appStoreKey, Self.modulesKey, Self.themesKey].contains(key) {
+                    layout.place(key, on: pageIndex)
+                    page = pageIndex + 1
+                    reconcile()
+                    moveIconsOutOfWidgetArea()
+                }
+            }
+        }
+        return true
+    }
     private func acceptDrop(_ providers: [NSItemProvider], apply: @escaping (String) -> Void) -> Bool {
         guard let provider = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else { return false }
         provider.loadObject(ofClass: NSString.self) { value, _ in
             guard let key = value as? String else { return }
             DispatchQueue.main.async {
                 guard appMap[key] != nil ||
-                      key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey || key == Self.modulesKey ||
+                      key == Self.sideStoreKey || key == Self.installKey || key == Self.tweakStoreKey || key == Self.appStoreKey || key == Self.modulesKey || key == Self.themesKey ||
                       layout.folders.contains(where: { $0.id == key }) else { return }
                 apply(key)
             }
@@ -2022,6 +3441,43 @@ struct LiveBoardHomeScreen: View {
     }
 }
 
+
+/// Visual-only shortcut. Future .bbtheme exports will retain this stable key.
+private struct BloomBoxThemesIcon: View {
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
+                .fill(LinearGradient(colors: [
+                    Color(red: 0.35, green: 0.18, blue: 0.70),
+                    Color(red: 0.55, green: 0.30, blue: 0.89),
+                    Color(red: 0.21, green: 0.51, blue: 0.86)
+                ], startPoint: .topLeading, endPoint: .bottomTrailing))
+            RoundedRectangle(cornerRadius: size * 0.10, style: .continuous)
+                .fill(Color.white.opacity(0.20))
+                .frame(width: size * 0.44, height: size * 0.46)
+                .rotationEffect(.degrees(-18))
+                .offset(x: -size * 0.075, y: size * 0.045)
+            RoundedRectangle(cornerRadius: size * 0.10, style: .continuous)
+                .fill(LinearGradient(colors: [
+                    .white.opacity(0.96),
+                    Color(red: 0.83, green: 0.84, blue: 1)
+                ], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .frame(width: size * 0.43, height: size * 0.46)
+                .rotationEffect(.degrees(10))
+                .offset(x: size * 0.085, y: -size * 0.025)
+                .overlay {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: size * 0.23, weight: .semibold))
+                        .foregroundStyle(Color(red: 0.48, green: 0.27, blue: 0.79))
+                        .offset(x: size * 0.09, y: -size * 0.02)
+                }
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel("Temas")
+    }
+}
 
 private struct BloomBoxModulesIcon: View {
     let size: CGFloat
@@ -2049,6 +3505,8 @@ private struct BloomBoxModulesIcon: View {
 }
 
 private struct BloomBoxModulesPanel: View {
+    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
+    private var preferredLanguage = "system"
     @AppStorage("BloomBoxRAMPlusExperimentalControls", store: LCUtils.appGroupUserDefault)
     private var ramExperimentalControlsEnabled = false
     @AppStorage("BloomBoxJITTryMeloNXScriptForOtherAppsV2", store: LCUtils.appGroupUserDefault)
@@ -2104,8 +3562,13 @@ private struct BloomBoxModulesPanel: View {
     let apps: [LCAppModel]
     let onSelect: (Destination) -> Void
     @Environment(\.dismiss) private var dismiss
-    private let columns = [GridItem(.flexible(), spacing: 12),
-                           GridItem(.flexible(), spacing: 12)]
+    @ObservedObject private var ramPlus = BloomBoxRAMPlus.shared
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    private var columns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible(), spacing: 12)]
+            : [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+    }
 
     var body: some View {
         NavigationView {
@@ -2116,12 +3579,24 @@ private struct BloomBoxModulesPanel: View {
                         VStack(alignment: .leading, spacing: 5) {
                             Text("Módulos")
                                 .font(.system(size: 31, weight: .bold, design: .rounded))
-                            Text("Funciones y herramientas de BloomBox")
+                            Text("Tu centro de control, sin menús escondidos")
                                 .font(.subheadline)
                                 .foregroundStyle(.white.opacity(0.7))
                         }
                     }
                     .padding(.top, 16)
+                    HStack(spacing: 10) {
+                        Label("\(Module.allCases.count) herramientas", systemImage: "square.grid.2x2.fill")
+                            .foregroundStyle(.white.opacity(0.72))
+                        Spacer()
+                        Label(ramPlus.validation.confirmed ? "RAM+ activa" :
+                              (ramPlus.needsAttention ? "Revisar RAM+" : "RAM+ sin confirmar"),
+                              systemImage: ramPlus.validation.confirmed ? "checkmark.shield.fill" : "cpu")
+                            .foregroundStyle(ramPlus.validation.confirmed ? Color.green : Color.white.opacity(0.78))
+                    }
+                    .font(.caption.weight(.medium))
+                    .padding(.horizontal, 3)
+                    .accessibilityElement(children: .combine)
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(Module.allCases) { module in
                             NavigationLink(destination: detail(for: module)) {
@@ -2131,7 +3606,7 @@ private struct BloomBoxModulesPanel: View {
                             .accessibilityIdentifier("bloombox.modules.\(module.rawValue)")
                         }
                     }
-                    Text("RAM+ comprueba el permiso de la instalación actual y te guía para completar su activación.")
+                    Text("Accesos directos a funciones reales. JIT y RAM+ conservan sus comprobaciones y permisos originales.")
                         .font(.footnote)
                         .foregroundStyle(.white.opacity(0.66))
                         .padding(.horizontal, 4)
@@ -2161,7 +3636,7 @@ private struct BloomBoxModulesPanel: View {
                             in: RoundedRectangle(cornerRadius: 14))
             Spacer(minLength: 0)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(module.title)
+                Text(LocalizedStringKey(module.title))
                     .font(.system(size: 17, weight: .bold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.80)
@@ -2170,7 +3645,7 @@ private struct BloomBoxModulesPanel: View {
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.white.opacity(0.65))
             }
-            Text(module.subtitle)
+            Text(LocalizedStringKey(module.subtitle))
                 .font(.system(size: 12))
                 .foregroundStyle(.white.opacity(0.72))
                 .lineLimit(2)
@@ -2178,15 +3653,24 @@ private struct BloomBoxModulesPanel: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: 165)
-        .background(Color(red: 0.15, green: 0.16, blue: 0.23).opacity(0.88),
-                    in: RoundedRectangle(cornerRadius: 24))
-        .overlay {
-            RoundedRectangle(cornerRadius: 24)
-                .strokeBorder(LinearGradient(colors: [module.tint.opacity(0.72), .white.opacity(0.13)],
-                                             startPoint: .topLeading, endPoint: .bottomTrailing),
-                              lineWidth: 1)
+        .frame(minHeight: 154)
+        .background {
+            // Transparent color surfaces, intentionally no Liquid Glass.
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(red: 0.105, green: 0.12, blue: 0.18).opacity(0.88))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(LinearGradient(colors: [module.tint.opacity(0.17), .clear],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing))
+                }
         }
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(LinearGradient(colors: [module.tint.opacity(0.62), .white.opacity(0.10)],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(module.title). \(module.subtitle)")
     }
 
     @ViewBuilder private func detail(for module: Module) -> some View {
@@ -2243,8 +3727,8 @@ private struct BloomBoxModulesPanel: View {
                 .frame(width: 53, height: 53)
                 .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 15))
             VStack(alignment: .leading, spacing: 5) {
-                Text(title).font(.headline)
-                Text(subtitle).font(.footnote).foregroundStyle(.white.opacity(0.65))
+                Text(LocalizedStringKey(title)).font(.headline)
+                Text(LocalizedStringKey(subtitle)).font(.footnote).foregroundStyle(.white.opacity(0.65))
             }
             Spacer(minLength: 4)
             Image(systemName: "chevron.right")
@@ -2263,9 +3747,9 @@ private struct BloomBoxModulesPanel: View {
     private func moduleDetail(_ module: Module) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-            Label(module.title, systemImage: module.symbol)
+            Label(LocalizedStringKey(module.title), systemImage: module.symbol)
                 .font(.title2.bold())
-                Text(detailDescription(module))
+                Text(LocalizedStringKey(detailDescription(module)))
                     .font(.body)
                     .foregroundStyle(.secondary)
             Button {
@@ -2277,7 +3761,7 @@ private struct BloomBoxModulesPanel: View {
                 case .ram: break
                 }
             } label: {
-                Label(detailButton(module), systemImage: "arrow.up.right.square")
+                Label(LocalizedStringKey(detailButton(module)), systemImage: "arrow.up.right.square")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -2286,6 +3770,16 @@ private struct BloomBoxModulesPanel: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Experimentos · Funciones avanzadas", systemImage: "flask.fill")
                         .font(.headline)
+                    Picker("Idioma de BloomBox", selection: $preferredLanguage) {
+                        Text("Automático (iPhone)").tag("system")
+                        Text("Español").tag("es")
+                        Text("English").tag("en")
+                    }
+                    .accessibilityIdentifier("bloombox.experiments.language.picker")
+                    Text("Elige el idioma de BloomBox y sus noticias. Automático usa el idioma del iPhone; no modifica el idioma del sistema.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Divider()
                     NavigationLink {
                         LCStorageManagementView()
                     } label: {
@@ -2964,6 +4458,67 @@ private struct LiveBoardRibbonWallpaper: View {
     private var accent: Color { blue ? Color(red: 0.04, green: 0.25, blue: 0.85) : Color(red: 0.7, green: 0.035, blue: 0.01) }
 }
 
+/// Photos' provider URL is temporary: copy the original GIF/video
+/// into BloomBox storage before the callback returns.
+private struct BloomBoxMotionWallpaperPhotosPicker: UIViewControllerRepresentable {
+    let completion: (Result<String, Error>?) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(completion) }
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var config = PHPickerConfiguration()
+        config.filter = .any(of: [.videos, .images])
+        config.selectionLimit = 1
+        config.preferredAssetRepresentationMode = .current
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = context.coordinator
+        return picker
+    }
+    func updateUIViewController(_ controller: PHPickerViewController, context: Context) {}
+
+    final class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        let completion: (Result<String, Error>?) -> Void
+        init(_ completion: @escaping (Result<String, Error>?) -> Void) {
+            self.completion = completion
+        }
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            guard let provider = results.first?.itemProvider else {
+                DispatchQueue.main.async { self.completion(nil) }
+                return
+            }
+            let isGIF = provider.hasItemConformingToTypeIdentifier(UTType.gif.identifier)
+            let type = isGIF ? UTType.gif.identifier :
+                provider.registeredTypeIdentifiers.first(where: {
+                    UTType($0)?.conforms(to: .movie) == true
+                })
+            guard let type else {
+                DispatchQueue.main.async {
+                    self.completion(.failure(ManzanaWallpaperMedia.failure(
+                        "Ese archivo no es un GIF ni un video. Para fotos normales usa Elegir foto."
+                    )))
+                }
+                return
+            }
+            provider.loadFileRepresentation(forTypeIdentifier: type) { url, error in
+                let result: Result<String, Error>
+                if let url {
+                    do {
+                        let ext = isGIF ? "gif" : (UTType(type)?.preferredFilenameExtension ?? "mov")
+                        let name = try ManzanaWallpaperMedia.importFile(url, fileExtension: ext)
+                        result = .success(name)
+                    } catch {
+                        result = .failure(error)
+                    }
+                } else {
+                    result = .failure(error ?? ManzanaWallpaperMedia.failure(
+                        "Fotos no pudo entregar el video o GIF. Prueba importarlo desde Archivos."
+                    ))
+                }
+                DispatchQueue.main.async { self.completion(result) }
+            }
+        }
+    }
+}
+
 struct LiveBoardWallpaperPicker: UIViewControllerRepresentable {
     let completion: (UIImage?) -> Void
     func makeCoordinator() -> Coordinator { Coordinator(completion) }
@@ -3192,7 +4747,7 @@ private final class BloomBoxTweakCatalog: ObservableObject {
     private static let lastSyncKey = "BloomBoxTweakCatalogLastSuccessfulSync-v2"
     private static let cacheKey = "BloomBoxTweakCatalogVerifiedCache-v2"
     private static let catalogURL = URL(string:
-        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/tweaks-v2.json")!
+        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox-Catalog/main/catalog/tweaks-v2.json")!
 
     private init() {
         lastSuccessfulSync = UserDefaults.standard.object(forKey: Self.lastSyncKey) as? Date
@@ -3378,6 +4933,43 @@ private struct BloomBoxTweakMatch: Identifiable {
     }
 }
 
+// BloomBox 2.0: shared, lightweight header style for the integrated stores.
+private struct BloomBoxV2StoreHeader: View {
+    let symbol: String
+    let title: String
+    let subtitle: String
+    let accent: Color
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: symbol)
+                .font(.system(size: 27, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 62, height: 62)
+                .background(
+                    LinearGradient(colors: [accent, accent.opacity(0.7)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing),
+                    in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 19, style: .continuous)
+                        .strokeBorder(.white.opacity(0.24), lineWidth: 1)
+                }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.system(size: 22, weight: .bold, design: .rounded))
+                Text(subtitle).font(.footnote).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(accent.opacity(0.085)))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(accent.opacity(0.20), lineWidth: 1)
+        }
+    }
+}
+
 private struct BloomBoxTweakStore: View {
     let apps: [LCAppModel]
     let focusedApp: LCAppModel?
@@ -3414,19 +5006,12 @@ private struct BloomBoxTweakStore: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    HStack(spacing: 14) {
-                        Image(systemName: "puzzlepiece.extension.fill")
-                            .font(.system(size: 30, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 65, height: 65)
-                            .background(Color(red: 0.48, green: 0.32, blue: 0.76),
-                                        in: RoundedRectangle(cornerRadius: 18))
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("BloomBox Tweaks").font(.title2.bold())
-                            Text("Catálogo comunitario remoto")
-                                .font(.footnote).foregroundStyle(.secondary)
-                        }
-                    }
+                    BloomBoxV2StoreHeader(
+                        symbol: "puzzlepiece.extension.fill",
+                        title: "Tweak Store",
+                        subtitle: "Correcciones, personalización y herramientas",
+                        accent: Color(red: 0.48, green: 0.32, blue: 0.76)
+                    )
                     HStack {
                         Label("\(catalog.entries.count) tweaks en catálogo", systemImage: "arrow.triangle.2.circlepath")
                             .font(.caption).foregroundStyle(.secondary)
@@ -3875,9 +5460,9 @@ private final class BloomBoxAppCatalog: ObservableObject {
     private static let cacheKey = "BloomBoxAppStoreCatalogueVerified-v1"
     private static let syncKey = "BloomBoxAppStoreCatalogueLastSync-v1"
     private static let source = URL(string:
-        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox/store-catalog/catalog/apps.json")!
+        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox-Catalog/main/catalog/apps.json")!
     private static let githubContents = URL(string:
-        "https://api.github.com/repos/adri23rep-stack/BloomBox/contents/catalog/apps.json?ref=store-catalog")!
+        "https://api.github.com/repos/adri23rep-stack/BloomBox-Catalog/contents/catalog/apps.json?ref=main")!
 
     private struct GitHubFile: Decodable {
         let content: String
@@ -4083,19 +5668,12 @@ private struct BloomBoxAppStore: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    HStack(spacing: 14) {
-                        Image(systemName: "bag.fill")
-                            .font(.system(size: 30, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 65, height: 65)
-                            .background(Color(red: 0.20, green: 0.55, blue: 0.77),
-                                        in: RoundedRectangle(cornerRadius: 18))
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("BloomBox App Store").font(.title2.bold())
-                            Text("Aplicaciones de creadores independientes")
-                                .font(.footnote).foregroundStyle(.secondary)
-                        }
-                    }
+                    BloomBoxV2StoreHeader(
+                        symbol: "bag.fill",
+                        title: "BloomBox App Store",
+                        subtitle: "Aplicaciones de creadores independientes",
+                        accent: Color(red: 0.20, green: 0.55, blue: 0.77)
+                    )
 
                     HStack {
                         Label("\(catalog.listings.count) apps en catálogo",

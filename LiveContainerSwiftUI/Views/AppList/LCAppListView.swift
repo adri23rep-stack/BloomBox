@@ -1318,7 +1318,10 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
         
         guard let appFound else {
-            errorInfo = "lc.appList.appNotFoundError".loc
+            // A Home Screen profile or shortcut may still target an old guest
+            // folder after a backup, reinstall, or cleanup. Leave all guest
+            // files and containers untouched; the user can inspect them here.
+            errorInfo = "No se encontró la app invitada «\(bundleId)». Es posible que el acceso directo apunte a una instalación anterior o que la IPA esté incompleta. Revisa tus apps en BloomBox y, si es necesario, vuelve a crear el acceso directo. No se borraron tus datos."
             errorShow = true
             return
         }
