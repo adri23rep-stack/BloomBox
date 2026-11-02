@@ -91,9 +91,20 @@ final class BloomBoxRemoteGameProfiles: ObservableObject {
         "BloomBoxCompatibilityApproved-v1.\(bundleID)"
     }
 
+    private func declinedKey(for bundleID: String) -> String {
+        "BloomBoxCompatibilityDeclined-v1.\(bundleID)"
+    }
+
     func needsApproval(_ profile: BloomBoxGameProfile) -> Bool {
         guard profile.compatibility?.hasChanges == true else { return false }
-        return defaults.integer(forKey: consentKey(for: profile.bundleID)) < profile.revision
+        return defaults.integer(forKey: consentKey(for: profile.bundleID)) < profile.revision &&
+            defaults.integer(forKey: declinedKey(for: profile.bundleID)) < profile.revision
+    }
+
+    func decline(_ profile: BloomBoxGameProfile) {
+        // Do not repeatedly interrupt a launch if this revision was declined.
+        // A newer revision can ask again, and manual settings remain editable.
+        defaults.set(profile.revision, forKey: declinedKey(for: profile.bundleID))
     }
 
     func applyApprovedProfile(_ profile: BloomBoxGameProfile, to app: LCAppModel) {
