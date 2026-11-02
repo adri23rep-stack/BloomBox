@@ -456,7 +456,7 @@ struct LiveBoardHomeScreen: View {
                                 .font(.system(size: 53, weight: .bold, design: .rounded))
                                 .tracking(-2)
                                 .shadow(color: .white.opacity(0.28), radius: 23)
-                            Text(aliveSplashLine)
+                            Text(LocalizedStringKey(aliveSplashLine))
                                 .font(.system(size: 18, weight: .heavy, design: .rounded))
                                 .foregroundStyle(Color(red: 1, green: 0.87, blue: 0.38))
                                 .shadow(color: .black.opacity(0.55), radius: 8, y: 3)
@@ -465,7 +465,7 @@ struct LiveBoardHomeScreen: View {
                                 .minimumScaleFactor(0.72)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 30)
-                                .accessibilityLabel(aliveSplashLine)
+                                .accessibilityLabel(aliveSplashLine.loc)
                         }
                         .scaleEffect(aliveIntroVisible ? 1 : 1.05)
                     }
