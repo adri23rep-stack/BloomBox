@@ -183,6 +183,13 @@ struct LiveBoardHomeScreen: View {
     @State private var appStorePresented = false
     @State private var modulesPresented = false
     @State private var themesPresented = false
+    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
+    private var preferredLanguage = "system"
+    private var englishUI: Bool {
+        preferredLanguage == "en" ||
+        (preferredLanguage == "system" &&
+         (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("en"))
+    }
     @ObservedObject private var ramPlus = BloomBoxRAMPlus.shared
     @State private var pendingModuleDestination: BloomBoxModulesPanel.Destination?
     @State private var storeFocusedApp: LCAppModel?
@@ -2623,8 +2630,8 @@ struct LiveBoardHomeScreen: View {
                     }
                 }
             }
-            Menu("Carpeta", systemImage: "folder") {
-                Button("Nueva carpeta", systemImage: "folder.badge.plus") {
+            Menu(englishUI ? "Folder" : "Carpeta", systemImage: "folder") {
+                Button(englishUI ? "New Folder" : "Nueva carpeta", systemImage: "folder.badge.plus") {
                     newFolderApp = key
                     folderName = "BloomBox"
                 }
@@ -2635,7 +2642,7 @@ struct LiveBoardHomeScreen: View {
                     }
                 }
                 if layout.folders.contains(where: { $0.apps.contains(key) }) {
-                    Button("Sacar de carpeta", systemImage: "folder.badge.minus") {
+                    Button(englishUI ? "Move Out of Folder" : "Sacar de carpeta", systemImage: "folder.badge.minus") {
                         layout.place(key, on: max(0, page - 1))
                         reconcile()
                     }
