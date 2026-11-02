@@ -6,6 +6,7 @@ on:
       - main
       - fix/jit-guest-orientation-ios27
       - feature/cinematic-game-mode-ram-jit-gate
+      - feature/remote-game-compat-profiles
       - fix/finish-astra-home-20261101
       - feature/living-widgets-1-20261101
       - feature/english-localization-20261101
@@ -74,6 +75,11 @@ jobs:
           swiftc ShareExtension/StrataJITScriptSafety.swift LiveContainerSwiftUI/Utilities/BloomBoxMeloNXProfile.swift Tests/jit-script-tests/main.swift -o "$RUNNER_TEMP/jit-script-tests"
           "$RUNNER_TEMP/jit-script-tests"
           "$RUNNER_TEMP/jit-script-tests" melonx
+      - name: Test remote Game compatibility profiles
+        run: |
+          swiftc LiveContainerSwiftUI/Utilities/BloomBoxGameProfileSchema.swift Tests/remote-game-profiles/main.swift -o "$RUNNER_TEMP/game-profiles-tests"
+          "$RUNNER_TEMP/game-profiles-tests"
+
       - name: Test Game Mode RAM+ and JIT prerequisites
         run: |
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxGameModeGate.swift Tests/game-mode-tests/main.swift -o "$RUNNER_TEMP/bloombox-game-tests"
