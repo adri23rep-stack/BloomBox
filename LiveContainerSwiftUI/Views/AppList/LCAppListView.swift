@@ -495,7 +495,10 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                     let jit = compatibilityForceJIT
                     compatibilityApp = nil
                     compatibilityProfile = nil
-                    Task { await launchFromLiveBoard(app, forceJIT: jit, compatibilityReviewed: true) }
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 250_000_000)
+                        await launchFromLiveBoard(app, forceJIT: jit, compatibilityReviewed: true)
+                    }
                 }
             }
             Button("Abrir sin cambios") {
@@ -504,7 +507,10 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                     let jit = compatibilityForceJIT
                     compatibilityApp = nil
                     compatibilityProfile = nil
-                    Task { await launchFromLiveBoard(app, forceJIT: jit, compatibilityReviewed: true) }
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 250_000_000)
+                        await launchFromLiveBoard(app, forceJIT: jit, compatibilityReviewed: true)
+                    }
                 }
             }
             Button("Cancelar", role: .cancel) {
@@ -516,8 +522,12 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
         .alert("Esta app debe iniciarse en modo Game", isPresented: $gameRoutePrompt) {
             Button("Entrar a Game") {
-                if let app = gameRouteApp { beginGameMode(for: app) }
+                let app = gameRouteApp
                 gameRouteApp = nil
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 250_000_000)
+                    if let app { beginGameMode(for: app) }
+                }
             }
             Button("Cancelar", role: .cancel) { gameRouteApp = nil }
         } message: {
