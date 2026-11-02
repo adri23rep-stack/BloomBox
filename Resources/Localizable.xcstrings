@@ -12,6 +12,61 @@
         }
       }
     },
+    "¡Ya llegó el relajo!" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Here Comes the Chaos!"
+          }
+        }
+      }
+    },
+    "¿Otra IPA? Va, dale." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another IPA? Let's Go."
+          }
+        }
+      }
+    },
+    "¿Quién dejó suelto al Dock?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Who let the Dock loose?"
+          }
+        }
+      }
+    },
+    "¿Y si le movemos a todo?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What if we make everything move?"
+          }
+        }
+      }
+    },
+    "100 % hecho con desmadre." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "100% Made for Fun."
+          }
+        }
+      }
+    },
     "12 horas" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34,6 +89,17 @@
         }
       }
     },
+    "Abre los controles de escritorio: apariencia, widgets, páginas y personalización." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open desktop controls for appearance, widgets, pages and customization."
+          }
+        }
+      }
+    },
     "Abre Mis apps en SideStore. Se usará su sesión para solicitar RAM+; si te pide iniciar sesión, hazlo allí." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -41,6 +107,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open My Apps in SideStore. Its session will be used to request RAM+; if prompted, sign in there."
+          }
+        }
+      }
+    },
+    "Abrir ajustes avanzados" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Advanced Settings"
           }
         }
       }
@@ -67,6 +144,17 @@
         }
       }
     },
+    "Abrir controles del escritorio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Desktop Controls"
+          }
+        }
+      }
+    },
     "Abrir de todas formas" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -74,6 +162,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open Anyway"
+          }
+        }
+      }
+    },
+    "Abrir el administrador no borra nada. Las opciones de borrar temporales, cachés y otros datos son independientes." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opening the manager does not delete anything. Cleanup actions for temporary files, caches and other data are separate."
+          }
+        }
+      }
+    },
+    "Accede a los proveedores JIT y a su configuración existente." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access existing JIT providers and their settings."
           }
         }
       }
@@ -166,6 +276,17 @@
         }
       }
     },
+    "Actualizar fechas y recordatorios" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh Dates and Reminders"
+          }
+        }
+      }
+    },
     "Actualizar novedades" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -173,6 +294,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Refresh News"
+          }
+        }
+      }
+    },
+    "Actualizar tamaños" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh Sizes"
           }
         }
       }
@@ -239,6 +371,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Desktop Settings"
+          }
+        }
+      }
+    },
+    "Al activarlo, BloomBox intenta programar una Live Activity que empezará cuando falten ocho horas para la caducidad de la primera app. iOS controla si la Isla Dinámica se muestra." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When enabled, BloomBox tries to schedule a Live Activity starting eight hours before the first app expires. iOS controls whether the Dynamic Island appears."
+          }
+        }
+      }
+    },
+    "Al refrescar tus apps, vuelve a BloomBox para sincronizar la nueva fecha y cancelar el contador anterior. Si faltan datos, la función no inventará fechas." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After refreshing your apps, return to BloomBox to sync the new date and cancel the previous countdown. If data is missing, this feature will not invent dates."
+          }
+        }
+      }
+    },
+    "Almacenamiento" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Storage"
           }
         }
       }
@@ -408,6 +573,28 @@
         }
       }
     },
+    "Apariencia" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appearance"
+          }
+        }
+      }
+    },
+    "Aplicaciones próximas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upcoming Apps"
+          }
+        }
+      }
+    },
     "App compatible no instalada o versión no reconocida" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -529,6 +716,17 @@
         }
       }
     },
+    "BloomBox (aplicación)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BloomBox (App)"
+          }
+        }
+      }
+    },
     "BloomBox no distribuye IPAs de terceros. Cada ficha enlaza al autor original. Solo descarga archivos de proyectos en los que confíes. La ejecución dentro del contenedor puede fallar por restricciones de iOS o JIT." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -569,6 +767,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Clear Search"
+          }
+        }
+      }
+    },
+    "Borrar datos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Data"
           }
         }
       }
@@ -650,6 +859,17 @@
         }
       }
     },
+    "Buscar en esta carpeta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search This Folder"
+          }
+        }
+      }
+    },
     "Buscar última release e instalar" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -657,6 +877,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Find Latest Release and Install"
+          }
+        }
+      }
+    },
+    "Caducidad · Isla Dinámica" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expiration · Dynamic Island"
           }
         }
       }
@@ -705,6 +936,28 @@
         }
       }
     },
+    "Carpeta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folder"
+          }
+        }
+      }
+    },
+    "Carpeta anterior" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parent Folder"
+          }
+        }
+      }
+    },
     "Cerrar aviso" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -727,6 +980,28 @@
         }
       }
     },
+    "Cierra la app y otras apps que compartan sus datos antes de exportar o importar. Mantén BloomBox abierto hasta terminar." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close the app and any other apps sharing its data before exporting or importing. Keep BloomBox open until the operation finishes."
+          }
+        }
+      }
+    },
+    "Cierra todos los perfiles de la app antes de continuar." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close all app profiles before continuing."
+          }
+        }
+      }
+    },
     "Color del brillo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -745,6 +1020,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Clock Color"
+          }
+        }
+      }
+    },
+    "Compartir / Exportar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share / Export"
           }
         }
       }
@@ -826,6 +1112,17 @@
         }
       }
     },
+    "Consulta las herramientas y opciones avanzadas que ya están disponibles en BloomBox." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explore advanced tools and options already available in BloomBox."
+          }
+        }
+      }
+    },
     "Controles RAM+ habilitados para pruebas" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -833,6 +1130,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "RAM+ Test Controls Enabled"
+          }
+        }
+      }
+    },
+    "Copia de datos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data Backup"
+          }
+        }
+      }
+    },
+    "Copia lista para restaurar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backup Ready to Restore"
+          }
+        }
+      }
+    },
+    "Copiar a carpeta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy to Folder"
+          }
+        }
+      }
+    },
+    "Copiar aquí" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Here"
           }
         }
       }
@@ -936,6 +1277,17 @@
         }
       }
     },
+    "Despertando a los iconos…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waking Up the Icons…"
+          }
+        }
+      }
+    },
     "Después" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -991,6 +1343,17 @@
         }
       }
     },
+    "El acceso a internet se configura por aplicación desde su administración. No se cambia la conectividad de todo el iPhone." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Internet access is configured per app in app management. It does not change connectivity for the entire iPhone."
+          }
+        }
+      }
+    },
     "El catálogo remoto contiene entradas incompatibles." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -998,6 +1361,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The Remote Catalog Contains Incompatible Entries"
+          }
+        }
+      }
+    },
+    "El desmadre está por comenzar." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The fun is about to begin."
           }
         }
       }
@@ -1101,6 +1475,28 @@
         }
       }
     },
+    "Elegir foto" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Photo"
+          }
+        }
+      }
+    },
+    "Elegir GIF" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose GIF"
+          }
+        }
+      }
+    },
     "Elegir IPA manualmente" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1108,6 +1504,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose IPA Manually"
+          }
+        }
+      }
+    },
+    "Elegir video" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Video"
           }
         }
       }
@@ -1189,6 +1596,17 @@
         }
       }
     },
+    "Eliminar temporales" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Temporary Files"
+          }
+        }
+      }
+    },
     "Eliminar widget" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1229,6 +1647,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Desktop"
+          }
+        }
+      }
+    },
+    "Espacio usado" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Space Used"
           }
         }
       }
@@ -1332,6 +1761,28 @@
         }
       }
     },
+    "Esto se está poniendo bueno." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Now We're Talking."
+          }
+        }
+      }
+    },
+    "Experimentos · Funciones avanzadas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experiments · Advanced Features"
+          }
+        }
+      }
+    },
     "Explora todos los tweaks aunque todavía no tengas instaladas sus apps." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1339,6 +1790,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Browse tweaks even for apps you have not installed yet."
+          }
+        }
+      }
+    },
+    "Exportar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export"
+          }
+        }
+      }
+    },
+    "Exportar datos de la app" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export App Data"
+          }
+        }
+      }
+    },
+    "Exportar información privada" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Private Information"
           }
         }
       }
@@ -1398,6 +1882,17 @@
         }
       }
     },
+    "Fondo de pantalla" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wallpaper"
+          }
+        }
+      }
+    },
     "Formato de hora" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1453,6 +1948,17 @@
         }
       }
     },
+    "Gestionar temporales y cachés (con confirmación)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage Temporary Files and Caches (Confirmation Required)"
+          }
+        }
+      }
+    },
     "GetMoreRam · instrucciones e instalación" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1475,6 +1981,17 @@
         }
       }
     },
+    "Guarda archivos, ajustes y partidas de todos los perfiles de esta app. Instala primero la misma app en BloomBox para restaurar la copia." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save files, settings and game progress from every profile of this app. Install the same app in BloomBox before restoring."
+          }
+        }
+      }
+    },
     "Guardar" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1482,6 +1999,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Save"
+          }
+        }
+      }
+    },
+    "Guardar cambios" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Changes"
           }
         }
       }
@@ -1508,6 +2036,28 @@
         }
       }
     },
+    "Iconos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Icons"
+          }
+        }
+      }
+    },
+    "Idioma" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Language"
+          }
+        }
+      }
+    },
     "Idioma de BloomBox" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1530,6 +2080,39 @@
         }
       }
     },
+    "Importa documentos o crea tu primera carpeta." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import documents or create your first folder."
+          }
+        }
+      }
+    },
+    "Importar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import"
+          }
+        }
+      }
+    },
+    "Importar copia de datos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import Data Backup"
+          }
+        }
+      }
+    },
     "Importar de Archivos" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1537,6 +2120,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Import from Files"
+          }
+        }
+      }
+    },
+    "Incluye BloomBox, SideStore, las apps invitadas y los datos accesibles. No mide apps externas ni archivos del sistema iOS." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Includes BloomBox, SideStore, guest apps and accessible data. Does not measure external apps or iOS system files."
+          }
+        }
+      }
+    },
+    "Incluye los datos locales, grupos compartidos identificables y credenciales accesibles. iCloud, compras, claves protegidas, archivos externos y sesiones que dependan de un servidor pueden requerir recuperación o inicio de sesión aparte." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Includes local data, identifiable shared groups and accessible credentials. iCloud, purchases, protected keys, external files and server-based sessions may need separate recovery or sign-in."
           }
         }
       }
@@ -1684,6 +2289,17 @@
         }
       }
     },
+    "Isla Dinámica · últimas 8 horas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dynamic Island · Last 8 Hours"
+          }
+        }
+      }
+    },
     "Izquierda y derecha ↔" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1691,6 +2307,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Side to Side ↔"
+          }
+        }
+      }
+    },
+    "JIT desactivado" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JIT Disabled"
           }
         }
       }
@@ -1750,6 +2377,28 @@
         }
       }
     },
+    "La copia contiene información privada y no lleva contraseña. Guárdala en un lugar seguro." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This backup contains private information and is not password-protected. Store it securely."
+          }
+        }
+      }
+    },
+    "La copia incluirá archivos y credenciales que BloomBox pueda leer. No tiene contraseña. Compártela únicamente con personas de confianza." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The backup will include files and credentials BloomBox can read. It is not password-protected. Only share it with people you trust."
+          }
+        }
+      }
+    },
     "La frase cambia en cada inicio. El brinco solo elige iconos visibles de la página actual." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1800,7 +2449,18 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The wave travels from left to right. Icons only move when you are idle on the visible page."
+            "value" : "The wave moves from left to right. Icons move only when you're idle on the visible page."
+          }
+        }
+      }
+    },
+    "La papelera está vacía." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trash Is Empty."
           }
         }
       }
@@ -1812,6 +2472,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tests only apply to selected apps. An incompatible engine may freeze or crash."
+          }
+        }
+      }
+    },
+    "La RAM no crece en árboles." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAM doesn't grow on trees."
           }
         }
       }
@@ -1849,6 +2520,17 @@
         }
       }
     },
+    "La siguiente pantalla te espera." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Next Screen Awaits."
+          }
+        }
+      }
+    },
     "La solicitud venció. Si llegó a enviarse a Apple, su resultado no está confirmado. Puedes iniciar una nueva comprobación." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1878,6 +2560,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Store Catalog Was Too Large"
+          }
+        }
+      }
+    },
+    "Las fechas proceden de widget_data.json, publicado por SideStore en el App Group compartido. BloomBox no modifica su base de datos ni refresca las firmas automáticamente." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dates come from widget_data.json, published by SideStore in the shared App Group. BloomBox does not modify its database or refresh signatures automatically."
           }
         }
       }
@@ -34600,6 +35293,17 @@
         }
       }
     },
+    "Los archivos se restauran en la carpeta principal." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Files are restored to the main folder."
+          }
+        }
+      }
+    },
     "Los iconos se reubicarán en otra página sin desinstalar aplicaciones." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34629,6 +35333,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tweaks contain native code. Only install fixes from authors you trust. The store does not silently install software or distribute games."
+          }
+        }
+      }
+    },
+    "Los widgets tienen sueño." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Widgets Are Sleepy."
+          }
+        }
+      }
+    },
+    "Más personalidad, menos menús." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More Personality, Fewer Menus."
+          }
+        }
+      }
+    },
+    "Más vivo que nunca. 🫧" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More alive than ever. 🫧"
           }
         }
       }
@@ -34710,6 +35447,28 @@
         }
       }
     },
+    "Modo claro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light Mode"
+          }
+        }
+      }
+    },
+    "Modo oscuro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dark Mode"
+          }
+        }
+      }
+    },
     "Módulos" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34732,6 +35491,17 @@
         }
       }
     },
+    "Mostrando los 20 elementos más grandes de %@." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Showing the 20 Largest of %@ Items."
+          }
+        }
+      }
+    },
     "Mostrar fondo completo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34739,6 +35509,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Full Wallpaper"
+          }
+        }
+      }
+    },
+    "Mover a carpeta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to Folder"
           }
         }
       }
@@ -34761,6 +35542,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Move to Desktop"
+          }
+        }
+      }
+    },
+    "Mover aquí" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move Here"
           }
         }
       }
@@ -34798,6 +35590,17 @@
         }
       }
     },
+    "No despiertes a los widgets." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Don't wake the widgets."
+          }
+        }
+      }
+    },
     "No hay aplicaciones que coincidan con tu búsqueda." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34831,6 +35634,17 @@
         }
       }
     },
+    "No hay más carpetas aquí." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No More Folders Here."
+          }
+        }
+      }
+    },
     "No pude leer esta imagen desde Fotos. Prueba con otra o impórtala desde Archivos." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34849,6 +35663,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Widget Not Found. Tap the Image Again to Import."
+          }
+        }
+      }
+    },
+    "No se han detectado fechas todavía." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Expiration Dates Detected Yet."
           }
         }
       }
@@ -34985,6 +35810,17 @@
         }
       }
     },
+    "Notificación · última hora" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notification · Last Hour"
+          }
+        }
+      }
+    },
     "Novedades de BloomBox" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -35003,6 +35839,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "News and Desktop"
+          }
+        }
+      }
+    },
+    "Nueva carpeta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Folder"
           }
         }
       }
@@ -35238,6 +36085,17 @@
         }
       }
     },
+    "Preparando copia…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing Backup…"
+          }
+        }
+      }
+    },
     "Preparando instalación" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -35282,6 +36140,28 @@
         }
       }
     },
+    "Probar Isla Dinámica" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test Dynamic Island"
+          }
+        }
+      }
+    },
+    "Probar Isla Dinámica (3 minutos)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test Dynamic Island (3 Minutes)"
+          }
+        }
+      }
+    },
     "Probar script JIT de MeloNX en otras apps" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -35300,6 +36180,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Depth and Glass"
+          }
+        }
+      }
+    },
+    "Próximo vencimiento" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next Expiration"
           }
         }
       }
@@ -35355,6 +36246,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "You can change the news using any remote JSON file without reinstalling BloomBox."
+          }
+        }
+      }
+    },
+    "Qué se puede recuperar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What Can Be Restored"
           }
         }
       }
@@ -35524,6 +36426,61 @@
         }
       }
     },
+    "Restaurando datos…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restoring Data…"
+          }
+        }
+      }
+    },
+    "Restaurar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore"
+          }
+        }
+      }
+    },
+    "Restaurar esta copia" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore This Backup"
+          }
+        }
+      }
+    },
+    "Revisa las opciones de aislamiento disponibles en cada aplicación instalada. Estas funciones no modifican permisos de iOS." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review isolation options for installed apps. These features do not change iOS permissions."
+          }
+        }
+      }
+    },
+    "Revisando copia…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking Backup…"
+          }
+        }
+      }
+    },
     "Revisar RAM+" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -35586,6 +36543,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Takes effect after restarting BloomBox. Some iCloud connections may continue."
+          }
+        }
+      }
+    },
+    "Se aplica después de reiniciar BloomBox." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applies After Restarting BloomBox."
+          }
+        }
+      }
+    },
+    "Se crearán perfiles nuevos y se activará el principal de la copia. Tus perfiles actuales se conservarán. Los datos compartidos recuperados quedarán separados de otras apps." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New profiles will be created and the backup's main profile will become active. Your existing profiles will remain. Restored shared data will be isolated from other apps."
           }
         }
       }
@@ -35744,6 +36723,17 @@
         }
       }
     },
+    "Sin datos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Data"
+          }
+        }
+      }
+    },
     "Sin Liquid Glass" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -35854,6 +36844,17 @@
         }
       }
     },
+    "Teñido" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tinted"
+          }
+        }
+      }
+    },
     "Tienda de apps" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -35887,6 +36888,17 @@
         }
       }
     },
+    "Total en este contenedor · incluye las apps de abajo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total in This Container · Includes Apps Below"
+          }
+        }
+      }
+    },
     "Tu centro de control, sin menús escondidos" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -35894,6 +36906,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your Control Center, with Nothing Hidden"
+          }
+        }
+      }
+    },
+    "Un perfil externo no está disponible. Reconecta su ubicación antes de continuar." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An external profile is unavailable. Reconnect its location before continuing."
           }
         }
       }
@@ -35916,6 +36939,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter a Valid HTTPS URL."
+          }
+        }
+      }
+    },
+    "Usar iconos pequeños" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use Small Icons"
+          }
+        }
+      }
+    },
+    "Vaciar caché" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Cache"
           }
         }
       }
