@@ -271,6 +271,16 @@ struct BloomBoxThemeStoreView: View {
     @State private var shareURL: URL?
 
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
+    private var preferredLanguage = "system"
+    private var englishUI: Bool {
+        preferredLanguage == "en" ||
+        (preferredLanguage == "system" &&
+         (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("en"))
+    }
+    private func t(_ english: String, _ spanish: String) -> String {
+        englishUI ? english : spanish
+    }
     @State private var library: [URL] = []
     @State private var online: [BloomBoxOnlineTheme] = []
     @State private var importing = false
@@ -297,14 +307,14 @@ struct BloomBoxThemeStoreView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Label("Theme Store", systemImage: "sparkles.rectangle.stack.fill")
+                        Label(t("Theme Store", "Tienda de temas"), systemImage: "sparkles.rectangle.stack.fill")
                             .font(.system(size: 27, weight: .bold, design: .rounded))
-                        Text("Make your desktop your own. Import, preview, share and apply .bbtheme files.")
+                        Text(t("Make your desktop your own. Import, preview, share and apply .bbtheme files.", "Personaliza tu escritorio. Importa, previsualiza, comparte y aplica temas .bbtheme."))
                             .font(.subheadline).foregroundStyle(.secondary)
                         HStack {
-                            Button("Import .bbtheme", systemImage: "square.and.arrow.down") { importing = true }
+                            Button(t("Import .bbtheme", "Importar .bbtheme"), systemImage: "square.and.arrow.down") { importing = true }
                                 .buttonStyle(.borderedProminent)
-                            Button("Export Current", systemImage: "square.and.arrow.up") {
+                            Button(t("Export Current", "Exportar actual"), systemImage: "square.and.arrow.up") {
                                 do {
                                     let url = FileManager.default.temporaryDirectory
                                         .appendingPathComponent("BloomBox-Theme.bbtheme")
@@ -314,7 +324,7 @@ struct BloomBoxThemeStoreView: View {
                             }
                                 .buttonStyle(.bordered)
                         }
-                        Button("Save My Desktop to Library", systemImage: "bookmark.fill") {
+                        Button(t("Save My Desktop to Library", "Guardar mi escritorio"), systemImage: "bookmark.fill") {
                             do {
                                 _ = try BloomBoxThemeLibrary.save(onSaveCurrent(), named: "My Desktop")
                                 refresh()
@@ -326,14 +336,14 @@ struct BloomBoxThemeStoreView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
 
-                    TextField("Search themes", text: $search)
+                    TextField(t("Search themes", "Buscar temas"), text: $search)
                         .textFieldStyle(.roundedBorder)
 
                     VStack(alignment: .leading, spacing: 10) {
-                        Label("My Themes", systemImage: "square.stack.3d.up")
+                        Label(t("My Themes", "Mis temas"), systemImage: "square.stack.3d.up")
                             .font(.headline)
                         if shownLibrary.isEmpty {
-                            Text("No saved themes yet. Import a .bbtheme file or save your desktop above.")
+                            Text(t("No saved themes yet. Import a .bbtheme file or save your desktop above.", "Todavía no tienes temas guardados. Importa un .bbtheme o guarda tu escritorio."))
                                 .font(.subheadline).foregroundStyle(.secondary)
                         } else {
                             ForEach(shownLibrary, id: \.path) { url in
@@ -342,11 +352,11 @@ struct BloomBoxThemeStoreView: View {
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text(url.deletingPathExtension().lastPathComponent)
                                             .font(.subheadline.weight(.semibold)).lineLimit(2)
-                                        Text("Saved locally · .bbtheme")
+                                        Text(t("Saved locally · .bbtheme", "Guardado en el iPhone · .bbtheme"))
                                             .font(.caption).foregroundStyle(.secondary)
                                     }
                                     Spacer(minLength: 5)
-                                    Button("Apply") { selected = url; confirming = true }
+                                    Button(t("Apply", "Aplicar")) { selected = url; confirming = true }
                                         .buttonStyle(.borderedProminent).controlSize(.small)
                                     Button(role: .destructive) {
                                         do {
@@ -358,7 +368,7 @@ struct BloomBoxThemeStoreView: View {
                                     } label: {
                                         Image(systemName: "trash")
                                     }.buttonStyle(.borderless)
-                                        .accessibilityLabel("Delete saved theme")
+                                        .accessibilityLabel(t("Delete saved theme", "Eliminar tema guardado"))
                                 }
                                 .padding(12).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 17))
                             }
@@ -367,18 +377,18 @@ struct BloomBoxThemeStoreView: View {
 
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Label("Explore Online", systemImage: "globe")
+                            Label(t("Explore Online", "Explorar en línea"), systemImage: "globe")
                                 .font(.headline)
                             Spacer()
                             if loading { ProgressView().controlSize(.small) }
-                            Button("Refresh", systemImage: "arrow.clockwise") {
+                            Button(t("Refresh", "Actualizar"), systemImage: "arrow.clockwise") {
                                 Task { await loadCatalog() }
                             }.font(.caption)
                         }
-                        Text("Themes are downloaded from the official BloomBox-Catalog repository.")
+                        Text(t("Themes are downloaded from the official BloomBox-Catalog repository.", "Los temas se descargan del repositorio oficial BloomBox-Catalog."))
                             .font(.caption).foregroundStyle(.secondary)
                         if shownOnline.isEmpty && !loading {
-                            Text("No community themes have been published yet. You can still import and share your own themes.")
+                            Text(t("No community themes have been published yet. You can still import and share your own themes.", "Todavía no se publican temas de la comunidad. Puedes importar y compartir los tuyos."))
                                 .font(.subheadline).foregroundStyle(.secondary)
                         }
                         ForEach(shownOnline) { item in
@@ -386,11 +396,11 @@ struct BloomBoxThemeStoreView: View {
                                 themeArt
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(item.name).font(.headline)
-                                    Text("By " + item.author).font(.caption).foregroundStyle(.secondary)
+                                    Text((englishUI ? "By " : "Por ") + item.author).font(.caption).foregroundStyle(.secondary)
                                     Text(item.description).font(.caption).lineLimit(3)
                                 }
                                 Spacer(minLength: 5)
-                                Button(downloading == item.id ? "Downloading" : "Get") {
+                                Button(downloading == item.id ? t("Downloading", "Descargando") : t("Get", "Obtener")) {
                                     Task { await download(item) }
                                 }
                                 .disabled(downloading != nil)
@@ -402,9 +412,9 @@ struct BloomBoxThemeStoreView: View {
                 }
                 .padding(18)
             }
-            .navigationTitle("Themes")
+            .navigationTitle(t("Themes", "Temas"))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(t("Done", "Listo")) { dismiss() } } }
         }
         .navigationViewStyle(.stack)
         .sheet(isPresented: Binding(
@@ -426,23 +436,23 @@ struct BloomBoxThemeStoreView: View {
                 if (error as NSError).code != NSUserCancelledError { message = error.localizedDescription }
             }
         }
-        .alert("Apply Theme?", isPresented: $confirming) {
-            Button("Apply", role: .destructive) {
+        .alert(t("Apply Theme?", "¿Aplicar tema?"), isPresented: $confirming) {
+            Button(t("Apply", "Aplicar"), role: .destructive) {
                 guard let selected else { return }
                 do {
                     try onApply(BloomBoxThemeLibrary.readFile(selected))
                     notice = "Theme applied! Your previous desktop was saved as a recovery copy."
                 } catch { message = error.localizedDescription }
             }
-            Button("Cancel", role: .cancel) {}
+            Button(t("Cancel", "Cancelar"), role: .cancel) {}
         } message: {
-            Text("Your desktop layout, widgets and wallpaper may change. Installed apps and their data will not be removed.")
+            Text(t("Your desktop layout, widgets and wallpaper may change. Installed apps and their data will not be removed.", "Cambiarán el escritorio, los widgets y el fondo. Las apps instaladas y sus datos no se borrarán."))
         }
-        .alert("Theme Store", isPresented: Binding(
+        .alert(t("Theme Store", "Tienda de temas"), isPresented: Binding(
             get: { message != nil || notice != nil },
             set: { if !$0 { message = nil; notice = nil } }
         )) {
-            Button("OK") { message = nil; notice = nil }
+            Button(t("OK", "Aceptar")) { message = nil; notice = nil }
         } message: { Text(message ?? notice ?? "") }
         .onAppear { refresh(); Task { await loadCatalog() } }
     }
