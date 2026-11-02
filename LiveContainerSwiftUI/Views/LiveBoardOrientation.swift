@@ -31,10 +31,11 @@ import UIKit
         updateScene(next, window: window)
     }
 
-    /// Only explicit guest orientation locks override Home. No auto-rotating
-    /// every JIT app to landscape: portrait-only guests must remain usable.
+    /// Guest Auto allows device rotation rather than inheriting Home's
+    /// portrait-only mask; explicit per-app locks override it.
     static func beginGuest(appKey: String, mask next: UIInterfaceOrientationMask, window: UIWindow?) {
-        guard !appKey.isEmpty, next == .portrait || next == .landscape else { return }
+        guard !appKey.isEmpty,
+              next == .portrait || next == .landscape || next == .allButUpsideDown else { return }
         guestAppKey = appKey
         guestMask = next
         updateScene(next, window: window)
