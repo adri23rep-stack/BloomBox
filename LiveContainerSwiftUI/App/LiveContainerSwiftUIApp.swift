@@ -18,7 +18,7 @@ struct LiveContainerSwiftUIApp : SwiftUI.App {
         switch preferredLanguage {
         case "en": return Locale(identifier: "en")
         case "es": return Locale(identifier: "es_MX")
-        default: return Locale.current
+        default: return Locale(identifier: Locale.preferredLanguages.first ?? "en")
         }
     }
     
