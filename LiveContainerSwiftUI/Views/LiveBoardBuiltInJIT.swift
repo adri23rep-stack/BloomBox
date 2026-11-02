@@ -101,7 +101,15 @@ enum LiveBoardBuiltInJIT {
                     receivedStatus = true
                     let message = result["message"] as? String ?? ""
                     if message != lastMessage { report(message); lastMessage = message }
-                    if result["done"] as? Bool == true { return result["success"] as? Bool == true }
+                    if result["done"] as? Bool == true {
+                        let attached = result["success"] as? Bool == true
+                        if attached {
+                            // The helper can verify that the debugger/script detached,
+                            // not that the guest has successfully executed JIT memory.
+                            report("Debugger script finished. Verify executable JIT memory inside the guest before launching a game.")
+                        }
+                        return attached
+                    }
                 }
                 if !receivedStatus && Date().timeIntervalSince(started) > 12 {
                     report("The JIT helper did not start. Confirm this update was installed with all extensions kept, then retry. No device connection was attempted.")
