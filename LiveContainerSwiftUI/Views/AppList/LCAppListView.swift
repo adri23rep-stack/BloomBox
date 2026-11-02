@@ -699,13 +699,16 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         // Honor the existing per-app orientation picker when running through
         // LiveProcess. Legacy launches already manage their own orientation.
         // The host Home is portrait-locked and otherwise overrides the guest.
-        if builtInJIT && (app.uiOrientationLock == .Landscape || app.uiOrientationLock == .Portrait) {
-            LiveBoardOrientation.beginGuest(
-                appKey: appKey,
-                mask: app.uiOrientationLock == .Landscape ? .landscape : .portrait,
-                window: window)
-            // Request scene rotation before the LiveProcess scene/frame exists.
-            // UIKit may complete the geometry change asynchronously.
+        if builtInJIT {
+            // Do not inherit Home's portrait-only lock in Auto mode.
+            let guestMask: UIInterfaceOrientationMask
+            switch app.uiOrientationLock {
+            case .Landscape: guestMask = .landscape
+            case .Portrait: guestMask = .portrait
+            default: guestMask = .allButUpsideDown
+            }
+            LiveBoardOrientation.beginGuest(appKey: appKey, mask: guestMask, window: window)
+            // Give UIKit one layout pass before creating the LiveProcess scene.
             try? await Task.sleep(nanoseconds: 250_000_000)
         } else {
             LiveBoardOrientation.setLandscape(false, window: window)
