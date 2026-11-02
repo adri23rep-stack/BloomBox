@@ -572,6 +572,13 @@ struct LiveBoardHomeScreen: View {
                 savedLayout = $0.encoded
                 page = min(page, libraryPageIndex)
             }
+            .sheet(isPresented: $themesPresented) {
+                BloomBoxThemeStoreView(onApply: { data in
+                    try applyImportedTheme(data)
+                }, onSaveCurrent: {
+                    try currentThemeData()
+                })
+            }
             .onAppear {
                 ramPlus.refresh()
                 Task { await tweakCatalog.refreshIfNeeded() }
@@ -1912,7 +1919,7 @@ struct LiveBoardHomeScreen: View {
         alivePlayfulActive = false
     }
 
-    private func exportCurrentTheme() {
+    private func currentThemeData() throws -> Data {
         // Export only presentation settings, never installed app data, credentials or private files.
         let defaults = LCUtils.appGroupUserDefault
         let keys = ["LiveBoardHomeLayout", "LiveBoardHiddenPages", "BloomBoxPlacedWidgetsV2",
@@ -1944,14 +1951,36 @@ struct LiveBoardHomeScreen: View {
                                       "mediaBase64": media,
                                       "exportedAt": ISO8601DateFormatter().string(from: Date()),
                                       "settings": settings]
+        return try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+    }
+
+    private func exportCurrentTheme() {
         do {
-            let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+            let data = try currentThemeData()
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("BloomBox-Theme.bbtheme")
             try data.write(to: url, options: .atomic)
             themeExportURL = url
         } catch {
             themeExportError = "No se pudo exportar el tema: \(error.localizedDescription)"
         }
+    }
+
+    private func applyImportedTheme(_ data: Data) throws {
+        // Validate and save a recovery copy before applying any new visual settings.
+        _ = try BloomBoxThemePackage.read(data)
+        let old = try currentThemeData()
+        _ = try BloomBoxThemeLibrary.save(old, named: "Recovery")
+        let newLayout = try BloomBoxThemePackage.apply(
+            data, defaults: LCUtils.appGroupUserDefault,
+            currentLayout: layout, appKeys: appKeys, favorites: favoriteKeys,
+            wallpaperURL: wallpaperURL)
+        layout = newLayout
+        savedLayout = newLayout.encoded
+        // AppStorage and the Home model now observe the imported settings.
+        wallpaper = UIImage(contentsOfFile: wallpaperURL.path)
+        page = 1
+        selectedWidgetID = nil
+        finishEditing()
     }
 
     private func aliveEligibleIconKeys() -> [String] {
