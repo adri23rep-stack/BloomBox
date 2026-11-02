@@ -223,11 +223,11 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                                         launchWithJIT: { app in Task { await launchFromLiveBoard(app, forceJIT: true) } })
                 } else if !manageLibrary {
                     LiveBoardConsoleScreen(apps: launcherApps, mode: liveBoardMode,
-                                           launch: { app in await launchFromLiveBoard(app, originatingFromGame: liveBoardMode == "cinematic") },
+                                           launch: { app, fromGame in await launchFromLiveBoard(app, originatingFromGame: fromGame) },
                                            manage: manageLauncherApp,
                                            openInterface: openInterface,
                                            openManagement: { manageLibrary = true },
-                                           launchWithJIT: { app in await launchFromLiveBoard(app, forceJIT: true, originatingFromGame: liveBoardMode == "cinematic") })
+                                           launchWithJIT: { app, fromGame in await launchFromLiveBoard(app, forceJIT: true, originatingFromGame: fromGame) })
                 } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
