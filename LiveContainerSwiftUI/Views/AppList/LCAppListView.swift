@@ -500,6 +500,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             }
             Button("Abrir sin cambios") {
                 if let app = compatibilityApp {
+                    if let profile = compatibilityProfile { remoteGameProfiles.decline(profile) }
                     let jit = compatibilityForceJIT
                     compatibilityApp = nil
                     compatibilityProfile = nil
