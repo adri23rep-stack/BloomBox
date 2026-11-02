@@ -2,6 +2,14 @@ import SwiftUI
 import UniformTypeIdentifiers
 import ImageIO
 
+private struct BloomBoxThemeStoreShare: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+
 /// Theme files contain presentation settings and user-supplied pictures only.
 /// Never import apps, scripts, credentials, entitlements or executable files.
 enum BloomBoxThemePackage {
@@ -188,7 +196,7 @@ enum BloomBoxThemeLibrary {
             .replacingOccurrences(of: "[^a-zA-Z0-9 _-]", with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let file = folder.appendingPathComponent((safe.isEmpty ? "Theme" : safe)
-             + "-" + UUID().uuidString.prefix(8) + ".bbtheme")
+             + "-" + String(UUID().uuidString.prefix(8)) + ".bbtheme")
         try data.write(to: file, options: .atomic)
         return file
     }
@@ -206,8 +214,9 @@ enum BloomBoxThemeLibrary {
     }
 
     static func readFile(_ url: URL) throws -> Data {
+        let fileSize = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
         guard url.pathExtension.lowercased() == "bbtheme",
-              (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) ?? 0 <= BloomBoxThemePackage.maxBytes else {
+              fileSize > 0, fileSize <= BloomBoxThemePackage.maxBytes else {
             throw BloomBoxThemePackage.ThemeError.invalid("Choose a .bbtheme file smaller than 90 MB.")
         }
         let granted = url.startAccessingSecurityScopedResource()
@@ -235,7 +244,7 @@ private struct BloomBoxOnlineTheme: Decodable, Identifiable {
 struct BloomBoxThemeStoreView: View {
     let onApply: (Data) throws -> Void
     let onSaveCurrent: () throws -> Data
-    let onExport: () -> Void
+    @State private var shareURL: URL?
 
     @Environment(\.dismiss) private var dismiss
     @State private var library: [URL] = []
@@ -271,7 +280,14 @@ struct BloomBoxThemeStoreView: View {
                         HStack {
                             Button("Import .bbtheme", systemImage: "square.and.arrow.down") { importing = true }
                                 .buttonStyle(.borderedProminent)
-                            Button("Export Current", systemImage: "square.and.arrow.up") { onExport() }
+                            Button("Export Current", systemImage: "square.and.arrow.up") {
+                                do {
+                                    let url = FileManager.default.temporaryDirectory
+                                        .appendingPathComponent("BloomBox-Theme.bbtheme")
+                                    try onSaveCurrent().write(to: url, options: .atomic)
+                                    shareURL = url
+                                } catch { message = error.localizedDescription }
+                            }
                                 .buttonStyle(.bordered)
                         }
                         Button("Save My Desktop to Library", systemImage: "bookmark.fill") {
@@ -365,6 +381,12 @@ struct BloomBoxThemeStoreView: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
         .navigationViewStyle(.stack)
+        .sheet(isPresented: Binding(
+            get: { shareURL != nil },
+            set: { if !$0 { shareURL = nil } }
+        )) {
+            if let shareURL { BloomBoxThemeStoreShare(url: shareURL) }
+        }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.item]) { result in
             switch result {
             case .success(let url):
