@@ -22,8 +22,7 @@ final class BloomBoxRemoteGameProfiles: ObservableObject {
         lastSync = defaults.object(forKey: Self.syncKey) as? Date
         if let data = defaults.data(forKey: Self.cacheKey),
            data.count <= 100_000,
-           let index = try? JSONDecoder().decode(BloomBoxGameProfileIndex.self, from: data),
-           index.isValid {
+           let index = BloomBoxGameProfileIndex.validated(from: data) {
             profiles = index.profiles
         }
     }
@@ -50,8 +49,7 @@ final class BloomBoxRemoteGameProfiles: ObservableObject {
                 throw NSError(domain: "BloomBoxGameProfiles", code: 1,
                     userInfo: [NSLocalizedDescriptionKey: "No se pudo verificar la lista de juegos. Se conserva la versión local."])
             }
-            let index = try JSONDecoder().decode(BloomBoxGameProfileIndex.self, from: data)
-            guard index.isValid else {
+            guard let index = BloomBoxGameProfileIndex.validated(from: data) else {
                 throw NSError(domain: "BloomBoxGameProfiles", code: 2,
                     userInfo: [NSLocalizedDescriptionKey: "Perfil remoto incompatible; no se aplicó."])
             }
