@@ -211,6 +211,17 @@ enum BloomBoxThemeLibrary {
             try? thumbnail.write(to: file.deletingPathExtension().appendingPathExtension("jpg"),
                                  options: .atomic)
         }
+        if name == "Recovery" {
+            // Keep only the three most recent recovery copies to avoid storage growth.
+            let backups = all().filter {
+                $0.deletingPathExtension().lastPathComponent.hasPrefix("Recovery-")
+            }
+            for old in backups.dropFirst(3) {
+                try? FileManager.default.removeItem(at: old)
+                try? FileManager.default.removeItem(at:
+                    old.deletingPathExtension().appendingPathExtension("jpg"))
+            }
+        }
         return file
     }
 
