@@ -9,6 +9,33 @@ struct BloomBoxGameProfileIndex: Codable {
     let updatedAt: String
     let profiles: [BloomBoxGameProfile]
 
+    static func validated(from data: Data) -> BloomBoxGameProfileIndex? {
+        // JSONDecoder ignores unknown fields by default. Reject them instead:
+        // a catalog change cannot silently add executable actions or hidden
+        // permission controls to a supposedly declarative profile.
+        guard data.count > 0, data.count <= 100_000,
+              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              Set(root.keys).isSubset(of: Set(["schemaVersion", "catalogID", "updatedAt", "profiles"])),
+              let raw = root["profiles"] as? [[String: Any]], raw.count <= 100 else {
+            return nil
+        }
+        let profileFields = Set(["bundleID", "name", "revision", "gameMode",
+                                 "requiresRAMPlus", "requiresJIT", "compatibility", "evidence", "notes"])
+        let settingFields = Set(["orientation", "jitNeeded", "classicMode", "spoofSDKVersion",
+                                 "hideLiveContainer", "dontInjectTweakLoader", "fixFilePicker",
+                                 "fixLocalNotification"])
+        for entry in raw {
+            guard Set(entry.keys).isSubset(of: profileFields) else { return nil }
+            if let flags = entry["compatibility"] {
+                guard let flags = flags as? [String: Any],
+                      Set(flags.keys).isSubset(of: settingFields) else { return nil }
+            }
+        }
+        guard let index = try? JSONDecoder().decode(BloomBoxGameProfileIndex.self, from: data),
+              index.isValid else { return nil }
+        return index
+    }
+
     var isValid: Bool {
         guard schemaVersion == 1,
               catalogID == "bloombox.game-compatibility",
