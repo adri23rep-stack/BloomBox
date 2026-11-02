@@ -63,6 +63,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     @StateObject private var installUrlInput = InputHelper()
     
     @State private var jitLog = ""
+    @State private var jitContinueInGuest = false
     @StateObject private var jitAlert = YesNoHelper()
     @StateObject private var emulatorPrompt = AlertHelper<BloomBoxEmulatorPreflight.Decision>()
     @State private var emulatorPromptName = ""
@@ -571,6 +572,25 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 .padding(.horizontal)
                 .onAppear {
                     proxy.scrollTo(0)
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if LCUtils.appGroupUserDefault.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue &&
+                    (jitLog.contains("Handling breakpoint") || jitLog.contains("Handling signal")) {
+                    VStack(spacing: 6) {
+                        Button("Abrir la app mientras JIT espera") {
+                            // A guest like Husk may only request executable memory
+                            // after its Start button is tapped. Dismissing this sheet
+                            // must not cancel the debugger or kill the LiveProcess.
+                            jitContinueInGuest = true
+                            jitAlert.close(result: true)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        Text("Experimental: sigue esperando al primer breakpoint. No significa que JIT esté activo. Si la app no responde, ciérrala manualmente.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
                 }
             }
             .navigationTitle("lc.appBanner.waitForJitTitle".loc)
@@ -1381,12 +1401,18 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     func jitLaunch(withPID pid: Int, withScript script: String? = nil, appName: String) async {
         if LCUtils.appGroupUserDefault.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue {
             jitLog = ""
+            jitContinueInGuest = false
             let work = Task {
                 let success = await LiveBoardBuiltInJIT.enable(pid: Int32(pid), script: script) { message in jitLog += message + "\n" }
-                jitAlert.close(result: success)
+                if !jitContinueInGuest { jitAlert.close(result: success) }
                 if !success && !Task.isCancelled { errorInfo = jitLog; errorShow = true }
             }
             let completed = await jitAlert.open()
+            if jitContinueInGuest {
+                // Keep the unstructured helper task alive until its normal
+                // completion/timeout. Only the modal is dismissed.
+                return
+            }
             work.cancel()
             if completed != true { kill(Int32(pid), SIGKILL) }
             return
