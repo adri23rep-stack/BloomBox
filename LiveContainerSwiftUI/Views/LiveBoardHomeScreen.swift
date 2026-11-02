@@ -139,6 +139,28 @@ private struct BloomBoxWidgetInteraction<MenuContent: View>: ViewModifier {
     }
 }
 
+// Living Widgets 1.0: independent, low-cost motion with no timers when offscreen.
+private struct BloomBoxLivingMotion: ViewModifier {
+    let mode: String
+    let speed: Double
+    let travel: Double
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !enabled || mode == "none")) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            let frequency = 0.15 + max(0, min(100, speed)) / 100.0 * 0.75
+            let phase = t * frequency * .pi * 2
+            let distance = CGFloat(max(0, min(100, travel))) * 0.65
+            let dx: CGFloat = mode == "horizontal" ? CGFloat(sin(phase)) * distance :
+                mode == "wander" ? CGFloat(sin(phase * 0.63)) * distance : 0
+            let dy: CGFloat = mode == "float" ? CGFloat(sin(phase)) * distance * 0.45 :
+                mode == "wander" ? CGFloat(cos(phase * 0.79)) * distance * 0.35 : 0
+            content.offset(x: enabled ? dx : 0, y: enabled ? dy : 0)
+        }
+    }
+}
+
 struct LiveBoardHomeScreen: View {
     let apps: [LCAppModel]
     let launch: (LCAppModel) -> Void
@@ -160,6 +182,14 @@ struct LiveBoardHomeScreen: View {
     @State private var tweakStorePresented = false
     @State private var appStorePresented = false
     @State private var modulesPresented = false
+    @State private var themesPresented = false
+    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
+    private var preferredLanguage = "system"
+    private var englishUI: Bool {
+        preferredLanguage == "en" ||
+        (preferredLanguage == "system" &&
+         (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("en"))
+    }
     @ObservedObject private var ramPlus = BloomBoxRAMPlus.shared
     @State private var pendingModuleDestination: BloomBoxModulesPanel.Destination?
     @State private var storeFocusedApp: LCAppModel?
@@ -190,6 +220,8 @@ struct LiveBoardHomeScreen: View {
     private var builtInFolderMigrated = false
     @AppStorage("BloomBoxWidgetMissingAppFallbacks", store: LCUtils.appGroupUserDefault)
     private var widgetFallbacksJSON = "{}"
+    @AppStorage("BloomBoxLivingWidgetSettings", store: LCUtils.appGroupUserDefault)
+    private var livingWidgetSettingsJSON = "{}"
     @State private var themeExportURL: URL?
     @State private var themeExportError: String?
     @State private var layout = LiveBoardHomeLayout()
@@ -432,7 +464,7 @@ struct LiveBoardHomeScreen: View {
                                 .font(.system(size: 53, weight: .bold, design: .rounded))
                                 .tracking(-2)
                                 .shadow(color: .white.opacity(0.28), radius: 23)
-                            Text(aliveSplashLine)
+                            Text(LocalizedStringKey(aliveSplashLine))
                                 .font(.system(size: 18, weight: .heavy, design: .rounded))
                                 .foregroundStyle(Color(red: 1, green: 0.87, blue: 0.38))
                                 .shadow(color: .black.opacity(0.55), radius: 8, y: 3)
@@ -441,7 +473,7 @@ struct LiveBoardHomeScreen: View {
                                 .minimumScaleFactor(0.72)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 30)
-                                .accessibilityLabel(aliveSplashLine)
+                                .accessibilityLabel(aliveSplashLine.loc)
                         }
                         .scaleEffect(aliveIntroVisible ? 1 : 1.05)
                     }
@@ -546,6 +578,13 @@ struct LiveBoardHomeScreen: View {
             .onChange(of: layout) {
                 savedLayout = $0.encoded
                 page = min(page, libraryPageIndex)
+            }
+            .sheet(isPresented: $themesPresented) {
+                BloomBoxThemeStoreView(onApply: { data in
+                    try applyImportedTheme(data)
+                }, onSaveCurrent: {
+                    try currentThemeData()
+                })
             }
             .onAppear {
                 ramPlus.refresh()
@@ -1345,7 +1384,7 @@ struct LiveBoardHomeScreen: View {
         else if key == Self.tweakStoreKey { storeFocusedApp = nil; tweakStorePresented = true }
         else if key == Self.appStoreKey { appStorePresented = true }
         else if key == Self.modulesKey { modulesPresented = true }
-        else if key == Self.themesKey { return } // Placeholder; store comes later.
+        else if key == Self.themesKey { themesPresented = true }
         else if let app = appMap[key] { requestLaunch(app) }
     }
 
@@ -1625,7 +1664,7 @@ struct LiveBoardHomeScreen: View {
         savePlacedWidgets(all)
         placedWidgetsMigrated = true
     }
-    private func addPlacedWidget(_ kind: String, columns: Int = 2, rows: Int = 2) {
+    private func addPlacedWidget(_ kind: String, columns: Int = 2, rows: Int = 2, clockStyle: String? = nil) {
         guard page > 0, layout.pages.indices.contains(page - 1) else { return }
         var all = placedWidgets
         var target = page - 1
@@ -1637,8 +1676,9 @@ struct LiveBoardHomeScreen: View {
             slot = 0
         }
         guard let slot else { return }
-        let widget = BloomBoxPlacedWidget(kind: kind, slot: slot,
+        var widget = BloomBoxPlacedWidget(kind: kind, slot: slot,
                                          columns: columns, rows: rows)
+        widget.clockStyle = clockStyle
         all[target, default: []].append(widget)
         savePlacedWidgets(all)
         moveIconsOutOfWidgetArea()
@@ -1843,10 +1883,21 @@ struct LiveBoardHomeScreen: View {
     private var widgetAddSheet: some View {
         NavigationView {
             List {
-                Section("Añade tantos como quieras") {
-                    Button { addPlacedWidget("clock"); showWidgetGallery = false } label: {
-                        Label("Reloj", systemImage: "clock.fill")
+                Section("Relojes · BloomBox") {
+                    Button { addPlacedWidget("clock", clockStyle: "minimal"); showWidgetGallery = false } label: {
+                        Label("Minimalista · hora y fecha", systemImage: "clock")
                     }
+                    Button { addPlacedWidget("clock", clockStyle: "flip"); showWidgetGallery = false } label: {
+                        Label("Flip · números retro", systemImage: "rectangle.split.2x1")
+                    }
+                    Button { addPlacedWidget("clock", clockStyle: "analog"); showWidgetGallery = false } label: {
+                        Label("Analógico · manecillas", systemImage: "clock.fill")
+                    }
+                    Button { addPlacedWidget("clock", clockStyle: "pixel"); showWidgetGallery = false } label: {
+                        Label("Pixel · estilo videojuego", systemImage: "gamecontroller.fill")
+                    }
+                }
+                Section("Añade tantos como quieras") {
                     Button { addPlacedWidget("notes"); showWidgetGallery = false } label: {
                         Label("Notas", systemImage: "note.text")
                     }
@@ -1875,7 +1926,7 @@ struct LiveBoardHomeScreen: View {
         alivePlayfulActive = false
     }
 
-    private func exportCurrentTheme() {
+    private func currentThemeData() throws -> Data {
         // Export only presentation settings, never installed app data, credentials or private files.
         let defaults = LCUtils.appGroupUserDefault
         let keys = ["LiveBoardHomeLayout", "LiveBoardHiddenPages", "BloomBoxPlacedWidgetsV2",
@@ -1902,18 +1953,41 @@ struct LiveBoardHomeScreen: View {
             settings["ManzanaMotionWallpaper"] = motionWallpaper
         }
         settings["BloomBoxWidgetMissingAppFallbacks"] = widgetFallbacksJSON
+        settings["BloomBoxLivingWidgetSettings"] = livingWidgetSettingsJSON
         let payload: [String: Any] = ["format": "bbtheme", "version": 2,
                                       "mediaBase64": media,
                                       "exportedAt": ISO8601DateFormatter().string(from: Date()),
                                       "settings": settings]
+        return try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+    }
+
+    private func exportCurrentTheme() {
         do {
-            let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+            let data = try currentThemeData()
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("BloomBox-Theme.bbtheme")
             try data.write(to: url, options: .atomic)
             themeExportURL = url
         } catch {
             themeExportError = "No se pudo exportar el tema: \(error.localizedDescription)"
         }
+    }
+
+    private func applyImportedTheme(_ data: Data) throws {
+        // Validate and save a recovery copy before applying any new visual settings.
+        _ = try BloomBoxThemePackage.read(data)
+        let old = try currentThemeData()
+        _ = try BloomBoxThemeLibrary.save(old, named: "Recovery")
+        let newLayout = try BloomBoxThemePackage.apply(
+            data, defaults: LCUtils.appGroupUserDefault,
+            currentLayout: layout, appKeys: appKeys, favorites: favoriteKeys,
+            wallpaperURL: wallpaperURL)
+        layout = newLayout
+        savedLayout = newLayout.encoded
+        // AppStorage and the Home model now observe the imported settings.
+        wallpaper = UIImage(contentsOfFile: wallpaperURL.path)
+        page = 1
+        selectedWidgetID = nil
+        finishEditing()
     }
 
     private func aliveEligibleIconKeys() -> [String] {
@@ -2032,15 +2106,50 @@ struct LiveBoardHomeScreen: View {
 
     /// Keep each GIF tile in its own SwiftUI expression so the huge Home
     /// screen does not time out when type-checking drag + context menus.
+    private struct LivingSettings: Codable {
+        var mode: String = "float"
+        var speed: Double = 75
+        var travel: Double = 60
+        var depth: Bool? = nil
+        var glow: Bool? = nil
+        var adaptiveGlass: Bool? = nil
+        // Nil preserves old themes. "auto" samples the first image/GIF frame once.
+        var glowColor: String? = nil
+        var pixelFollowGlow: Bool? = nil
+    }
+
+    private func livingSettings(for id: String) -> LivingSettings {
+        let values = (try? JSONDecoder().decode([String: LivingSettings].self,
+            from: Data(livingWidgetSettingsJSON.utf8))) ?? [:]
+        return values[id] ?? LivingSettings()
+    }
+
+    private func setLivingSettings(_ id: String, change: (inout LivingSettings) -> Void) {
+        var values = (try? JSONDecoder().decode([String: LivingSettings].self,
+            from: Data(livingWidgetSettingsJSON.utf8))) ?? [:]
+        var settings = values[id] ?? LivingSettings()
+        change(&settings)
+        values[id] = settings
+        if let data = try? JSONEncoder().encode(values),
+           let json = String(data: data, encoding: .utf8) {
+            livingWidgetSettingsJSON = json
+        }
+    }
+
     private func homeWidgetTile(_ widget: BloomBoxPlacedWidget,
                                 pageIndex index: Int,
                                 cellWidth: CGFloat, pitch: CGFloat) -> some View {
         let w = CGFloat(widget.columns) * cellWidth - 5
         let h = CGFloat(widget.rows) * pitch - 5
+        let living = livingSettings(for: widget.id)
+        let accent = BloomBoxWidgetGlowPalette.color(living.glowColor, for: widget)
+        let pixelAccent: Color? = (living.pixelFollowGlow ?? false) && widget.clockStyle == "pixel"
+            ? accent : nil
         let delay = Double(widget.slot % 4) * 0.145
             + Double(widget.slot / 4) * 0.026
         return BloomBoxGridWidgetView(widget: widget, width: w, height: h,
-                                      active: page == index + 1)
+                                      active: page == index + 1,
+                                      clockAccentColor: pixelAccent)
             .allowsHitTesting(false)
             .frame(width: w, height: h)
             .overlay {
@@ -2089,6 +2198,19 @@ struct LiveBoardHomeScreen: View {
             // Position the entire interaction surface, including every gesture.
             .offset(x: 14 + CGFloat(widget.slot % 4) * cellWidth,
                     y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch)
+            .modifier(BloomBoxLivingMotion(mode: living.mode, speed: living.speed, travel: living.travel,
+                enabled: scenePhase == .active && page == index + 1 && !editing && !reduceMotion && !searching))
+            .shadow(color: (living.depth ?? false) && !editing ? Color.black.opacity(0.38) : .clear,
+                    radius: (living.depth ?? false) && !editing ? 15 : 0, x: 0, y: 12)
+            .shadow(color: (living.glow ?? false) && !editing ? accent.opacity(0.48) : .clear,
+                    radius: (living.glow ?? false) && !editing ? 20 : 0, x: 0, y: 8)
+            .overlay {
+                if (living.adaptiveGlass ?? false) && widget.glass && !editing {
+                    RoundedRectangle(cornerRadius: 19)
+                        .strokeBorder(accent.opacity(0.34), lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+            }
             .zIndex(selectedWidgetID == widget.id ? 2 : 1)
             // Animate the entire interactive tile, not only its disabled
             // GIF/photo content. Editing still tracks the finger instantly.
@@ -2239,6 +2361,91 @@ struct LiveBoardHomeScreen: View {
                 updateWidget(widget.id) { $0.fill.toggle() }
             }
         }
+        if widget.kind == "clock" {
+            Menu("Estilo de reloj", systemImage: "clock") {
+                Button("Minimalista") { updateWidget(widget.id) { $0.clockStyle = "minimal" } }
+                Button("Flip retro") { updateWidget(widget.id) { $0.clockStyle = "flip" } }
+                Button("Analógico") { updateWidget(widget.id) { $0.clockStyle = "analog" } }
+                Button("Pixel") { updateWidget(widget.id) { $0.clockStyle = "pixel" } }
+            }
+            Menu("Color del reloj", systemImage: "paintpalette") {
+                Button("Blanco") { updateWidget(widget.id) { $0.clockTint = "white" } }
+                Button("Menta") { updateWidget(widget.id) { $0.clockTint = "mint" } }
+                Button("Rosa") { updateWidget(widget.id) { $0.clockTint = "pink" } }
+                Button("Ámbar") { updateWidget(widget.id) { $0.clockTint = "amber" } }
+            }
+            Menu("Formato de hora", systemImage: "textformat.123") {
+                Button("24 horas") { updateWidget(widget.id) { $0.clock24Hour = true } }
+                Button("12 horas") { updateWidget(widget.id) { $0.clock24Hour = false } }
+            }
+            if widget.clockStyle == "pixel" {
+                Menu("Brillo Pixel Time", systemImage: "sun.max") {
+                    ForEach([0, 25, 50, 75, 100], id: \.self) { value in
+                        Button("\(value)%") {
+                            updateWidget(widget.id) { $0.pixelGlow = Double(value) / 100 }
+                        }
+                    }
+                }
+                Button("Animar barra Pixel Time · activar/desactivar") {
+                    updateWidget(widget.id) { $0.pixelAnimatedBar = !($0.pixelAnimatedBar ?? false) }
+                }
+                Button((livingSettings(for: widget.id).pixelFollowGlow ?? false)
+                    ? "Pixel Time: volver a su color original"
+                    : "Pixel Time: usar el color del brillo") {
+                    setLivingSettings(widget.id) { $0.pixelFollowGlow = !($0.pixelFollowGlow ?? false) }
+                }
+            }
+        }
+        Menu("Living Widget · Movimiento", systemImage: "sparkles.rectangle.stack") {
+            Button("Sin movimiento") { setLivingSettings(widget.id) { $0.mode = "none" } }
+            Button("Flotar ↕") { setLivingSettings(widget.id) { $0.mode = "float" } }
+            Button("Izquierda y derecha ↔") { setLivingSettings(widget.id) { $0.mode = "horizontal" } }
+            Button("Paseo suave ✦") { setLivingSettings(widget.id) { $0.mode = "wander" } }
+            Menu("Velocidad") {
+                ForEach([10, 25, 50, 75, 100], id: \.self) { value in
+                    Button("\(value)%") { setLivingSettings(widget.id) { $0.speed = Double(value) } }
+                }
+            }
+            Menu("Recorrido") {
+                ForEach([10, 25, 40, 60, 80, 100], id: \.self) { value in
+                    Button("\(value)%") { setLivingSettings(widget.id) { $0.travel = Double(value) } }
+                }
+            }
+        }
+        Menu("Profundidad y cristal", systemImage: "square.3.layers.3d") {
+            Button("Sombra flotante · activar/desactivar") {
+                setLivingSettings(widget.id) { $0.depth = !($0.depth ?? false) }
+            }
+            Button("Brillo inferior · activar/desactivar") {
+                setLivingSettings(widget.id) { $0.glow = !($0.glow ?? false) }
+            }
+            Button("Borde del color del brillo · activar/desactivar") {
+                setLivingSettings(widget.id) { $0.adaptiveGlass = !($0.adaptiveGlass ?? false) }
+            }
+            Menu("Color del brillo", systemImage: "paintpalette.fill") {
+                Button("Automático · imagen o reloj") {
+                    setLivingSettings(widget.id) { $0.glowColor = "auto"; $0.glow = true }
+                }
+                Button("Menta") {
+                    setLivingSettings(widget.id) { $0.glowColor = "mint"; $0.glow = true }
+                }
+                Button("Azul") {
+                    setLivingSettings(widget.id) { $0.glowColor = "blue"; $0.glow = true }
+                }
+                Button("Rosa") {
+                    setLivingSettings(widget.id) { $0.glowColor = "pink"; $0.glow = true }
+                }
+                Button("Ámbar") {
+                    setLivingSettings(widget.id) { $0.glowColor = "amber"; $0.glow = true }
+                }
+                Button("Rojo") {
+                    setLivingSettings(widget.id) { $0.glowColor = "red"; $0.glow = true }
+                }
+                Button("Blanco") {
+                    setLivingSettings(widget.id) { $0.glowColor = "white"; $0.glow = true }
+                }
+            }
+        }
         Menu("Tamaño del widget", systemImage: "arrow.up.left.and.arrow.down.right") {
             Button("Pequeño · 1×1") { resizeWidget(widget.id, columns: 1, rows: 1) }
             Button("Cuadrado · 2×2") { resizeWidget(widget.id, columns: 2, rows: 2) }
@@ -2364,7 +2571,7 @@ struct LiveBoardHomeScreen: View {
             else if isTweakStore { tweakStorePresented = true }
             else if isAppStore { appStorePresented = true }
             else if isModules { modulesPresented = true }
-            else if isThemes { return } // Intentionally no action until theme store ships.
+            else if isThemes { themesPresented = true }
             else { openInstall() }
         } label: {
             VStack(spacing: 5) {
@@ -2423,16 +2630,22 @@ struct LiveBoardHomeScreen: View {
                     }
                 }
             }
-            if isThemes && !layout.folders.isEmpty {
-                Menu("Meter en carpeta", systemImage: "folder") {
-                    ForEach(layout.folders) { folder in
-                        Button(folder.name) { layout.put(key, in: folder.id); reconcile() }
+            Menu(englishUI ? "Folder" : "Carpeta", systemImage: "folder") {
+                Button(englishUI ? "New Folder" : "Nueva carpeta", systemImage: "folder.badge.plus") {
+                    newFolderApp = key
+                    folderName = "BloomBox"
+                }
+                ForEach(layout.folders) { folder in
+                    Button(folder.name, systemImage: "folder") {
+                        layout.put(key, in: folder.id)
+                        reconcile()
                     }
                 }
-            }
-            if isThemes && layout.folders.contains(where: { $0.apps.contains(key) }) {
-                Button("Sacar de carpeta", systemImage: "folder.badge.minus") {
-                    layout.place(key, on: max(0, page - 1)); reconcile()
+                if layout.folders.contains(where: { $0.apps.contains(key) }) {
+                    Button(englishUI ? "Move Out of Folder" : "Sacar de carpeta", systemImage: "folder.badge.minus") {
+                        layout.place(key, on: max(0, page - 1))
+                        reconcile()
+                    }
                 }
             }
         }
@@ -3423,7 +3636,7 @@ private struct BloomBoxModulesPanel: View {
                             in: RoundedRectangle(cornerRadius: 14))
             Spacer(minLength: 0)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(module.title)
+                Text(LocalizedStringKey(module.title))
                     .font(.system(size: 17, weight: .bold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.80)
@@ -3432,7 +3645,7 @@ private struct BloomBoxModulesPanel: View {
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.white.opacity(0.65))
             }
-            Text(module.subtitle)
+            Text(LocalizedStringKey(module.subtitle))
                 .font(.system(size: 12))
                 .foregroundStyle(.white.opacity(0.72))
                 .lineLimit(2)
@@ -3514,8 +3727,8 @@ private struct BloomBoxModulesPanel: View {
                 .frame(width: 53, height: 53)
                 .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 15))
             VStack(alignment: .leading, spacing: 5) {
-                Text(title).font(.headline)
-                Text(subtitle).font(.footnote).foregroundStyle(.white.opacity(0.65))
+                Text(LocalizedStringKey(title)).font(.headline)
+                Text(LocalizedStringKey(subtitle)).font(.footnote).foregroundStyle(.white.opacity(0.65))
             }
             Spacer(minLength: 4)
             Image(systemName: "chevron.right")
@@ -3534,9 +3747,9 @@ private struct BloomBoxModulesPanel: View {
     private func moduleDetail(_ module: Module) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-            Label(module.title, systemImage: module.symbol)
+            Label(LocalizedStringKey(module.title), systemImage: module.symbol)
                 .font(.title2.bold())
-                Text(detailDescription(module))
+                Text(LocalizedStringKey(detailDescription(module)))
                     .font(.body)
                     .foregroundStyle(.secondary)
             Button {
@@ -3548,7 +3761,7 @@ private struct BloomBoxModulesPanel: View {
                 case .ram: break
                 }
             } label: {
-                Label(detailButton(module), systemImage: "arrow.up.right.square")
+                Label(LocalizedStringKey(detailButton(module)), systemImage: "arrow.up.right.square")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -3563,7 +3776,7 @@ private struct BloomBoxModulesPanel: View {
                         Text("English").tag("en")
                     }
                     .accessibilityIdentifier("bloombox.experiments.language.picker")
-                    Text("Preferencia experimental para probar los catálogos de noticias por idioma. No cambia el idioma del iPhone; la traducción completa de la interfaz se incorporará por etapas.")
+                    Text("Elige el idioma de BloomBox y sus noticias. Automático usa el idioma del iPhone; no modifica el idioma del sistema.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Divider()

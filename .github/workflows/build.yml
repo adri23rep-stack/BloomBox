@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - fix/finish-astra-home-20261101
+      - feature/living-widgets-1-20261101
+      - feature/english-localization-20261101
+      - feature/theme-store-folders-20261101
       - experimental/melonx-26-jit
       - fix/jit-dynamic-rsd-port-ios27
       - experimental/melonx-script-other-guests
@@ -50,6 +53,10 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxRAMValidation.swift Tests/ram-validation/main.swift -o "$RUNNER_TEMP/ram-validation-tests"
           "$RUNNER_TEMP/ram-validation-tests"
+      - name: Test built-in app folder moves and persistence
+        run: |
+          swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-builtins-folders/main.swift -o "$RUNNER_TEMP/home-folder-tests"
+          "$RUNNER_TEMP/home-folder-tests"
       - name: Test RAM+ Apple request planning
         run: |
           swiftc SideStoreSupport/BloomBoxRAMPortal.swift Tests/ram-portal/main.swift -o "$RUNNER_TEMP/ram-portal-tests"
@@ -257,3 +264,63 @@ jobs:
             - The published IPA is **unsigned** and is intended to be signed and installed with SideStore.
 
             **Build:** ${{ github.sha }}
+
+  release__v200:
+    name: Publish BloomBox v2.0.0
+    if: >-
+      ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release: BloomBox v2.0.0') }}
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download compiled and validated SideStore IPA
+        uses: actions/download-artifact@v8
+        with:
+          name: BloomBox-SideStore-unsigned.ipa
+          path: release
+      - name: Verify IPA and generate SHA-256 checksum
+        run: |
+          test -s release/BloomBox-SideStore-unsigned.ipa
+          unzip -t release/BloomBox-SideStore-unsigned.ipa | tail -n 1
+          cd release
+          sha256sum BloomBox-SideStore-unsigned.ipa > SHA256SUMS.txt
+      - name: Publish BloomBox 2.0 release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v2.0.0
+          name: "BloomBox 2.0 — Alive Home, Living Widgets & Theme Store"
+          target_commitish: ${{ github.sha }}
+          draft: false
+          prerelease: false
+          make_latest: true
+          generate_release_notes: false
+          fail_on_unmatched_files: true
+          files: |
+            release/BloomBox-SideStore-unsigned.ipa
+            release/SHA256SUMS.txt
+          body: |
+            ## BloomBox 2.0
+            A major Home screen update with a more animated desktop and greater customization.
+
+            ### What's new
+            - BloomBox Alive: playful startup wave, rotating splash messages, and occasional icon movement.
+            - Living Widgets: floating, horizontal and wandering motion with individual settings, pause rules and theme persistence.
+            - Four native clocks: Minimal, Flip Retro, Analog and Pixel, with customizable tint and time format.
+            - Home widgets: grid layout, resizing, photo/GIF selection and more reliable dragging and tap targets.
+            - Animated wallpapers imported from Photos or Files, including GIF and video.
+            - More iOS-like BloomBox folder, movable built-in shortcuts and Dock haptics.
+            - Theme Store: local .bbtheme library and official remote catalog with integrity-checked downloads.
+            - Expanded English/Spanish localization, remote news, and Modules UI improvements.
+
+            ### Install
+            Download **BloomBox-SideStore-unsigned.ipa**. This IPA is unsigned and must be signed with SideStore or a compatible signing method.
+            **Install over your existing BloomBox rather than uninstalling it** if you want to preserve data. Keep the same bundle identifier and signing setup.
+
+            ### Compatibility and cautions
+            - RAM+ depends on Apple's approval and the entitlements present in the final signed app; signing again can remove them.
+            - JIT depends on the device, iOS version, pairing and provider.
+            - Automated iOS build and IPA validation passed for the release pipeline; some animations, haptics and themes still require physical-device feedback.
+            - Unofficial fan-made themes are not affiliated with their referenced game creators.
+
+            **Commit:** ${{ github.sha }}

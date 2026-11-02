@@ -250,6 +250,12 @@ struct BloomBoxPlacedWidget: Codable, Equatable, Identifiable {
     /// Optional launcher key selected by the user. Nil keeps legacy tap behavior.
     /// Old saved widget JSON decodes without this key.
     var tapActionKey: String? = nil
+    /// Optional: old layouts continue to decode with their original clock.
+    var clockStyle: String? = nil
+    var clockTint: String? = nil
+    var clock24Hour: Bool? = nil
+    var pixelGlow: Double? = nil
+    var pixelAnimatedBar: Bool? = nil
 }
 
 enum BloomBoxWidgetGrid {
@@ -335,11 +341,273 @@ enum BloomBoxWidgetMedia {
     }
 }
 
+
+/// Shared widget accent palette. Automatic mode samples a bounded 24x24
+/// thumbnail of the first image/GIF frame, never the full animated media.
+/// The result is cached by imported media path, so moving widgets is cheap.
+enum BloomBoxWidgetGlowPalette {
+    private static let thumbnailCache = NSCache<NSString, UIColor>()
+    private static let mint = UIColor(red: 0.38, green: 0.96, blue: 0.78, alpha: 1)
+
+    static func color(_ preset: String?, for widget: BloomBoxPlacedWidget) -> Color {
+        switch preset {
+        case "mint": return Color(red: 0.38, green: 0.96, blue: 0.78)
+        case "blue": return Color(red: 0.25, green: 0.72, blue: 1.0)
+        case "pink": return Color(red: 1.0, green: 0.45, blue: 0.78)
+        case "amber": return Color(red: 1.0, green: 0.76, blue: 0.32)
+        case "red": return Color(red: 1.0, green: 0.32, blue: 0.38)
+        case "white": return .white
+        default: return automatic(for: widget)
+        }
+    }
+
+    private static func automatic(for widget: BloomBoxPlacedWidget) -> Color {
+        if widget.kind == "clock" {
+            switch widget.clockTint {
+            case "pink": return color("pink", for: widget)
+            case "mint": return color("mint", for: widget)
+            case "amber": return color("amber", for: widget)
+            case "white", nil: return .white
+            default: return Color(uiColor: mint)
+            }
+        }
+        guard widget.kind == "media",
+              let url = BloomBoxWidgetMedia.url(for: widget.mediaName),
+              FileManager.default.fileExists(atPath: url.path) else {
+            return Color(uiColor: mint)
+        }
+        let key = url.path as NSString
+        if let previous = thumbnailCache.object(forKey: key) {
+            return Color(uiColor: previous)
+        }
+        let accent = sampleMediaColor(url) ?? mint
+        thumbnailCache.setObject(accent, forKey: key)
+        return Color(uiColor: accent)
+    }
+
+    private static func sampleMediaColor(_ url: URL) -> UIColor? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: 24,
+            kCGImageSourceShouldCache: false
+        ]
+        guard let preview = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+        else { return nil }
+
+        let side = 24
+        var pixels = [UInt8](repeating: 0, count: side * side * 4)
+        let space = CGColorSpaceCreateDeviceRGB()
+        guard let context = CGContext(data: &pixels,
+                                      width: side, height: side,
+                                      bitsPerComponent: 8, bytesPerRow: side * 4,
+                                      space: space,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue)
+        else { return nil }
+        context.interpolationQuality = .medium
+        context.draw(preview, in: CGRect(x: 0, y: 0, width: side, height: side))
+
+        // Vote by vivid color family rather than averaging against black or transparency.
+        var votes = [Double](repeating: 0, count: 12)
+        var hueSums = [Double](repeating: 0, count: 12)
+        for offset in stride(from: 0, to: pixels.count, by: 4) {
+            let alpha = Double(pixels[offset + 3]) / 255
+            guard alpha > 0.4 else { continue }
+            let red = min(1, Double(pixels[offset]) / (255 * alpha))
+            let green = min(1, Double(pixels[offset + 1]) / (255 * alpha))
+            let blue = min(1, Double(pixels[offset + 2]) / (255 * alpha))
+            let maximum = max(red, max(green, blue))
+            let minimum = min(red, min(green, blue))
+            let difference = maximum - minimum
+            guard maximum > 0.18, difference > 0.1,
+                  difference / maximum > 0.23 else { continue }
+            var hue: Double
+            if maximum == red {
+                hue = (green - blue) / difference
+            } else if maximum == green {
+                hue = (blue - red) / difference + 2
+            } else {
+                hue = (red - green) / difference + 4
+            }
+            if hue < 0 { hue += 6 }
+            let fraction = hue / 6
+            let bucket = min(11, Int(fraction * 12))
+            let score = alpha * (difference / maximum) * maximum
+            votes[bucket] += score
+            hueSums[bucket] += score * fraction
+        }
+        guard let selected = (0..<votes.count).max(by: { votes[$0] < votes[$1] }),
+              votes[selected] > 0 else { return nil }
+        return UIColor(hue: CGFloat(hueSums[selected] / votes[selected]),
+                       saturation: 0.79, brightness: 0.98, alpha: 1)
+    }
+}
+
+/// Native SwiftUI clock faces. No remote code, assets, or dependencies required.
+private struct BloomBoxClockFace: View {
+    let widget: BloomBoxPlacedWidget
+    let accentOverride: Color?
+
+    private var tint: Color {
+        if let accentOverride, widget.clockStyle == "pixel" { return accentOverride }
+        switch widget.clockTint {
+        case "mint": return Color(red: 0.38, green: 0.96, blue: 0.78)
+        case "pink": return Color(red: 1.0, green: 0.61, blue: 0.82)
+        case "amber": return Color(red: 1.0, green: 0.76, blue: 0.38)
+        default: return .white
+        }
+    }
+
+    private var style: String { widget.clockStyle ?? "minimal" }
+    private var tiny: Bool { widget.columns == 1 || widget.rows == 1 }
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let components = Calendar.current.dateComponents([.hour, .minute, .second], from: context.date)
+            let hour = components.hour ?? 0
+            let minute = components.minute ?? 0
+            let second = components.second ?? 0
+            let displayHour = (widget.clock24Hour ?? true) ? hour : (hour % 12 == 0 ? 12 : hour % 12)
+            let value = String(format: "%02d:%02d", displayHour, minute)
+            Group {
+                switch style {
+                case "flip":
+                    flipFace(value: value, date: context.date)
+                case "analog":
+                    analogFace(hour: hour, minute: minute, second: second)
+                case "pixel":
+                    pixelFace(value: value, second: second)
+                default:
+                    minimalFace(value: value, date: context.date)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .foregroundStyle(tint)
+            .accessibilityLabel("Hora: \(value)")
+        }
+    }
+
+    private func minimalFace(value: String, date: Date) -> some View {
+        VStack(spacing: tiny ? 1 : 5) {
+            Text(value)
+                .font(.system(size: tiny ? 23 : 36, weight: .light, design: .rounded))
+                .monospacedDigit()
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+            if !tiny {
+                Text(date, format: .dateTime.weekday(.wide).day().month(.abbreviated))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .opacity(0.82)
+            }
+        }
+        .padding(8)
+    }
+
+    private func flipFace(value: String, date: Date) -> some View {
+        VStack(spacing: 5) {
+            HStack(spacing: tiny ? 2 : 4) {
+                ForEach(Array(value.enumerated()), id: \.offset) { _, character in
+                    if character == ":" {
+                        Text(":").font(.system(size: tiny ? 17 : 31, weight: .bold, design: .monospaced))
+                    } else {
+                        Text(String(character))
+                            .font(.system(size: tiny ? 18 : 31, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            // Keep iOS 15 deployment compatibility; flip changes animate via parent.
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, tiny ? 6 : 11)
+                            .background {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .fill(Color.black.opacity(0.72))
+                                    .overlay(alignment: .center) {
+                                        Rectangle().fill(.white.opacity(0.12)).frame(height: 1)
+                                    }
+                            }
+                    }
+                }
+            }
+            if !tiny {
+                Text(date, format: .dateTime.day().month(.abbreviated))
+                    .font(.caption2)
+            }
+        }
+        .padding(.horizontal, 7)
+        .animation(.easeInOut(duration: 0.25), value: value)
+    }
+
+    private func analogFace(hour: Int, minute: Int, second: Int) -> some View {
+        GeometryReader { geo in
+            let side = min(geo.size.width, geo.size.height) * 0.87
+            ZStack {
+                Circle().strokeBorder(tint.opacity(0.78), lineWidth: 2)
+                ForEach(0..<12, id: \.self) { tick in
+                    Capsule()
+                        .fill(tint.opacity(tick.isMultiple(of: 3) ? 0.95 : 0.55))
+                        .frame(width: tick.isMultiple(of: 3) ? 2.5 : 1.5, height: side * 0.075)
+                        .offset(y: -side * 0.40)
+                        .rotationEffect(.degrees(Double(tick) * 30))
+                }
+                Capsule()
+                    .fill(tint)
+                    .frame(width: 4, height: side * 0.27)
+                    .offset(y: -side * 0.13)
+                    .rotationEffect(.degrees(Double(hour % 12) * 30 + Double(minute) * 0.5))
+                Capsule()
+                    .fill(tint)
+                    .frame(width: 2.5, height: side * 0.37)
+                    .offset(y: -side * 0.17)
+                    .rotationEffect(.degrees(Double(minute) * 6 + Double(second) * 0.1))
+                Capsule()
+                    .fill(Color.red.opacity(0.9))
+                    .frame(width: 1.5, height: side * 0.43)
+                    .offset(y: -side * 0.14)
+                    .rotationEffect(.degrees(Double(second) * 6))
+                Circle().fill(tint).frame(width: 7, height: 7)
+            }
+            .frame(width: side, height: side)
+            .position(x: geo.size.width / 2, y: geo.size.height / 2)
+        }
+        .padding(7)
+    }
+
+    private func pixelFace(value: String, second: Int) -> some View {
+        VStack(spacing: tiny ? 2 : 6) {
+            HStack(spacing: 4) {
+                Image(systemName: "gamecontroller.fill").font(.system(size: tiny ? 10 : 15))
+                if !tiny { Text("PIXEL TIME").font(.system(size: 9, weight: .bold, design: .monospaced)) }
+            }
+            .opacity(0.8)
+            Text(value)
+                .font(.system(size: tiny ? 20 : 33, weight: .black, design: .monospaced))
+                .monospacedDigit()
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+                .shadow(color: tint.opacity(0.75 * max(0, min(1, widget.pixelGlow ?? 1))), radius: 7 * max(0, min(1, widget.pixelGlow ?? 1)))
+            if !tiny {
+                HStack(spacing: 3) {
+                    ForEach(0..<12, id: \.self) { index in
+                        Rectangle()
+                            .fill(index <= ((widget.pixelAnimatedBar ?? false) ? (second / 5) : 5) ? tint : tint.opacity(0.13))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 4)
+                    }
+                }
+            }
+        }
+        .padding(9)
+        .background(Color.black.opacity(0.27), in: RoundedRectangle(cornerRadius: 11))
+        .padding(5)
+    }
+}
+
 struct BloomBoxGridWidgetView: View {
     let widget: BloomBoxPlacedWidget
     let width: CGFloat
     let height: CGFloat
     var active = true
+    var clockAccentColor: Color? = nil
     @AppStorage("ManzanaNote", store: LCUtils.appGroupUserDefault) private var note = ""
     @Environment(\.scenePhase) private var scenePhase
 
@@ -353,20 +621,7 @@ struct BloomBoxGridWidgetView: View {
             Group {
                 switch widget.kind {
                 case "clock":
-                    TimelineView(.periodic(from: .now, by: 60)) { context in
-                        VStack(spacing: 2) {
-                            Text(context.date, format: .dateTime.hour().minute())
-                                .font(.system(size: widget.columns == 1 ? 15 : 31,
-                                              weight: .medium, design: .rounded))
-                                .lineLimit(1).minimumScaleFactor(0.5)
-                            if widget.rows > 1 {
-                                Text(context.date, format: .dateTime.day().month(.abbreviated))
-                                    .font(.caption2)
-                            }
-                        }
-                        .foregroundStyle(.white)
-                        .padding(7)
-                    }
+                    BloomBoxClockFace(widget: widget, accentOverride: clockAccentColor)
                 case "notes":
                     Text(note.isEmpty ? "Notas" : note)
                         .font(.system(size: widget.columns == 1 ? 11 : 16))
