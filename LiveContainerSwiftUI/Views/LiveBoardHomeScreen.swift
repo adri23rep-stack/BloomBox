@@ -182,6 +182,14 @@ struct LiveBoardHomeScreen: View {
     @State private var tweakStorePresented = false
     @State private var appStorePresented = false
     @State private var modulesPresented = false
+    @State private var themesPresented = false
+    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
+    private var preferredLanguage = "system"
+    private var englishUI: Bool {
+        preferredLanguage == "en" ||
+        (preferredLanguage == "system" &&
+         (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("en"))
+    }
     @ObservedObject private var ramPlus = BloomBoxRAMPlus.shared
     @State private var pendingModuleDestination: BloomBoxModulesPanel.Destination?
     @State private var storeFocusedApp: LCAppModel?
@@ -570,6 +578,13 @@ struct LiveBoardHomeScreen: View {
             .onChange(of: layout) {
                 savedLayout = $0.encoded
                 page = min(page, libraryPageIndex)
+            }
+            .sheet(isPresented: $themesPresented) {
+                BloomBoxThemeStoreView(onApply: { data in
+                    try applyImportedTheme(data)
+                }, onSaveCurrent: {
+                    try currentThemeData()
+                })
             }
             .onAppear {
                 ramPlus.refresh()
@@ -1369,7 +1384,7 @@ struct LiveBoardHomeScreen: View {
         else if key == Self.tweakStoreKey { storeFocusedApp = nil; tweakStorePresented = true }
         else if key == Self.appStoreKey { appStorePresented = true }
         else if key == Self.modulesKey { modulesPresented = true }
-        else if key == Self.themesKey { return } // Placeholder; store comes later.
+        else if key == Self.themesKey { themesPresented = true }
         else if let app = appMap[key] { requestLaunch(app) }
     }
 
@@ -1911,7 +1926,7 @@ struct LiveBoardHomeScreen: View {
         alivePlayfulActive = false
     }
 
-    private func exportCurrentTheme() {
+    private func currentThemeData() throws -> Data {
         // Export only presentation settings, never installed app data, credentials or private files.
         let defaults = LCUtils.appGroupUserDefault
         let keys = ["LiveBoardHomeLayout", "LiveBoardHiddenPages", "BloomBoxPlacedWidgetsV2",
@@ -1943,14 +1958,36 @@ struct LiveBoardHomeScreen: View {
                                       "mediaBase64": media,
                                       "exportedAt": ISO8601DateFormatter().string(from: Date()),
                                       "settings": settings]
+        return try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+    }
+
+    private func exportCurrentTheme() {
         do {
-            let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+            let data = try currentThemeData()
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("BloomBox-Theme.bbtheme")
             try data.write(to: url, options: .atomic)
             themeExportURL = url
         } catch {
             themeExportError = "No se pudo exportar el tema: \(error.localizedDescription)"
         }
+    }
+
+    private func applyImportedTheme(_ data: Data) throws {
+        // Validate and save a recovery copy before applying any new visual settings.
+        _ = try BloomBoxThemePackage.read(data)
+        let old = try currentThemeData()
+        _ = try BloomBoxThemeLibrary.save(old, named: "Recovery")
+        let newLayout = try BloomBoxThemePackage.apply(
+            data, defaults: LCUtils.appGroupUserDefault,
+            currentLayout: layout, appKeys: appKeys, favorites: favoriteKeys,
+            wallpaperURL: wallpaperURL)
+        layout = newLayout
+        savedLayout = newLayout.encoded
+        // AppStorage and the Home model now observe the imported settings.
+        wallpaper = UIImage(contentsOfFile: wallpaperURL.path)
+        page = 1
+        selectedWidgetID = nil
+        finishEditing()
     }
 
     private func aliveEligibleIconKeys() -> [String] {
@@ -2534,7 +2571,7 @@ struct LiveBoardHomeScreen: View {
             else if isTweakStore { tweakStorePresented = true }
             else if isAppStore { appStorePresented = true }
             else if isModules { modulesPresented = true }
-            else if isThemes { return } // Intentionally no action until theme store ships.
+            else if isThemes { themesPresented = true }
             else { openInstall() }
         } label: {
             VStack(spacing: 5) {
@@ -2593,16 +2630,22 @@ struct LiveBoardHomeScreen: View {
                     }
                 }
             }
-            if isThemes && !layout.folders.isEmpty {
-                Menu("Meter en carpeta", systemImage: "folder") {
-                    ForEach(layout.folders) { folder in
-                        Button(folder.name) { layout.put(key, in: folder.id); reconcile() }
+            Menu(englishUI ? "Folder" : "Carpeta", systemImage: "folder") {
+                Button(englishUI ? "New Folder" : "Nueva carpeta", systemImage: "folder.badge.plus") {
+                    newFolderApp = key
+                    folderName = "BloomBox"
+                }
+                ForEach(layout.folders) { folder in
+                    Button(folder.name, systemImage: "folder") {
+                        layout.put(key, in: folder.id)
+                        reconcile()
                     }
                 }
-            }
-            if isThemes && layout.folders.contains(where: { $0.apps.contains(key) }) {
-                Button("Sacar de carpeta", systemImage: "folder.badge.minus") {
-                    layout.place(key, on: max(0, page - 1)); reconcile()
+                if layout.folders.contains(where: { $0.apps.contains(key) }) {
+                    Button(englishUI ? "Move Out of Folder" : "Sacar de carpeta", systemImage: "folder.badge.minus") {
+                        layout.place(key, on: max(0, page - 1))
+                        reconcile()
+                    }
                 }
             }
         }
