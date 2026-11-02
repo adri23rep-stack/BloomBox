@@ -3,11 +3,11 @@ import SwiftUI
 struct LiveBoardConsoleScreen: View {
     let apps: [LCAppModel]
     let mode: String
-    let launch: (LCAppModel) async -> Void
+    let launch: (LCAppModel, Bool) async -> Void
     let manage: (LCAppModel) -> Void
     let openInterface: () -> Void
     let openManagement: () -> Void
-    var launchWithJIT: ((LCAppModel) async -> Void)? = nil
+    var launchWithJIT: ((LCAppModel, Bool) async -> Void)? = nil
     @ObservedObject private var appCustomization = LiveBoardAppCustomization.shared
     @State private var appearanceApp: LiveBoardAppearanceSelection?
     @AppStorage("StrataConsoleLayouts", store: LCUtils.appGroupUserDefault) private var savedConsoleLayouts = "{}"
@@ -492,7 +492,11 @@ struct LiveBoardConsoleScreen: View {
         }
         controller.stop(); audio.stop(); launching = true
         Task { @MainActor in
-            if forceJIT, let launchWithJIT { await launchWithJIT(app) } else { await launch(app) }
+            // This actual rendered console knows whether we are in Game.
+            // Do not ask AppStorage again during a pending scene rotation.
+            let fromGame = mode == "cinematic"
+            if forceJIT, let launchWithJIT { await launchWithJIT(app, fromGame) }
+            else { await launch(app, fromGame) }
             launching = false
             // Do not reclaim the gamepad after a guest starts in-process.
             // Scene reactivation or an explicit touch resumes launcher input after a canceled launch.
