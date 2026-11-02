@@ -3593,7 +3593,7 @@ private struct BloomBoxModulesPanel: View {
                             in: RoundedRectangle(cornerRadius: 14))
             Spacer(minLength: 0)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(module.title)
+                Text(LocalizedStringKey(module.title))
                     .font(.system(size: 17, weight: .bold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.80)
@@ -3602,7 +3602,7 @@ private struct BloomBoxModulesPanel: View {
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.white.opacity(0.65))
             }
-            Text(module.subtitle)
+            Text(LocalizedStringKey(module.subtitle))
                 .font(.system(size: 12))
                 .foregroundStyle(.white.opacity(0.72))
                 .lineLimit(2)
@@ -3684,8 +3684,8 @@ private struct BloomBoxModulesPanel: View {
                 .frame(width: 53, height: 53)
                 .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 15))
             VStack(alignment: .leading, spacing: 5) {
-                Text(title).font(.headline)
-                Text(subtitle).font(.footnote).foregroundStyle(.white.opacity(0.65))
+                Text(LocalizedStringKey(title)).font(.headline)
+                Text(LocalizedStringKey(subtitle)).font(.footnote).foregroundStyle(.white.opacity(0.65))
             }
             Spacer(minLength: 4)
             Image(systemName: "chevron.right")
@@ -3704,9 +3704,9 @@ private struct BloomBoxModulesPanel: View {
     private func moduleDetail(_ module: Module) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-            Label(module.title, systemImage: module.symbol)
+            Label(LocalizedStringKey(module.title), systemImage: module.symbol)
                 .font(.title2.bold())
-                Text(detailDescription(module))
+                Text(LocalizedStringKey(detailDescription(module)))
                     .font(.body)
                     .foregroundStyle(.secondary)
             Button {
@@ -3718,7 +3718,7 @@ private struct BloomBoxModulesPanel: View {
                 case .ram: break
                 }
             } label: {
-                Label(detailButton(module), systemImage: "arrow.up.right.square")
+                Label(LocalizedStringKey(detailButton(module)), systemImage: "arrow.up.right.square")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -3733,7 +3733,7 @@ private struct BloomBoxModulesPanel: View {
                         Text("English").tag("en")
                     }
                     .accessibilityIdentifier("bloombox.experiments.language.picker")
-                    Text("Preferencia experimental para probar los catálogos de noticias por idioma. No cambia el idioma del iPhone; la traducción completa de la interfaz se incorporará por etapas.")
+                    Text("Elige el idioma de BloomBox y sus noticias. Automático usa el idioma del iPhone; no modifica el idioma del sistema.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Divider()
