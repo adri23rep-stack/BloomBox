@@ -9,6 +9,18 @@ import SwiftUI
 @main
 struct LiveContainerSwiftUIApp : SwiftUI.App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
+    private var preferredLanguage = "system"
+
+    // Apply the selected language across the entire app, including sheets,
+    // the widget gallery, modules, settings and accessibility labels.
+    private var bloomBoxLocale: Locale {
+        switch preferredLanguage {
+        case "en": return Locale(identifier: "en")
+        case "es": return Locale(identifier: "es_MX")
+        default: return Locale.current
+        }
+    }
     
     init() {
         let fm = FileManager()
@@ -111,6 +123,7 @@ struct LiveContainerSwiftUIApp : SwiftUI.App {
     var body: some Scene {
         WindowGroup(id: "Main") {
             LCTabView()
+                .environment(\.locale, bloomBoxLocale)
                 .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
                 .environmentObject(DataManager.shared.model)
                 .environmentObject(LCAppSortManager.shared)
