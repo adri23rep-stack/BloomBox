@@ -53,6 +53,10 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxRAMValidation.swift Tests/ram-validation/main.swift -o "$RUNNER_TEMP/ram-validation-tests"
           "$RUNNER_TEMP/ram-validation-tests"
+      - name: Test built-in app folder moves and persistence
+        run: |
+          swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-builtins-folders/main.swift -o "$RUNNER_TEMP/home-folder-tests"
+          "$RUNNER_TEMP/home-folder-tests"
       - name: Test RAM+ Apple request planning
         run: |
           swiftc SideStoreSupport/BloomBoxRAMPortal.swift Tests/ram-portal/main.swift -o "$RUNNER_TEMP/ram-portal-tests"
