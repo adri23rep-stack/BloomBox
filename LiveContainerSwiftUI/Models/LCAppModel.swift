@@ -292,7 +292,7 @@ class LCAppModel: ObservableObject, Hashable {
         if BloomBoxJITLaunchGuard.lacksLiveProcessAccess(
             builtInJIT: builtInJIT, shared: uiIsShared,
             privateDataAllowed: UserDefaults.standard.bool(forKey: "LCSharePrivateDataWithLiveProcess")) {
-            throw "El JIT integrado usa LiveProcess, pero esta app tiene datos privados. Activa el acceso a datos privados de LiveProcess en Ajustes de desarrollador (solo si lo autorizas), o usa un proveedor JIT externo compatible."
+            throw "Husk tiene datos privados y Built-in JIT usa LiveProcess. En Módulos > JIT > Habilitar JIT puedes permitir voluntariamente el acceso a datos privados (afecta a TODAS las apps privadas), o elegir StikDebug. No se cambiaron tus permisos."
         }
         if builtInJIT && classicMode != 0 {
             throw "Built-in JIT requires normal compatibility mode. Turn off Classic Mode for this app, then retry."
