@@ -182,6 +182,7 @@ struct LiveBoardHomeScreen: View {
     @State private var tweakStorePresented = false
     @State private var appStorePresented = false
     @State private var modulesPresented = false
+    @State private var themesPresented = false
     @ObservedObject private var ramPlus = BloomBoxRAMPlus.shared
     @State private var pendingModuleDestination: BloomBoxModulesPanel.Destination?
     @State private var storeFocusedApp: LCAppModel?
@@ -1369,7 +1370,7 @@ struct LiveBoardHomeScreen: View {
         else if key == Self.tweakStoreKey { storeFocusedApp = nil; tweakStorePresented = true }
         else if key == Self.appStoreKey { appStorePresented = true }
         else if key == Self.modulesKey { modulesPresented = true }
-        else if key == Self.themesKey { return } // Placeholder; store comes later.
+        else if key == Self.themesKey { themesPresented = true }
         else if let app = appMap[key] { requestLaunch(app) }
     }
 
@@ -2534,7 +2535,7 @@ struct LiveBoardHomeScreen: View {
             else if isTweakStore { tweakStorePresented = true }
             else if isAppStore { appStorePresented = true }
             else if isModules { modulesPresented = true }
-            else if isThemes { return } // Intentionally no action until theme store ships.
+            else if isThemes { themesPresented = true }
             else { openInstall() }
         } label: {
             VStack(spacing: 5) {
@@ -2593,16 +2594,22 @@ struct LiveBoardHomeScreen: View {
                     }
                 }
             }
-            if isThemes && !layout.folders.isEmpty {
-                Menu("Meter en carpeta", systemImage: "folder") {
-                    ForEach(layout.folders) { folder in
-                        Button(folder.name) { layout.put(key, in: folder.id); reconcile() }
+            Menu("Carpeta", systemImage: "folder") {
+                Button("Nueva carpeta", systemImage: "folder.badge.plus") {
+                    newFolderApp = key
+                    folderName = "BloomBox"
+                }
+                ForEach(layout.folders) { folder in
+                    Button(folder.name, systemImage: "folder") {
+                        layout.put(key, in: folder.id)
+                        reconcile()
                     }
                 }
-            }
-            if isThemes && layout.folders.contains(where: { $0.apps.contains(key) }) {
-                Button("Sacar de carpeta", systemImage: "folder.badge.minus") {
-                    layout.place(key, on: max(0, page - 1)); reconcile()
+                if layout.folders.contains(where: { $0.apps.contains(key) }) {
+                    Button("Sacar de carpeta", systemImage: "folder.badge.minus") {
+                        layout.place(key, on: max(0, page - 1))
+                        reconcile()
+                    }
                 }
             }
         }
