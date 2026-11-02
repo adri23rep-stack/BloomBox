@@ -1,6 +1,17 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    " No se reemplazó BloomBox." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " BloomBox was not replaced."
+          }
+        }
+      }
+    },
     "12 horas" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -19,6 +30,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "24-Hour"
+          }
+        }
+      }
+    },
+    "Abre Mis apps en SideStore. Se usará su sesión para solicitar RAM+; si te pide iniciar sesión, hazlo allí." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open My Apps in SideStore. Its session will be used to request RAM+; if prompted, sign in there."
           }
         }
       }
@@ -89,6 +111,28 @@
         }
       }
     },
+    "Activar con la sesión de SideStore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activate Through SideStore Session"
+          }
+        }
+      }
+    },
+    "Activar con SideStore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activate Through SideStore"
+          }
+        }
+      }
+    },
     "Activar Liquid Glass" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -111,6 +155,17 @@
         }
       }
     },
+    "Activar y reinstalar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activate and Reinstall"
+          }
+        }
+      }
+    },
     "Actualizar novedades" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -129,6 +184,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Manage or Uninstall…"
+          }
+        }
+      }
+    },
+    "Advertencia: la última release pública puede reemplazar funciones de compilaciones experimentales, incluido JIT. No se borrarán los datos intencionalmente, pero haz un respaldo antes de actualizar." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warning: the latest public release may replace features from experimental builds, including JIT. Data is not intentionally erased, but back up before updating."
           }
         }
       }
@@ -184,6 +250,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Storage · BloomBox, SideStore and Apps"
+          }
+        }
+      }
+    },
+    "Alternativa manual con GetMoreRam" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manual Alternative with GetMoreRam"
           }
         }
       }
@@ -342,6 +419,28 @@
         }
       }
     },
+    "Apple aprobó RAM+, pero falta firmar e instalar BloomBox con el permiso. Se buscará la release oficial más reciente. Si usas una compilación experimental, confirma antes de reemplazarla." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple approved RAM+, but BloomBox still needs to be signed and installed with the entitlement. The latest official release will be checked. If you use an experimental build, confirm before replacing it."
+          }
+        }
+      }
+    },
+    "Apple aprobó RAM+; falta reinstalar BloomBox" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Approved RAM+; Reinstall Required"
+          }
+        }
+      }
+    },
     "Apps de BloomBox" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -441,6 +540,17 @@
         }
       }
     },
+    "BloomBox solicitará Increased Memory Limit para su App ID y para LiveProcess si tiene uno separado. Se conservarán los demás permisos." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BloomBox will request Increased Memory Limit for its App ID and for LiveProcess if it has a separate ID. All other entitlements will be preserved."
+          }
+        }
+      }
+    },
     "Borde del color del brillo · activar/desactivar" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -485,6 +595,28 @@
         }
       }
     },
+    "Buscando de nuevo la última release estable de BloomBox." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking the Latest Stable BloomBox Release Again."
+          }
+        }
+      }
+    },
+    "Buscando la release estable más reciente de BloomBox…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking for the Latest Stable BloomBox Release…"
+          }
+        }
+      }
+    },
     "Buscar aplicación" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -518,6 +650,17 @@
         }
       }
     },
+    "Buscar última release e instalar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find Latest Release and Install"
+          }
+        }
+      }
+    },
     "Caducidad · Isla Dinámica (8 horas)" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -547,6 +690,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "Cancelar solicitud" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel Request"
           }
         }
       }
@@ -595,6 +749,17 @@
         }
       }
     },
+    "Compartir IPA con SideStore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share IPA with SideStore"
+          }
+        }
+      }
+    },
     "Compatibilidad · Nivel 3 (máximo)" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -617,6 +782,17 @@
         }
       }
     },
+    "Comprobar de nuevo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check Again"
+          }
+        }
+      }
+    },
     "Conectividad" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -624,6 +800,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connectivity"
+          }
+        }
+      }
+    },
+    "Confirma el cambio de versión" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm Version Change"
+          }
+        }
+      }
+    },
+    "Confirmar actualización a la última release" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm Update to Latest Release"
+          }
+        }
+      }
+    },
+    "Controles RAM+ habilitados para pruebas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAM+ Test Controls Enabled"
           }
         }
       }
@@ -727,6 +936,17 @@
         }
       }
     },
+    "Después" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Later"
+          }
+        }
+      }
+    },
     "Editar" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -782,6 +1002,17 @@
         }
       }
     },
+    "El perfil tiene RAM+, pero la firma instalada no lo confirma" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provisioning profile includes RAM+, but the installed signature does not confirm it"
+          }
+        }
+      }
+    },
     "El script experimental de MeloNX solo funciona con Built-in JIT. El control JIT por app también puede afectar otros proveedores." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -804,6 +1035,61 @@
         }
       }
     },
+    "El SHA-256 descargado no coincide con el publicado." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The downloaded SHA-256 does not match the published value."
+          }
+        }
+      }
+    },
+    "El switch está encendido, pero esta instalación no supera las validaciones. Solicita el permiso con SideStore y reinstala BloomBox. Encender el switch no aumenta la memoria por sí solo." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The switch is on, but this installation has not passed entitlement checks. Request access through SideStore and reinstall BloomBox. Turning on the switch does not increase available memory by itself."
+          }
+        }
+      }
+    },
+    "El switch está encendido, pero RAM+ todavía no está confirmada. Completa la activación y vuelve a comprobar." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAM+ is enabled, but the entitlement is not yet confirmed. Complete activation and check again."
+          }
+        }
+      }
+    },
+    "El tamaño descargado no coincide con la release oficial. No se instalará." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The downloaded file size does not match the official release. It will not be installed."
+          }
+        }
+      }
+    },
+    "El widget ya no está disponible. Crea uno nuevo o vuelve a intentarlo." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This widget is no longer available. Create another one or try again."
+          }
+        }
+      }
+    },
     "Elegir de Fotos" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -811,6 +1097,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose from Photos"
+          }
+        }
+      }
+    },
+    "Elegir IPA manualmente" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose IPA Manually"
           }
         }
       }
@@ -844,6 +1141,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose widgets for this page. Long-press a widget on the desktop to move it to another page."
+          }
+        }
+      }
+    },
+    "Elige un archivo .ipa." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose an .ipa file."
           }
         }
       }
@@ -936,6 +1244,28 @@
         }
       }
     },
+    "Esperando confirmación de Apple" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for Apple's Confirmation"
+          }
+        }
+      }
+    },
+    "Esperando una consulta de SideStore a Apple. Abre Mis apps con la misma cuenta que firmó BloomBox. Si la sesión venció, SideStore puede pedir iniciar sesión." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for a SideStore request to Apple. Open My Apps using the account that signed BloomBox. If the session has expired, SideStore may ask you to sign in."
+          }
+        }
+      }
+    },
     "Esta app está compartida entre instancias de LiveContainer. Por seguridad, conviértela a app privada desde sus ajustes antes de desinstalarla." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1024,6 +1354,17 @@
         }
       }
     },
+    "Firma con RAM+; perfil sin confirmar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signature Has RAM+; Profile Unconfirmed"
+          }
+        }
+      }
+    },
     "Flip · números retro" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1108,6 +1449,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Manage Pages"
+          }
+        }
+      }
+    },
+    "GetMoreRam · instrucciones e instalación" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GetMoreRam · Instructions and Installation"
           }
         }
       }
@@ -1310,6 +1662,28 @@
         }
       }
     },
+    "iOS aplica el permiso al firmar e instalar la app. Apagar el switch cancela una solicitud pendiente; no retira un permiso ya instalado." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS applies this entitlement when the app is signed and installed. Turning the switch off cancels a pending request; it cannot remove an entitlement already installed."
+          }
+        }
+      }
+    },
+    "IPA compatible. El origen del archivo no está autenticado: compártelo con SideStore, instala encima sin borrar la app y conserva las extensiones." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compatible IPA. The file source is not authenticated: share it with SideStore, install over the existing app without deleting it, and keep the extensions."
+          }
+        }
+      }
+    },
     "Izquierda y derecha ↔" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1343,6 +1717,17 @@
         }
       }
     },
+    "La aplicación asignada no está instalada. Configura una acción alternativa en el menú del widget." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The assigned app is not installed. Set a fallback action in the widget menu."
+          }
+        }
+      }
+    },
     "La app necesita una corrección de compatibilidad para abrir correctamente." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1354,6 +1739,17 @@
         }
       }
     },
+    "La confirmación de Apple y el permiso de esta instalación se validan por separado. Nunca borres BloomBox para aplicar RAM+." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple's approval and this installation's entitlement are validated separately. Never delete BloomBox to apply RAM+."
+          }
+        }
+      }
+    },
     "La frase cambia en cada inicio. El brinco solo elige iconos visibles de la página actual." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1361,6 +1757,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The startup phrase changes each time. Playful jumps only target visible icons on the current page."
+          }
+        }
+      }
+    },
+    "La IPA no conserva la identidad o las extensiones instaladas. No se instalará." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The IPA does not preserve the installed app identity or extensions. It will not be installed."
           }
         }
       }
@@ -1382,7 +1789,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "News Feed Is Unavailable"
+            "value" : "News Feed Unavailable"
           }
         }
       }
@@ -1420,6 +1827,17 @@
         }
       }
     },
+    "La release más reciente cambió desde tu confirmación. Vuelve a revisar antes de instalar." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The latest release changed since you confirmed. Review it again before installing."
+          }
+        }
+      }
+    },
     "La respuesta de GitHub no contiene un catálogo válido." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1427,6 +1845,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "GitHub Response Does Not Contain a Valid Catalog"
+          }
+        }
+      }
+    },
+    "La solicitud venció. Si llegó a enviarse a Apple, su resultado no está confirmado. Puedes iniciar una nueva comprobación." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Request expired. If it reached Apple, the result is unknown. You can start a new check."
           }
         }
       }
@@ -34138,6 +34567,17 @@
         }
       }
     },
+    "LiveProcess se comprueba por separado en su firma; esto no confirma su proceso en ejecución ni el permiso de cada app invitada." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LiveProcess is checked separately through its code signature. This does not verify the running process or entitlements for individual guest apps."
+          }
+        }
+      }
+    },
     "Living Widget · Movimiento" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34336,6 +34776,28 @@
         }
       }
     },
+    "No" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No"
+          }
+        }
+      }
+    },
+    "No cabe ese widget en la página seleccionada." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Widget Does Not Fit on the Selected Page."
+          }
+        }
+      }
+    },
     "No hay aplicaciones que coincidan con tu búsqueda." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34358,6 +34820,50 @@
         }
       }
     },
+    "No hay espacio para ese tamaño. Prueba otra página." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Enough Space for This Size. Try Another Page."
+          }
+        }
+      }
+    },
+    "No pude leer esta imagen desde Fotos. Prueba con otra o impórtala desde Archivos." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could Not Read This Image from Photos. Try Another or Import from Files."
+          }
+        }
+      }
+    },
+    "No se encontró el widget. Vuelve a tocar la imagen para importarla." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widget Not Found. Tap the Image Again to Import."
+          }
+        }
+      }
+    },
+    "No se pudieron cargar las noticias. Desliza o toca actualizar para intentar otra vez." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could Not Load News. Pull Down or Tap Refresh to Try Again."
+          }
+        }
+      }
+    },
     "No se pudo añadir el Tweak" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34365,6 +34871,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could Not Add Tweak"
+          }
+        }
+      }
+    },
+    "No se pudo asignar la imagen: el widget ya no existe." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could Not Assign Image: Widget No Longer Exists."
+          }
+        }
+      }
+    },
+    "No se pudo confirmar la respuesta de Apple después de enviar la solicitud. Comprueba el App ID antes de repetirla para evitar modificaciones duplicadas." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple's response could not be confirmed after the request. Check the App ID before retrying to avoid duplicate changes."
+          }
+        }
+      }
+    },
+    "No se pudo consultar la última release oficial de GitHub. Revisa Internet y reintenta." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could Not Check the Latest Official GitHub Release. Check Your Connection and Try Again."
+          }
+        }
+      }
+    },
+    "No se pudo convertir esa foto. Prueba con JPG, PNG o GIF." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could Not Convert This Photo. Try JPG, PNG or GIF."
           }
         }
       }
@@ -34387,6 +34937,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could Not Download Remote Tweak Catalog"
+          }
+        }
+      }
+    },
+    "No se pudo descargar la última IPA desde GitHub." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could Not Download the Latest IPA from GitHub."
+          }
+        }
+      }
+    },
+    "No se pudo identificar la cuenta de firma o falta el SideStore integrado. Reinstala la edición con SideStore." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signing account could not be identified, or integrated SideStore is missing. Reinstall the SideStore edition."
+          }
+        }
+      }
+    },
+    "No se pudo verificar la estructura de la IPA." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The IPA structure could not be verified."
           }
         }
       }
@@ -34512,6 +35095,50 @@
         }
       }
     },
+    "Perfil corresponde a esta app" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profile Matches This App"
+          }
+        }
+      }
+    },
+    "Permiso del proceso BloomBox" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BloomBox Process Entitlement"
+          }
+        }
+      }
+    },
+    "Permiso incluido en el perfil" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entitlement in Provisioning Profile"
+          }
+        }
+      }
+    },
+    "Permiso no confirmado" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entitlement Not Confirmed"
+          }
+        }
+      }
+    },
     "Permite volver a abrir los controles de reinstalación cuando RAM+ ya está activa. No desactiva RAM+, no solicita permisos a Apple ni reinstala nada al encender el interruptor." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34600,6 +35227,39 @@
         }
       }
     },
+    "Preparada para SideStore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready for SideStore"
+          }
+        }
+      }
+    },
+    "Preparando instalación" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing Installation"
+          }
+        }
+      }
+    },
+    "Preparando reinstalación…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing Reinstallation…"
+          }
+        }
+      }
+    },
     "Privacidad" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34607,6 +35267,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Privacy"
+          }
+        }
+      }
+    },
+    "Probar actualización RAM+ (experimental)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test RAM+ Update (Experimental)"
           }
         }
       }
@@ -34629,6 +35300,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Depth and Glass"
+          }
+        }
+      }
+    },
+    "Prueba experimental: RAM+ ya está activa. Se comprobará la última release estable, sin repetir la solicitud a Apple." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimental test: RAM+ is already active. The latest stable release will be checked without requesting the entitlement from Apple again."
           }
         }
       }
@@ -34732,6 +35414,39 @@
         }
       }
     },
+    "RAM+ aún no está confirmada" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAM+ Not Yet Confirmed"
+          }
+        }
+      }
+    },
+    "RAM+ confirmado en la instalación actual" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAM+ Confirmed for Current Installation"
+          }
+        }
+      }
+    },
+    "RAM+ está activa en esta instalación." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAM+ is active in this installation."
+          }
+        }
+      }
+    },
     "RAM+ sin confirmar" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34750,6 +35465,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "RAM+ was requested, but the entitlement is not confirmed. Tap to check."
+          }
+        }
+      }
+    },
+    "RAM+ solicitado, aún sin confirmar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAM+ Requested, Not Yet Confirmed"
+          }
+        }
+      }
+    },
+    "RAM+ ya está activa. Estos controles prueban la descarga de la última release estable SIN volver a solicitar el permiso a Apple. Reinstalar puede reemplazar JIT experimental o perder RAM+ si SideStore no conserva el permiso." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAM+ is already active. These controls test downloading the latest stable release WITHOUT requesting the entitlement from Apple again. Reinstalling may replace experimental JIT or remove RAM+ if SideStore does not preserve it."
           }
         }
       }
@@ -34853,6 +35590,17 @@
         }
       }
     },
+    "Se perdió la selección del widget. Vuelve a intentarlo." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widget Selection Was Lost. Try Again."
+          }
+        }
+      }
+    },
     "Se quitará la app de LiveContainer y del escritorio de Manzana. Sus carpetas de datos se conservarán. Esta acción no se puede deshacer." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34886,6 +35634,17 @@
         }
       }
     },
+    "Selecciona una imagen o GIF válido de hasta 30 MB." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a Valid Image or GIF Up to 30 MB."
+          }
+        }
+      }
+    },
     "Setup y proveedores" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34893,6 +35652,83 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Setup and Providers"
+          }
+        }
+      }
+    },
+    "Sí" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yes"
+          }
+        }
+      }
+    },
+    "Si la integración experimental no funciona, usa la misma cuenta Apple en GetMoreRam, selecciona este App ID y pulsa Add Increased Memory Limit. Después reinstala desde SideStore." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If the experimental integration fails, use the same Apple account in GetMoreRam, select this App ID, and tap Add Increased Memory Limit. Then reinstall through SideStore."
+          }
+        }
+      }
+    },
+    "Si SideStore no acepta la entrega automática, guarda la IPA en Archivos, abre SideStore y selecciónala con +. Instálala encima de BloomBox, con todas sus extensiones." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If SideStore cannot handle automatic handoff, save the IPA to Files, open SideStore, and select it with +. Install over BloomBox and keep all its extensions."
+          }
+        }
+      }
+    },
+    "SideStore hace el inicio de sesión. BloomBox no guarda tu contraseña ni la sesión de Apple." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SideStore handles sign-in. BloomBox does not store your Apple password or session."
+          }
+        }
+      }
+    },
+    "SideStore no pudo abrir la instalación. Comparte la IPA validada o reintenta." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SideStore could not open the installer. Share the verified IPA or try again."
+          }
+        }
+      }
+    },
+    "SideStore recibió la solicitud. Cuando termine, vuelve a abrir BloomBox para comprobar la firma." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SideStore received the request. When it finishes, reopen BloomBox to verify the signature."
+          }
+        }
+      }
+    },
+    "Sin confirmar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unconfirmed"
           }
         }
       }
@@ -34948,6 +35784,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Author's Website"
+          }
+        }
+      }
+    },
+    "Solicitar RAM+" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Request RAM+"
+          }
+        }
+      }
+    },
+    "Solicitud cancelada. Si ya se envió a Apple, el permiso podría haberse aplicado; vuelve a comprobar antes de repetirla." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Request canceled. If already sent to Apple, the entitlement may have been applied. Check again before retrying."
           }
         }
       }
@@ -35051,6 +35909,28 @@
         }
       }
     },
+    "Usa un enlace HTTPS válido." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a Valid HTTPS URL."
+          }
+        }
+      }
+    },
+    "Validaciones de esta instalación" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checks for This Installation"
+          }
+        }
+      }
+    },
     "Velocidad" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -35058,6 +35938,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Speed"
+          }
+        }
+      }
+    },
+    "Volver a SideStore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Return to SideStore"
           }
         }
       }
