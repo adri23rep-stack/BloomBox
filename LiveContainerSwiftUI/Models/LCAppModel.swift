@@ -231,7 +231,7 @@ class LCAppModel: ObservableObject, Hashable {
             throw "Espera a que termine la copia de datos antes de abrir esta app."
         }
         if isAppRunning {
-            return
+            throw "Esta app ya está iniciándose. Si quedó congelada, cierra su ventana de LiveProcess antes de reintentar."
         }
         // Applies to normal launches, library launches, and deep links.
         if await delegate?.approveEmulatorLaunch(app: self, forceJIT: forceJIT) == false { return }
@@ -288,6 +288,12 @@ class LCAppModel: ObservableObject, Hashable {
             universalScript: builtInProvider && wantsJIT ? LCUtils.base64EncodedUniversalJITScript() : nil)
         let classicMode = appInfo.defaultClassicMode
         let builtInJIT = builtInProvider && wantsJIT
+        // Do not silently grant LiveProcess access to a private guest.
+        if BloomBoxJITLaunchGuard.lacksLiveProcessAccess(
+            builtInJIT: builtInJIT, shared: uiIsShared,
+            privateDataAllowed: UserDefaults.standard.bool(forKey: "LCSharePrivateDataWithLiveProcess")) {
+            throw "El JIT integrado usa LiveProcess, pero esta app tiene datos privados. Activa el acceso a datos privados de LiveProcess en Ajustes de desarrollador (solo si lo autorizas), o usa un proveedor JIT externo compatible."
+        }
         if builtInJIT && classicMode != 0 {
             throw "Built-in JIT requires normal compatibility mode. Turn off Classic Mode for this app, then retry."
         }
@@ -298,6 +304,9 @@ class LCAppModel: ObservableObject, Hashable {
         
         if MultitaskManager.isMultitasking() || multitask,
            let currentDataFolder {
+            if wantsJIT && MultitaskManager.isUsing(container: currentDataFolder) {
+                throw "Esta app ya tiene una ventana abierta. Ciérrala antes de solicitar una sesión JIT nueva."
+            }
             if await bringExistingMultitaskWindowIfNeeded(dataUUID: currentDataFolder, urlScheme: urlStr) {
                 return
             }
@@ -314,6 +323,9 @@ class LCAppModel: ObservableObject, Hashable {
             let fn = uiSelectedContainer?.folderName,
             var runningLC = LCSharedUtils.getContainerUsingLCScheme(withFolderName: fn)
         {
+            if wantsJIT {
+                throw "Otro LiveContainer está usando los datos de esta app. Cierra esa sesión antes de volver a solicitar JIT."
+            }
             runningLC = (runningLC as NSString).deletingPathExtension
             
             var openURLComp = URLComponents()
