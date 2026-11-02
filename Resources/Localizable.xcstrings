@@ -1,6 +1,1458 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "12 horas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "12-Hour"
+          }
+        }
+      }
+    },
+    "24 horas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "24-Hour"
+          }
+        }
+      }
+    },
+    "Abrir ajustes para convertir a privada" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Settings to Make Private"
+          }
+        }
+      }
+    },
+    "Abrir app instalada" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Installed App"
+          }
+        }
+      }
+    },
+    "Abrir de todas formas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Anyway"
+          }
+        }
+      }
+    },
+    "Accesos directos a funciones reales. JIT y RAM+ conservan sus comprobaciones y permisos originales." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shortcuts to working features. JIT and RAM+ keep their existing checks and entitlements."
+          }
+        }
+      }
+    },
+    "Acción al tocar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap Action"
+          }
+        }
+      }
+    },
+    "Aceptar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
+    "Activar Liquid Glass" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Liquid Glass"
+          }
+        }
+      }
+    },
+    "Activar para esta app" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable for This App"
+          }
+        }
+      }
+    },
+    "Actualizar novedades" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh News"
+          }
+        }
+      }
+    },
+    "Administrar o desinstalar…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage or Uninstall…"
+          }
+        }
+      }
+    },
+    "Aislamiento y permisos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isolation and Permissions"
+          }
+        }
+      }
+    },
+    "Ajustes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        }
+      }
+    },
+    "Ajustes de LiveContainer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LiveContainer Settings"
+          }
+        }
+      }
+    },
+    "Ajustes del escritorio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desktop Settings"
+          }
+        }
+      }
+    },
+    "Almacenamiento · BloomBox, SideStore y apps" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Storage · BloomBox, SideStore and Apps"
+          }
+        }
+      }
+    },
+    "Ámbar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amber"
+          }
+        }
+      }
+    },
+    "Añade tantos como quieras" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add as Many as You Like"
+          }
+        }
+      }
+    },
+    "Añadidas recientemente" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recently Added"
+          }
+        }
+      }
+    },
+    "Añadido" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added"
+          }
+        }
+      }
+    },
+    "Añadir al Dock" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to Dock"
+          }
+        }
+      }
+    },
+    "Añadir foto o GIF" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Photo or GIF"
+          }
+        }
+      }
+    },
+    "Añadir página" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Page"
+          }
+        }
+      }
+    },
+    "Añadir Tweak" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Tweak"
+          }
+        }
+      }
+    },
+    "Añadir widget" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Widget"
+          }
+        }
+      }
+    },
+    "Analógico" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analog"
+          }
+        }
+      }
+    },
+    "Analógico · manecillas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analog · Clock Hands"
+          }
+        }
+      }
+    },
+    "Ancho · 4×2" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wide · 4×2"
+          }
+        }
+      }
+    },
+    "Animar barra Pixel Time · activar/desactivar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Animate Pixel Time Bar · On/Off"
+          }
+        }
+      }
+    },
+    "App compatible no instalada o versión no reconocida" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compatible App Not Installed or Version Unknown"
+          }
+        }
+      }
+    },
+    "Apps de BloomBox" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BloomBox Apps"
+          }
+        }
+      }
+    },
+    "Arrastrar widget" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag widget"
+          }
+        }
+      }
+    },
+    "Automático · imagen o reloj" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic · Image or Clock"
+          }
+        }
+      }
+    },
+    "Automático (iPhone)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic (iPhone)"
+          }
+        }
+      }
+    },
+    "Automático respeta la configuración original. Activado solicita JIT; Desactivado impide solicitarlo. Cambia el siguiente lanzamiento, no cierra apps abiertas." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic keeps the original configuration. On requests JIT; Off prevents JIT requests. Changes affect the next launch and do not close running apps."
+          }
+        }
+      }
+    },
+    "Azul" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blue"
+          }
+        }
+      }
+    },
+    "Biblioteca de apps" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Library"
+          }
+        }
+      }
+    },
+    "Blanco" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "White"
+          }
+        }
+      }
+    },
+    "BloomBox no distribuye IPAs de terceros. Cada ficha enlaza al autor original. Solo descarga archivos de proyectos en los que confíes. La ejecución dentro del contenedor puede fallar por restricciones de iOS o JIT." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BloomBox does not distribute third-party IPAs. Listings link to original authors. Download only projects you trust. Apps may fail to run in the container due to iOS or JIT restrictions."
+          }
+        }
+      }
+    },
+    "Borde del color del brillo · activar/desactivar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Matching Glass Border · On/Off"
+          }
+        }
+      }
+    },
+    "Borrar búsqueda" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Search"
+          }
+        }
+      }
+    },
+    "Brillo inferior · activar/desactivar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bottom Glow · On/Off"
+          }
+        }
+      }
+    },
+    "Brillo Pixel Time" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pixel Time Glow"
+          }
+        }
+      }
+    },
+    "Buscar aplicación" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search Apps"
+          }
+        }
+      }
+    },
+    "Buscar app" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search App"
+          }
+        }
+      }
+    },
+    "Buscar apps, autores, categorías" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search Apps, Authors, Categories"
+          }
+        }
+      }
+    },
+    "Caducidad · Isla Dinámica (8 horas)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expiration · Dynamic Island (8 Hours)"
+          }
+        }
+      }
+    },
+    "Cambiar fuente de noticias" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change News Source"
+          }
+        }
+      }
+    },
+    "Cancelar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "Cerrar aviso" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dismiss notice"
+          }
+        }
+      }
+    },
+    "Cierra la app para cambiar el acceso" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close the App to Change Access"
+          }
+        }
+      }
+    },
+    "Color del brillo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glow Color"
+          }
+        }
+      }
+    },
+    "Color del reloj" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clock Color"
+          }
+        }
+      }
+    },
+    "Compatibilidad · Nivel 3 (máximo)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compatibility · Level 3 (maximum)"
+          }
+        }
+      }
+    },
+    "Comportamiento normal" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default Behavior"
+          }
+        }
+      }
+    },
+    "Conectividad" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectivity"
+          }
+        }
+      }
+    },
+    "Corrección de compatibilidad" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compatibility Fix"
+          }
+        }
+      }
+    },
+    "Correcciones, personalización y herramientas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fixes, Customization and Tools"
+          }
+        }
+      }
+    },
+    "Cuadrado · 2×2" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Square · 2×2"
+          }
+        }
+      }
+    },
+    "Datos locales: pendientes de verificación en línea" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local Data · Online Verification Pending"
+          }
+        }
+      }
+    },
+    "Descargar e instalar bajo mi responsabilidad" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download and Install at My Own Risk"
+          }
+        }
+      }
+    },
+    "Descargar e instalar IPA" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download and Install IPA"
+          }
+        }
+      }
+    },
+    "Deshacer carpeta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ungroup Folder"
+          }
+        }
+      }
+    },
+    "Desinstalar aplicación" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uninstall App"
+          }
+        }
+      }
+    },
+    "Desinstalar app" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uninstall App"
+          }
+        }
+      }
+    },
+    "Editar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit"
+          }
+        }
+      }
+    },
+    "Editar icono" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Icon"
+          }
+        }
+      }
+    },
+    "Editar nota" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Note"
+          }
+        }
+      }
+    },
+    "Editar pantalla de inicio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Home Screen"
+          }
+        }
+      }
+    },
+    "El catálogo remoto contiene entradas incompatibles." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Remote Catalog Contains Incompatible Entries"
+          }
+        }
+      }
+    },
+    "El script experimental de MeloNX solo funciona con Built-in JIT. El control JIT por app también puede afectar otros proveedores." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The experimental MeloNX script only works with Built-in JIT. Per-app JIT controls may also affect other providers."
+          }
+        }
+      }
+    },
+    "El script se intentará en el próximo lanzamiento con JIT." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The script will be tried on the next launch with JIT."
+          }
+        }
+      }
+    },
+    "Elegir de Fotos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose from Photos"
+          }
+        }
+      }
+    },
+    "Elegir video o GIF (Fotos)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Video or GIF (Photos)"
+          }
+        }
+      }
+    },
+    "Elige el idioma de BloomBox y sus noticias. Automático usa el idioma del iPhone; no modifica el idioma del sistema." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose the language for BloomBox and its news. Automatic follows your iPhone language without changing the system language."
+          }
+        }
+      }
+    },
+    "Elige los widgets para esta página. Mantén pulsado uno en el escritorio para moverlo a otra página." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose widgets for this page. Long-press a widget on the desktop to move it to another page."
+          }
+        }
+      }
+    },
+    "Eliminar carpeta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Folder"
+          }
+        }
+      }
+    },
+    "Eliminar página" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Page"
+          }
+        }
+      }
+    },
+    "Eliminar página y conservar sus iconos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Page and Keep Its Icons"
+          }
+        }
+      }
+    },
+    "Eliminar widget" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Widget"
+          }
+        }
+      }
+    },
+    "Encendido: solicita JIT al abrir. Apagado: abre sin JIT. Universal por defecto excepto MeloNX 2.6. Mantén presionada una app para importar otro script." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On: request JIT on launch. Off: launch without JIT. Universal is the default except for MeloNX 2.6. Long-press an app to import another script."
+          }
+        }
+      }
+    },
+    "Escribe lo que quieras recordar…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write down what you want to remember…"
+          }
+        }
+      }
+    },
+    "Escritorio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desktop"
+          }
+        }
+      }
+    },
+    "Español" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spanish"
+          }
+        }
+      }
+    },
+    "Esta app está compartida entre instancias de LiveContainer. Por seguridad, conviértela a app privada desde sus ajustes antes de desinstalarla." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This app is shared by LiveContainer instances. For safety, make it a private app in its settings before uninstalling."
+          }
+        }
+      }
+    },
+    "Esta app tiene un script propio; se respeta su prioridad." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This app has its own script; its priority is preserved."
+          }
+        }
+      }
+    },
+    "Este ajuste se aplica a las apps invitadas dentro de BloomBox, no a todo iOS. El filtro es experimental y algunas conexiones, incluidas las de iCloud, pueden continuar. Los cambios requieren cerrar y volver a abrir BloomBox." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This applies to guest apps inside BloomBox, not all of iOS. The filter is experimental, and some connections, including iCloud, may continue. Restart BloomBox to apply changes."
+          }
+        }
+      }
+    },
+    "Este tweak es de terceros y no ha sido probado en BloomBox. Puede cerrar la app, afectar sus datos o requerir funciones no disponibles. Haz un respaldo antes de continuar." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This third-party tweak has not been tested in BloomBox. It may crash the app, affect data or require unavailable features. Back up your data before continuing."
+          }
+        }
+      }
+    },
+    "Estilo de reloj" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clock Style"
+          }
+        }
+      }
+    },
+    "Esto es experimental: un script no crea compatibilidad JIT por sí solo. Si falla, vuelve a Automático y desmarca la prueba MeloNX." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is experimental: a script alone does not make an app JIT-compatible. If it fails, return to Automatic and disable the MeloNX test."
+          }
+        }
+      }
+    },
+    "Explora todos los tweaks aunque todavía no tengas instaladas sus apps." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Browse tweaks even for apps you have not installed yet."
+          }
+        }
+      }
+    },
+    "Exportar tema" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Theme"
+          }
+        }
+      }
+    },
+    "Flip · números retro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flip · Retro Digits"
+          }
+        }
+      }
+    },
+    "Flip retro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retro Flip"
+          }
+        }
+      }
+    },
+    "Flotar ↕" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Float ↕"
+          }
+        }
+      }
+    },
+    "Formato de hora" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time Format"
+          }
+        }
+      }
+    },
+    "Foto o GIF para el widget" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widget photo or GIF"
+          }
+        }
+      }
+    },
+    "Fotos, videos, GIF y fondo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos, Videos, GIFs and Wallpaper"
+          }
+        }
+      }
+    },
+    "Funciones avanzadas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Advanced Features"
+          }
+        }
+      }
+    },
+    "Gestionar páginas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage Pages"
+          }
+        }
+      }
+    },
+    "Grande · 4×4" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Large · 4×4"
+          }
+        }
+      }
+    },
+    "Guardar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
+          }
+        }
+      }
+    },
+    "Habilitar botones RAM+ para pruebas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable RAM+ Test Controls"
+          }
+        }
+      }
+    },
+    "Herramientas y módulos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tools and Modules"
+          }
+        }
+      }
+    },
+    "Idioma de BloomBox" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BloomBox Language"
+          }
+        }
+      }
+    },
+    "Imagen o GIF animado" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image or Animated GIF"
+          }
+        }
+      }
+    },
+    "Importar de Archivos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import from Files"
+          }
+        }
+      }
+    },
+    "Instalación directa no habilitada · consulta el lanzamiento" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Direct Install Unavailable · See Release"
+          }
+        }
+      }
+    },
+    "Instalando aplicación" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installing app"
+          }
+        }
+      }
+    },
+    "Instalando aplicación…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installing app…"
+          }
+        }
+      }
+    },
+    "Instalar app" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install App"
+          }
+        }
+      }
+    },
+    "Instalar bajo mi responsabilidad" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install at My Own Risk"
+          }
+        }
+      }
+    },
+    "Instalar corrección" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install Fix"
+          }
+        }
+      }
+    },
+    "Instalar IPA en BloomBox" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install IPA in BloomBox"
+          }
+        }
+      }
+    },
+    "Instalar y administrar apps" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install and Manage Apps"
+          }
+        }
+      }
+    },
+    "Internet por aplicación" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Internet per App"
+          }
+        }
+      }
+    },
+    "Internet y red" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Internet and Network"
+          }
+        }
+      }
+    },
+    "Interruptor maestro de seguridad: permite las pruebas de script solo en las apps que selecciones abajo. No cambia el JIT de MeloNX ni activa JIT en todas las apps." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Master safety switch: only allows script testing on the apps selected below. It does not change MeloNX JIT or enable JIT for every app."
+          }
+        }
+      }
+    },
+    "Izquierda y derecha ↔" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Side to Side ↔"
+          }
+        }
+      }
+    },
+    "JIT desactivado para esta app. «Launch with JIT» mostrará un aviso." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JIT is off for this app. Launch with JIT will show a warning."
+          }
+        }
+      }
+    },
+    "JIT por aplicación" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JIT per App"
+          }
+        }
+      }
+    },
+    "La app necesita una corrección de compatibilidad para abrir correctamente." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This app needs a compatibility fix to launch correctly."
+          }
+        }
+      }
+    },
+    "La frase cambia en cada inicio. El brinco solo elige iconos visibles de la página actual." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The startup phrase changes each time. Playful jumps only target visible icons on the current page."
+          }
+        }
+      }
+    },
+    "La IPA se descargará desde el release original. Se verificará su SHA-256 antes de instalarla. Puede requerir JIT o permisos no disponibles en BloomBox; haz un respaldo de tus datos." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The IPA will be downloaded from the original release and its SHA-256 verified before installation. It may require JIT or entitlements unavailable in BloomBox. Back up your data first."
+          }
+        }
+      }
+    },
+    "La lista de noticias no está disponible." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "News Feed Is Unavailable"
+          }
+        }
+      }
+    },
+    "La ola va de izquierda a derecha. Los iconos solo se mueven cuando estás sin interactuar en la página visible." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The wave travels from left to right. Icons only move when you are idle on the visible page."
+          }
+        }
+      }
+    },
+    "La prueba solo se aplicará a las apps seleccionadas. Un motor incompatible puede quedarse congelado o cerrarse." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tests only apply to selected apps. An incompatible engine may freeze or crash."
+          }
+        }
+      }
+    },
+    "La reinstalación real podría perder RAM+ si la nueva firma no conserva el permiso. Comprueba tu firma antes de instalar." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reinstalling may remove RAM+ if the new signature lacks the entitlement. Verify the signature before installing."
+          }
+        }
+      }
+    },
+    "La respuesta de GitHub no contiene un catálogo válido." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub Response Does Not Contain a Valid Catalog"
+          }
+        }
+      }
+    },
+    "La tienda recibió fichas inválidas." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Store Received Invalid Listings"
+          }
+        }
+      }
+    },
+    "La tienda recibió un catálogo demasiado grande." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Store Catalog Was Too Large"
+          }
+        }
+      }
+    },
     "lc.appBanner.addToHomeScreen" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -32671,6 +34123,974 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "執行程式"
+          }
+        }
+      }
+    },
+    "Listo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "Living Widget · Movimiento" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Living Widget · Motion"
+          }
+        }
+      }
+    },
+    "Los accesos del menú Escritorio, ahora dentro de Módulos." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desktop shortcuts are now inside Modules."
+          }
+        }
+      }
+    },
+    "Los iconos se reubicarán en otra página sin desinstalar aplicaciones." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Icons will be moved to another page without uninstalling apps."
+          }
+        }
+      }
+    },
+    "Los interruptores habituales están en Módulos > JIT. Aquí se conserva la prueba experimental del script MeloNX en otras apps." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regular controls are in Modules > JIT. Experimental MeloNX script testing for other apps remains here."
+          }
+        }
+      }
+    },
+    "Los tweaks son código nativo: solo instala correcciones de autores confiables. La tienda no realiza instalaciones silenciosas ni distribuye juegos." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tweaks contain native code. Only install fixes from authors you trust. The store does not silently install software or distribute games."
+          }
+        }
+      }
+    },
+    "MeloNX 2.6 tiene su perfil automático original." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MeloNX 2.6 retains its original automatic profile."
+          }
+        }
+      }
+    },
+    "Memoria ampliada" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extended Memory"
+          }
+        }
+      }
+    },
+    "Menta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mint"
+          }
+        }
+      }
+    },
+    "Meter en carpeta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move into Folder"
+          }
+        }
+      }
+    },
+    "Mide el espacio utilizado por las apps invitadas, SideStore y BloomBox. Permite identificar datos, cachés y archivos temporales sin borrarlos." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See space used by guest apps, SideStore and BloomBox. Inspect app data, caches and temporary files without deleting anything."
+          }
+        }
+      }
+    },
+    "Minimalista" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimal"
+          }
+        }
+      }
+    },
+    "Minimalista · hora y fecha" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimal · Time and Date"
+          }
+        }
+      }
+    },
+    "Módulos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modules"
+          }
+        }
+      }
+    },
+    "Módulos de BloomBox" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BloomBox Modules"
+          }
+        }
+      }
+    },
+    "Mostrar fondo completo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Full Wallpaper"
+          }
+        }
+      }
+    },
+    "Mover a página" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to Page"
+          }
+        }
+      }
+    },
+    "Mover al escritorio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to Desktop"
+          }
+        }
+      }
+    },
+    "Mover widget" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move Widget"
+          }
+        }
+      }
+    },
+    "No hay aplicaciones que coincidan con tu búsqueda." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Apps Match Your Search"
+          }
+        }
+      }
+    },
+    "No hay aplicaciones que coincidan." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Matching Apps"
+          }
+        }
+      }
+    },
+    "No se pudo añadir el Tweak" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could Not Add Tweak"
+          }
+        }
+      }
+    },
+    "No se pudo descargar el catálogo remoto de apps." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could Not Download Remote App Catalog"
+          }
+        }
+      }
+    },
+    "No se pudo descargar el catálogo remoto de tweaks." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could Not Download Remote Tweak Catalog"
+          }
+        }
+      }
+    },
+    "Notas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notes"
+          }
+        }
+      }
+    },
+    "Novedades de BloomBox" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BloomBox News"
+          }
+        }
+      }
+    },
+    "Novedades y escritorio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "News and Desktop"
+          }
+        }
+      }
+    },
+    "Opciones del widget" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widget Options"
+          }
+        }
+      }
+    },
+    "Página de widgets" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widgets Page"
+          }
+        }
+      }
+    },
+    "Página de widgets siempre disponible" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widgets page is always available"
+          }
+        }
+      }
+    },
+    "Pairing, LocalDevVPN y conexión" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pairing, LocalDevVPN and Connection"
+          }
+        }
+      }
+    },
+    "Pantalla de inicio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home Screen"
+          }
+        }
+      }
+    },
+    "Para scripts integrados, elige Built-in JIT en Habilitar JIT." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For built-in scripts, select Built-in JIT under Enable JIT."
+          }
+        }
+      }
+    },
+    "Paseo suave ✦" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gentle Wander ✦"
+          }
+        }
+      }
+    },
+    "Pequeño · 1×1" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Small · 1×1"
+          }
+        }
+      }
+    },
+    "Permite volver a abrir los controles de reinstalación cuando RAM+ ya está activa. No desactiva RAM+, no solicita permisos a Apple ni reinstala nada al encender el interruptor." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show the reinstall controls again when RAM+ is already active. Enabling this does not turn off RAM+, request entitlements from Apple or reinstall anything."
+          }
+        }
+      }
+    },
+    "Personalización" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Customization"
+          }
+        }
+      }
+    },
+    "Personalizar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Customize"
+          }
+        }
+      }
+    },
+    "Pixel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pixel"
+          }
+        }
+      }
+    },
+    "Pixel · estilo videojuego" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pixel · Video Game Style"
+          }
+        }
+      }
+    },
+    "Pixel Time: usar el color del brillo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pixel Time: Match Glow Color"
+          }
+        }
+      }
+    },
+    "Pixel Time: volver a su color original" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pixel Time: Use Original Color"
+          }
+        }
+      }
+    },
+    "Preparación del futuro módulo JIT" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Future JIT Module Setup"
+          }
+        }
+      }
+    },
+    "Privacidad" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy"
+          }
+        }
+      }
+    },
+    "Probar script JIT de MeloNX en otras apps" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test MeloNX JIT Script in Other Apps"
+          }
+        }
+      }
+    },
+    "Profundidad y cristal" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Depth and Glass"
+          }
+        }
+      }
+    },
+    "Prueba otra búsqueda o actualiza el catálogo." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Another Search or Refresh the Catalog."
+          }
+        }
+      }
+    },
+    "Pruebas avanzadas del script MeloNX" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Advanced MeloNX Script Testing"
+          }
+        }
+      }
+    },
+    "Pruebas con script MeloNX desactivadas globalmente. Puedes preparar las selecciones, pero no se aplicarán hasta encender el interruptor anterior." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MeloNX script testing is globally disabled. You can save selections, but they will not apply until the master switch above is on."
+          }
+        }
+      }
+    },
+    "Puedes modificar las noticias desde cualquier archivo JSON remoto, sin reinstalar BloomBox." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can change the news using any remote JSON file without reinstalling BloomBox."
+          }
+        }
+      }
+    },
+    "Quitar de la pantalla de inicio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Home Screen"
+          }
+        }
+      }
+    },
+    "Quitar del escritorio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Desktop"
+          }
+        }
+      }
+    },
+    "Quitar un icono del inicio no desinstala la aplicación ni borra sus datos." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removing a Home Screen icon does not uninstall the app or delete its data."
+          }
+        }
+      }
+    },
+    "Quitar widget" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Widget"
+          }
+        }
+      }
+    },
+    "RAM+ activa" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAM+ Active"
+          }
+        }
+      }
+    },
+    "RAM+ sin confirmar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAM+ Not Confirmed"
+          }
+        }
+      }
+    },
+    "RAM+ solicitada, pero el permiso no está confirmado. Toca para revisar." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAM+ was requested, but the entitlement is not confirmed. Tap to check."
+          }
+        }
+      }
+    },
+    "Recorrido" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Travel Distance"
+          }
+        }
+      }
+    },
+    "Reloj" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clock"
+          }
+        }
+      }
+    },
+    "Relojes · BloomBox" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BloomBox Clocks"
+          }
+        }
+      }
+    },
+    "Revisar RAM+" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check RAM+"
+          }
+        }
+      }
+    },
+    "Rojo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Red"
+          }
+        }
+      }
+    },
+    "Rosa" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pink"
+          }
+        }
+      }
+    },
+    "Sacar de carpeta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Folder"
+          }
+        }
+      }
+    },
+    "Se aplica al próximo lanzamiento. Algunos emuladores requieren scripts propios; evita ejecutarlos si el iPhone se está calentando." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applies on the next launch. Some emulators need their own scripts; avoid running them if your iPhone is overheating."
+          }
+        }
+      }
+    },
+    "Se aplica al reiniciar BloomBox. Algunas conexiones de iCloud pueden continuar." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Takes effect after restarting BloomBox. Some iCloud connections may continue."
+          }
+        }
+      }
+    },
+    "Se quitará la app de LiveContainer y del escritorio de Manzana. Sus carpetas de datos se conservarán. Esta acción no se puede deshacer." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app will be removed from LiveContainer and the BloomBox desktop. Its data folders will be kept. This cannot be undone."
+          }
+        }
+      }
+    },
+    "Se solicitará JIT al abrirla, pero esto no garantiza compatibilidad." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JIT will be requested on launch, but compatibility is not guaranteed."
+          }
+        }
+      }
+    },
+    "Selección guardada; requiere JIT integrado, experimento maestro activo y JIT no desactivado." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selection saved; requires built-in JIT, the master experiment switch enabled and JIT not disabled."
+          }
+        }
+      }
+    },
+    "Setup y proveedores" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Setup and Providers"
+          }
+        }
+      }
+    },
+    "Sin correcciones compatibles" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Compatible Fixes"
+          }
+        }
+      }
+    },
+    "Sin Liquid Glass" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disable Liquid Glass"
+          }
+        }
+      }
+    },
+    "Sin movimiento" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Motion"
+          }
+        }
+      }
+    },
+    "Sincronizando catálogo..." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Syncing Catalog…"
+          }
+        }
+      }
+    },
+    "Sitio del autor" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Author's Website"
+          }
+        }
+      }
+    },
+    "Solo consulta · Instalación automática aún no compatible" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View Only · Automatic Installation Not Yet Supported"
+          }
+        }
+      }
+    },
+    "Solo mostrar aviso" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Notice Only"
+          }
+        }
+      }
+    },
+    "Sombra flotante · activar/desactivar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Floating Shadow · On/Off"
+          }
+        }
+      }
+    },
+    "Tamaño del widget" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widget Size"
+          }
+        }
+      }
+    },
+    "Tienda de apps" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Store"
+          }
+        }
+      }
+    },
+    "Toca un widget para seleccionarlo. Arrastra el botón de flechas para moverlo y toca ••• para cambiar tamaño, imagen o fondo. Pulsa Listo al terminar." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap a widget to select it. Drag the arrow handle to move it, or tap ••• to change its size, image, or background. Tap Done when finished."
+          }
+        }
+      }
+    },
+    "Todos los tweaks · incluidos los de apps no instaladas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Tweaks · Including Uninstalled Apps"
+          }
+        }
+      }
+    },
+    "Tu centro de control, sin menús escondidos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Control Center, with Nothing Hidden"
+          }
+        }
+      }
+    },
+    "Usa Opciones para moverlo a otra página" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use Options to move it to another page"
+          }
+        }
+      }
+    },
+    "Velocidad" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speed"
+          }
+        }
+      }
+    },
+    "Widget de foto o GIF" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo or GIF Widget"
+          }
+        }
+      }
+    },
+    "Widget de notas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notes Widget"
+          }
+        }
+      }
+    },
+    "Widget de reloj" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clock Widget"
           }
         }
       }
