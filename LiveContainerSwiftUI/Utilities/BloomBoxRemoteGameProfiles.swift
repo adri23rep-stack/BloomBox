@@ -13,8 +13,10 @@ final class BloomBoxRemoteGameProfiles: ObservableObject {
 
     private static let cacheKey = "BloomBoxGameProfilesVerified-v1"
     private static let syncKey = "BloomBoxGameProfilesLastSync-v1"
+    // Experimental build reads the matching catalog PR branch. Change back to
+    // /main/ only after publishing that catalog file through its reviewed PR.
     private static let catalogURL = URL(string:
-        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox-Catalog/main/catalog/game-profiles.json")!
+        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox-Catalog/feature/remote-game-compat-profiles/catalog/game-profiles.json")!
     private let defaults = LCUtils.appGroupUserDefault
     private var lastAttempt: Date?
 
