@@ -687,8 +687,12 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
         let appKey = app.appInfo.relativeBundlePath ?? ""
         let policy = BloomBoxJITGuestPolicy.mode(for: appKey, defaults: LCUtils.appGroupUserDefault)
+        let guestBundle = Bundle(path: app.appInfo.bundlePath())
+        let melonProfile = BloomBoxMeloNXProfile.matches(
+            bundleID: app.bundleIdentifier,
+            version: guestBundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
         let wantsJIT = BloomBoxJITGuestPolicy.wantsJIT(
-            automatic: app.appInfo.isJITNeeded || app.appInfo.is32bit,
+            automatic: app.appInfo.isJITNeeded || app.appInfo.is32bit || melonProfile,
             forced: forceJIT ? true : nil, mode: policy)
         let builtInJIT = wantsJIT &&
             LCUtils.appGroupUserDefault.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue
