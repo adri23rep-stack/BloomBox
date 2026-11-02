@@ -4031,6 +4031,25 @@ private struct BloomBoxJITSwitchRow: View {
         .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 16))
         .contentShape(Rectangle())
         .contextMenu {
+            Menu {
+                Button {
+                    app.uiOrientationLock = .Disabled
+                } label: {
+                    Label("Automático", systemImage: app.uiOrientationLock == .Disabled ? "checkmark" : "iphone")
+                }
+                Button {
+                    app.uiOrientationLock = .Landscape
+                } label: {
+                    Label("Horizontal", systemImage: app.uiOrientationLock == .Landscape ? "checkmark" : "rectangle")
+                }
+                Button {
+                    app.uiOrientationLock = .Portrait
+                } label: {
+                    Label("Vertical", systemImage: app.uiOrientationLock == .Portrait ? "checkmark" : "iphone")
+                }
+            } label: {
+                Label("Orientación al iniciar", systemImage: "rotate-cw")
+            }
             Button { importScript() } label: {
                 Label("Importar script JIT (.js)", systemImage: "doc.badge.plus")
             }
