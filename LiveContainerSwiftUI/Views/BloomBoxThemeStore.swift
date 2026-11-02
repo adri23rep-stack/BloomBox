@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import ImageIO
+import CryptoKit
 
 private struct BloomBoxThemeStoreShare: UIViewControllerRepresentable {
     let url: URL
@@ -249,6 +250,15 @@ enum BloomBoxThemeLibrary {
         _ = try BloomBoxThemePackage.read(data)
         return data
     }
+}
+
+/// Large animated themes are stored as verified plaintext chunks in BloomBox-Catalog.
+private struct BloomBoxThemePartsManifest: Decodable {
+    let format: String
+    let version: Int
+    let totalBytes: Int
+    let sha256: String
+    let parts: [String]
 }
 
 private struct BloomBoxOnlineThemeIndex: Decodable {
@@ -510,9 +520,54 @@ struct BloomBoxThemeStoreView: View {
         guard let url = URL(string: path), url.scheme == "https",
               url.host == "raw.githubusercontent.com",
               url.path.hasPrefix("/adri23rep-stack/BloomBox-Catalog/main/themes/"),
-              url.pathExtension.lowercased() == "bbtheme"
+              url.user == nil, url.password == nil,
+              url.query == nil, url.fragment == nil,
+              (url.pathExtension.lowercased() == "bbtheme" ||
+               (url.lastPathComponent == "manifest.json" &&
+                url.pathExtension.lowercased() == "json"))
         else { return nil }
         return url
+    }
+
+    /// Chunks remain on the official repository. Reassemble exactly the bytes
+    /// declared by the index and reject truncation, corruption or path traversal.
+    private func resolveThemeData(_ data: Data, from url: URL) async throws -> Data {
+        guard url.lastPathComponent == "manifest.json" else { return data }
+        let manifest = try JSONDecoder().decode(BloomBoxThemePartsManifest.self, from: data)
+        guard manifest.format == "bbtheme-chunks", manifest.version == 1,
+              (1...50).contains(manifest.parts.count),
+              manifest.totalBytes > 0, manifest.totalBytes <= BloomBoxThemePackage.maxBytes,
+              manifest.sha256.count == 64 else {
+            throw BloomBoxThemePackage.ThemeError.invalid("Invalid chunked theme manifest.")
+        }
+        let root = url.deletingLastPathComponent()
+        var assembled = Data()
+        for (i, filename) in manifest.parts.enumerated() {
+            guard filename == String(format: "part-%03d.txt", i) else {
+                throw BloomBoxThemePackage.ThemeError.invalid("Unsafe theme chunk filename.")
+            }
+            let partURL = root.appendingPathComponent(filename)
+            guard partURL.scheme == "https", partURL.host == "raw.githubusercontent.com",
+                  partURL.path.hasPrefix("/adri23rep-stack/BloomBox-Catalog/main/themes/") else {
+                throw BloomBoxThemePackage.ThemeError.invalid("Invalid theme chunk location.")
+            }
+            var request = URLRequest(url: partURL)
+            request.timeoutInterval = 30
+            let (piece, response) = try await URLSession.shared.data(for: request)
+            guard (response as? HTTPURLResponse)?.statusCode == 200,
+                  !piece.isEmpty, piece.count <= 900_000,
+                  assembled.count + piece.count <= manifest.totalBytes else {
+                throw BloomBoxThemePackage.ThemeError.invalid("Theme chunk download failed.")
+            }
+            assembled.append(piece)
+        }
+        let digest = SHA256.hash(data: assembled)
+            .map { String(format: "%02x", $0) }.joined()
+        guard assembled.count == manifest.totalBytes,
+              digest == manifest.sha256.lowercased() else {
+            throw BloomBoxThemePackage.ThemeError.invalid("Theme verification failed (SHA-256).")
+        }
+        return assembled
     }
 
     @MainActor private func download(_ item: BloomBoxOnlineTheme) async {
@@ -524,10 +579,11 @@ struct BloomBoxThemeStoreView: View {
             request.timeoutInterval = 30
             let (data, response) = try await URLSession.shared.data(for: request)
             guard (response as? HTTPURLResponse)?.statusCode == 200,
-                  data.count <= BloomBoxThemePackage.maxBytes else {
+                  !data.isEmpty, data.count <= BloomBoxThemePackage.maxBytes else {
                 throw BloomBoxThemePackage.ThemeError.invalid("The theme download failed or is too large.")
             }
-            selected = try BloomBoxThemeLibrary.save(data, named: item.name)
+            let complete = try await resolveThemeData(data, from: url)
+            selected = try BloomBoxThemeLibrary.save(complete, named: item.name)
             refresh()
             confirming = true
         } catch { message = error.localizedDescription }
