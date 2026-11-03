@@ -19,7 +19,6 @@ on:
       - experimental/jit-ramplus-unified-ios27
       - migration/import-full-source
       - feature/modules-liquidglass-ram-placeholder
-      - feature/jit-floating-ui-and-diagnostic-history
   pull_request:
     branches:
       - main
