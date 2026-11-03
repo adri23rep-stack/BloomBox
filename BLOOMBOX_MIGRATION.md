@@ -41,3 +41,11 @@ occurs until the macOS build and on-device tests pass.
 - Preserved the JSON format and persistent shortcut IDs so existing users keep their apps, folders, pages and Dock configuration.
 - Added de-duplication of stale app IDs, page repair, safer folder placement and a separate regression suite.
 - Only the layout engine is replaced here. The original iOS Home SwiftUI view, its widgets and other underlying components are still awaiting a complete independent rewrite.
+
+## Independent app appearance storage (phase 4)
+
+- Replaced the inherited app-name/icon manager with BloomBox-owned Foundation storage and a thin UI adapter.
+- Existing icon filenames and renamed app data are imported from previous Strata preferences without overwriting newer BloomBox settings.
+- Artwork is copied into BloomBox/Icons only when needed; previous files remain for rollback until the user explicitly replaces or resets a custom icon.
+- Storage filenames reject directory traversal. App bundles and original IPA metadata are never rewritten.
+- The presentation UI remains compatible with existing icon picker and settings screens.

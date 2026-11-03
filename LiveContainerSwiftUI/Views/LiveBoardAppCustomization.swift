@@ -1,80 +1,95 @@
 import SwiftUI
 
-/// Shared launcher names/icons; never alters guest metadata or executable bundles.
+/// BloomBox-owned app appearance preferences, independent from guest bundles.
 @MainActor final class LiveBoardAppCustomization: ObservableObject {
     static let shared = LiveBoardAppCustomization()
     @Published private(set) var revision = 0
+
+    private let storage = BloomBoxAppAppearanceStorage(defaults: LCUtils.appGroupUserDefault)
     private let cache: NSCache<NSString, UIImage> = {
-        let cache = NSCache<NSString, UIImage>()
-        cache.totalCostLimit = 24 * 1024 * 1024
-        return cache
+        let value = NSCache<NSString, UIImage>()
+        value.totalCostLimit = 24 * 1024 * 1024
+        return value
     }()
     private var cachedLayoutJSON: String?
     private var cachedAliases: [String: String] = [:]
-    private let defaults = LCUtils.appGroupUserDefault
-    private var names: [String: String] { defaults.dictionary(forKey: "StrataAppNames") as? [String: String] ?? [:] }
-    private var icons: [String: String] { defaults.dictionary(forKey: "StrataAppIcons") as? [String: String] ?? [:] }
-    private var directory: URL { FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Strata/Icons") }
+
+    private init() { storage.migrateIfNeeded() }
+
     func name(_ app: LCAppModel) -> String {
         let key = liveBoardAppKey(app)
-        if let name = names[key] { return name }
-        let layoutJSON = defaults.string(forKey: "LiveBoardHomeLayout") ?? ""
+        if let title = storage.names[key], !title.isEmpty { return title }
+        let layoutJSON = LCUtils.appGroupUserDefault.string(forKey: "LiveBoardHomeLayout") ?? ""
         if cachedLayoutJSON != layoutJSON {
             cachedAliases = LiveBoardHomeLayout.decode(layoutJSON).aliases
             cachedLayoutJSON = layoutJSON
         }
         return cachedAliases[key] ?? app.displayName
     }
+
     func rename(_ app: LCAppModel, to value: String) {
-        let key = liveBoardAppKey(app); var map = names
-        let name = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        map[key] = name.isEmpty ? nil : String(name.prefix(100))
-        defaults.set(map, forKey: "StrataAppNames")
-        // Clear a previous Home-only alias so resetting the name also restores the original.
-        var layout = LiveBoardHomeLayout.decode(defaults.string(forKey: "LiveBoardHomeLayout") ?? "")
-        if layout.aliases.removeValue(forKey: key) != nil { defaults.set(layout.encoded, forKey: "LiveBoardHomeLayout") }
+        let key = liveBoardAppKey(app)
+        storage.updateName(value, for: key)
+        var layout = LiveBoardHomeLayout.decode(
+            LCUtils.appGroupUserDefault.string(forKey: "LiveBoardHomeLayout") ?? "")
+        if layout.aliases.removeValue(forKey: key) != nil {
+            let newJSON = layout.encoded
+            LCUtils.appGroupUserDefault.set(newJSON, forKey: "LiveBoardHomeLayout")
+            cachedLayoutJSON = newJSON
+            cachedAliases = layout.aliases
+        }
         revision += 1
     }
-    // Filenames are unique for each saved icon; renaming an app does not change its artwork.
+
     func iconCacheIdentifier(_ app: LCAppModel) -> String {
-        icons[liveBoardAppKey(app)] ?? "original"
+        storage.iconFilename(for: liveBoardAppKey(app)) ?? "original"
     }
+
     func image(_ app: LCAppModel) -> UIImage? {
-        guard let file = icons[liveBoardAppKey(app)] else { return nil }
+        guard let file = storage.iconFilename(for: liveBoardAppKey(app)),
+              let url = storage.iconURL(for: liveBoardAppKey(app)) else { return nil }
         if let image = cache.object(forKey: file as NSString) { return image }
-        guard let image = UIImage(contentsOfFile: directory.appendingPathComponent(file).path) else { return nil }
-        cache.setObject(image, forKey: file as NSString, cost: (image.cgImage?.bytesPerRow ?? 0) * (image.cgImage?.height ?? 0))
+        guard let image = UIImage(contentsOfFile: url.path) else { return nil }
+        let cost = (image.cgImage?.bytesPerRow ?? 0) * (image.cgImage?.height ?? 0)
+        cache.setObject(image, forKey: file as NSString, cost: cost)
         return image
     }
+
     func saveIcon(_ image: UIImage, app: LCAppModel) throws {
-        guard image.size.width > 0, image.size.height > 0 else { throw CocoaError(.fileReadCorruptFile) }
+        guard image.size.width > 0, image.size.height > 0 else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
         let side: CGFloat = 512
-        let format = UIGraphicsImageRendererFormat(); format.scale = 1
-        let result = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format).image { _ in
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let resized = UIGraphicsImageRenderer(
+            size: CGSize(width: side, height: side), format: format
+        ).image { _ in
             let scale = side / min(image.size.width, image.size.height)
-            let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-            image.draw(in: CGRect(x: (side - size.width)/2, y: (side - size.height)/2, width: size.width, height: size.height))
+            let size = CGSize(width: image.size.width * scale,
+                              height: image.size.height * scale)
+            image.draw(in: CGRect(x: (side - size.width) / 2,
+                                  y: (side - size.height) / 2,
+                                  width: size.width, height: size.height))
         }
-        guard let data = result.pngData() else { throw CocoaError(.fileWriteUnknown) }
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let file = UUID().uuidString + ".png"
-        try data.write(to: directory.appendingPathComponent(file), options: .atomic)
-        var map = icons; let old = map.updateValue(file, forKey: liveBoardAppKey(app))
-        defaults.set(map, forKey: "StrataAppIcons")
-        if let old {
+        guard let png = resized.pngData() else { throw CocoaError(.fileWriteUnknown) }
+        let key = liveBoardAppKey(app)
+        if let old = storage.iconFilename(for: key) {
             cache.removeObject(forKey: old as NSString)
-            try? FileManager.default.removeItem(at: directory.appendingPathComponent(old))
         }
-        cache.setObject(result, forKey: file as NSString, cost: (result.cgImage?.bytesPerRow ?? 0) * (result.cgImage?.height ?? 0))
+        let filename = try storage.writeIcon(png, for: key)
+        let cost = (resized.cgImage?.bytesPerRow ?? 0) * (resized.cgImage?.height ?? 0)
+        cache.setObject(resized, forKey: filename as NSString, cost: cost)
         revision += 1
     }
+
     func resetIcon(_ app: LCAppModel) {
-        var map = icons
-        if let file = map.removeValue(forKey: liveBoardAppKey(app)) {
-            cache.removeObject(forKey: file as NSString)
-            try? FileManager.default.removeItem(at: directory.appendingPathComponent(file))
+        let key = liveBoardAppKey(app)
+        if let filename = storage.iconFilename(for: key) {
+            cache.removeObject(forKey: filename as NSString)
         }
-        defaults.set(map, forKey: "StrataAppIcons"); revision += 1
+        storage.removeIcon(for: key)
+        revision += 1
     }
 }
 

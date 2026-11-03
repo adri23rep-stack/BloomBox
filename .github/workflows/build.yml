@@ -63,6 +63,10 @@ jobs:
           "$RUNNER_TEMP/bloombox-home-layout-tests"
           swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-native-layout/main.swift -o "$RUNNER_TEMP/bloombox-home-native-tests"
           "$RUNNER_TEMP/bloombox-home-native-tests"
+      - name: Test app appearance storage and legacy icon migration
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBoxAppAppearanceStorage.swift Tests/app-appearance/main.swift -o "$RUNNER_TEMP/bloombox-app-appearance-tests"
+          "$RUNNER_TEMP/bloombox-app-appearance-tests"
       - name: Test built-in app folder moves and persistence
         run: |
           swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-builtins-folders/main.swift -o "$RUNNER_TEMP/home-folder-tests"
