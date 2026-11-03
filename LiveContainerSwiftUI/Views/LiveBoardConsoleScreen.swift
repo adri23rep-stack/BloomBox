@@ -526,7 +526,7 @@ struct LiveBoardConsoleScreen: View {
                                    ? "Quitar de favoritos" : "Añadir a favoritos",
                                    systemImage: "star.fill") { favorite(app) }
                             if mode == "cinematic" {
-                                Menu("Categoría", systemImage: "tag.fill") {
+                                Menu {
                                     ForEach(["Games", "Ports", "Emuladores"], id: \.self) { name in
                                         Button {
                                             updateLibrary { $0.assignments[liveBoardAppKey(app)] = name }
@@ -540,6 +540,8 @@ struct LiveBoardConsoleScreen: View {
                                         updateLibrary { $0.assignments[liveBoardAppKey(app)] = nil }
                                         activeCategory = nil
                                     }
+                                } label: {
+                                    Label("Categoría", systemImage: "tag.fill")
                                 }
                             }
                             Button("Más opciones", systemImage: "ellipsis.circle") {
