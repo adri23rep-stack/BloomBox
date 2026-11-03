@@ -86,3 +86,10 @@ occurs until the macOS build and on-device tests pass.
 
 - GameBox and Theme Store now use BloomBoxMotionMedia and BloomBoxAnimatedWallpaper instead of removed launcher types.
 - CI rejects stale Swift references to the deleted media classes before running Xcode.
+
+## BloomBox widget picker (phase 11)
+
+- Replaced the inherited Home widget gallery view with BloomBox-owned SwiftUI cards, selection preview and controls.
+- Preserves existing comma-separated widget order, photo preview, note text and per-page toggle callbacks.
+- Gallery preference normalization is isolated in a Foundation policy with CI coverage; legacy saved keys remain readable.
+- The old desktop screen still contains other widget presentation code to refactor separately.

@@ -974,7 +974,7 @@ struct LiveBoardHomeScreen: View {
             if page > 0 && page <= layout.pages.count {
                 widgetAddSheet
             } else {
-                ManzanaWidgetGallery()
+                BloomBoxWidgetGallery()
             }
         }
         .modifier(BloomBoxWidgetMediaPresentation(

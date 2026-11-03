@@ -67,6 +67,10 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxRAMValidation.swift Tests/ram-validation/main.swift -o "$RUNNER_TEMP/ram-validation-tests"
           "$RUNNER_TEMP/ram-validation-tests"
+      - name: Test BloomBox widget picker persisted ordering
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetGalleryPolicy.swift Tests/widget-gallery/main.swift -o "$RUNNER_TEMP/bloombox-widget-gallery-tests"
+          "$RUNNER_TEMP/bloombox-widget-gallery-tests"
       - name: Test BloomBox native Home layout and legacy data
         run: |
           swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-layout/main.swift -o "$RUNNER_TEMP/bloombox-home-layout-tests"
