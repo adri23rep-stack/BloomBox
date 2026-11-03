@@ -458,8 +458,8 @@ struct LiveBoardConsoleScreen: View {
                         .frame(width: 32, height: 32)
                 }
                 .disabled(selected == nil)
-                .popover(isPresented: $quickJITPresented, onDismiss: bindController) {
-                    gameBoxJITQuickSettings
+                .popover(isPresented: $quickJITPresented) {
+                    gameBoxJITQuickSettings.onDisappear(perform: bindController)
                 }
                 .accessibilityLabel(selected.map(jitEnabled(for:)) == true
                                     ? "JIT activado para la app seleccionada"
