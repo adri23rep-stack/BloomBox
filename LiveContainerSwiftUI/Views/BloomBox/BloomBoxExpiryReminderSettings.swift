@@ -79,4 +79,5 @@ struct BloomBoxExpiryReminderSettings: View {
 }
 
 // Existing WidgetKit/host source references may use the previous symbol.
+@available(iOS 16.2, *)
 typealias ManzanaExpiryReminderSettings = BloomBoxExpiryReminderSettings
