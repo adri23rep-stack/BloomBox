@@ -1,4 +1,12 @@
 {
-  "Vendor/StikJIT/idevice/libidevice_ffi.a": "4db23fe1d342927b9480bb9a8577f219994365621dc28aa0018e23ea1990ecc8",
-  "Resources/BundledRuntime/LiveExec32.ipa": "8aa891d0069eb5745c9ca0e94f86e3087daeec471b81da5f77ed11495148fdfa"
+  "Vendor/StikJIT/idevice/libidevice_ffi.a": {
+    "url": "https://raw.githubusercontent.com/StikDebug/StikJIT/32287268fa5824f9edce4cb359f5833ce0cf7b00/idevice/libidevice_ffi.a",
+    "sha256": "4db23fe1d342927b9480bb9a8577f219994365621dc28aa0018e23ea1990ecc8",
+    "max_bytes": 110000000
+  },
+  "Resources/BundledRuntime/LiveExec32.ipa": {
+    "url": "https://github.com/LiveContainer/LiveExec32/releases/download/nightly/com.kdt.liveexec32_0.0.1.ipa",
+    "sha256": "e690c6fdc97c249cb8b67f27cea753e7bb98ea7c874f8160844e58fe92e87dba",
+    "max_bytes": 30000000
+  }
 }

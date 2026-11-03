@@ -27,3 +27,10 @@ occurs until the macOS build and on-device tests pass.
   preserving users' folders, widgets, installed guests and settings.
 - Git history and required copyright credits must remain intact even once the
   corresponding source has been fully replaced.
+
+## Direct upstream dependencies (phase 2)
+
+- Removed the inactive packaging script that overlaid compiled UI onto a Strata IPA and its obsolete donor-based tests. Current builds package their own compiled host instead.
+- Binary prerequisites now download **directly from their respective upstream projects**, StikJIT and LiveExec32, with SHA-256 verification and atomic replacement. We no longer depend on a Strata release being available for CI downloads.
+- The LiveExec32 nightly release is mutable: its exact SHA-256 is pinned and any change stops the build until reviewed. Device compatibility must be tested before merging.
+- This change does not replace every inherited iOS Home implementation. Attribution and historical commits remain as legally required.

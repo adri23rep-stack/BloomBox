@@ -69,6 +69,8 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxRAMRelease.swift Tests/ram-release/main.swift -o "$RUNNER_TEMP/ram-release-tests"
           "$RUNNER_TEMP/ram-release-tests"
+      - name: Test direct-upstream dependency validation (offline)
+        run: python3 -m unittest discover -s Tests/dependency-source-tests -p 'test_*.py' -v
       - name: Restore pinned StikJIT and runtime dependencies
         run: python3 Scripts/fetch-bundled-dependencies.py
       - name: Test JIT debugger protocol and MeloNX 2.6 profile
