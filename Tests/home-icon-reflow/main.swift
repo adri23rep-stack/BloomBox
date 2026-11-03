@@ -18,7 +18,7 @@ home.dock = ["sidestore"]
 home.folders = [.init(id: "folder:tools", name: "Tools", apps: ["X", "Y"])]
 let widgets = [0: [widget("cover", slot: 0, columns: 4, rows: 2)]]
 let updated = BloomBoxHomeIconReflow.apply(to: home, widgets: widgets, hiddenPages: [1])
-check(updated.pages[0].prefix(8).allSatisfy { $0 == nil || !$0.hasPrefix("P0-") },
+check(updated.pages[0].prefix(8).allSatisfy { $0 == nil || !($0?.hasPrefix("P0-") ?? false) },
       "Reserved widget cells must be empty")
 check(updated.pages[1] == home.pages[1], "Hidden pages must not receive moved icons")
 check(updated.pages[2].contains("P0-0"), "Displaced icons use existing visible Home pages")
