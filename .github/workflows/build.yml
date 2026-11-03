@@ -71,6 +71,21 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetGalleryPolicy.swift Tests/widget-gallery/main.swift -o "$RUNNER_TEMP/bloombox-widget-gallery-tests"
           "$RUNNER_TEMP/bloombox-widget-gallery-tests"
+      - name: Verify native BloomBox launcher host and GameBox launch gate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("LiveContainerSwiftUI/Views")
+          host = (root / "BloomBox/BloomBoxLauncherRoot.swift").read_text()
+          assert "struct BloomBoxLauncherRootView: View" in host
+          assert "typealias LiveBoardRootView = BloomBoxLauncherRootView" in host
+          for term in ("LCAppListView(openInterface:", "BloomBoxLaunchPreferences.resetForNewProcess",
+                       "BloomBoxRequestGameMode", "LiveBoardControllerInput.pauseNotification",
+                       "BloomBoxPrimaryLauncher"):
+              assert term in host, term
+          assert not (root / "LiveBoard.swift").exists()
+          print("Native launcher host and GameBox request gate preserved")
+          PY
       - name: Verify BloomBox native Home entry and visual controls
         run: |
           python3 - <<'PY'

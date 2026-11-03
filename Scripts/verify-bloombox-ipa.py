@@ -39,7 +39,8 @@ with zipfile.ZipFile(ipa) as archive:
                  "BloomBox/BloomBoxMotionMedia.swift", "BloomBox/BloomBoxIconCustomization.swift",
                  "BloomBox/BloomBoxArtworkLibrary.swift",
                  "BloomBox/BloomBoxFilesView.swift", "BloomBox/BloomBoxFileStore.swift",
-                 "BloomBox/BloomBoxHomeChrome.swift", "BloomBox/BloomBoxHomeScreen.swift"):
+                 "BloomBox/BloomBoxHomeChrome.swift", "BloomBox/BloomBoxHomeScreen.swift",
+                 "BloomBox/BloomBoxLauncherRoot.swift"):
         if not (source_root / item).is_file():
             raise SystemExit("Wrong source branch: missing BloomBox UI file " + item)
     home_source = (source_root / "BloomBox/BloomBoxHomeScreen.swift").read_text()

@@ -180,3 +180,9 @@ occurs until the macOS build and on-device tests pass.
 - Reimplemented the installer progress display, launch welcome overlay, and full-size (44pt minimum) Edit/Done toolbar as separate BloomBox-owned views.
 - Home, all user preferences, launch actions, existing app folders and theme exports remain available without changing saved formats or installed guest data.
 - Build workflow and IPA source checks now require the new source layout and reject reappearance of the old Home file.
+
+## Native launcher host (phase 21)
+
+- Replaced the original LiveBoard.swift mode host with BloomBoxLauncherRoot.swift and a source-compatibility alias LiveBoardRootView.
+- The mode selector now presents native BloomBox cards and retains saved mode keys, controller lifecycle events and primary launcher preference.
+- Launching GameBox still requests BloomBoxRequestGameMode after the picker dismisses; central RAM+/JIT checks remain in place.
