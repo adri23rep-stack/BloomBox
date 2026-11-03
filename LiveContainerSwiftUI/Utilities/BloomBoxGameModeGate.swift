@@ -13,6 +13,15 @@ enum BloomBoxGameModeGate {
         return nil
     }
 
+    /// The rendered Game launcher is authoritative during launch. SwiftUI's
+    /// persisted mode may temporarily lag during iOS 27 scene rotation, and
+    /// the legacy LiveContainer delegate may be called a second time.
+    /// Route exactly once, only from Home; never route Game back to Game.
+    static func shouldOfferGameSwitch(requiresGame: Bool, fromGameLauncher: Bool,
+                                      persistedMode: String) -> Bool {
+        requiresGame && !fromGameLauncher && persistedMode != "cinematic"
+    }
+
     /// Explicit landscape apps (and Husk, whose guest renderer needs landscape)
     /// use Game Mode instead of inheriting the iOS Home portrait scene.
     static func requiresGameMode(bundleID: String?, name: String, landscapeLocked: Bool) -> Bool {
