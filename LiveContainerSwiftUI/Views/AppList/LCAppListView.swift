@@ -229,7 +229,22 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                                            manage: manageLauncherApp,
                                            openInterface: openInterface,
                                            openManagement: { manageLibrary = true },
-                                           launchWithJIT: { app, fromGame in await launchFromLiveBoard(app, forceJIT: true, originatingFromGame: fromGame) })
+                                           launchWithJIT: { app, fromGame in await launchFromLiveBoard(app, forceJIT: true, originatingFromGame: fromGame) },
+                                           openModuleDestination: { destination in
+                                               switch destination {
+                                               case .settings: sharedModel.selectedTab = .settings
+                                               case .tweaks: sharedModel.selectedTab = .tweaks
+                                               case .sidestore:
+                                                   if UserDefaults.sideStoreExist() { LCUtils.openSideStore(delegate: self) }
+                                                   else {
+                                                       errorInfo = "SideStore no está disponible en esta instalación."
+                                                       errorShow = true
+                                                   }
+                                               case .apps: manageLibrary = true
+                                               case .interface, .desktop, .wallpaper: openInterface()
+                                               case .jit: emulatorJITSetup = true
+                                               }
+                                           })
                 } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -544,9 +559,9 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             }
             Button("Cancelar", role: .cancel) { gameRouteApp = nil }
         } message: {
-            Text("Esta app necesita una pantalla horizontal. El escritorio iOS es vertical y podría deformar la imagen. ¿Cambiar a modo Game?")
+            Text("Esta app necesita una pantalla horizontal. El escritorio iOS es vertical y podría deformar la imagen. ¿Cambiar a GameBox?")
         }
-        .alert("Modo Game · " + (gameGateMissing == .ramPlus ? "RAM+" : "JIT"), isPresented: $gameGatePrompt) {
+        .alert("GameBox · " + (gameGateMissing == .ramPlus ? "RAM+" : "JIT"), isPresented: $gameGatePrompt) {
             Button("Sí, habilitar") {
                 if gameGateMissing == .ramPlus { emulatorRAMSetup = true }
                 else {
@@ -561,7 +576,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             }
         } message: {
             if gameGateMissing == .ramPlus {
-                Text("Modo Game necesita RAM+ activado y verificado en BloomBox y LiveProcess. ¿Quieres iniciar el proceso para habilitarlo? No se abrirá la app hasta confirmarlo.")
+                Text("GameBox necesita RAM+ activado y verificado en BloomBox y LiveProcess. ¿Quieres iniciar el proceso para habilitarlo? No se abrirá la app hasta confirmarlo.")
             } else {
                 Text("Esta app tiene JIT activado, pero falta configurarlo. ¿Abrir los ajustes de JIT? Las apps con JIT apagado pueden entrar a modo Game sin activarlo.")
             }
