@@ -14,3 +14,28 @@ struct LiveBoardModeLibrary: Codable, Equatable {
         categories.removeAll { $0 == name }; assignments = assignments.filter { $0.value != name }
     }
 }
+
+
+/// "cinematic" remains the stable stored ID; GameBox is only its display name.
+/// LiveBoardMode is the active session, not the persisted startup preference.
+enum BloomBoxLaunchPreferences {
+    static let primaryKey = "BloomBoxPrimaryLauncher"
+    static let sessionKey = "LiveBoardMode"
+    static let pendingKey = "BloomBoxGamePendingEntry"
+    static let pendingAppKey = "BloomBoxGamePendingApp"
+
+    static func preferredMode(defaults: UserDefaults) -> String {
+        defaults.string(forKey: primaryKey) == "cinematic" ? "cinematic" : "ios"
+    }
+
+    /// Call exactly once per *process*, before mounting the launcher.
+    /// Reopening after force-close never inherits the last temporary GameBox visit.
+    @discardableResult
+    static func resetForNewProcess(defaults: UserDefaults) -> String {
+        let initial = preferredMode(defaults: defaults)
+        defaults.set(initial, forKey: sessionKey)
+        defaults.set(false, forKey: pendingKey)
+        defaults.removeObject(forKey: pendingAppKey)
+        return initial
+    }
+}
