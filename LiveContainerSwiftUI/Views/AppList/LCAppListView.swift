@@ -548,7 +548,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         } message: {
             Text("BloomBox-Catalog recomienda estos ajustes para \(compatibilityApp?.displayName ?? "la app"): \(compatibilitySummary).\n\nSe aplican solo a esta app. Se hará una vez; tus cambios manuales posteriores se respetarán. Ningún permiso global ni firma se modifica.")
         }
-        .alert("Esta app debe iniciarse en modo Game", isPresented: $gameRoutePrompt) {
+        .alert("Esta app debe iniciarse en GameBox", isPresented: $gameRoutePrompt) {
             Button("Entrar a Game") {
                 let app = gameRouteApp
                 gameRouteApp = nil
@@ -578,7 +578,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             if gameGateMissing == .ramPlus {
                 Text("GameBox necesita RAM+ activado y verificado en BloomBox y LiveProcess. ¿Quieres iniciar el proceso para habilitarlo? No se abrirá la app hasta confirmarlo.")
             } else {
-                Text("Esta app tiene JIT activado, pero falta configurarlo. ¿Abrir los ajustes de JIT? Las apps con JIT apagado pueden entrar a modo Game sin activarlo.")
+                Text("Esta app tiene JIT activado, pero falta configurarlo. ¿Abrir los ajustes de JIT? Las apps con JIT apagado pueden entrar a GameBox sin activarlo.")
             }
         }
         .sheet(isPresented: $emulatorRAMSetup, onDismiss: { if gamePendingEntry { evaluatePendingGame(offerPrompt: true) } }) {
