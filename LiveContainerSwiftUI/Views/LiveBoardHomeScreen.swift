@@ -1115,7 +1115,7 @@ struct LiveBoardHomeScreen: View {
             ZStack {
                 Color.black
                 if wallpaperStyle == "motion", let url = BloomBoxMotionMedia.url(motionWallpaper) {
-                    ManzanaAnimatedWallpaper(url: url, fit: wallpaperFit,
+                    BloomBoxAnimatedWallpaper(url: url, fit: wallpaperFit,
                         paused: pauseWallpaper || reduceMotion || paused)
                         .id(motionWallpaper)
                         .frame(width: geometry.size.width, height: geometry.size.height).clipped()

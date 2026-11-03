@@ -632,7 +632,7 @@ struct BloomBoxGridWidgetView: View {
                     if let file = BloomBoxWidgetMedia.url(for: widget.mediaName),
                        FileManager.default.fileExists(atPath: file.path) {
                         if file.pathExtension.lowercased() == "gif" {
-                            ManzanaAnimatedWallpaper(url: file, fit: !widget.fill,
+                            BloomBoxAnimatedWallpaper(url: file, fit: !widget.fill,
                                 paused: scenePhase != .active || !active,
                                 clearBackground: true)
                         } else if let image = UIImage(contentsOfFile: file.path) {
@@ -863,7 +863,7 @@ private struct BloomBoxRemoteNewsImage: View {
         Group {
             if url.pathExtension.lowercased() == "gif" {
                 if let gifFile {
-                    ManzanaAnimatedWallpaper(url: gifFile, fit: false,
+                    BloomBoxAnimatedWallpaper(url: gifFile, fit: false,
                                              paused: scenePhase != .active,
                                              clearBackground: true)
                 } else {

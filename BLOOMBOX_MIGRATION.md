@@ -55,3 +55,9 @@ occurs until the macOS build and on-device tests pass.
 - Replaced the inherited media importer with BloomBox-owned file validation, bounded GIF decoding and new BloomBox/Wallpapers storage.
 - Existing LiveBoard motion files remain readable without duplicating video data. Theme filenames and preferences stay compatible.
 - The existing animated view remains temporarily while the playback implementation is being replaced.
+
+## Independent animated rendering (phase 6)
+
+- Replaced the inherited animated wallpaper view with a BloomBox playback surface shared by Home, widgets and News.
+- Video loops are paused in background, muted and released on teardown. GIF frames decode off the main thread, with generation checks to reject stale loads.
+- Respect Reduce Motion, preserve transparency for widget GIFs, and avoid intercepting touches.
