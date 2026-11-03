@@ -325,15 +325,22 @@ final class BloomBoxJITLogStore: ObservableObject {
     }
 }
 
-/// A non-blocking overlay in BloomBox. iOS does not allow a normal app to draw above
-/// other apps: this indicator is shown only while BloomBox itself is visible.
+/// BloomBox-only floating status: it never draws over apps outside the host.
+/// On iOS 26+ the native glass surface morphs from a card to a compact orb.
+/// Older iOS versions retain an animated material fallback.
 struct BloomBoxJITFloatingView: View {
     @ObservedObject private var history = BloomBoxJITLogStore.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
+    @Namespace private var glassNamespace
+    @Namespace private var fallbackNamespace
     @State private var showingLog = false
+    @State private var orbBreathing = false
 
-    private var color: Color {
+    private var tint: Color {
         switch history.phase {
-        case .working: return .purple
+        case .working: return Color(red: 0.65, green: 0.43, blue: 1)
         case .waiting: return .orange
         case .success: return .green
         case .failure: return .red
@@ -352,58 +359,176 @@ struct BloomBoxJITFloatingView: View {
     private var label: String {
         switch history.phase {
         case .working: return "Activando JIT"
-        case .waiting: return "Debugger conectado · JIT sin confirmar"
+        case .waiting: return "JIT sin confirmar"
         case .success: return "JIT activado"
         case .failure: return "Error al activar JIT"
         }
     }
 
+    private var subtitle: String {
+        switch history.phase {
+        case .working: return history.activeAppName
+        case .waiting: return "Debugger conectado · " + history.activeAppName
+        case .success: return history.activeAppName + " está listo"
+        case .failure: return "Toca para ver el registro"
+        }
+    }
+
+    private var morphAnimation: Animation {
+        reduceMotion ? .easeInOut(duration: 0.16)
+            : .spring(response: 0.55, dampingFraction: 0.79, blendDuration: 0.1)
+    }
+
+    private var orb: some View {
+        ZStack {
+            Circle()
+                .strokeBorder(tint.opacity(0.38), lineWidth: 1.4)
+                .frame(width: 54, height: 54)
+                .scaleEffect(orbBreathing && history.phase == .working ? 1.13 : 0.99)
+                .opacity(orbBreathing && history.phase == .working ? 0.35 : 0.70)
+                .allowsHitTesting(false)
+
+            VStack(spacing: 3) {
+                Image(systemName: symbol)
+                    .font(.system(size: 21, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .contentTransition(.symbolEffect(.replace))
+                if history.phase == .working {
+                    ProgressView()
+                        .tint(tint)
+                        .scaleEffect(0.56)
+                        .frame(width: 16, height: 12)
+                } else {
+                    Text("JIT")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                }
+            }
+        }
+        .frame(width: 62, height: 62)
+        .contentShape(Circle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+    }
+
+    private var notificationCard: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle().fill(tint.opacity(0.16))
+                Image(systemName: symbol)
+                    .font(.system(size: 21, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .frame(width: 43, height: 43)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(label)
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            if history.phase == .working {
+                ProgressView()
+                    .tint(tint)
+                    .controlSize(.small)
+            } else if history.phase == .success {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(tint)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(width: 280)
+        .contentShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
+    }
+
+    /// Both sizes use the same glass identity, so iOS morphs the *material*,
+    /// not just a shrinking screenshot of the previous notification.
+    @ViewBuilder
+    private var floatingSurface: some View {
+        if #available(iOS 26.0, *), !reduceTransparency {
+            GlassEffectContainer(spacing: 28) {
+                if history.compact {
+                    Button { showingLog = true } label: { orb }
+                        .buttonStyle(.plain)
+                        .glassEffect(.regular.tint(tint.opacity(0.20)).interactive(),
+                                     in: .circle)
+                        .glassEffectID("bloombox-jit-status", in: glassNamespace)
+                        .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .bottomTrailing)))
+                } else {
+                    Button { showingLog = true } label: { notificationCard }
+                        .buttonStyle(.plain)
+                        .glassEffect(.regular.tint(tint.opacity(0.16)).interactive(),
+                                     in: .rect(cornerRadius: 23))
+                        .glassEffectID("bloombox-jit-status", in: glassNamespace)
+                        .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .bottomTrailing)))
+                }
+            }
+        } else {
+            // Accessible opaque fallback when transparency is reduced, and
+            // a material-based fallback on earlier systems.
+            if history.compact {
+                Button { showingLog = true } label: { orb }
+                    .buttonStyle(.plain)
+                    .background {
+                        Circle()
+                            .fill(fallbackFill)
+                            .matchedGeometryEffect(id: "bloombox-jit-status", in: fallbackNamespace)
+                    }
+                    .overlay(Circle().strokeBorder(tint.opacity(0.38), lineWidth: 1))
+            } else {
+                Button { showingLog = true } label: { notificationCard }
+                    .buttonStyle(.plain)
+                    .background {
+                        RoundedRectangle(cornerRadius: 23, style: .continuous)
+                            .fill(fallbackFill)
+                            .matchedGeometryEffect(id: "bloombox-jit-status", in: fallbackNamespace)
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 23, style: .continuous)
+                            .strokeBorder(tint.opacity(0.38), lineWidth: 1)
+                    }
+            }
+        }
+    }
+
+    private var fallbackFill: AnyShapeStyle {
+        if reduceTransparency {
+            return AnyShapeStyle(colorScheme == .dark ? Color(white: 0.15) : Color(white: 0.94))
+        }
+        return AnyShapeStyle(.ultraThinMaterial)
+    }
+
     var body: some View {
         Group {
             if history.visible {
-                Button { showingLog = true } label: {
-                    if history.compact {
-                        VStack(spacing: 2) {
-                            Image(systemName: symbol)
-                                .font(.system(size: 20, weight: .semibold))
-                            Text("JIT").font(.system(size: 10, weight: .bold))
-                            if history.phase == .working {
-                                ProgressView().tint(.white).scaleEffect(0.55).frame(height: 9)
-                            }
-                        }
-                        .foregroundStyle(.white)
-                        .frame(width: 58, height: 58)
-                        .background(.ultraThinMaterial, in: Circle())
-                        .overlay(Circle().strokeBorder(color.opacity(0.75), lineWidth: 1.5))
-                        .shadow(color: color.opacity(0.4), radius: 12)
-                    } else {
-                        HStack(spacing: 12) {
-                            Image(systemName: symbol)
-                                .font(.title3.weight(.semibold))
-                                .foregroundStyle(color)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(label).font(.subheadline.bold())
-                                Text(history.activeAppName).font(.caption).lineLimit(1)
-                                    .foregroundStyle(.secondary)
-                            }
-                            if history.phase == .working { ProgressView().tint(color) }
-                        }
-                        .padding(.horizontal, 16).padding(.vertical, 13)
-                        .frame(maxWidth: 270)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
-                        .overlay(RoundedRectangle(cornerRadius: 20)
-                            .strokeBorder(color.opacity(0.65), lineWidth: 1))
-                        .shadow(color: color.opacity(0.25), radius: 14)
-                    }
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("bloombox.jit.floating")
-                .accessibilityLabel(label + ". Toca para ver el registro.")
-                .transition(.opacity.combined(with: .scale(scale: 0.85)))
+                floatingSurface
+                    .shadow(color: tint.opacity(colorScheme == .dark ? 0.25 : 0.14), radius: 18, y: 7)
+                    .accessibilityIdentifier("bloombox.jit.floating")
+                    .accessibilityLabel(label + ". Toca para ver el registro.")
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.86, anchor: .bottomTrailing)),
+                        removal: .opacity.combined(with: .scale(scale: 0.82, anchor: .bottomTrailing))))
             }
         }
-        .animation(.spring(response: 0.42, dampingFraction: 0.77), value: history.compact)
-        .animation(.easeInOut(duration: 0.2), value: history.visible)
+        .animation(morphAnimation, value: history.compact)
+        .animation(reduceMotion ? .linear(duration: 0.12) : .easeInOut(duration: 0.25),
+                   value: history.visible)
+        .animation(.easeInOut(duration: 0.22), value: history.phase)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 1.45).repeatForever(autoreverses: true)) {
+                orbBreathing = true
+            }
+        }
+        .onDisappear { orbBreathing = false }
         .sheet(isPresented: $showingLog) {
             NavigationView {
                 BloomBoxJITLogHistoryView(appName: history.activeAppName)
