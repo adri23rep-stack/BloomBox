@@ -235,4 +235,5 @@ final class BloomBoxExpiryReminderCenter: ObservableObject {
 }
 
 // Existing WidgetKit/host source references may use the previous symbol.
+@available(iOS 16.2, *)
 typealias ManzanaExpiryReminderCenter = BloomBoxExpiryReminderCenter
