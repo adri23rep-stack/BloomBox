@@ -52,6 +52,13 @@ for key in ("LiveBoardHomeLayout", "LiveBoardHiddenPages",
             "ManzanaMotionWallpaper", "ManzanaPageWidgets"):
     if key not in home:
         raise SystemExit("A saved user preference key is missing: " + key)
+# Guard the exact persisted Home key, not just an unrelated mention.
+if '@AppStorage("LiveBoardHomeLayout", store:' not in home:
+    raise SystemExit("Persisted Home layout key was changed: would reset existing desktops")
+if 'let keys = ["LiveBoardHomeLayout", "LiveBoardHiddenPages"' not in home:
+    raise SystemExit("Theme export no longer includes the legacy Home layout")
+if '@AppStorage("BloomBoxHomeLayout", store:' in home:
+    raise SystemExit("New un-migrated Home layout key would hide existing user data")
 for file in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
     if not (ROOT / file).is_file():
         raise SystemExit("Missing source license/credits: " + file)
