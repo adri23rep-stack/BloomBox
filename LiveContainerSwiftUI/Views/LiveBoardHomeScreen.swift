@@ -1471,15 +1471,20 @@ struct LiveBoardHomeScreen: View {
     private func addPlacedWidget(_ kind: String, columns: Int = 2, rows: Int = 2, clockStyle: String? = nil) {
         guard page > 0, layout.pages.indices.contains(page - 1) else { return }
         var all = placedWidgets
-        var target = page - 1
-        var slot = BloomBoxWidgetGrid.firstAvailable(
-            columns: columns, rows: rows, occupied: occupiedCells(on: target))
-        if slot == nil {
-            layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity))
-            target = layout.pages.count - 1
-            slot = 0
+        let free = BloomBoxWidgetPlacement.freePosition(
+            columns: columns, rows: rows, preferredPage: page - 1,
+            visiblePages: visiblePageIndices, in: all
+        )
+        // Invalid widget dimensions should never create an empty Home page.
+        guard free != nil ||
+              BloomBoxWidgetGrid.cells(slot: 0, columns: columns, rows: rows) != nil else {
+            return
         }
-        guard let slot else { return }
+        if free == nil {
+            layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity))
+        }
+        let target = free?.page ?? (layout.pages.count - 1)
+        let slot = free?.slot ?? 0
         var widget = BloomBoxPlacedWidget(kind: kind, slot: slot,
                                          columns: columns, rows: rows)
         widget.clockStyle = clockStyle
@@ -3021,16 +3026,18 @@ struct LiveBoardHomeScreen: View {
         let targetPage = min(index, layout.pages.count - 2)
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.26)) {
             if layout.removePage(at: index) {
-                let widgets = BloomBoxHomeNavigation.reindexWidgets(placedWidgets, removing: index)
-                savePlacedWidgets(widgets.remaining)
-                for widget in widgets.displaced {
-                    moveWidgetToAvailablePage(widget, preferred: targetPage)
-                }
+                // Repair visibility before redistributing widgets; never move
+                // a displaced widget into a Home page that is now hidden.
                 if let updated = navigator.removedPage(at: index,
                                                        destinationContainsIcons: movedIcons,
                                                        newPageCount: layout.pages.count) {
                     hiddenPagesJSON = updated.encodedHidden
                     page = updated.safePage
+                }
+                let widgets = BloomBoxHomeNavigation.reindexWidgets(placedWidgets, removing: index)
+                savePlacedWidgets(widgets.remaining)
+                for widget in widgets.displaced {
+                    moveWidgetToAvailablePage(widget, preferred: targetPage)
                 }
                 reconcile()
             }
@@ -3112,19 +3119,19 @@ struct LiveBoardHomeScreen: View {
         if let data = try? JSONEncoder().encode(map), let string = String(data: data, encoding: .utf8) { categories = string }
     }
     private func moveWidgetToAvailablePage(_ widget: BloomBoxPlacedWidget, preferred: Int) {
-        var target = min(max(0, preferred), max(0, layout.pages.count - 1))
-        var occupied = occupiedCells(on: target)
-        var chosen = BloomBoxWidgetGrid.firstAvailable(columns: widget.columns,
-                                   rows: widget.rows, occupied: occupied)
-        if chosen == nil {
-            layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity))
-            target = layout.pages.count - 1
-            occupied = occupiedCells(on: target)
-            chosen = BloomBoxWidgetGrid.firstAvailable(columns: widget.columns,
-                                   rows: widget.rows, occupied: occupied)
-        }
-        guard let chosen else { return }
         var all = placedWidgets
+        let free = BloomBoxWidgetPlacement.freePosition(
+            columns: widget.columns, rows: widget.rows, preferredPage: preferred,
+            visiblePages: visiblePageIndices, in: all
+        )
+        guard free != nil || BloomBoxWidgetGrid.cells(
+            slot: 0, columns: widget.columns, rows: widget.rows
+        ) != nil else { return }
+        if free == nil {
+            layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity))
+        }
+        let target = free?.page ?? (layout.pages.count - 1)
+        let chosen = free?.slot ?? 0
         var moved = widget
         moved.slot = chosen
         all[target, default: []].append(moved)

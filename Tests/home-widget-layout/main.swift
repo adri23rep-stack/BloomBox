@@ -39,3 +39,33 @@ let stored = try JSONEncoder().encode(fixed.pages)
 let decoded = try JSONDecoder().decode([Int: [BloomBoxPlacedWidget]].self, from: stored)
 check(decoded == fixed.pages, "persist existing widget JSON shape")
 print("PASS: native BloomBox widget moves, resizing, collision fallback, duplicates and saved JSON.")
+
+
+// Existing visible page wins over allocating a new page. Hidden pages remain intact.
+let blocked = widget("full", slot: 0, columns: 4, rows: 4)
+let bottom = widget("bottom", slot: 16, columns: 4, rows: 2)
+let availablePages: [Int: [BloomBoxPlacedWidget]] = [
+    0: [blocked, bottom],
+    1: [],
+    2: [widget("hidden", slot: 0)],
+    3: [widget("occupied", slot: 0)]
+]
+let spot = BloomBoxWidgetPlacement.freePosition(
+    columns: 2, rows: 2, preferredPage: 0, visiblePages: [0, 1, 3],
+    in: availablePages
+)
+check(spot?.page == 1 && spot?.slot == 0,
+      "Use existing visible page when current page has no space")
+check(BloomBoxWidgetPlacement.freePosition(
+    columns: 2, rows: 2, preferredPage: 2, visiblePages: [0, 1, 3],
+    in: availablePages
+)?.page == 1, "Never relocate into hidden page")
+check(BloomBoxWidgetPlacement.freePosition(
+    columns: 5, rows: 2, preferredPage: 0, visiblePages: [0, 1],
+    in: availablePages
+) == nil, "Reject invalid widget geometry")
+check(BloomBoxWidgetPlacement.freePosition(
+    columns: 4, rows: 4, preferredPage: 0, visiblePages: [0],
+    in: availablePages
+) == nil, "Signal when a fresh page is genuinely necessary")
+print("BloomBox widget relocation uses visible free pages and avoids page bloat")

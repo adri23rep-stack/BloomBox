@@ -55,6 +55,33 @@ enum BloomBoxWidgetPlacement {
         }
     }
 
+    /// Chooses an existing *visible* Home page, preferring the selected page.
+    /// This avoids allocating a new page for each widget during deletion or
+    /// restoration while leaving hidden pages and their content untouched.
+    static func freePosition(
+        columns: Int, rows: Int,
+        preferredPage: Int,
+        visiblePages: [Int],
+        in pages: [Int: [BloomBoxPlacedWidget]]
+    ) -> (page: Int, slot: Int)? {
+        guard BloomBoxWidgetGrid.cells(slot: 0, columns: columns, rows: rows) != nil else {
+            return nil
+        }
+        var seen = Set<Int>()
+        let candidates = ([preferredPage] + visiblePages).filter {
+            $0 >= 0 && visiblePages.contains($0) && seen.insert($0).inserted
+        }
+        for page in candidates {
+            let occupiedSlots = occupied(pages[page] ?? [])
+            if let slot = BloomBoxWidgetGrid.firstAvailable(
+                columns: columns, rows: rows, occupied: occupiedSlots
+            ) {
+                return (page, slot)
+            }
+        }
+        return nil
+    }
+
     private static func existing(_ id: String, in pages: [Int: [BloomBoxPlacedWidget]])
         -> (page: Int, widget: BloomBoxPlacedWidget)? {
         for page in pages.keys.sorted() {

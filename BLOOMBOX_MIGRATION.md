@@ -152,3 +152,9 @@ occurs until the macOS build and on-device tests pass.
 - Replaced Home's inline folder-overlay view with a standalone `BloomBoxFolderPanel` that owns the iOS-style expanding folder UI, paginated 3x3 app tiles, rename and close controls.
 - The new view receives a read-only folder, a page binding and action callbacks; only the Home coordinator can change the app layout or launch a guest.
 - Existing folder identifiers, saved contents and editing menus stay unchanged. Accessibility labels and Reduce Motion behavior are preserved.
+
+## Home widget placement improvements (phase 17)
+
+- A Foundation-only placement policy now locates existing free space on visible Home pages before adding pages for new or relocated widgets.
+- Deleting a Home page repairs its hidden-page indexes before relocating widgets; widget media and IDs are preserved.
+- Invalid widget shapes cannot create a blank Home page. Regression tests cover hidden pages, full pages and geometry.
