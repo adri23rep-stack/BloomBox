@@ -38,6 +38,8 @@ for filename in ("ShareExtension/StrataJITWorker.swift",
 count = 0
 for directory in (VIEWS, ROOT / "ShareExtension", ROOT / "Scripts"):
     for file in directory.rglob("*"):
+        if file.resolve() == Path(__file__).resolve():
+            continue  # The audit itself contains forbidden names as string literals.
         if file.suffix.lower() not in {".swift", ".m", ".mm", ".h", ".py", ".sh"}:
             continue
         count += 1
