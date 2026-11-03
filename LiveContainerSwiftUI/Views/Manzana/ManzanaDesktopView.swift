@@ -75,41 +75,7 @@ struct ManzanaDesktopView: View {
 
 // MARK: - BloomBox 2.0 Home widgets. Persist only layout metadata in defaults;
 // media bytes live in app-owned Application Support and never in UserDefaults.
-struct BloomBoxPlacedWidget: Codable, Equatable, Identifiable {
-    var id: String = UUID().uuidString
-    var kind: String
-    var slot: Int
-    var columns: Int
-    var rows: Int
-    var mediaName: String? = nil
-    var fill: Bool = true
-    var glass: Bool = true
-    /// Optional launcher key selected by the user. Nil keeps legacy tap behavior.
-    /// Old saved widget JSON decodes without this key.
-    var tapActionKey: String? = nil
-    /// Optional: old layouts continue to decode with their original clock.
-    var clockStyle: String? = nil
-    var clockTint: String? = nil
-    var clock24Hour: Bool? = nil
-    var pixelGlow: Double? = nil
-    var pixelAnimatedBar: Bool? = nil
-}
-
-enum BloomBoxWidgetGrid {
-    static func cells(slot: Int, columns: Int, rows: Int) -> Set<Int>? {
-        let x = slot % 4, y = slot / 4
-        guard slot >= 0, slot < 24, columns >= 1, columns <= 4,
-              rows >= 1, rows <= 4, x + columns <= 4, y + rows <= 6 else { return nil }
-        return Set((0..<rows).flatMap { row in (0..<columns).map { slot + row * 4 + $0 } })
-    }
-    static func firstAvailable(columns: Int, rows: Int, occupied: Set<Int>) -> Int? {
-        (0..<24).first { slot in
-            guard let area = cells(slot: slot, columns: columns, rows: rows) else { return false }
-            return area.isDisjoint(with: occupied)
-        }
-    }
-}
-
+// BloomBox widget model, layout grid and placement live in BloomBoxWidgetLayout.swift.
 enum BloomBoxWidgetMedia {
     static var directory: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]

@@ -113,3 +113,10 @@ occurs until the macOS build and on-device tests pass.
 - Shared Home icon tiles, wobble, drag-and-drop proposal, icon renderer, wallpaper pickers, ribbon background and glass modifiers now live in `Views/BloomBox/BloomBoxLauncherVisuals.swift`.
 - The original Home View retains interaction state, but its visual components can now be individually audited, rewritten and tested without touching JIT/RAM+ or guest launch.
 - The Swift types and existing theme/saved-preference keys remain compatible; CI enforces the boundary.
+
+## Independent widget placement core (phase 15)
+
+- Moved persisted widget schema and grid logic into `Views/BloomBox/BloomBoxWidgetLayout.swift`, independent from iOS Home and UIKit.
+- Replaced Home's inline move/resize behavior with a tested placement planner that preserves stable widget IDs, uses collision-safe fallback slots and removes stale duplicates.
+- Widget movement continues to select the moved widget for subsequent editing. Existing JSON keys and theme exports remain compatible.
+- New CI tests exercise moves, resizing, overlapping widgets, malformed dimensions and saved JSON round-trips.

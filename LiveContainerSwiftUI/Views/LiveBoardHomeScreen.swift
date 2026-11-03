@@ -1804,51 +1804,28 @@ struct LiveBoardHomeScreen: View {
         }
     }
     private func resizeWidget(_ id: String, columns: Int, rows: Int) {
-        guard let entry = placedWidgets.first(where: { $0.value.contains(where: { $0.id == id }) }),
-              let widget = entry.value.first(where: { $0.id == id }) else { return }
-        let occupied = occupiedCells(on: entry.key, excluding: id)
-        let samePosition = BloomBoxWidgetGrid.cells(slot: widget.slot,
-                            columns: columns, rows: rows)
-        let newSlot = (samePosition != nil && samePosition!.isDisjoint(with: occupied))
-            ? widget.slot : BloomBoxWidgetGrid.firstAvailable(
-                            columns: columns, rows: rows, occupied: occupied)
-        guard let newSlot else {
+        guard let plan = BloomBoxWidgetPlacement.resize(
+            id, columns: columns, rows: rows, in: placedWidgets
+        ) else {
             widgetMediaError = "No hay espacio para ese tamaño. Prueba otra página."
             return
         }
-        updateWidget(id) { item in
-            item.columns = columns; item.rows = rows; item.slot = newSlot
-        }
+        savePlacedWidgets(plan.pages)
         moveIconsOutOfWidgetArea()
+        selectedWidgetID = id
     }
+
     private func movePlacedWidget(_ id: String, to targetPage: Int, slot: Int?) {
-        guard targetPage >= 0, layout.pages.indices.contains(targetPage),
-              let source = placedWidgets.first(where: { $0.value.contains(where: { $0.id == id }) }),
-              let widget = source.value.first(where: { $0.id == id }) else { return }
-        var all = placedWidgets
-        let occupied = (all[targetPage] ?? [])
-            .filter { $0.id != id }
-            .reduce(into: Set<Int>()) { result, widget in
-                result.formUnion(BloomBoxWidgetGrid.cells(slot: widget.slot,
-                                 columns: widget.columns, rows: widget.rows) ?? [])
-            }
-        let chosen = slot.flatMap { candidate -> Int? in
-            guard let cells = BloomBoxWidgetGrid.cells(
-                slot: candidate, columns: widget.columns, rows: widget.rows),
-                cells.isDisjoint(with: occupied) else { return nil }
-            return candidate
-        } ?? BloomBoxWidgetGrid.firstAvailable(
-                columns: widget.columns, rows: widget.rows, occupied: occupied)
-        guard let chosen else {
+        guard layout.pages.indices.contains(targetPage) else { return }
+        guard let plan = BloomBoxWidgetPlacement.move(
+            id, to: targetPage, requestedSlot: slot, in: placedWidgets
+        ) else {
             widgetMediaError = "No cabe ese widget en la página seleccionada."
             return
         }
-        all[source.key]?.removeAll { $0.id == id }
-        var moved = widget; moved.slot = chosen
-        all[targetPage, default: []].append(moved)
-        savePlacedWidgets(all)
+        savePlacedWidgets(plan.pages)
         moveIconsOutOfWidgetArea()
-        page = targetPage + 1
+        page = plan.page + 1
         selectedWidgetID = id
         UISelectionFeedbackGenerator().selectionChanged()
     }

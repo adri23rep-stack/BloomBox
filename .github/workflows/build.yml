@@ -112,6 +112,10 @@ jobs:
           assert "struct BloomBoxAppStore: View" not in home
           print("BloomBox remote stores are separate from Home")
           PY
+      - name: Test BloomBox widget placement and existing saved layouts
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetLayout.swift Tests/home-widget-layout/main.swift -o "$RUNNER_TEMP/bloombox-widget-layout-tests"
+          "$RUNNER_TEMP/bloombox-widget-layout-tests"
       - name: Test BloomBox native Home layout and legacy data
         run: |
           swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-layout/main.swift -o "$RUNNER_TEMP/bloombox-home-layout-tests"
