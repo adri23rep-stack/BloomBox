@@ -220,7 +220,7 @@ struct LiveBoardHomeScreen: View {
                 // the bottom rows of the library.
                 ZStack(alignment: .bottom) {
                     TabView(selection: $page) {
-                        ManzanaDesktopView(openSettings: { desktopSettings = true })
+                        BloomBoxNewsPage(openSettings: { desktopSettings = true })
                             .tag(0)
                         ForEach(visiblePageIndices, id: \.self) { index in
                             homePage(index,

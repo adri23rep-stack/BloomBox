@@ -147,6 +147,24 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetLayout.swift Tests/home-widget-layout/main.swift -o "$RUNNER_TEMP/bloombox-widget-layout-tests"
           "$RUNNER_TEMP/bloombox-widget-layout-tests"
+      - name: Test BloomBox News media cache budget and source policy
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxNewsCachePolicy.swift Tests/news-cache/main.swift -o "$RUNNER_TEMP/bloombox-news-cache-tests"
+          "$RUNNER_TEMP/bloombox-news-cache-tests"
+      - name: Check native News and widget module separation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          home = Path("LiveContainerSwiftUI/Views/LiveBoardHomeScreen.swift").read_text()
+          news = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxNewsPage.swift").read_text()
+          widgets = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetViews.swift").read_text()
+          assert "BloomBoxNewsPage(openSettings:" in home
+          assert "struct BloomBoxNewsPage: View" in news
+          assert "private struct BloomBoxRemoteNewsSection: View" in news
+          assert "struct BloomBoxGridWidgetView: View" in widgets
+          assert not Path("LiveContainerSwiftUI/Views/Manzana/ManzanaDesktopView.swift").exists()
+          print("News page and widget rendering no longer use the inherited Manzana source file")
+          PY
       - name: Test BloomBox native icon placement around widgets
         run: |
           swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeLayout.swift LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetLayout.swift LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeIconReflow.swift Tests/home-icon-reflow/main.swift -o "$RUNNER_TEMP/bloombox-home-icon-reflow-tests"

@@ -165,3 +165,10 @@ occurs until the macOS build and on-device tests pass.
 - Reflow preserves dock and folder membership, keeps hidden pages untouched, and finds room on visible pages before creating a new one.
 - Uses deterministic cell ordering, reuses new overflow pages for an entire icon batch and is idempotent when the widget grid is unchanged.
 - CI tests cover full/hidden pages, preserved app IDs, overflow and repeat runs.
+
+## BloomBox News desktop and widget source separation (phase 19)
+
+- Replaced the old ManzanaDesktopView screen with a BloomBoxNewsPage and removed the former ManzanaDesktopView.swift source file. A compatibility alias remains for older compiled references.
+- Remote News and widget rendering now live in separate BloomBox source modules; saved News feed URL and locale settings stay compatible.
+- GIF downloads are capped at 10 MB each, validated before replacing an existing image, and stored in a bounded 64 MB cache rather than growing indefinitely. Existing user wallpaper and widget directories are never pruned.
+- The News cache has offline regression tests for HTTPS links, oldest-first eviction, pinned active images and unrelated files.

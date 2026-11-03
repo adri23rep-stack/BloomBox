@@ -35,7 +35,7 @@ with zipfile.ZipFile(ipa) as archive:
             raise SystemExit("Missing the correct BloomBox RGB app icon: " + name)
     from pathlib import Path
     source_root = Path("LiveContainerSwiftUI/Views")
-    for item in ("Manzana/ManzanaDesktopView.swift", "BloomBox/BloomBoxAnimatedWallpaper.swift",
+    for item in ("BloomBox/BloomBoxNewsPage.swift", "BloomBox/BloomBoxWidgetViews.swift", "BloomBox/BloomBoxAnimatedWallpaper.swift",
                  "BloomBox/BloomBoxMotionMedia.swift", "BloomBox/BloomBoxIconCustomization.swift",
                  "BloomBox/BloomBoxArtworkLibrary.swift",
                  "BloomBox/BloomBoxFilesView.swift", "BloomBox/BloomBoxFileStore.swift"):
