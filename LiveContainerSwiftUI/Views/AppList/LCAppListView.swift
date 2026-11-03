@@ -64,6 +64,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     
     @State private var jitLog = ""
     @StateObject private var jitAlert = YesNoHelper()
+    @AppStorage("BloomBoxJITUseLegacyLaunchUI", store: LCUtils.appGroupUserDefault)
+    private var legacyJITUI = false
     @StateObject private var emulatorPrompt = AlertHelper<BloomBoxEmulatorPreflight.Decision>()
     @State private var emulatorPromptName = ""
     @State private var emulatorMissing = BloomBoxEmulatorPreflight.Missing.ramPlus
@@ -491,6 +493,13 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
         .onChange(of: jitAlert.show) { newValue in
             sharedModel.isJITModalOpen = newValue
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if !legacyJITUI {
+                BloomBoxJITFloatingView()
+                    .padding(.trailing, 18)
+                    .padding(.bottom, 84)
+            }
         }
         .fullScreenCover(isPresented: $webViewOpened) {
             LCWebView(url: $webViewURL, isPresent: $webViewOpened, itmsServicesHandler: { urlStr in
@@ -1352,15 +1361,22 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     }
 
     func jitLaunch(withScript script: String, appName: String, classicMode: UInt) async {
-        await MainActor.run {
-            jitLog = ""
+        await MainActor.run { jitLog = "" }
+        let record = await MainActor.run {
+            BloomBoxJITLogStore.shared.begin(
+                appName: appName,
+                provider: "JIT launch",
+                showNotification: false)
         }
         let enableJITTask = Task {
-            
             let success = await LCUtils.askForJIT(withScript: script, appName: appName, classicMode: classicMode) { newMsg in
-                Task { await MainActor.run {
+                Task { @MainActor in
                     self.jitLog += "\(newMsg)\n"
-                }}
+                    BloomBoxJITLogStore.shared.append(newMsg, to: record)
+                }
+            }
+            await MainActor.run {
+                BloomBoxJITLogStore.shared.finish(record, success: success)
             }
             if LCUtils.appGroupUserDefault.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue, success {
                 jitAlert.close(result: true)
@@ -1375,20 +1391,33 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             return
         }
         LCSharedUtils.launchToGuestApp(withClassicMode: classicMode)
-
     }
-    
+
     func jitLaunch(withPID pid: Int, withScript script: String? = nil, appName: String) async {
         if LCUtils.appGroupUserDefault.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue {
             jitLog = ""
+            let useOldUI = legacyJITUI
+            let record = BloomBoxJITLogStore.shared.begin(
+                appName: appName, provider: "Built-in JIT",
+                showNotification: !useOldUI)
             let work = Task {
-                let success = await LiveBoardBuiltInJIT.enable(pid: Int32(pid), script: script) { message in jitLog += message + "\n" }
-                jitAlert.close(result: success)
-                if !success && !Task.isCancelled { errorInfo = jitLog; errorShow = true }
+                let success = await LiveBoardBuiltInJIT.enable(pid: Int32(pid), script: script) { message in
+                    jitLog += message + "\n"
+                    BloomBoxJITLogStore.shared.append(message, to: record)
+                }
+                BloomBoxJITLogStore.shared.finish(record, success: success)
+                if useOldUI {
+                    jitAlert.close(result: success)
+                    if !success && !Task.isCancelled { errorInfo = jitLog; errorShow = true }
+                }
             }
-            let completed = await jitAlert.open()
-            work.cancel()
-            if completed != true { kill(Int32(pid), SIGKILL) }
+            if useOldUI {
+                let completed = await jitAlert.open()
+                work.cancel()
+                if completed != true { kill(Int32(pid), SIGKILL) }
+            }
+            // The guest process was already launched. The compact UI lets it keep
+            // running while the existing JIT helper finishes; no backend changes.
             return
         }
         await MainActor.run {
