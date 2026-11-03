@@ -632,8 +632,7 @@ struct LiveBoardConsoleScreen: View {
                             controller.stop()
                             jitHistoryPresented = true
                         }
-                        .fontWeight(.semibold)
-                        .underline()
+                        .font(.system(size: 12, weight: .semibold))
                         .accessibilityIdentifier("gamebox.jit.launchHistory")
                     }
                     .font(.caption)
