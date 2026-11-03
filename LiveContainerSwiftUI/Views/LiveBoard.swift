@@ -1,26 +1,29 @@
 import SwiftUI
 
 private enum LiveBoardMode: String, CaseIterable, Identifiable {
+    // Legacy Big Picture remains loadable for existing users but is hidden from
+    // the mode picker. Cinematic is renamed Game without resetting its layouts.
     case ios, cinematic, bigPicture
+    static var allCases: [LiveBoardMode] { [.ios, .cinematic] }
     var id: String { rawValue }
     var title: String {
         switch self {
         case .ios: return "iOS Home"
-        case .cinematic: return "Cinematic"
+        case .cinematic: return "Game"
         case .bigPicture: return "Big Picture"
         }
     }
     var symbol: String {
         switch self {
         case .ios: return "square.grid.3x3.fill"
-        case .cinematic: return "rectangle.stack.fill"
+        case .cinematic: return "gamecontroller.fill"
         case .bigPicture: return "gamecontroller.fill"
         }
     }
     var detail: String {
         switch self {
         case .ios: return "A familiar, compact app grid."
-        case .cinematic: return "A cinematic carousel with controller navigation."
+        case .cinematic: return "Horizontal game launcher with RAM+ and JIT setup."
         case .bigPicture: return "A cover library with controller navigation."
         }
     }
@@ -35,18 +38,34 @@ struct LiveBoardRootView: View {
         Locale(identifier: preferredLanguage == "system" ? (Locale.preferredLanguages.first ?? "en") : preferredLanguage)
     }
     @State private var interfacePresented = false
+    @State private var requestGameOnDismiss = false
     @State private var destinationPresented = false
 
     var body: some View {
         LCAppListView(openInterface: { interfacePresented = true })
         .environment(\.locale, selectedLocale)
         .preferredColorScheme(.dark)
-        .sheet(isPresented: $interfacePresented, onDismiss: { NotificationCenter.default.post(name: LiveBoardControllerInput.resumeNotification, object: nil) }) {
+        .sheet(isPresented: $interfacePresented, onDismiss: {
+            NotificationCenter.default.post(name: LiveBoardControllerInput.resumeNotification, object: nil)
+            if requestGameOnDismiss {
+                requestGameOnDismiss = false
+                NotificationCenter.default.post(name: Notification.Name("BloomBoxRequestGameMode"), object: nil)
+            }
+        }) {
             NavigationView {
                 ScrollView {
                     VStack(spacing: 16) {
                         ForEach(LiveBoardMode.allCases) { option in
-                            Button { mode = option.rawValue } label: {
+                            Button {
+                                if option == .cinematic {
+                                    // Game Mode is entered only after the central gate
+                                    // validates current RAM+ and prepares a JIT provider.
+                                    requestGameOnDismiss = true
+                                    interfacePresented = false
+                                } else {
+                                    mode = option.rawValue
+                                }
+                            } label: {
                                 HStack(spacing: 16) {
                                     Image(systemName: option.symbol).font(.title).frame(width: 48)
                                     VStack(alignment: .leading, spacing: 6) {

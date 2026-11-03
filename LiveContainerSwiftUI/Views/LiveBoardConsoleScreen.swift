@@ -134,7 +134,7 @@ struct LiveBoardConsoleScreen: View {
                 .ignoresSafeArea()
                 .accessibilityIdentifier("console.backdrop")
         }
-        .background(LiveBoardLandscapeLock(enabled: !launching && !launchReturned))
+        .background(LiveBoardLandscapeLock(enabled: mode == "cinematic" || (!launching && !launchReturned)))
         .preferredColorScheme(.dark)
         .sheet(isPresented: $layoutSettings, onDismiss: bindController) { consoleLayoutSettings }
         .sheet(item: $appearanceApp, onDismiss: bindController) { app in LiveBoardAppAppearance(app: app.app) }
@@ -389,7 +389,7 @@ struct LiveBoardConsoleScreen: View {
                 }
                 Section {
                     Button("Reset this mode’s layout") { savedConsoleLayouts = LiveBoardConsoleLayout.save(LiveBoardConsoleLayout(), mode: mode, in: savedConsoleLayouts) }
-                    Text("Cinematic and Big Picture keep separate layouts.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Game and legacy Big Picture keep separate layouts.").font(.footnote).foregroundStyle(.secondary)
                 }
             }.navigationTitle("Customize layout")
                 .toolbar {
@@ -400,7 +400,7 @@ struct LiveBoardConsoleScreen: View {
     }
     private var footer: some View {
         HStack(spacing: 16) {
-            Text(bigPicture ? "STRATA / BIG PICTURE" : "STRATA / CINEMATIC")
+            Text(bigPicture ? "STRATA / BIG PICTURE" : "BLOOMBOX / GAME")
                 .font(.system(size: 9, weight: .semibold)).tracking(1.5).foregroundStyle(.white.opacity(0.4))
             Spacer(minLength: 0)
             if controller.connected {
@@ -487,7 +487,9 @@ struct LiveBoardConsoleScreen: View {
         guard !launching, !movingLaunchButton else { return }
         let launcherWindow = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .flatMap { $0.windows }.first { $0.isKeyWindow }
-        LiveBoardOrientation.setLandscape(false, window: launcherWindow)
+        if mode != "cinematic" {
+            LiveBoardOrientation.setLandscape(false, window: launcherWindow)
+        }
         controller.stop(); audio.stop(); launching = true
         Task { @MainActor in
             if forceJIT, let launchWithJIT { await launchWithJIT(app) } else { await launch(app) }
