@@ -100,3 +100,10 @@ occurs until the macOS build and on-device tests pass.
 - Preserved app IDs, stored catalog settings, download logic, JIT and signed guest launch plumbing; no changes to installed app containers.
 - Made only the two cross-file model/catalog types accessible to the Home view. Private helpers remain private inside the new store module.
 - Added CI checks preventing the remote stores from being inadvertently re-added to the Home source.
+
+## Launcher decomposition — Modules and JIT UI (phase 13)
+
+- Extracted the Modules panel, quick actions, per-app JIT controls, RAM+ links and Connectivity settings into `Views/BloomBox/BloomBoxModulesAndJIT.swift`.
+- The Home surface now references these BloomBox screens as separate components rather than compiling their entire UI inside the launcher file.
+- All `@AppStorage` preference names, existing guest launch hooks and module destinations remain unchanged.
+- CI checks the new boundaries. Legacy JIT implementation itself was migrated in earlier phases.
