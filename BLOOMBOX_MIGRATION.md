@@ -67,3 +67,9 @@ occurs until the macOS build and on-device tests pass.
 - Replaced the old launcher icon styling and settings sheet with BloomBox-owned SwiftUI components.
 - Existing icon styles, tint hue, intensity, dark mode and size remain compatible through their saved preferences and theme files.
 - The full legacy iOS Home view is not yet replaced; this is another component extracted from it.
+
+## Independent console artwork (phase 8)
+
+- The console cover, portrait and background store now belongs to BloomBox; artwork is saved into BloomBox/Artwork rather than older LiveBoard/Artwork folders.
+- Existing artwork mappings migrate without replacing user choices, and old image files remain readable for rollback.
+- New saves are bounded to 2400 pixels and cached images have a memory budget. No guest IPA files are modified.

@@ -96,7 +96,7 @@ struct LiveBoardConsoleScreen: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var controller = LiveBoardControllerInput()
-    @StateObject private var artwork = LiveBoardArtworkStore()
+    @StateObject private var artwork = BloomBoxArtworkLibrary()
     @AppStorage("LiveBoardModeLibraries", store: LCUtils.appGroupUserDefault) private var modeLibraries = "{}"
     @AppStorage("LiveBoardConsoleSounds", store: LCUtils.appGroupUserDefault) private var sounds = true
     @State private var activeCategory: String?
@@ -122,7 +122,7 @@ struct LiveBoardConsoleScreen: View {
 
     private struct ArtworkRequest: Identifiable {
         let key: String
-        let kind: LiveBoardArtworkStore.Kind
+        let kind: BloomBoxArtworkLibrary.Kind
         var id: String { key + kind.rawValue }
     }
     private var favoriteKeys: [String] { (try? JSONDecoder().decode([String].self, from: Data(favorites.utf8))) ?? [] }
