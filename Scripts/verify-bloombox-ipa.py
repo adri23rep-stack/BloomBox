@@ -38,7 +38,7 @@ with zipfile.ZipFile(ipa) as archive:
     for item in ("Manzana/ManzanaDesktopView.swift", "BloomBox/BloomBoxAnimatedWallpaper.swift",
                  "BloomBox/BloomBoxMotionMedia.swift", "BloomBox/BloomBoxIconCustomization.swift",
                  "BloomBox/BloomBoxArtworkLibrary.swift",
-                 "Manzana/ManzanaFilesView.swift"):
+                 "BloomBox/BloomBoxFilesView.swift", "BloomBox/BloomBoxFileStore.swift"):
         if not (source_root / item).is_file():
             raise SystemExit("Wrong source branch: missing BloomBox UI file " + item)
     home_source = (source_root / "LiveBoardHomeScreen.swift").read_text()

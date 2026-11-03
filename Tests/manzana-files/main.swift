@@ -4,13 +4,13 @@ let fm = FileManager.default
 let temporary = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
 try fm.createDirectory(at: temporary, withIntermediateDirectories: true)
 defer { try? fm.removeItem(at: temporary) }
-let store = try ManzanaFileStore(root: temporary.appendingPathComponent("Documents", isDirectory: true))
+let store = try BloomBoxFileStore(root: temporary.appendingPathComponent("Documents", isDirectory: true))
 func check(_ condition: Bool) { assert(condition) }
 func rejects(_ action: () throws -> Void) {
     do { try action(); fatalError("Operation should have been rejected") } catch {}
 }
 let source = temporary.appendingPathComponent("example.txt")
-let bytes = Data("Manzana document".utf8)
+let bytes = Data("BloomBox document".utf8)
 try bytes.write(to: source)
 try store.importFile(source, into: store.root)
 try store.importFile(source, into: store.root)
@@ -66,4 +66,33 @@ rejects { try store.move(duplicate, into: temporary) }
 rejects { try store.copy(duplicate, into: link) }
 check(try Data(contentsOf: duplicate) == bytes)
 rejects { try store.restore(duplicate) }
-print("Manzana storage checks passed: import, collisions, rename, folders, move, copy, confinement, trash and restore")
+print("BloomBox storage checks passed: import, collisions, rename, folders, move, copy, confinement, trash and restore")
+
+
+// New BloomBox install writes to its own root; old documents remain in place.
+let docs = temporary.appendingPathComponent("Migration", isDirectory: true)
+try fm.createDirectory(at: docs, withIntermediateDirectories: true)
+let preferred = BloomBoxFileStore.preferredRoot(in: docs)
+check(preferred.lastPathComponent == "BloomBox Files")
+let oldRoot = docs.appendingPathComponent("Manzana Files", isDirectory: true)
+try fm.createDirectory(at: oldRoot, withIntermediateDirectories: true)
+check(BloomBoxFileStore.preferredRoot(in: docs) == oldRoot)
+let newRoot = docs.appendingPathComponent("BloomBox Files", isDirectory: true)
+try fm.createDirectory(at: newRoot, withIntermediateDirectories: true)
+check(BloomBoxFileStore.preferredRoot(in: docs) == newRoot)
+
+// A file may not escape by using an alias to a directory outside the vault.
+let internal = store.root.appendingPathComponent("inner", isDirectory: true)
+try store.createFolder("inner", in: store.root)
+let escaped = internal.appendingPathComponent("escape")
+try fm.createSymbolicLink(at: escaped, withDestinationURL: temporary)
+rejects { try store.copy(duplicate, into: escaped) }
+rejects { try store.importFile(source, into: escaped) }
+let symlinkFile = store.root.appendingPathComponent("shortcut.txt")
+try fm.createSymbolicLink(at: symlinkFile, withDestinationURL: source)
+rejects { try store.copy(symlinkFile, into: internal) }
+check(try !store.contents(store.root).contains { $0.lastPathComponent == "shortcut.txt" })
+for invalid in [".", "..", "bad\nname", String(repeating: "x", count: 256)] {
+    rejects { try store.createFolder(invalid, in: store.root) }
+}
+print("BloomBox independent document root and symlink boundary tests passed")

@@ -3,16 +3,16 @@ import UniformTypeIdentifiers
 import QuickLook
 
 @MainActor
-final class ManzanaFilesModel: ObservableObject {
+final class BloomBoxFilesModel: ObservableObject {
     @Published var entries: [URL] = []
     @Published var folder: URL?
     @Published var error: String?
     @Published var busy = false
-    private(set) var store: ManzanaFileStore?
+    private(set) var store: BloomBoxFileStore?
     init() {
         do {
             let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            let store = try ManzanaFileStore(root: documents.appendingPathComponent("Manzana Files", isDirectory: true))
+            let store = try BloomBoxFileStore(root: BloomBoxFileStore.preferredRoot(in: documents))
             self.store = store
             folder = store.root
             reload()
@@ -23,7 +23,7 @@ final class ManzanaFilesModel: ObservableObject {
         guard let store, let folder else { return }
         do { entries = try store.contents(folder) } catch { self.error = error.localizedDescription }
     }
-    func run(_ action: (ManzanaFileStore) throws -> Void) {
+    func run(_ action: (BloomBoxFileStore) throws -> Void) {
         guard let store else { return }
         do { try action(store); reload() } catch { self.error = error.localizedDescription }
     }
@@ -56,19 +56,19 @@ final class ManzanaFilesModel: ObservableObject {
     }
 }
 
-struct ManzanaFileSelection: Identifiable { let id = UUID(); let url: URL }
-struct ManzanaFileTransfer: Identifiable { let id = UUID(); let url: URL; let copying: Bool }
+struct BloomBoxFileSelection: Identifiable { let id = UUID(); let url: URL }
+struct BloomBoxFileTransfer: Identifiable { let id = UUID(); let url: URL; let copying: Bool }
 
-struct ManzanaFilesView: View {
-    @StateObject private var model = ManzanaFilesModel()
+struct BloomBoxFilesView: View {
+    @StateObject private var model = BloomBoxFilesModel()
     @Environment(\.dismiss) private var dismiss
     @State private var importing = false
     @State private var newFolder = false
     @State private var name = ""
     @State private var renaming: URL?
-    @State private var preview: ManzanaFileSelection?
-    @State private var sharing: ManzanaFileSelection?
-    @State private var transferring: ManzanaFileTransfer?
+    @State private var preview: BloomBoxFileSelection?
+    @State private var sharing: BloomBoxFileSelection?
+    @State private var transferring: BloomBoxFileTransfer?
     @State private var search = ""
 
     var body: some View {
@@ -127,11 +127,11 @@ struct ManzanaFilesView: View {
         .alert("Archivos", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("Aceptar") { model.error = nil }
         } message: { Text(model.error ?? "") }
-        .sheet(item: $preview) { ManzanaFilePreview(url: $0.url) }
-        .sheet(item: $sharing) { ManzanaShareFile(url: $0.url) }
+        .sheet(item: $preview) { BloomBoxFilePreview(url: $0.url) }
+        .sheet(item: $sharing) { BloomBoxShareFile(url: $0.url) }
         .sheet(item: $transferring) { selection in
             if let store = model.store {
-                ManzanaFolderPicker(store: store, source: selection.url, copying: selection.copying) { folder in
+                BloomBoxFolderPicker(store: store, source: selection.url, copying: selection.copying) { folder in
                     model.run {
                         if selection.copying { try $0.copy(selection.url, into: folder) }
                         else { try $0.move(selection.url, into: folder) }
@@ -145,7 +145,7 @@ struct ManzanaFilesView: View {
         return Button {
             if model.isTrash { return }
             if directory { search = ""; model.open(url) }
-            else { preview = ManzanaFileSelection(url: url) }
+            else { preview = BloomBoxFileSelection(url: url) }
         } label: {
             Label(url.lastPathComponent, systemImage: directory ? "folder.fill" : "doc.fill")
                 .foregroundStyle(directory ? Color.blue : Color.primary)
@@ -156,10 +156,10 @@ struct ManzanaFilesView: View {
                 Button("Restaurar", systemImage: "arrow.uturn.backward") { model.run { try $0.restore(url) } }
             } else {
                 if !directory {
-                    Button("Compartir / Exportar", systemImage: "square.and.arrow.up") { sharing = ManzanaFileSelection(url: url) }
+                    Button("Compartir / Exportar", systemImage: "square.and.arrow.up") { sharing = BloomBoxFileSelection(url: url) }
                 }
-                Button("Mover a carpeta", systemImage: "folder") { transferring = ManzanaFileTransfer(url: url, copying: false) }
-                Button("Copiar a carpeta", systemImage: "doc.on.doc") { transferring = ManzanaFileTransfer(url: url, copying: true) }
+                Button("Mover a carpeta", systemImage: "folder") { transferring = BloomBoxFileTransfer(url: url, copying: false) }
+                Button("Copiar a carpeta", systemImage: "doc.on.doc") { transferring = BloomBoxFileTransfer(url: url, copying: true) }
                 Button("Renombrar", systemImage: "pencil") { name = url.lastPathComponent; renaming = url }
                 Button("Mover a papelera", systemImage: "trash", role: .destructive) { model.run { try $0.moveToTrash(url) } }
             }
@@ -167,12 +167,12 @@ struct ManzanaFilesView: View {
     }
 }
 
-private struct ManzanaShareFile: UIViewControllerRepresentable {
+private struct BloomBoxShareFile: UIViewControllerRepresentable {
     let url: URL
     func makeUIViewController(context: Context) -> UIActivityViewController { UIActivityViewController(activityItems: [url], applicationActivities: nil) }
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
-private struct ManzanaFilePreview: UIViewControllerRepresentable {
+private struct BloomBoxFilePreview: UIViewControllerRepresentable {
     let url: URL
     func makeCoordinator() -> Coordinator { Coordinator(url) }
     func makeUIViewController(context: Context) -> QLPreviewController {
@@ -188,8 +188,8 @@ private struct ManzanaFilePreview: UIViewControllerRepresentable {
 }
 
 
-private struct ManzanaFolderPicker: View {
-    let store: ManzanaFileStore
+private struct BloomBoxFolderPicker: View {
+    let store: BloomBoxFileStore
     let source: URL
     let copying: Bool
     let onSelect: (URL) -> Void
@@ -250,3 +250,6 @@ private struct ManzanaFolderPicker: View {
         } catch { self.error = error.localizedDescription }
     }
 }
+
+// Compatibility for views referenced by older launcher modules while the UI migrates.
+typealias ManzanaFilesView = BloomBoxFilesView

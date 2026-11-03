@@ -49,6 +49,10 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: recursive
+      - name: Test independent BloomBox Files engine and legacy data
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxFileStore.swift Tests/manzana-files/main.swift -o "$RUNNER_TEMP/bloombox-files-tests"
+          "$RUNNER_TEMP/bloombox-files-tests"
       - name: Test backup archive roundtrip and unsafe inputs
         run: |
           clang -fobjc-arc -framework Foundation -larchive -I LiveContainerSwiftUI/Utilities Tests/backup-tests/main.m LiveContainerSwiftUI/Utilities/BloomBoxArchive.m -o "$RUNNER_TEMP/bloombox-backup-tests"

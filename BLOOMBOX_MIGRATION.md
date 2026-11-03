@@ -73,3 +73,11 @@ occurs until the macOS build and on-device tests pass.
 - The console cover, portrait and background store now belongs to BloomBox; artwork is saved into BloomBox/Artwork rather than older LiveBoard/Artwork folders.
 - Existing artwork mappings migrate without replacing user choices, and old image files remain readable for rollback.
 - New saves are bounded to 2400 pixels and cached images have a memory budget. No guest IPA files are modified.
+
+## BloomBox Files engine (phase 9)
+
+- New independent, Foundation-only file engine with path confinement, symlink checks, collision-safe names, folders, trash and restore.
+- New installations use Documents/BloomBox Files. Existing Documents/Manzana Files users stay on their current folder: nothing is deleted or copied, and both names continue to resolve.
+- The SwiftUI Files view is renamed to BloomBoxFilesView with a temporary compatibility alias for any old launcher references.
+- User files, app signing, RAM+, guest executables and shared containers are unchanged.
+- Existing Files regression checks are now run in CI together with boundary and migration tests.
