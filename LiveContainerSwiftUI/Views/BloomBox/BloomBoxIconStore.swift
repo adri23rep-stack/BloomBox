@@ -2,7 +2,7 @@ import UIKit
 import CoreImage
 
 /// Separate presentation cache: never reuse or rewrite upstream's bordered icon files.
-@MainActor enum LiveBoardIconStore {
+@MainActor enum BloomBoxIconStore {
     private static let icons: NSCache<NSString, UIImage> = {
         let cache = NSCache<NSString, UIImage>()
         cache.totalCostLimit = 32 * 1024 * 1024
@@ -38,3 +38,6 @@ import CoreImage
         return result
     }
 }
+
+// Compatibility only: existing host callers and saved names still resolve.
+typealias LiveBoardIconStore = BloomBoxIconStore

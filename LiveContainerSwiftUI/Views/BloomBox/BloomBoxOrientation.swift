@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-@MainActor enum LiveBoardOrientation {
+@MainActor enum BloomBoxOrientation {
     // Home owns its usual portrait lock. A LiveProcess guest may temporarily
     // override it, but MUST restore the previous mask when that guest exits.
     static var mask: UIInterfaceOrientationMask = .allButUpsideDown
@@ -54,7 +54,7 @@ import UIKit
     }
 }
 
-struct LiveBoardOrientationLock: UIViewRepresentable {
+struct BloomBoxOrientationLock: UIViewRepresentable {
     let mask: UIInterfaceOrientationMask
     final class WindowObserver: UIView {
         let token = UUID()
@@ -63,8 +63,8 @@ struct LiveBoardOrientationLock: UIViewRepresentable {
         func apply() {
             guard window != nil else { return }
             applied = true
-            LiveBoardOrientation.owner = token
-            LiveBoardOrientation.apply(requestedMask, window: window)
+            BloomBoxOrientation.owner = token
+            BloomBoxOrientation.apply(requestedMask, window: window)
         }
         override func didMoveToWindow() { super.didMoveToWindow(); applied = false; apply() }
     }
@@ -75,12 +75,17 @@ struct LiveBoardOrientationLock: UIViewRepresentable {
         if !view.applied { DispatchQueue.main.async { [weak view] in view?.apply() } }
     }
     static func dismantleUIView(_ view: WindowObserver, coordinator: ()) {
-        guard LiveBoardOrientation.owner == view.token else { return }
-        LiveBoardOrientation.owner = nil
-        LiveBoardOrientation.apply(.allButUpsideDown, window: view.window)
+        guard BloomBoxOrientation.owner == view.token else { return }
+        BloomBoxOrientation.owner = nil
+        BloomBoxOrientation.apply(.allButUpsideDown, window: view.window)
     }
 }
-struct LiveBoardLandscapeLock: View {
+struct BloomBoxLandscapeLock: View {
     let enabled: Bool
-    var body: some View { LiveBoardOrientationLock(mask: enabled ? .landscape : .allButUpsideDown) }
+    var body: some View { BloomBoxOrientationLock(mask: enabled ? .landscape : .allButUpsideDown) }
 }
+
+// Compatibility only: existing host callers and saved names still resolve.
+typealias LiveBoardOrientationLock = BloomBoxOrientationLock
+typealias LiveBoardLandscapeLock = BloomBoxLandscapeLock
+typealias LiveBoardOrientation = BloomBoxOrientation

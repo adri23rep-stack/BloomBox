@@ -2,7 +2,7 @@ import Foundation
 import AudioToolbox
 
 /// Original short navigation cue; system sound playback does not replace a guest audio session.
-@MainActor final class LiveBoardNavigationAudio: ObservableObject {
+@MainActor final class BloomBoxNavigationAudio: ObservableObject {
     private var sound: SystemSoundID = 0
     private var lastPlay = Date.distantPast
     func play() {
@@ -21,7 +21,7 @@ import AudioToolbox
             func u32(_ value: UInt32) { var x = value.littleEndian; withUnsafeBytes(of: &x) { data.append(contentsOf: $0) } }
             func u16(_ value: UInt16) { var x = value.littleEndian; withUnsafeBytes(of: &x) { data.append(contentsOf: $0) } }
             u32(UInt32(36 + pcm.count)); data.append(Data("WAVEfmt ".utf8)); u32(16); u16(1); u16(1); u32(UInt32(rate)); u32(UInt32(rate * 2)); u16(2); u16(16); data.append(Data("data".utf8)); u32(UInt32(pcm.count)); data.append(pcm)
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent("Strata-Navigation.wav")
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("BloomBox-Navigation.wav")
             do { try data.write(to: url, options: .atomic) } catch { return }
             guard AudioServicesCreateSystemSoundID(url as CFURL, &sound) == kAudioServicesNoError else { sound = 0; return }
         }
@@ -29,3 +29,6 @@ import AudioToolbox
     }
     func stop() { if sound != 0 { AudioServicesDisposeSystemSoundID(sound); sound = 0 } }
 }
+
+// Compatibility only: existing host callers and saved names still resolve.
+typealias LiveBoardNavigationAudio = BloomBoxNavigationAudio

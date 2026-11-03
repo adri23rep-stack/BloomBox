@@ -2,7 +2,7 @@ import UIKit
 import CoreImage
 
 /// Remove the baked-in contour of pre-rounded PNGs before applying the launcher mask.
-@MainActor enum LiveBoardIconEdges {
+@MainActor enum BloomBoxIconEdges {
     private static let context = CIContext(options: [.cacheIntermediates: false])
     static func clean(_ image: UIImage) -> UIImage {
         guard let cg = image.cgImage, cg.width > 32, cg.height > 32 else { return image }
@@ -26,3 +26,6 @@ import CoreImage
         return UIImage(cgImage: cleaned, scale: image.scale, orientation: image.imageOrientation)
     }
 }
+
+// Compatibility only: existing host callers and saved names still resolve.
+typealias LiveBoardIconEdges = BloomBoxIconEdges

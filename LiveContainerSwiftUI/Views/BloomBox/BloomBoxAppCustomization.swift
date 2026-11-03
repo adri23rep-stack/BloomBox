@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// BloomBox-owned app appearance preferences, independent from guest bundles.
-@MainActor final class LiveBoardAppCustomization: ObservableObject {
-    static let shared = LiveBoardAppCustomization()
+@MainActor final class BloomBoxAppCustomization: ObservableObject {
+    static let shared = BloomBoxAppCustomization()
     @Published private(set) var revision = 0
 
     private let storage = BloomBoxAppAppearanceStorage(defaults: LCUtils.appGroupUserDefault)
@@ -93,15 +93,15 @@ import SwiftUI
     }
 }
 
-struct LiveBoardAppearanceSelection: Identifiable {
+struct BloomBoxAppearanceSelection: Identifiable {
     let app: LCAppModel
     var id: String { liveBoardAppKey(app) }
 }
 
-struct LiveBoardAppAppearance: View {
+struct BloomBoxAppAppearance: View {
     let app: LCAppModel
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var customization = LiveBoardAppCustomization.shared
+    @ObservedObject private var customization = BloomBoxAppCustomization.shared
     @State private var name = ""
     @State private var choosingIcon = false
     @State private var error: String?
@@ -133,3 +133,8 @@ struct LiveBoardAppAppearance: View {
         }
     }
 }
+
+// Compatibility only: existing host callers and saved names still resolve.
+typealias LiveBoardAppCustomization = BloomBoxAppCustomization
+typealias LiveBoardAppearanceSelection = BloomBoxAppearanceSelection
+typealias LiveBoardAppAppearance = BloomBoxAppAppearance

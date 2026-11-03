@@ -3,7 +3,7 @@ import GameController
 
 /// Input is owned only while the launcher is visible. No guest controller configuration is changed.
 @MainActor
-final class LiveBoardControllerInput: ObservableObject {
+final class BloomBoxControllerInput: ObservableObject {
     static let pauseNotification = Notification.Name("LiveBoardPauseController")
     static let resumeNotification = Notification.Name("LiveBoardResumeController")
     enum Command: Equatable { case left, right, up, down, confirm, back, details, favorite, previousSection, nextSection }
@@ -97,12 +97,12 @@ final class LiveBoardControllerInput: ObservableObject {
     }
 }
 
-struct LiveBoardConsoleNavigation: Equatable {
+struct BloomBoxGameBoxNavigation: Equatable {
     enum Focus: Equatable { case header, rail, launch, details }
     var selectedIndex = 0
     var headerIndex = 0
     var focus: Focus = .rail
-    mutating func move(_ command: LiveBoardControllerInput.Command, count: Int, headerCount: Int = 4) {
+    mutating func move(_ command: BloomBoxControllerInput.Command, count: Int, headerCount: Int = 4) {
         switch command {
         case .left:
             if focus == .header { headerIndex = max(0, headerIndex - 1) }
@@ -119,3 +119,7 @@ struct LiveBoardConsoleNavigation: Equatable {
         }
     }
 }
+
+// Compatibility only: existing host callers and saved names still resolve.
+typealias LiveBoardControllerInput = BloomBoxControllerInput
+typealias LiveBoardConsoleNavigation = BloomBoxGameBoxNavigation

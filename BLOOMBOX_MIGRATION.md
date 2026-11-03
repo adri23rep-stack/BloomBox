@@ -217,3 +217,10 @@ occurs until the macOS build and on-device tests pass.
 - Older persisted pairing records, original StrataJIT/jit-history.json fallback, JIT status and user-selected scripts are deliberately preserved to avoid invalidating existing device pairing or losing logs. This is data migration, not active Strata code execution.
 - The Objective-C extension and Swift worker remain paired to BloomBoxJITRequestHandler and bloomBoxJIT.
 - A CI source-boundary test verifies old files are gone and compatibility paths remain.
+
+## GameBox interaction and launcher support modules (phase 27)
+
+- Separated app icon customization, controller input and focus navigation, icon cache/mask, synthesized audio, orientation ownership and launch helpers into BloomBox-owned source files.
+- The old in-app generated WAV filename Strata-Navigation.wav is replaced by BloomBox-Navigation.wav. No downloaded or third-party navigation sound was used.
+- Existing Swift names remain supported as typealiases while other LiveContainer host callers migrate. Serialized Home preferences, console layout JSON, guest data and app bundle IDs are not renamed.
+- Added CI guards for the new module boundaries and removed old file paths.

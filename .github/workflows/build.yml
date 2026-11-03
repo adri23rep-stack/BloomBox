@@ -303,6 +303,27 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxGameBoxLayout.swift Tests/layout-tests/main.swift -o "$RUNNER_TEMP/bloombox-gamebox-layout-tests"
           "$RUNNER_TEMP/bloombox-gamebox-layout-tests"
+      - name: Verify BloomBox interaction and media modules
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path("LiveContainerSwiftUI/Views")
+          mapping={
+              "LiveBoardAppCustomization.swift":"BloomBox/BloomBoxAppCustomization.swift",
+              "LiveBoardControllerInput.swift":"BloomBox/BloomBoxControllerInput.swift",
+              "LiveBoardIconEdges.swift":"BloomBox/BloomBoxIconEdges.swift",
+              "LiveBoardIconStore.swift":"BloomBox/BloomBoxIconStore.swift",
+              "LiveBoardNavigationAudio.swift":"BloomBox/BloomBoxNavigationAudio.swift",
+              "LiveBoardOrientation.swift":"BloomBox/BloomBoxOrientation.swift",
+              "LiveBoardLaunchAction.swift":"BloomBox/BloomBoxLaunchAction.swift",
+          }
+          for old,new in mapping.items():
+              assert not (root/old).exists(), old
+              assert (root/new).is_file(), new
+          audio=(root/"BloomBox/BloomBoxNavigationAudio.swift").read_text()
+          assert "Strata-Navigation.wav" not in audio
+          print("GameBox input, icon, orientation, launch and synthesized audio now live under BloomBox")
+          PY
       - name: Verify BloomBox GameBox source boundaries
         run: |
           python3 - <<'PY'
