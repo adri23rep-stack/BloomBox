@@ -538,6 +538,12 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             }
             return true
         }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BloomBoxGuestSceneDidExit"))) { note in
+            guard let appKey = note.object as? String else { return }
+            let window = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }.first { $0.isKeyWindow }
+            LiveBoardOrientation.endGuest(appKey: appKey, window: window)
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.InstallAppNotification)) { obj in
             if let obj2 = obj.object as? [String: Any], let installUrl = obj2["url"] as? URL {
                 let expectedSHA = obj2["sha256"] as? String
@@ -675,10 +681,37 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     @MainActor
     func launchFromLiveBoard(_ app: LCAppModel, forceJIT: Bool = false) async {
         let window = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap { $0.windows }.first { $0.isKeyWindow }
-        LiveBoardOrientation.setLandscape(false, window: window)
         if app.appInfo is BuiltInSideStoreAppInfo {
             LCUtils.openSideStore(delegate: self)
             return
+        }
+        let appKey = app.appInfo.relativeBundlePath ?? ""
+        let policy = BloomBoxJITGuestPolicy.mode(for: appKey, defaults: LCUtils.appGroupUserDefault)
+        let guestBundle = Bundle(path: app.appInfo.bundlePath())
+        let melonProfile = BloomBoxMeloNXProfile.matches(
+            bundleID: app.bundleIdentifier,
+            version: guestBundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+        let wantsJIT = BloomBoxJITGuestPolicy.wantsJIT(
+            automatic: app.appInfo.isJITNeeded || app.appInfo.is32bit || melonProfile,
+            forced: forceJIT ? true : nil, mode: policy)
+        let builtInJIT = wantsJIT &&
+            LCUtils.appGroupUserDefault.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue
+        // Honor the existing per-app orientation picker when running through
+        // LiveProcess. Legacy launches already manage their own orientation.
+        // The host Home is portrait-locked and otherwise overrides the guest.
+        if builtInJIT {
+            // Do not inherit Home's portrait-only lock in Auto mode.
+            let guestMask: UIInterfaceOrientationMask
+            switch app.uiOrientationLock {
+            case .Landscape: guestMask = .landscape
+            case .Portrait: guestMask = .portrait
+            default: guestMask = .allButUpsideDown
+            }
+            LiveBoardOrientation.beginGuest(appKey: appKey, mask: guestMask, window: window)
+            // Give UIKit one layout pass before creating the LiveProcess scene.
+            try? await Task.sleep(nanoseconds: 250_000_000)
+        } else {
+            LiveBoardOrientation.setLandscape(false, window: window)
         }
         do {
             if app.appInfo.is32bit { try await ensureBundled32BitRuntime(for: app) }
@@ -711,6 +744,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 try await app.launchFromLibrary(forceJIT: forceJIT)
             }
         } catch {
+            LiveBoardOrientation.endGuest(appKey: appKey, window: window)
             errorInfo = error.localizedDescription
             errorShow = true
         }

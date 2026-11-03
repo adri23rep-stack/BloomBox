@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/jit-guest-orientation-ios27
       - fix/finish-astra-home-20261101
       - feature/living-widgets-1-20261101
       - feature/english-localization-20261101
@@ -72,6 +73,10 @@ jobs:
           swiftc ShareExtension/StrataJITScriptSafety.swift LiveContainerSwiftUI/Utilities/BloomBoxMeloNXProfile.swift Tests/jit-script-tests/main.swift -o "$RUNNER_TEMP/jit-script-tests"
           "$RUNNER_TEMP/jit-script-tests"
           "$RUNNER_TEMP/jit-script-tests" melonx
+      - name: Test guest scene orientation and viewport sizing
+        run: |
+          swiftc LiveContainerSwiftUI/Utilities/BloomBoxGuestSceneGeometry.swift Tests/orientation-tests/main.swift -o "$RUNNER_TEMP/bloombox-orientation-tests"
+          "$RUNNER_TEMP/bloombox-orientation-tests"
       - name: Install Rust toolchain for on-device pairing
         uses: dtolnay/rust-toolchain@stable
         with:
