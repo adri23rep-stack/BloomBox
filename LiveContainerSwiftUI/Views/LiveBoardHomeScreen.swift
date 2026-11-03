@@ -5064,7 +5064,7 @@ private struct BloomBoxV2StoreHeader: View {
     }
 }
 
-private struct BloomBoxTweakStore: View {
+struct BloomBoxTweakStore: View {
     let apps: [LCAppModel]
     let focusedApp: LCAppModel?
     @Environment(\.dismiss) private var dismiss
@@ -5696,7 +5696,7 @@ private struct BloomBoxAppStoreIcon: View {
     }
 }
 
-private struct BloomBoxAppStore: View {
+struct BloomBoxAppStore: View {
     let apps: [LCAppModel]
     let openSources: () -> Void
 
