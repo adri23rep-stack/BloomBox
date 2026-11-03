@@ -126,3 +126,10 @@ occurs until the macOS build and on-device tests pass.
 - Moved category rules, suggestions, favorites, recently added ordering and search into `BloomBoxAppLibraryPolicy.swift`, a Foundation-only component.
 - Home supplies only installed guest apps and its permanent built-in shortcuts. User-defined categories and saved favorites remain unchanged.
 - Added tests for category ordering, duplicate filtering, case-insensitive name/bundle search and old shortcut keys.
+
+## Native Home page navigation (phase 15)
+
+- Replaced the legacy SwiftUI page visibility, active-page recovery and page-deletion bookkeeping with BloomBoxHomeNavigation.
+- Page 0 (News), final App Library and saved LiveBoardHiddenPages remain compatible with previous settings and exported themes.
+- Malformed/all-hidden page settings recover automatically; deleting a page adjusts visibility and redistributes widget metadata without dropping widget IDs.
+- Foundation-only navigation and migration tests now run before the iOS archive in GitHub Actions.

@@ -350,14 +350,13 @@ struct LiveBoardHomeScreen: View {
             (liveBoardAppKey($0), $0)
         }, uniquingKeysWith: { first, _ in first })
     }
-    private var hiddenPageIndices: Set<Int> {
-        let values = (try? JSONDecoder().decode([Int].self, from: Data(hiddenPagesJSON.utf8))) ?? []
-        return Set(values.filter { layout.pages.indices.contains($0) })
+    private var homeNavigation: BloomBoxHomeNavigation {
+        BloomBoxHomeNavigation(pageCount: layout.pages.count, currentPage: page,
+                               hiddenJSON: hiddenPagesJSON)
     }
-    private var visiblePageIndices: [Int] {
-        layout.pages.indices.filter { !hiddenPageIndices.contains($0) }
-    }
-    private var libraryPageIndex: Int { layout.pages.count + 1 }
+    private var hiddenPageIndices: Set<Int> { homeNavigation.hidden }
+    private var visiblePageIndices: [Int] { homeNavigation.visible }
+    private var libraryPageIndex: Int { homeNavigation.libraryPage }
     private var recentLibraryKeys: [String] {
         (try? JSONDecoder().decode([String].self, from: Data(libraryRecentsJSON.utf8))) ?? []
     }
@@ -598,9 +597,12 @@ struct LiveBoardHomeScreen: View {
                 if #available(iOS 16.2, *) {
                     Task { await ManzanaExpiryReminderCenter.shared.synchronize() }
                 }
-                if page > 0 && hiddenPageIndices.contains(page - 1) {
-                    page = (visiblePageIndices.first ?? 0) + 1
+                // Recover from hidden or stale pages without losing saved widgets.
+                let navigation = homeNavigation
+                if hiddenPagesJSON != navigation.encodedHidden {
+                    hiddenPagesJSON = navigation.encodedHidden
                 }
+                page = navigation.safePage
                 startBloomBoxAlive()
                 if LCUtils.appGroupUserDefault.bool(forKey: "BloomBoxGameBoxOpenThemeStore") {
                     LCUtils.appGroupUserDefault.set(false, forKey: "BloomBoxGameBoxOpenThemeStore")
@@ -1560,28 +1562,17 @@ struct LiveBoardHomeScreen: View {
     }
 
     private func togglePageVisibility(_ index: Int) {
-        guard layout.pages.indices.contains(index) else { return }
-        var hidden = hiddenPageIndices
-        if hidden.contains(index) {
-            hidden.remove(index)
-        } else {
-            guard layout.pages.count - hidden.count > 1 else { return }
-            hidden.insert(index)
-        }
+        guard let updated = homeNavigation.toggledVisibility(at: index) else { return }
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) {
-            persistHiddenPages(hidden)
-            if page > 0, hidden.contains(page - 1) {
-                page = (layout.pages.indices.first { !hidden.contains($0) } ?? 0) + 1
-            }
+            hiddenPagesJSON = updated.encodedHidden
+            page = updated.safePage
         }
     }
 
     private func selectPageFromOverview(_ index: Int) {
-        guard layout.pages.indices.contains(index) else { return }
-        var hidden = hiddenPageIndices
-        hidden.remove(index)
-        persistHiddenPages(hidden)
-        page = index + 1
+        guard let updated = homeNavigation.selectedFromOverview(index) else { return }
+        hiddenPagesJSON = updated.encodedHidden
+        page = updated.safePage
         pageManager = false
     }
 
@@ -3202,31 +3193,21 @@ struct LiveBoardHomeScreen: View {
 
     private func removePage(_ index: Int) {
         guard layout.pages.count > 1, layout.pages.indices.contains(index) else { return }
-        let previouslyHidden = hiddenPageIndices
+        let navigator = homeNavigation
         let movedIcons = layout.pages[index].contains { $0 != nil }
         let targetPage = min(index, layout.pages.count - 2)
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.26)) {
             if layout.removePage(at: index) {
-                var widgetMap = placedWidgets
-                let moving = widgetMap.removeValue(forKey: index) ?? []
-                var shiftedWidgets: [Int: [BloomBoxPlacedWidget]] = [:]
-                for (old, items) in widgetMap {
-                    shiftedWidgets[old > index ? old - 1 : old] = items
-                }
-                savePlacedWidgets(shiftedWidgets)
-                for widget in moving {
+                let widgets = BloomBoxHomeNavigation.reindexWidgets(placedWidgets, removing: index)
+                savePlacedWidgets(widgets.remaining)
+                for widget in widgets.displaced {
                     moveWidgetToAvailablePage(widget, preferred: targetPage)
                 }
-                var shifted = Set(previouslyHidden.compactMap { value -> Int? in
-                    if value == index { return nil }
-                    return value > index ? value - 1 : value
-                })
-                if movedIcons { shifted.remove(targetPage) }
-                persistHiddenPages(shifted)
-                if page > index + 1 { page -= 1 }
-                else if page == index + 1 { page = min(index + 1, layout.pages.count) }
-                if page > 0 && shifted.contains(page - 1) {
-                    page = (layout.pages.indices.first { !shifted.contains($0) } ?? 0) + 1
+                if let updated = navigator.removedPage(at: index,
+                                                       destinationContainsIcons: movedIcons,
+                                                       newPageCount: layout.pages.count) {
+                    hiddenPagesJSON = updated.encodedHidden
+                    page = updated.safePage
                 }
                 reconcile()
             }
