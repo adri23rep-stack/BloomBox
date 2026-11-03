@@ -206,6 +206,20 @@ final class BloomBoxJITLogStore: ObservableObject {
     private var collapseTask: Task<Void, Never>?
     private var idleTask: Task<Void, Never>?
     private var dismissTask: Task<Void, Never>?
+
+    /// Explicit animation is needed when the observable state is changed by a
+    /// background JIT callback: relying solely on a child view's .animation
+    /// can insert/remove the glass surface before SwiftUI animates it.
+    private func setNotificationVisible(_ value: Bool) {
+        if UIAccessibility.isReduceMotionEnabled {
+            withAnimation(.easeInOut(duration: 0.12)) { visible = value }
+        } else if value {
+            withAnimation(.spring(response: 0.46, dampingFraction: 0.84)) { visible = true }
+        } else {
+            withAnimation(.easeInOut(duration: 0.34)) { visible = false }
+        }
+    }
+
     private static let maximumRecords = 60
     private static let maximumBytes = 2_000_000
     private static var logURL: URL {
@@ -239,9 +253,9 @@ final class BloomBoxJITLogStore: ObservableObject {
             dismissTask?.cancel()
             activeAttemptID = attempt.id
             activeAppName = appName
-            visible = true
             compact = false
             phase = .working
+            setNotificationVisible(true)
             collapseTask = Task {
                 try? await Task.sleep(nanoseconds: 1_500_000_000)
                 guard !Task.isCancelled, self.activeAttemptID == attempt.id else { return }
@@ -280,7 +294,7 @@ final class BloomBoxJITLogStore: ObservableObject {
             self.dismissTask = Task {
                 try? await Task.sleep(nanoseconds: 6_000_000_000)
                 guard !Task.isCancelled, self.activeAttemptID == id, self.phase == .waiting else { return }
-                self.visible = false
+                self.setNotificationVisible(false)
                 // Keep activeAttemptID until the real helper result arrives.
             }
         }
@@ -304,7 +318,7 @@ final class BloomBoxJITLogStore: ObservableObject {
             // Only a completed protocol produces a green confirmation.
             try? await Task.sleep(nanoseconds: success ? 2_500_000_000 : 9_000_000_000)
             guard !Task.isCancelled, self.activeAttemptID == id else { return }
-            self.visible = false
+            self.setNotificationVisible(false)
             self.activeAttemptID = nil
         }
     }
@@ -515,13 +529,22 @@ struct BloomBoxJITFloatingView: View {
                     .shadow(color: tint.opacity(colorScheme == .dark ? 0.25 : 0.14), radius: 18, y: 7)
                     .accessibilityIdentifier("bloombox.jit.floating")
                     .accessibilityLabel(label + ". Toca para ver el registro.")
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.86, anchor: .bottomTrailing)),
-                        removal: .opacity.combined(with: .scale(scale: 0.82, anchor: .bottomTrailing))))
+                    // Arrive from slightly below with a gentle glass "pop"; leave
+                    // by dissolving and contracting towards the orb's anchor.
+                    .transition(reduceMotion ? .opacity : .asymmetric(
+                        insertion: .opacity
+                            .combined(with: .scale(scale: 0.90, anchor: .bottomTrailing))
+                            .combined(with: .offset(y: 12)),
+                        removal: .opacity
+                            .combined(with: .scale(scale: 0.78, anchor: .bottomTrailing))
+                            .combined(with: .offset(y: 8))))
             }
         }
         .animation(morphAnimation, value: history.compact)
-        .animation(reduceMotion ? .linear(duration: 0.12) : .easeInOut(duration: 0.25),
+        .animation(reduceMotion ? .easeInOut(duration: 0.12)
+                   : (history.visible
+                        ? .spring(response: 0.46, dampingFraction: 0.84)
+                        : .easeInOut(duration: 0.34)),
                    value: history.visible)
         .animation(.easeInOut(duration: 0.22), value: history.phase)
         .onAppear {
