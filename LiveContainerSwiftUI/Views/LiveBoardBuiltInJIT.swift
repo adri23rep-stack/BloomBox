@@ -93,6 +93,7 @@ enum LiveBoardBuiltInJIT {
             guard helper != nil else { report("JIT helper unavailable. Reinstall keeping app extensions."); return false }
             report("Preparing device. Keep LocalDevVPN connected and Developer Mode enabled.")
             var lastMessage = ""
+            var nextMessageIndex = 0
             let started = Date()
             let deadline = started.addingTimeInterval(300)
             var receivedStatus = false
@@ -100,8 +101,18 @@ enum LiveBoardBuiltInJIT {
                 try Task.checkCancellation()
                 if let bytes = try? Data(contentsOf: status), let result = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any] {
                     receivedStatus = true
-                    let message = result["message"] as? String ?? ""
-                    if message != lastMessage { report(message); lastMessage = message }
+                    if let messages = result["messages"] as? [String] {
+                        let firstIndex = result["firstMessageIndex"] as? Int ?? 0
+                        for (index, message) in messages.enumerated()
+                            where firstIndex + index >= nextMessageIndex {
+                            report(message)
+                        }
+                        nextMessageIndex = max(nextMessageIndex, firstIndex + messages.count)
+                    } else {
+                        // Compatibility with helpers installed before this UI update.
+                        let message = result["message"] as? String ?? ""
+                        if message != lastMessage { report(message); lastMessage = message }
+                    }
                     if result["done"] as? Bool == true { return result["success"] as? Bool == true }
                 }
                 if !receivedStatus && Date().timeIntervalSince(started) > 12 {
@@ -127,8 +138,15 @@ enum LiveBoardBuiltInJIT {
     func start(_ operation: String) {
         guard !busy else { return }
         busy = true; success = nil; message = "Starting…"
+        let record = BloomBoxJITLogStore.shared.begin(
+            appName: operation == "prepare" ? "Preparar dispositivo" : "Reiniciar caché DDI",
+            provider: "Built-in JIT", showNotification: false)
         task = Task {
-            success = await LiveBoardBuiltInJIT.enable(script: nil, operation: operation) { [weak self] in self?.message = $0 }
+            success = await LiveBoardBuiltInJIT.enable(script: nil, operation: operation) { [weak self] line in
+                self?.message = line
+                BloomBoxJITLogStore.shared.append(line, to: record)
+            }
+            BloomBoxJITLogStore.shared.finish(record, success: success == true)
             busy = false
             task = nil
         }
@@ -353,8 +371,8 @@ struct BloomBoxJITLogHistoryView: View {
     var body: some View {
         List {
             if records.isEmpty {
-                ContentUnavailableView("Sin registros JIT", systemImage: "doc.text.magnifyingglass",
-                                       description: Text("Los próximos intentos aparecerán aquí."))
+                Label("Los próximos intentos aparecerán aquí.", systemImage: "doc.text.magnifyingglass")
+                    .foregroundStyle(.secondary)
             } else {
                 ForEach(records) { record in
                     NavigationLink {
@@ -413,8 +431,10 @@ struct BloomBoxJITLogDetailView: View {
         .toolbar {
             if let record {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Copiar", systemImage: "doc.on.doc") {
+                    Button {
                         UIPasteboard.general.string = record.exportText
+                    } label: {
+                        Label("Copiar", systemImage: "doc.on.doc")
                     }
                 }
             }
