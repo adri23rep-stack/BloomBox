@@ -230,6 +230,25 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                                            openInterface: openInterface,
                                            openManagement: { manageLibrary = true },
                                            launchWithJIT: { app, fromGame in await launchFromLiveBoard(app, forceJIT: true, originatingFromGame: fromGame) },
+                                           openInstall: {
+                                               if sharedModel.multiLCStatus == 2 { manageLibrary = true }
+                                               else { choosingIPA = true }
+                                           },
+                                           openSideStore: {
+                                               if UserDefaults.sideStoreExist() { LCUtils.openSideStore(delegate: self) }
+                                               else {
+                                                   errorInfo = "SideStore no está disponible en esta instalación."
+                                                   errorShow = true
+                                               }
+                                           },
+                                           openSources: { sharedModel.selectedTab = .sources },
+                                           openThemeStore: {
+                                               // The theme editor belongs to iOS Home because it
+                                               // edits Home pages/widgets. Open that exact editor
+                                               // instead of creating an incompatible duplicate.
+                                               LCUtils.appGroupUserDefault.set(true, forKey: "BloomBoxGameBoxOpenThemeStore")
+                                               liveBoardMode = "ios"
+                                           },
                                            openModuleDestination: { destination in
                                                switch destination {
                                                case .settings: sharedModel.selectedTab = .settings
