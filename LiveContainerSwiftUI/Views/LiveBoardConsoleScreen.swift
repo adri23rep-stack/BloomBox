@@ -435,7 +435,41 @@ struct LiveBoardConsoleScreen: View {
                 }
             }
             Button { controller.stop(); layoutSettings = true } label: { Image(systemName: "slider.horizontal.3").frame(width: 32, height: 32) }.accessibilityLabel("Customize layout").accessibilityIdentifier("console.layout")
-            Button { controller.stop(); jitSetup = true } label: { Image(systemName: "bolt.fill").frame(width: 32, height: 32) }.accessibilityLabel("JIT setup")
+            if mode == "cinematic" {
+                HStack(spacing: 3) {
+                    Image(systemName: "memorychip.fill").font(.system(size: 15))
+                    Text("RAM+").font(.system(size: 10, weight: .bold))
+                }
+                .foregroundStyle(ramPlus.validation.confirmed && ramPlus.extensionSigned == true
+                                 ? Color.green : Color.orange)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(ramPlus.validation.confirmed && ramPlus.extensionSigned == true
+                                    ? "RAM+ habilitada" : "RAM+ sin confirmar")
+                .accessibilityIdentifier("gamebox.ram.status")
+                Button {
+                    guard selected != nil else { return }
+                    controller.stop()
+                    quickJITPresented = true
+                } label: {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(selected.map(jitEnabled(for:)) == true
+                                         ? Color.green : Color.orange)
+                        .frame(width: 32, height: 32)
+                }
+                .disabled(selected == nil)
+                .popover(isPresented: $quickJITPresented, onDismiss: bindController) {
+                    gameBoxJITQuickSettings
+                }
+                .accessibilityLabel(selected.map(jitEnabled(for:)) == true
+                                    ? "JIT activado para la app seleccionada"
+                                    : "JIT desactivado para la app seleccionada")
+                .accessibilityIdentifier("gamebox.jit.quickToggle")
+            } else {
+                Button { controller.stop(); jitSetup = true } label: {
+                    Image(systemName: "bolt.fill").frame(width: 32, height: 32)
+                }.accessibilityLabel("JIT setup")
+            }
             Button { controller.stop(); managingCategories = true } label: { Image(systemName: "tag").overlay(alignment: .bottomTrailing) { Image(systemName: "plus.circle.fill").font(.system(size: 10)).offset(x: 5, y: 5) }.frame(width: 32, height: 32) }.accessibilityLabel("Categories and hidden apps").accessibilityIdentifier("console.categories.manage")
         }.buttonStyle(.plain).frame(height: 28)
     }
@@ -597,6 +631,54 @@ struct LiveBoardConsoleScreen: View {
                         .accessibilityLabel("App options").accessibilityIdentifier("console.options")
                 }.buttonStyle(.plain).padding(.top, 2)
     }
+    private func jitEnabled(for app: LCAppModel) -> Bool {
+        // The UI and launch path share exactly the same saved per-app policy.
+        // Checking a debugger's availability is NOT the same as JIT being
+        // requested; this indicator deliberately displays only the preference.
+        _ = jitSwitchRevision
+        let bundle = Bundle(path: app.appInfo.bundlePath())
+        let melonNX26 = BloomBoxMeloNXProfile.matches(
+            bundleID: app.appInfo.bundleIdentifier(),
+            version: bundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+        let policy = BloomBoxJITGuestPolicy.mode(
+            for: app.appInfo.relativeBundlePath, defaults: LCUtils.appGroupUserDefault)
+        return BloomBoxJITGuestPolicy.wantsJIT(
+            automatic: app.appInfo.isJITNeeded || app.appInfo.is32bit || melonNX26,
+            forced: nil, mode: policy)
+    }
+
+    private func setJIT(_ enabled: Bool, for app: LCAppModel) {
+        BloomBoxJITGuestPolicy.setMode(enabled ? .enabled : .disabled,
+            for: app.appInfo.relativeBundlePath, defaults: LCUtils.appGroupUserDefault)
+        jitSwitchRevision &+= 1
+    }
+
+    private var gameBoxJITQuickSettings: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("JIT por aplicación", systemImage: "bolt.fill")
+                .font(.headline)
+            if let app = selected {
+                Text(appCustomization.name(app))
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Toggle("Habilitar JIT", isOn: Binding(
+                    get: { jitEnabled(for: app) },
+                    set: { setJIT($0, for: app) }))
+                    .tint(.green)
+                    .accessibilityIdentifier("gamebox.jit.app.toggle")
+                Text("Verde: JIT solicitado al abrir. Naranja: se abre sin JIT. El cambio se aplica en el próximo lanzamiento.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            } else {
+                Text("Selecciona un juego primero.").foregroundStyle(.secondary)
+            }
+            Button("Listo") { quickJITPresented = false }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .padding(20)
+        .frame(width: 310)
+        .presentationCompactAdaptation(.sheet)
+    }
+
     private var gameBoxUtilitiesSheet: some View {
         NavigationView {
             ScrollView {
@@ -715,6 +797,8 @@ struct LiveBoardConsoleScreen: View {
     }
 
     private func handleModuleDismissed() {
+        jitSwitchRevision &+= 1
+        ramPlus.refresh()
         guard let destination = pendingModuleDestination else { bindController(); return }
         pendingModuleDestination = nil
         switch destination {
