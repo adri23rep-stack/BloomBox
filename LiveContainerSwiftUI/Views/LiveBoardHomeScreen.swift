@@ -5071,6 +5071,11 @@ private struct BloomBoxV2StoreHeader: View {
 struct BloomBoxTweakStore: View {
     let apps: [LCAppModel]
     let focusedApp: LCAppModel?
+
+    init(apps: [LCAppModel], focusedApp: LCAppModel?) {
+        self.apps = apps
+        self.focusedApp = focusedApp
+    }
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var sharedModel: SharedModel
     @ObservedObject private var catalog = BloomBoxTweakCatalog.shared
@@ -5703,6 +5708,11 @@ private struct BloomBoxAppStoreIcon: View {
 struct BloomBoxAppStore: View {
     let apps: [LCAppModel]
     let openSources: () -> Void
+
+    init(apps: [LCAppModel], openSources: @escaping () -> Void) {
+        self.apps = apps
+        self.openSources = openSources
+    }
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var sharedModel: SharedModel
