@@ -186,3 +186,8 @@ occurs until the macOS build and on-device tests pass.
 - Replaced the original LiveBoard.swift mode host with BloomBoxLauncherRoot.swift and a source-compatibility alias LiveBoardRootView.
 - The mode selector now presents native BloomBox cards and retains saved mode keys, controller lifecycle events and primary launcher preference.
 - Launching GameBox still requests BloomBoxRequestGameMode after the picker dismisses; central RAM+/JIT checks remain in place.
+
+## Source and provenance audit (phase 22)
+
+- Added a source audit that checks for retired executable modules and validates that compatibility keys and third-party credits remain.
+- See docs/BLOOMBOX-SOURCE-AUDIT.md. This work is not a claim of clean-room source independence.
