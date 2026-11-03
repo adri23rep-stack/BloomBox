@@ -2,14 +2,14 @@ import SwiftUI
 
 private enum LiveBoardMode: String, CaseIterable, Identifiable {
     // Legacy Big Picture remains loadable for existing users but is hidden from
-    // the mode picker. Cinematic is renamed Game without resetting its layouts.
+    // the mode picker. Keep the saved cinematic ID to preserve GameBox layouts.
     case ios, cinematic, bigPicture
     static var allCases: [LiveBoardMode] { [.ios, .cinematic] }
     var id: String { rawValue }
     var title: String {
         switch self {
         case .ios: return "iOS Home"
-        case .cinematic: return "Game"
+        case .cinematic: return "GameBox"
         case .bigPicture: return "Big Picture"
         }
     }
@@ -23,16 +23,24 @@ private enum LiveBoardMode: String, CaseIterable, Identifiable {
     var detail: String {
         switch self {
         case .ios: return "A familiar, compact app grid."
-        case .cinematic: return "Horizontal game launcher with RAM+ and JIT setup."
+        case .cinematic: return "GameBox horizontal; RAM+ disponible y JIT según cada app."
         case .bigPicture: return "A cover library with controller navigation."
         }
     }
+}
+
+// A session reset happens once, only on a fresh process launch.
+@MainActor private enum BloomBoxLaunchSession {
+    static var restored = false
 }
 
 // The existing list stays mounted to retain install, deep-link and JIT delegates.
 struct LiveBoardRootView: View {
     @EnvironmentObject private var sharedModel: SharedModel
     @AppStorage("LiveBoardMode", store: LCUtils.appGroupUserDefault) private var mode = "ios"
+    @AppStorage("BloomBoxPrimaryLauncher", store: LCUtils.appGroupUserDefault)
+    private var primaryLauncher = "ios"
+    @State private var launcherReady = false
     @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault) private var preferredLanguage = "system"
     private var selectedLocale: Locale {
         Locale(identifier: preferredLanguage == "system" ? (Locale.preferredLanguages.first ?? "en") : preferredLanguage)
@@ -42,7 +50,15 @@ struct LiveBoardRootView: View {
     @State private var destinationPresented = false
 
     var body: some View {
-        LCAppListView(openInterface: { interfacePresented = true })
+        Group {
+            if launcherReady {
+                LCAppListView(openInterface: { interfacePresented = true })
+            } else {
+                // Prevent a single frame of a previously selected GameBox mode
+                // from appearing before the saved primary launcher is restored.
+                Color.black.ignoresSafeArea()
+            }
+        }
         .environment(\.locale, selectedLocale)
         .preferredColorScheme(.dark)
         .sheet(isPresented: $interfacePresented, onDismiss: {
@@ -81,6 +97,19 @@ struct LiveBoardRootView: View {
                             }.buttonStyle(.plain)
                                 .accessibilityAddTraits(mode == option.rawValue ? .isSelected : [])
                         }
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Launcher principal").font(.headline)
+                            Picker("Al iniciar BloomBox", selection: $primaryLauncher) {
+                                Text("iOS Home").tag("ios")
+                                Text("GameBox").tag("cinematic")
+                            }
+                            .pickerStyle(.segmented)
+                            .accessibilityIdentifier("bloombox.primaryLauncher")
+                            Text("Se aplica al abrir BloomBox desde cero. Cambiar temporalmente a GameBox no altera tu launcher principal.")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
+                        .padding(18)
+                        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 20))
                     }.padding()
                 }
                 .navigationTitle("Interface")
@@ -106,6 +135,16 @@ struct LiveBoardRootView: View {
             } else {
                 destinationPresented = true
             }
+        }
+        .onAppear {
+            if !BloomBoxLaunchSession.restored {
+                // Only on a cold process start; returning from a game or
+                // settings sheet must never reset the active launcher.
+                mode = BloomBoxLaunchPreferences.resetForNewProcess(
+                    defaults: LCUtils.appGroupUserDefault)
+                BloomBoxLaunchSession.restored = true
+            }
+            launcherReady = true
         }
     }
 
