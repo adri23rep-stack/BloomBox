@@ -62,6 +62,15 @@ precondition(routed(originalScript, true, true, true, true) == originalScript,
              "A custom MeloNX script must still take precedence")
 print("PASS: MeloNX script routing is opt-in, limited to built-in JIT, and preserves app overrides.")
 
+// Launching with JIT must not silently reuse a window or private container.
+precondition(BloomBoxJITLaunchGuard.mayReuseWindow(requestedJIT: false))
+precondition(!BloomBoxJITLaunchGuard.mayReuseWindow(requestedJIT: true))
+precondition(BloomBoxJITLaunchGuard.lacksLiveProcessAccess(builtInJIT: true, shared: false, privateDataAllowed: false))
+precondition(!BloomBoxJITLaunchGuard.lacksLiveProcessAccess(builtInJIT: true, shared: false, privateDataAllowed: true))
+precondition(!BloomBoxJITLaunchGuard.lacksLiveProcessAccess(builtInJIT: true, shared: true, privateDataAllowed: false))
+precondition(!BloomBoxJITLaunchGuard.lacksLiveProcessAccess(builtInJIT: false, shared: false, privateDataAllowed: false))
+print("PASS: new JIT sessions cannot be mistaken for resumed guests; private LiveProcess access is explicit.")
+
 // Saved, per-installed-app policy: no global script blast radius.
 do {
     let suite = "BloomBoxJITPolicyTests." + UUID().uuidString

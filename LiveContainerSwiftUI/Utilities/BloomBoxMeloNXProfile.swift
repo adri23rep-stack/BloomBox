@@ -64,6 +64,15 @@ enum BloomBoxJITGuestPolicy {
     }
 }
 
+/// Pure guest launch rules shared by the legacy LiveContainer menu and BloomBox Home.
+/// A JIT attach needs a fresh process; a foregrounded existing guest is NOT re-attached.
+enum BloomBoxJITLaunchGuard {
+    static func mayReuseWindow(requestedJIT: Bool) -> Bool { !requestedJIT }
+    static func lacksLiveProcessAccess(builtInJIT: Bool, shared: Bool, privateDataAllowed: Bool) -> Bool {
+        builtInJIT && !shared && !privateDataAllowed
+    }
+}
+
 /// Launch checks for resource-heavy emulators. RAM+ is a signed permission, not a switch.
 enum BloomBoxEmulatorPreflight {
     enum Missing: String { case ramPlus, jit }

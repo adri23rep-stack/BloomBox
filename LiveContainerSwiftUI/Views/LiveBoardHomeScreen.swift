@@ -1362,9 +1362,11 @@ struct LiveBoardHomeScreen: View {
             return
         }
         Task { @MainActor in
-            // Fetching the remote registry never executes code. If the network is
-            // unavailable, the last verified catalog is used.
-            await tweakCatalog.refreshIfNeeded()
+            // Don't block Launch with JIT behind a network request that can take
+            // 12+ seconds and make the button look dead. Use the already verified
+            // catalog now, and update it for future launches in the background.
+            // The catalog is also refreshed when the Home screen appears.
+            Task { await tweakCatalog.refreshIfNeeded() }
             if let tweak = tweakCatalog.criticalMissing(for: app) {
                 pendingAlertApp = app
                 pendingAlertTweak = tweak
