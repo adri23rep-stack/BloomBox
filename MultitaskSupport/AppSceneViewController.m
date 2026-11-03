@@ -19,6 +19,7 @@
 @property CFTimeInterval lastResizeRequestTime;
 @property CGPoint normalizedOrigin;
 @property bool isNativeWindow;
+@property CGSize lastReportedGuestViewSize;
 @property NSUUID* identifier;
 @end
 
@@ -168,7 +169,15 @@
         }
     };
     void (^updateSceneClientSettings)(id) = ^void(UIMutableApplicationSceneClientSettings *clientSettings) {
-        clientSettings.interfaceOrientation = UIInterfaceOrientationPortrait;
+        // Use the host's actual orientation after its per-app geometry request.
+        // Previously every guest scene was born in portrait, even with a
+        // landscape-only guest and a landscape host (squashed Vulkan surfaces).
+        UIInterfaceOrientation initialOrientation = self.view.window.windowScene.interfaceOrientation;
+        if (initialOrientation == UIInterfaceOrientationUnknown) {
+            initialOrientation = UIApplication.sharedApplication.statusBarOrientation;
+        }
+        clientSettings.interfaceOrientation = initialOrientation == UIInterfaceOrientationUnknown
+            ? UIInterfaceOrientationPortrait : initialOrientation;
         clientSettings.statusBarStyle = 0;
     };
 
@@ -286,8 +295,13 @@
 }
 
 - (void)viewWillLayoutSubviews {
-    /// For native window we let iPadOS handle it however it wants, which is usually live resize (autoresizingMask set in appSceneVCWillActivateScene)
-    if(_contentView.autoresizingMask != (UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight)) {
+    [super viewWillLayoutSubviews];
+    // The iOS 27 hosted scene must learn about real window-size changes even
+    // when UIKit is autoresizing its child view. Without this, a JIT guest
+    // retains the portrait framebuffer after a landscape rotation.
+    if (self.contentView && self.presenter &&
+        !CGSizeEqualToSize(self.lastReportedGuestViewSize, self.view.bounds.size)) {
+        self.lastReportedGuestViewSize = self.view.bounds.size;
         [self updateFrameWithSettingsBlock:nil];
     }
 }
@@ -305,7 +319,12 @@
                 frame.size.width /= self.scaleRatio;
                 frame.size.height /= self.scaleRatio;
             }
-            if(UIInterfaceOrientationIsLandscape(settings.interfaceOrientation)) {
+            // Normalize only when the frame is actually in the wrong
+            // orientation. Swapping an already-landscape frame turned 786x1704
+            // into a portrait framebuffer on a landscape iPhone.
+            BOOL landscape = UIInterfaceOrientationIsLandscape(settings.interfaceOrientation);
+            if ((landscape && frame.size.width < frame.size.height) ||
+                (!landscape && frame.size.width > frame.size.height)) {
                 CGSize size = frame.size;
                 frame.size.width = size.height;
                 frame.size.height = size.width;
@@ -344,7 +363,11 @@
     }
     updateSettingsBlock(tempSettings);
     CGRect frame = tempSettings.frame;
-    if(UIInterfaceOrientationIsLandscape(tempSettings.interfaceOrientation)) {
+    // The iOS 18+ hosting view is in scene coordinates already. Only
+    // transpose if the proposed frame disagrees with the interface orientation.
+    BOOL landscape = UIInterfaceOrientationIsLandscape(tempSettings.interfaceOrientation);
+    if ((landscape && frame.size.width < frame.size.height) ||
+        (!landscape && frame.size.width > frame.size.height)) {
         frame = CGRectMake(frame.origin.x, frame.origin.y, frame.size.height, frame.size.width);
     }
     
@@ -386,6 +409,10 @@
         self.presenter = nil;
         
         [self.delegate appSceneVCAppDidExit:self];
+        // Release BloomBox's per-app orientation lock only after the guest
+        // process has actually exited, not when the JIT modal is dismissed.
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"BloomBoxGuestSceneDidExit"
+                                                            object:self.bundleId];
         [MultitaskManager unregisterMultitaskContainerWithContainer:self.dataUUID];
     });
 }

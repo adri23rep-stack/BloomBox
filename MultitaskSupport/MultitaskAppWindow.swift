@@ -76,12 +76,12 @@ struct AppSceneViewSwiftUI: UIViewControllerRepresentable {
                 settings.peripheryInsets = defaultInsets
                 settings.safeAreaInsetsPortrait = defaultInsets
                 settings.deviceOrientation = UIDevice.current.orientation
-                settings.setInterfaceOrientation(UIApplication.shared.statusBarOrientation)
-                if(settings.interfaceOrientation().isLandscape) {
-                    settings.setFrame(CGRect(x: 0, y: 0, width: vc.view.frame.size.height, height: vc.view.frame.size.width))
-                } else {
-                    settings.setFrame(CGRect(x: 0, y: 0, width: vc.view.frame.size.width, height: vc.view.frame.size.height))
-                }
+                let orientation = vc.view.window?.windowScene?.interfaceOrientation ??
+                    UIApplication.shared.statusBarOrientation
+                settings.setInterfaceOrientation(orientation)
+                let size = BloomBoxGuestSceneGeometry.size(
+                    vc.view.bounds.size, landscape: orientation.isLandscape)
+                settings.setFrame(CGRect(origin: .zero, size: size))
             }
             // fix live resize
             vc.contentView.autoresizingMask = [.flexibleWidth, .flexibleHeight]

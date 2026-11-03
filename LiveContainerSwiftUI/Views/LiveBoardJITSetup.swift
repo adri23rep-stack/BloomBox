@@ -7,6 +7,9 @@ struct LiveBoardJITSetup: View {
     @ObservedObject private var session = LiveBoardJITSession.shared
     @ObservedObject private var pairing = ManzanaOnDevicePairing.shared
     @AppStorage("BloomBoxJITRemotePort", store: LCUtils.appGroupUserDefault) private var remotePortOverride = ""
+    // Same explicit opt-in exposed under LiveContainer Developer Settings.
+    // Never turn this on automatically: it affects all private guest containers.
+    @AppStorage("LCSharePrivateDataWithLiveProcess") private var sharePrivateDataWithLiveProcess = false
     @State private var importing = false
     @State private var hasPairing = FileManager.default.fileExists(atPath: LiveBoardBuiltInJIT.pairingURL.path)
     let embedded: Bool
@@ -109,6 +112,17 @@ struct LiveBoardJITSetup: View {
                         Text("Enable Developer Mode in Settings. Connect your existing LocalDevVPN before Prepare device or Launch with JIT; SideStore can keep using the same VPN. The first launch may download a developer disk image.")
                         Label(LCUtils.strataCanDebug() ? "Debugging permission available" : "Re-signing required: debugging permission missing", systemImage: LCUtils.strataCanDebug() ? "checkmark.shield" : "exclamationmark.shield")
                         Text("JIT applies only to guests installed inside BloomBox, not other iPhone apps. It runs through LiveProcess, and some guest engines need a matching iOS 27 JIT script. Keep extensions when updating.").foregroundStyle(.secondary)
+                    }
+                    Section("Datos privados de las apps") {
+                        Toggle("Permitir datos privados en LiveProcess", isOn: $sharePrivateDataWithLiveProcess)
+                            .accessibilityIdentifier("bloombox.jit.sharePrivateData")
+                        Text("Husk y otras apps privadas necesitan este permiso para usar Built-in JIT. Es un permiso GLOBAL para las apps privadas de BloomBox, no solo Husk. No lo activaremos automáticamente.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        if !sharePrivateDataWithLiveProcess {
+                            Label("Las apps privadas no podrán iniciar con Built-in JIT. Puedes mantener el permiso apagado y elegir StikDebug u otro proveedor externo.", systemImage: "lock.shield")
+                                .font(.footnote).foregroundStyle(.orange)
+                        }
                     }
                     Section("Connection check") {
                         HStack {
