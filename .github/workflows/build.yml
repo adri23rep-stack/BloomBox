@@ -75,6 +75,23 @@ jobs:
         run: python3 Tests/jit-bridge-tests/test_bridge.py
       - name: Audit retired Strata modules and preserve upstream notices
         run: python3 Scripts/audit-bloombox-independent-launcher.py
+      - name: Verify BloomBox expiry reminder module migration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path("LiveContainerSwiftUI/Views")
+          center=(root/"BloomBox/BloomBoxExpiryReminderCenter.swift").read_text()
+          settings=(root/"BloomBox/BloomBoxExpiryReminderSettings.swift").read_text()
+          assert "final class BloomBoxExpiryReminderCenter" in center
+          assert "struct BloomBoxExpiryReminderSettings" in settings
+          assert "typealias ManzanaExpiryReminderCenter" in center
+          assert "typealias ManzanaExpiryReminderSettings" in settings
+          assert "ManzanaSideStoreExpiryRemindersEnabled" in center
+          assert "manzana.expiry." in center
+          assert not (root/"ManzanaExpiryReminderCenter.swift").exists()
+          assert not (root/"ManzanaExpiryReminderSettings.swift").exists()
+          print("BloomBox SideStore expiry UI preserves existing notification and Live Activity data")
+          PY
       - name: Verify native BloomBox launcher host and GameBox launch gate
         run: |
           python3 - <<'PY'

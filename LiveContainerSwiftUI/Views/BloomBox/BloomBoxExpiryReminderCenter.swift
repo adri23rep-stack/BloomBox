@@ -7,8 +7,8 @@ import UserNotifications
 /// no JIT and no background polling: iOS starts a scheduled Live Activity at T-8h.
 @available(iOS 16.2, *)
 @MainActor
-final class ManzanaExpiryReminderCenter: ObservableObject {
-    static let shared = ManzanaExpiryReminderCenter()
+final class BloomBoxExpiryReminderCenter: ObservableObject {
+    static let shared = BloomBoxExpiryReminderCenter()
     static let reminderHours: TimeInterval = 8 * 60 * 60
     private static let enabledKey = "ManzanaSideStoreExpiryRemindersEnabled"
     private static let notificationPrefix = "manzana.expiry."
@@ -233,3 +233,6 @@ final class ManzanaExpiryReminderCenter: ObservableObject {
         }
     }
 }
+
+// Existing WidgetKit/host source references may use the previous symbol.
+typealias ManzanaExpiryReminderCenter = BloomBoxExpiryReminderCenter

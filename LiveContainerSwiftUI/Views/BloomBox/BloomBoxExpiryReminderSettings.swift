@@ -1,7 +1,7 @@
 import SwiftUI
 
 @available(iOS 16.2, *)
-struct ManzanaExpiryReminderSettings: View {
+struct BloomBoxExpiryReminderSettings: View {
     @ObservedObject private var center = ManzanaExpiryReminderCenter.shared
 
     var body: some View {
@@ -77,3 +77,6 @@ struct ManzanaExpiryReminderSettings: View {
         .task { await center.synchronize() }
     }
 }
+
+// Existing WidgetKit/host source references may use the previous symbol.
+typealias ManzanaExpiryReminderSettings = BloomBoxExpiryReminderSettings

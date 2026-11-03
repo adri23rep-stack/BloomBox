@@ -224,3 +224,9 @@ occurs until the macOS build and on-device tests pass.
 - The old in-app generated WAV filename Strata-Navigation.wav is replaced by BloomBox-Navigation.wav. No downloaded or third-party navigation sound was used.
 - Existing Swift names remain supported as typealiases while other LiveContainer host callers migrate. Serialized Home preferences, console layout JSON, guest data and app bundle IDs are not renamed.
 - Added CI guards for the new module boundaries and removed old file paths.
+
+## SideStore expiry reminder UI migration (phase 28)
+
+- Relocated the reminder center and settings UI to BloomBox-owned source files while keeping compatibility aliases for existing host/WidgetKit callers.
+- The ManzanaExpiryAttributes Live Activity schema, executable bundle name, existing notification identifiers and ManzanaSideStoreExpiryRemindersEnabled preference remain intentionally unchanged to avoid breaking reminders already scheduled on installed devices.
+- No changes were made to RAM+, SideStore signing, JIT or user's installed apps.
