@@ -36,7 +36,7 @@ with zipfile.ZipFile(ipa) as archive:
     from pathlib import Path
     source_root = Path("LiveContainerSwiftUI/Views")
     for item in ("Manzana/ManzanaDesktopView.swift", "BloomBox/BloomBoxAnimatedWallpaper.swift",
-                 "BloomBox/BloomBoxMotionMedia.swift",
+                 "BloomBox/BloomBoxMotionMedia.swift", "BloomBox/BloomBoxIconCustomization.swift",
                  "Manzana/ManzanaFilesView.swift"):
         if not (source_root / item).is_file():
             raise SystemExit("Wrong source branch: missing BloomBox UI file " + item)

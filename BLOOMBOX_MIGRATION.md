@@ -61,3 +61,9 @@ occurs until the macOS build and on-device tests pass.
 - Replaced the inherited animated wallpaper view with a BloomBox playback surface shared by Home, widgets and News.
 - Video loops are paused in background, muted and released on teardown. GIF frames decode off the main thread, with generation checks to reject stale loads.
 - Respect Reduce Motion, preserve transparency for widget GIFs, and avoid intercepting touches.
+
+## Native BloomBox icon styling (phase 7)
+
+- Replaced the old launcher icon styling and settings sheet with BloomBox-owned SwiftUI components.
+- Existing icon styles, tint hue, intensity, dark mode and size remain compatible through their saved preferences and theme files.
+- The full legacy iOS Home view is not yet replaced; this is another component extracted from it.

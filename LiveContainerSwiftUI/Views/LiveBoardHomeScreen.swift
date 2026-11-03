@@ -2601,7 +2601,7 @@ struct LiveBoardHomeScreen: View {
                     }
                 }
                 .frame(width: size, height: size)
-                .modifier(ManzanaIconTreatment())
+                .modifier(BloomBoxIconTreatment())
                 .clipShape(RoundedRectangle(cornerRadius: size * 0.23))
                 .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
                          phase: isSideStore ? 0.7 : 2.1))
@@ -2920,7 +2920,7 @@ struct LiveBoardHomeScreen: View {
                                 } else { Color.clear }
                             } else { Color.clear }
                         }.aspectRatio(1, contentMode: .fit)
-            .modifier(ManzanaIconTreatment()).clipShape(RoundedRectangle(cornerRadius: 4))
+            .modifier(BloomBoxIconTreatment()).clipShape(RoundedRectangle(cornerRadius: 4))
                     }
                 }
                 .padding(6).frame(width: size, height: size)
@@ -3133,11 +3133,11 @@ struct LiveBoardHomeScreen: View {
 
     @ViewBuilder private var iconCustomizationSheet: some View {
         if #available(iOS 16.4, *) {
-            ManzanaIconCustomization().padding(12)
+            BloomBoxIconCustomization().padding(12)
                 .presentationDetents([.height(420), .medium])
                 .presentationBackground(.clear)
                 .presentationDragIndicator(.visible)
-        } else { ManzanaIconCustomization().padding() }
+        } else { BloomBoxIconCustomization().padding() }
     }
     private var customizeSheet: some View {
         NavigationView {
@@ -3161,7 +3161,7 @@ struct LiveBoardHomeScreen: View {
                     if wallpaperStyle == "photo" || wallpaperStyle == "motion" { Toggle("Mostrar fondo completo", isOn: $wallpaperFit) }
                     VStack(alignment: .leading) { Text("Dim wallpaper"); Slider(value: $wallpaperDim, in: 0...0.7) }
                 }
-                Section("Iconos") { ManzanaIconCustomization() }
+                Section("Iconos") { BloomBoxIconCustomization() }
                 Section("Appearance") {
                     Toggle("Large icons", isOn: $largeIcons)
                     Toggle("Reduce motion", isOn: $customReduceMotion)
@@ -4510,7 +4510,7 @@ struct LiveBoardIconImage: View {
                 ZStack { Color(white: 0.2); Image(systemName: "app.dashed").resizable().scaledToFit().padding(14).foregroundColor(.white.opacity(0.6)) }
             }
         }.aspectRatio(1, contentMode: .fit)
-            .modifier(ManzanaIconTreatment())
+            .modifier(BloomBoxIconTreatment())
             .overlay(alignment: .bottomTrailing) {
                 if app.uiNetworkBlocked {
                     GeometryReader { geometry in
