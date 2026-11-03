@@ -6,6 +6,8 @@ VIEWS = ROOT / "LiveContainerSwiftUI" / "Views"
 RETIRED = [
     "LiveBoardHomeScreen.swift", "LiveBoard.swift",
     "LiveBoardConsoleScreen.swift", "LiveBoardConsoleLayout.swift",
+    "LiveBoardBuiltInJIT.swift", "LiveBoardJITSetup.swift",
+    "ManzanaOnDevicePairing.swift",
     "LiveBoardModeLibrary.swift",
     "Manzana/ManzanaDesktopView.swift", "Manzana/ManzanaAnimatedWallpaper.swift",
     "Manzana/ManzanaWallpaperMedia.swift",
@@ -15,6 +17,8 @@ RETIRED = [
 REQUIRED = [
     "BloomBox/BloomBoxHomeScreen.swift",
     "BloomBox/BloomBoxGameBoxScreen.swift",
+    "BloomBox/BloomBoxJITCoordinator.swift", "BloomBox/BloomBoxJITSetup.swift",
+    "BloomBox/BloomBoxOnDevicePairing.swift",
     "BloomBox/BloomBoxGameBoxLayout.swift",
     "BloomBox/BloomBoxGameBoxLibrary.swift",
     "BloomBox/BloomBoxLauncherRoot.swift",

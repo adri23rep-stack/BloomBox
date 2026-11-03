@@ -26,8 +26,8 @@ import UserNotifications
 /// remains, and the walkthrough says so. The PIN is also sent as a notification.
 ///
 /// Log category "jit-pairing": states only, never the PIN, device name or identifiers.
-@MainActor final class ManzanaOnDevicePairing: ObservableObject {
-    static let shared = ManzanaOnDevicePairing()
+@MainActor final class BloomBoxOnDevicePairing: ObservableObject {
+    static let shared = BloomBoxOnDevicePairing()
 
     /// Shown on the iPhone as "Pair with BloomBox"; the host identifier is derived from it.
     static let hostName = "BloomBox"
@@ -95,7 +95,7 @@ import UserNotifications
         beginBackground()
         deadline = Timer.scheduledTimer(withTimeInterval: Self.timeout, repeats: false) { _ in
             MainActor.assumeIsolated {
-                ManzanaOnDevicePairing.shared.cancel(reason: "Pairing timed out. Try again when you are ready to pair from Settings.")
+                BloomBoxOnDevicePairing.shared.cancel(reason: "Pairing timed out. Try again when you are ready to pair from Settings.")
             }
         }
 
@@ -107,14 +107,14 @@ import UserNotifications
             let status = husk_rppairing_accept(session, { pin, _ in
                 guard let pin else { return }
                 let code = String(cString: pin)
-                DispatchQueue.main.async { ManzanaOnDevicePairing.shared.showPin(code) }
+                DispatchQueue.main.async { BloomBoxOnDevicePairing.shared.showPin(code) }
             }, nil, &bytes, &length, &device, &failure)
             let data = bytes.map { Data(bytes: $0, count: length) }
             husk_rppairing_bytes_free(bytes, length)
             let name = Self.take(device)
             let message = Self.take(failure)
             DispatchQueue.main.async {
-                ManzanaOnDevicePairing.shared.finished(status: status, data: data, device: name, message: message)
+                BloomBoxOnDevicePairing.shared.finished(status: status, data: data, device: name, message: message)
             }
         }
     }
@@ -207,7 +207,7 @@ import UserNotifications
             husk_rppairing_port(session).bigEndian, TXTRecordGetLength(&txt), TXTRecordGetBytesPtr(&txt),
             { _, _, error, _, _, _, _ in
                 guard error != DNSServiceErrorType(kDNSServiceErr_NoError) else { return }
-                DispatchQueue.main.async { ManzanaOnDevicePairing.shared.advertisingFailed(error) }
+                DispatchQueue.main.async { BloomBoxOnDevicePairing.shared.advertisingFailed(error) }
             }, nil)
         guard error == DNSServiceErrorType(kDNSServiceErr_NoError), let ref else {
             advertisingFailed(error)
@@ -243,7 +243,7 @@ import UserNotifications
     private func beginBackground() {
         grace = UIApplication.shared.beginBackgroundTask(withName: "BloomBox pairing") {
             MainActor.assumeIsolated {
-                let pairing = ManzanaOnDevicePairing.shared
+                let pairing = BloomBoxOnDevicePairing.shared
                 if pairing.continued == nil && pairing.active {
                     pairing.cancel(reason: "iOS stopped BloomBox in the background before pairing finished. "
                                          + "Try again, and pair from Settings straight away.")
@@ -260,7 +260,7 @@ import UserNotifications
         if registered != identifier {
             let ok = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: .main) { task in
                 guard let task = task as? BGContinuedProcessingTask else { task.setTaskCompleted(success: false); return }
-                MainActor.assumeIsolated { ManzanaOnDevicePairing.shared.attach(task) }
+                MainActor.assumeIsolated { BloomBoxOnDevicePairing.shared.attach(task) }
             }
             guard ok else { log("register refused"); backgroundLimited = true; return }
             registered = identifier
@@ -288,8 +288,8 @@ import UserNotifications
         }
         task.expirationHandler = {
             DispatchQueue.main.async {
-                ManzanaOnDevicePairing.shared.continued = nil
-                ManzanaOnDevicePairing.shared.cancel(reason: "iOS stopped the pairing in the background. Try again.")
+                BloomBoxOnDevicePairing.shared.continued = nil
+                BloomBoxOnDevicePairing.shared.cancel(reason: "iOS stopped the pairing in the background. Try again.")
             }
         }
         log("continued-processing running")
@@ -325,3 +325,6 @@ import UserNotifications
                                                                      content: content, trigger: nil))
     }
 }
+
+// Source alias for host modules; pairing/JIT credentials keep their old saved IDs.
+typealias ManzanaOnDevicePairing = BloomBoxOnDevicePairing

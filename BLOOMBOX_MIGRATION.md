@@ -210,3 +210,10 @@ occurs until the macOS build and on-device tests pass.
 - Historical StrataConsoleLayouts, LiveBoardModeLibraries and cinematic mode ID settings remain unchanged; deleting them would erase user-adjusted BigPicture layouts/categories.
 - CI now compiles the GameBox layout compatibility tests directly, validates old saved categories and checks that the old GameBox source paths stay retired.
 - File relocation does not prove clean-room authorship or waive existing upstream notices.
+
+## BloomBox JIT and local pairing module identity (phase 26)
+
+- Relocated the in-app JIT coordinator, setup screen and on-device pairing UI to Views/BloomBox and updated the implementation type names, keeping existing Swift aliases so guest launch callers continue to work.
+- Older persisted pairing records, original StrataJIT/jit-history.json fallback, JIT status and user-selected scripts are deliberately preserved to avoid invalidating existing device pairing or losing logs. This is data migration, not active Strata code execution.
+- The Objective-C extension and Swift worker remain paired to BloomBoxJITRequestHandler and bloomBoxJIT.
+- A CI source-boundary test verifies old files are gone and compatibility paths remain.

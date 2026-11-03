@@ -1,7 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct LiveBoardJITSetup: View {
+struct BloomBoxJITSetup: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("LCJITEnablerType", store: LCUtils.appGroupUserDefault) private var provider = JITEnablerType.SideJITServer.rawValue
     @ObservedObject private var session = LiveBoardJITSession.shared
@@ -164,3 +164,6 @@ struct LiveBoardJITSetup: View {
 
     private func perform(_ operation: String) { session.start(operation) }
 }
+
+// Source alias for host modules; pairing/JIT credentials keep their old saved IDs.
+typealias LiveBoardJITSetup = BloomBoxJITSetup

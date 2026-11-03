@@ -162,6 +162,21 @@ jobs:
           assert "struct LiveBoardMoveDropDelegate: DropDelegate" not in home
           print("BloomBox launcher visual surfaces loaded from one module")
           PY
+      - name: Verify independent BloomBox JIT coordinator and pairing source
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path("LiveContainerSwiftUI/Views")
+          for legacy,modern,old,new in (
+              ("LiveBoardBuiltInJIT.swift","BloomBox/BloomBoxJITCoordinator.swift","LiveBoardBuiltInJIT","BloomBoxBuiltInJIT"),
+              ("LiveBoardJITSetup.swift","BloomBox/BloomBoxJITSetup.swift","LiveBoardJITSetup","BloomBoxJITSetup"),
+              ("ManzanaOnDevicePairing.swift","BloomBox/BloomBoxOnDevicePairing.swift","ManzanaOnDevicePairing","BloomBoxOnDevicePairing")):
+              assert not (root/legacy).exists(), legacy
+              code=(root/modern).read_text()
+              assert new in code and ("typealias "+old+" = "+new) in code, modern
+          assert "StrataJIT/jit-history.json" in (root/"BloomBox/BloomBoxJITCoordinator.swift").read_text()
+          print("BloomBox JIT and pairing components migrated with saved JIT history support")
+          PY
       - name: Check isolated BloomBox Modules and JIT UI
         run: |
           python3 - <<'PY'

@@ -3,7 +3,7 @@ import Combine
 import SwiftUI
 
 @MainActor
-enum LiveBoardBuiltInJIT {
+enum BloomBoxBuiltInJIT {
     private static var busy = false
     static var pairingURL: URL {
         BloomBoxJITPairingStorage().pairingURL
@@ -154,7 +154,7 @@ enum LiveBoardBuiltInJIT {
             appName: operation == "prepare" ? "Preparar dispositivo" : "Reiniciar caché DDI",
             provider: "Built-in JIT", showNotification: false)
         task = Task {
-            success = await LiveBoardBuiltInJIT.enable(script: nil, operation: operation) { [weak self] line in
+            success = await BloomBoxBuiltInJIT.enable(script: nil, operation: operation) { [weak self] line in
                 self?.message = line
                 BloomBoxJITLogStore.shared.append(line, to: record)
             }
@@ -664,3 +664,6 @@ struct BloomBoxJITLogDetailView: View {
         }
     }
 }
+
+// Source alias for host modules; pairing/JIT credentials keep their old saved IDs.
+typealias LiveBoardBuiltInJIT = BloomBoxBuiltInJIT

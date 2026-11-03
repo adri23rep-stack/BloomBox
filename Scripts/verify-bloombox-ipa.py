@@ -41,6 +41,8 @@ with zipfile.ZipFile(ipa) as archive:
                  "BloomBox/BloomBoxFilesView.swift", "BloomBox/BloomBoxFileStore.swift",
                  "BloomBox/BloomBoxHomeChrome.swift", "BloomBox/BloomBoxHomeScreen.swift",
                  "BloomBox/BloomBoxGameBoxScreen.swift", "BloomBox/BloomBoxGameBoxLayout.swift",
+                 "BloomBox/BloomBoxJITCoordinator.swift", "BloomBox/BloomBoxJITSetup.swift",
+                 "BloomBox/BloomBoxOnDevicePairing.swift",
                  "BloomBox/BloomBoxGameBoxLibrary.swift",
                  "BloomBox/BloomBoxLauncherRoot.swift"):
         if not (source_root / item).is_file():
