@@ -1,7 +1,7 @@
 import Foundation
 
 // The new BloomBox layout engine must handle older serialized layouts.
-var model = LiveBoardHomeLayout()
+var model = BloomBoxHomeLayout()
 model.initialized = true
 model.pages = [
     ["A", "A", "Missing"] + Array(repeating: nil, count: 21),
@@ -17,10 +17,10 @@ assert(model.folders.first?.apps == ["B", "C"])
 assert(model.pages.flatMap { $0.compactMap { $0 } }.contains("folder:test"))
 assert(!model.pages.flatMap { $0.compactMap { $0 } }.contains("Missing"))
 assert(model.encoded.contains("\"initialized\":true"))
-assert(LiveBoardHomeLayout.decode(model.encoded) == model)
+assert(BloomBoxHomeLayout.decode(model.encoded) == model)
 
 // A new folder should replace the app in the original cell, not jump to page 1.
-var positions = LiveBoardHomeLayout()
+var positions = BloomBoxHomeLayout()
 positions.initialized = true
 positions.pages = [
     ["A"] + Array(repeating: nil, count: 23),
@@ -35,6 +35,6 @@ assert(positions.pages[1][0] == "B")
 assert(positions.folders.isEmpty)
 
 // A corrupt or future-incompatible layout must fall back safely.
-assert(LiveBoardHomeLayout.decode("not JSON").pages.count == 1)
-assert(LiveBoardHomeLayout.decode("").dock.isEmpty)
+assert(BloomBoxHomeLayout.decode("not JSON").pages.count == 1)
+assert(BloomBoxHomeLayout.decode("").dock.isEmpty)
 print("BloomBox native Home layout: migration, de-duplication, folder position and recovery passed.")

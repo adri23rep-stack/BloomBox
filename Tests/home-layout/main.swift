@@ -117,3 +117,21 @@ themeShortcutTest.reconcile(["manzana:themes", "A", "B"], favorites: [])
 assertTrue(themeShortcutTest.folders.first!.apps.contains("manzana:themes"),
            "Themes folder position survives reconciliation")
 print("Themes placeholder placement and persistence checks passed")
+
+
+// When visible Home is full, new installations must share a newly created
+// page instead of ballooning the page count with one page per guest.
+var batch = BloomBoxHomeLayout()
+batch.initialized = true
+batch.pages = [
+    (0..<24).map { Optional("older-\($0)") },
+    ["Private"] + Array(repeating: nil, count: 23)
+]
+let lastBatchPage = batch.revealNewApps(["New1", "New2", "New3"],
+                                       visiblePages: [0], preferredPage: 0)
+assertTrue(lastBatchPage == 2, "New installs should target new visible page")
+assertTrue(batch.pages.count == 3, "Three installs should share one new page")
+assertTrue(Array(batch.pages[2].prefix(3)) == ["New1", "New2", "New3"],
+           "Maintain new install ordering together")
+assertTrue(batch.pages[1][0] == "Private", "Do not move hidden page icons")
+print("BloomBox batch app placement preserves pages and hidden content")

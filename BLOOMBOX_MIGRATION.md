@@ -139,3 +139,10 @@ occurs until the macOS build and on-device tests pass.
 - Extracted the reusable BloomBox Alive intro, Living Widgets motion, widget drag handles, photo/GIF picker presentation and theme export helper from the main Home View.
 - Existing gesture thresholds, haptic hooks, saved theme data, iOS lifecycle behavior, and accessible controls remain unchanged.
 - This isolates the last reusable high-frequency widget animations for subsequent rewrite and profiling.
+
+## BloomBox Home layout identity and batch installation (phase 16)
+
+- Renamed the core iOS Home layout module to BloomBoxHomeLayout under Views/BloomBox, preserving the previous LiveBoardHomeLayout alias during transition.
+- Existing app key strings, folder identifiers, Codable fields, page data and Dock ordering remain unchanged.
+- Fixed repeated creation of a new page for every installed app when visible Home pages are full: new icons now share the new page until it fills.
+- Regression tests verify folder migration, page retention and multiple new installations from full visible pages.

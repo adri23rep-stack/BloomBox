@@ -141,9 +141,9 @@ jobs:
           "$RUNNER_TEMP/bloombox-home-navigation-tests"
       - name: Test BloomBox native Home layout and legacy data
         run: |
-          swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-layout/main.swift -o "$RUNNER_TEMP/bloombox-home-layout-tests"
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeLayout.swift Tests/home-layout/main.swift -o "$RUNNER_TEMP/bloombox-home-layout-tests"
           "$RUNNER_TEMP/bloombox-home-layout-tests"
-          swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-native-layout/main.swift -o "$RUNNER_TEMP/bloombox-home-native-tests"
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeLayout.swift Tests/home-native-layout/main.swift -o "$RUNNER_TEMP/bloombox-home-native-tests"
           "$RUNNER_TEMP/bloombox-home-native-tests"
       - name: Test BloomBox animated media imports and legacy wallpapers
         run: |
@@ -155,7 +155,7 @@ jobs:
           "$RUNNER_TEMP/bloombox-app-appearance-tests"
       - name: Test built-in app folder moves and persistence
         run: |
-          swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-builtins-folders/main.swift -o "$RUNNER_TEMP/home-folder-tests"
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeLayout.swift Tests/home-builtins-folders/main.swift -o "$RUNNER_TEMP/home-folder-tests"
           "$RUNNER_TEMP/home-folder-tests"
       - name: Test RAM+ Apple request planning
         run: |

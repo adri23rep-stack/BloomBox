@@ -3,7 +3,7 @@ import Foundation
 /// BloomBox's home screen organization engine.
 /// The Codable field names and permanent built-in IDs intentionally match old saves.
 /// This is presentation state only: no guest containers or executable paths are touched.
-struct LiveBoardHomeLayout: Codable, Equatable {
+struct BloomBoxHomeLayout: Codable, Equatable {
     struct Folder: Codable, Identifiable, Equatable {
         var id: String
         var name: String
@@ -192,6 +192,9 @@ struct LiveBoardHomeLayout: Codable, Equatable {
             guard !hidden.contains(key), !dock.contains(key),
                   !folders.contains(where: { $0.apps.contains(key) }) else { continue }
             let destination = candidates.first { pages[$0].contains(nil) } ?? pages.count
+            // Reuse the freshly-created visible page for the rest of a batch.
+            // Otherwise every new app gets its own Home page when older pages fill.
+            if destination == pages.count { candidates.append(destination) }
             place(key, on: destination)
             lastPage = destination
         }
@@ -299,3 +302,7 @@ enum BloomBoxWidgetPageLayout {
 
 // Compatibility for historical Swift references. Serialized widget data is unchanged.
 typealias ManzanaPageWidgetLayout = BloomBoxWidgetPageLayout
+
+// Compatibility with other modules and stored settings during the UI migration.
+// Serialized JSON keys and nested Folder members stay unchanged.
+typealias LiveBoardHomeLayout = BloomBoxHomeLayout
