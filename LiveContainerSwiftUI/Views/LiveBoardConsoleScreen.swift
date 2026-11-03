@@ -168,25 +168,49 @@ struct LiveBoardConsoleScreen: View {
                     }
                 }
                 if landscape, let app = selected {
-                    let scale = min(CGFloat(consoleLayout.launchScale), geometry.size.width / 240, geometry.size.height / 54)
-                    let width = 240 * scale
-                    let height = 54 * scale
-                    let travelX = max(1, geometry.size.width - width)
-                    let travelY = max(1, geometry.size.height - height)
-                    launchControls(app)
-                        .frame(width: 240, height: 54)
-                        .scaleEffect(scale)
-                        .frame(width: width, height: height)
-                        .contentShape(Rectangle())
-                        .highPriorityGesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("console.canvas"))
-                            .onChanged { value in
-                                if dragOrigin == nil { dragOrigin = CGPoint(x: consoleLayout.launchX, y: consoleLayout.launchY) }
-                                if let origin = dragOrigin { updateConsoleLayout { $0.launchX = origin.x + value.translation.width / travelX; $0.launchY = origin.y + value.translation.height / travelY } }
-                            }.onEnded { _ in dragOrigin = nil }, including: movingLaunchButton ? .all : .none)
-                        .position(x: width / 2 + travelX * consoleLayout.launchX, y: height / 2 + travelY * consoleLayout.launchY)
+                    if mode == "cinematic" {
+                        // GameBox's launch action has a fixed lower-right home.
+                        // Never float over the title, regardless of stored layouts.
+                        Button { activate(app) } label: {
+                            Group {
+                                if launching { ProgressView().tint(.white) }
+                                else { Image(systemName: "chevron.right").font(.system(size: 32, weight: .bold)) }
+                            }
+                            .frame(width: 78, height: 78)
+                            .liveBoardGlass(radius: 39)
+                            .overlay(Circle().strokeBorder(
+                                navigation.focus == .launch ? .white : .white.opacity(0.30),
+                                lineWidth: navigation.focus == .launch ? 2 : 1))
+                            .shadow(color: .black.opacity(0.25), radius: 14, y: 7)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(launching || app.isAppRunning || app.isSigningInProgress)
+                        .accessibilityLabel("Iniciar " + appCustomization.name(app))
+                        .accessibilityIdentifier("console.launch")
+                        .position(x: max(42, geometry.size.width - 68),
+                                  y: max(42, geometry.size.height - 66))
                         .allowsHitTesting(!details)
-                    if movingLaunchButton {
-                        VStack { HStack { Spacer(); Button { movingLaunchButton = false; bindController() } label: { Image(systemName: "checkmark").font(.system(size: 17, weight: .semibold)).frame(width: 44, height: 44) }.buttonStyle(.plain).liveBoardGlass(radius: 22).accessibilityLabel("Done moving").accessibilityIdentifier("console.layout.done").padding(8) }; Spacer() }
+                    } else {
+                        let scale = min(CGFloat(consoleLayout.launchScale), geometry.size.width / 240, geometry.size.height / 54)
+                        let width = 240 * scale
+                        let height = 54 * scale
+                        let travelX = max(1, geometry.size.width - width)
+                        let travelY = max(1, geometry.size.height - height)
+                        launchControls(app)
+                            .frame(width: 240, height: 54)
+                            .scaleEffect(scale)
+                            .frame(width: width, height: height)
+                            .contentShape(Rectangle())
+                            .highPriorityGesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("console.canvas"))
+                                .onChanged { value in
+                                    if dragOrigin == nil { dragOrigin = CGPoint(x: consoleLayout.launchX, y: consoleLayout.launchY) }
+                                    if let origin = dragOrigin { updateConsoleLayout { $0.launchX = origin.x + value.translation.width / travelX; $0.launchY = origin.y + value.translation.height / travelY } }
+                                }.onEnded { _ in dragOrigin = nil }, including: movingLaunchButton ? .all : .none)
+                            .position(x: width / 2 + travelX * consoleLayout.launchX, y: height / 2 + travelY * consoleLayout.launchY)
+                            .allowsHitTesting(!details)
+                        if movingLaunchButton {
+                            VStack { HStack { Spacer(); Button { movingLaunchButton = false; bindController() } label: { Image(systemName: "checkmark").font(.system(size: 17, weight: .semibold)).frame(width: 44, height: 44) }.buttonStyle(.plain).liveBoardGlass(radius: 22).accessibilityLabel("Done moving").accessibilityIdentifier("console.layout.done").padding(8) }; Spacer() }
+                        }
                     }
                 }
                 if details, let app = selected { detailsOverlay(app, height: geometry.size.height) }
@@ -741,17 +765,24 @@ struct LiveBoardConsoleScreen: View {
                         .accessibilityIdentifier("console.layout.scale")
                     Text("\(Int(consoleLayout.iconScale * 100))% · Size is limited to the available screen height.").font(.footnote)
                 }
-                Section("Play button size") {
-                    Slider(value: Binding(get: { consoleLayout.launchScale }, set: { value in updateConsoleLayout { $0.launchScale = value } }), in: 0.75...2)
-                        .accessibilityIdentifier("console.layout.buttonScale")
-                    Text("\(Int(consoleLayout.launchScale * 100))%").font(.footnote)
-                }
-                Section("Launch button position") {
-                    Text("Horizontal")
-                    Slider(value: Binding(get: { consoleLayout.launchX }, set: { value in updateConsoleLayout { $0.launchX = value } }), in: 0...1)
-                    Text("Vertical")
-                    Slider(value: Binding(get: { consoleLayout.launchY }, set: { value in updateConsoleLayout { $0.launchY = value } }), in: 0...1)
-                    Button("Drag button on screen") { layoutSettings = false; movingLaunchButton = true }
+                if mode != "cinematic" {
+                    Section("Play button size") {
+                        Slider(value: Binding(get: { consoleLayout.launchScale }, set: { value in updateConsoleLayout { $0.launchScale = value } }), in: 0.75...2)
+                            .accessibilityIdentifier("console.layout.buttonScale")
+                        Text("\(Int(consoleLayout.launchScale * 100))%").font(.footnote)
+                    }
+                    Section("Launch button position") {
+                        Text("Horizontal")
+                        Slider(value: Binding(get: { consoleLayout.launchX }, set: { value in updateConsoleLayout { $0.launchX = value } }), in: 0...1)
+                        Text("Vertical")
+                        Slider(value: Binding(get: { consoleLayout.launchY }, set: { value in updateConsoleLayout { $0.launchY = value } }), in: 0...1)
+                        Button("Drag button on screen") { layoutSettings = false; movingLaunchButton = true }
+                    }
+                } else {
+                    Section {
+                        Text("El botón de inicio de GameBox permanece abajo a la derecha y nunca cubre el nombre del juego.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
                 }
                 Section {
                     Button("Reset this mode’s layout") { savedConsoleLayouts = LiveBoardConsoleLayout.save(LiveBoardConsoleLayout(), mode: mode, in: savedConsoleLayouts) }
@@ -759,7 +790,12 @@ struct LiveBoardConsoleScreen: View {
                 }
             }.navigationTitle("Customize layout")
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Move button") { layoutSettings = false; movingLaunchButton = true }.accessibilityIdentifier("console.layout.drag") }
+                    ToolbarItem(placement: .cancellationAction) {
+                        if mode != "cinematic" {
+                            Button("Move button") { layoutSettings = false; movingLaunchButton = true }
+                                .accessibilityIdentifier("console.layout.drag")
+                        }
+                    }
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { layoutSettings = false } }
                 }
         }.navigationViewStyle(.stack)
