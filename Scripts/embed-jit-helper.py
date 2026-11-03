@@ -13,11 +13,11 @@ p = target / 'Info.plist'
 info = plistlib.loads(p.read_bytes())
 main = plistlib.loads((app / 'Info.plist').read_bytes())
 info['CFBundleIdentifier'] = main['CFBundleIdentifier'] + '.JITHelper'
-info['CFBundleDisplayName'] = 'Strata JIT Helper'
+info['CFBundleDisplayName'] = 'BloomBox JIT Helper'
 info['NSLocalNetworkUsageDescription'] = 'Connect to your local development tunnel to enable JIT.'
 info['NSExtension'] = {
     'NSExtensionPointIdentifier': 'com.apple.ar.viewer',
-    'NSExtensionPrincipalClass': 'StrataJITRequestHandler',
+    'NSExtensionPrincipalClass': 'BloomBoxJITRequestHandler',
     'NSExtensionAttributes': {'NSExtensionActivationRule': 'FALSEPREDICATE'},
     'NSExtensionContextClass': 'NSExtensionContext',
     'NSExtensionContextHostClass': 'NSExtensionContext',
@@ -30,4 +30,4 @@ runtime_source = Path(__file__).resolve().parents[1] / 'Resources/BundledRuntime
 runtime_target = app / 'BundledRuntime'
 if runtime_target.exists(): shutil.rmtree(runtime_target)
 shutil.copytree(runtime_source, runtime_target)
-print('Assembled headless Strata JIT helper and bundled LiveExec32 runtime.')
+print('Assembled headless BloomBox JIT helper and bundled LiveExec32 runtime.')
