@@ -82,15 +82,15 @@ try fm.createDirectory(at: newRoot, withIntermediateDirectories: true)
 check(BloomBoxFileStore.preferredRoot(in: docs) == newRoot)
 
 // A file may not escape by using an alias to a directory outside the vault.
-let internal = store.root.appendingPathComponent("inner", isDirectory: true)
+let insideFolder = store.root.appendingPathComponent("inner", isDirectory: true)
 try store.createFolder("inner", in: store.root)
-let escaped = internal.appendingPathComponent("escape")
+let escaped = insideFolder.appendingPathComponent("escape")
 try fm.createSymbolicLink(at: escaped, withDestinationURL: temporary)
 rejects { try store.copy(duplicate, into: escaped) }
 rejects { try store.importFile(source, into: escaped) }
 let symlinkFile = store.root.appendingPathComponent("shortcut.txt")
 try fm.createSymbolicLink(at: symlinkFile, withDestinationURL: source)
-rejects { try store.copy(symlinkFile, into: internal) }
+rejects { try store.copy(symlinkFile, into: insideFolder) }
 check(try !store.contents(store.root).contains { $0.lastPathComponent == "shortcut.txt" })
 for invalid in [".", "..", "bad\nname", String(repeating: "x", count: 256)] {
     rejects { try store.createFolder(invalid, in: store.root) }
