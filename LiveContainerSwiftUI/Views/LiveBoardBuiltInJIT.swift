@@ -392,7 +392,8 @@ struct BloomBoxJITFloatingView: View {
                 Image(systemName: symbol)
                     .font(.system(size: 21, weight: .semibold))
                     .foregroundStyle(tint)
-                    .contentTransition(.symbolEffect(.replace))
+                    .id(symbol)
+                    .transition(.opacity.combined(with: .scale(scale: 0.88)))
                 if history.phase == .working {
                     ProgressView()
                         .tint(tint)
@@ -418,13 +419,14 @@ struct BloomBoxJITFloatingView: View {
                 Image(systemName: symbol)
                     .font(.system(size: 21, weight: .semibold))
                     .foregroundStyle(tint)
-                    .contentTransition(.symbolEffect(.replace))
+                    .id(symbol)
+                    .transition(.opacity.combined(with: .scale(scale: 0.88)))
             }
             .frame(width: 43, height: 43)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(label)
-                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
