@@ -676,7 +676,6 @@ struct LiveBoardConsoleScreen: View {
         }
         .padding(20)
         .frame(width: 310)
-        .presentationCompactAdaptation(.sheet)
     }
 
     private var gameBoxUtilitiesSheet: some View {
