@@ -420,8 +420,10 @@ struct BloomBoxJITLogDetailView: View {
                         .font(.system(size: 12, design: .monospaced))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    ShareLink(item: record.exportText) {
-                        Label("Compartir registro", systemImage: "square.and.arrow.up")
+                    Button {
+                        UIPasteboard.general.string = record.exportText
+                    } label: {
+                        Label("Copiar registro", systemImage: "doc.on.doc")
                     }
                 }.padding(16)
             }
@@ -429,14 +431,13 @@ struct BloomBoxJITLogDetailView: View {
         .navigationTitle("Registro completo")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if let record {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        UIPasteboard.general.string = record.exportText
-                    } label: {
-                        Label("Copiar", systemImage: "doc.on.doc")
-                    }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    if let record { UIPasteboard.general.string = record.exportText }
+                } label: {
+                    Label("Copiar", systemImage: "doc.on.doc")
                 }
+                .disabled(record == nil)
             }
         }
     }
