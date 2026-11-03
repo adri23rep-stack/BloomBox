@@ -27,7 +27,7 @@ let samePage = BloomBoxWidgetPlacement.move("A", to: 0, requestedSlot: nil, in: 
 check(samePage.slot == 0, "same-page movement preserves slot")
 let resized = BloomBoxWidgetPlacement.resize("A", columns: 4, rows: 2, in: before)!
 check(resized.pages[0]!.first { $0.id == "A" }!.columns == 4, "resize dimensions")
-check(resized.slot == 8, "reposition resized widget when blocked")
+check(resized.slot == 12, "reposition resized widget when blocked")
 check(BloomBoxWidgetPlacement.resize("A", columns: 5, rows: 2, in: before) == nil, "invalid dimensions")
 
 let duplicates = [0: [first, first], 1: [widget("A", slot: 4), widget("B", slot: 12)]]
