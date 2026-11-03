@@ -3506,7 +3506,7 @@ private struct BloomBoxModulesIcon: View {
     }
 }
 
-private struct BloomBoxModulesPanel: View {
+struct BloomBoxModulesPanel: View {
     @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
     private var preferredLanguage = "system"
     @AppStorage("BloomBoxRAMPlusExperimentalControls", store: LCUtils.appGroupUserDefault)
@@ -4554,7 +4554,7 @@ private struct LiveBoardRibbonWallpaper: View {
 
 /// Photos' provider URL is temporary: copy the original GIF/video
 /// into BloomBox storage before the callback returns.
-private struct BloomBoxMotionWallpaperPhotosPicker: UIViewControllerRepresentable {
+struct BloomBoxMotionWallpaperPhotosPicker: UIViewControllerRepresentable {
     let completion: (Result<String, Error>?) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(completion) }
