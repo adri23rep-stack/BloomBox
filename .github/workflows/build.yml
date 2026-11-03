@@ -135,7 +135,20 @@ jobs:
           scheme: ${{ steps.scheme.outputs.scheme }}
           filetype_parameter: ${{ steps.filetype_parameter.outputs.filetype_parameter }}
           file_to_build: ${{ steps.file_to_build.outputs.file_to_build }}
-        run: xcodebuild archive -archivePath "$archive_path" -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -sdk iphoneos -arch arm64 -configuration Release | xcpretty && exit ${PIPESTATUS[0]}
+        run: |
+          # Capture all compiler diagnostics: xcpretty used to hide the useful
+          # Swift error when the archive step failed.
+          archive_log="$RUNNER_TEMP/bloombox-archive.log"
+          if xcodebuild archive -archivePath "$archive_path" -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -sdk iphoneos -arch arm64 -configuration Release > "$archive_log" 2>&1; then
+            echo "Archive succeeded"
+            tail -n 15 "$archive_log"
+          else
+            echo "::error::BloomBox archive failed; diagnostic lines follow."
+            grep -nE 'error:|fatal error|BUILD FAILED|CompileSwift|SwiftCompile|Undefined symbols|Killed:|signal 9' "$archive_log" | tail -n 75 || true
+            echo "--- Last 140 lines of complete xcodebuild output ---"
+            tail -n 140 "$archive_log"
+            exit 1
+          fi
       - name: Tar Build Artifact
         run: tar -cvf "$archive_path.xcarchive.tar" "$archive_path.xcarchive"
       - name: Upload a Build Artifact
