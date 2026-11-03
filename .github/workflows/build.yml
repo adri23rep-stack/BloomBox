@@ -76,6 +76,18 @@ jobs:
           swiftc ShareExtension/BloomBoxJITScriptSafety.swift LiveContainerSwiftUI/Utilities/BloomBoxMeloNXProfile.swift Tests/jit-script-tests/main.swift -o "$RUNNER_TEMP/jit-script-tests"
           "$RUNNER_TEMP/jit-script-tests"
           "$RUNNER_TEMP/jit-script-tests" melonx
+      - name: Check BloomBox JIT helper entry point
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          worker = Path("ShareExtension/BloomBoxJITWorker.swift").read_text()
+          packager = Path("Scripts/embed-jit-helper.py").read_text()
+          assert "@objc(BloomBoxJITRequestHandler)" in worker
+          assert "'NSExtensionPrincipalClass': 'BloomBoxJITRequestHandler'" in packager
+          assert "'CFBundleDisplayName'] = 'BloomBox JIT Helper'" in packager
+          assert "StrataJITRequestHandler" not in packager
+          print("PASS: packaged JIT extension points at BloomBox's worker")
+          PY
       - name: Test BloomBox remote pairing validation and migration
         run: |
           swiftc LiveContainerSwiftUI/Views/BloomBoxRemotePairingRecord.swift Tests/jit-tests/main.swift -o "$RUNNER_TEMP/bloombox-pairing-tests"
