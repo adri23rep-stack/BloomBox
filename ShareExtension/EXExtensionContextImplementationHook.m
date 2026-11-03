@@ -13,8 +13,8 @@ static void (*orig__willPerformHostCallback)(id self, SEL _cmd, id callback);
 static void hook__willPerformHostCallback(NSExtensionContext* self, SEL _cmd, id callback) {
     NSExtensionItem *item = self.inputItems.firstObject;
     NSDictionary *launchOptions = item.userInfo;
-    if ([launchOptions[@"strataJIT"] boolValue]) {
-        Class worker = NSClassFromString(@"StrataJITRequestHandler");
+    if ([launchOptions[@"bloomBoxJIT"] boolValue]) {
+        Class worker = NSClassFromString(@"BloomBoxJITRequestHandler");
         if ([worker respondsToSelector:NSSelectorFromString(@"begin:")]) {
             [worker performSelector:NSSelectorFromString(@"begin:") withObject:self];
         }
@@ -32,7 +32,10 @@ static void hook__willPerformHostCallback(NSExtensionContext* self, SEL _cmd, id
 __attribute__((constructor))
 static void ExtensionHookInit(void) {
     Class class = objc_lookUpClass("EXExtensionContextImplementation");
+    if (!class) return;
     Method method = class_getInstanceMethod(class, NSSelectorFromString(@"_willPerformHostCallback:"));
+    if (!method) return;
     orig__willPerformHostCallback = (void *)method_getImplementation(method);
+    if (!orig__willPerformHostCallback) return;
     method_setImplementation(method, (IMP)hook__willPerformHostCallback);
 }
