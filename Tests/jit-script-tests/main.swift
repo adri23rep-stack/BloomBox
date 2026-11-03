@@ -167,3 +167,16 @@ print("PASS: real universal script handles qualified threads and missing registe
 let detail = run("detail")
 precondition(detail.0?.contains("no such process") == true && detail.1.count == 1)
 print("Detailed debugger rejection: PASS")
+
+precondition(BloomBoxJITProgressMarker.attached("Debugger attach reply: T11thread:abc;"),
+             "A successful debugger stop reply means attached, not JIT completed.")
+precondition(!BloomBoxJITProgressMarker.attached("Debugger attach reply: E96"))
+precondition(!BloomBoxJITProgressMarker.attached("JIT request completed."))
+precondition(BloomBoxJITProgressMarker.awaitingGuest("Handling signal 1"))
+precondition(BloomBoxJITProgressMarker.awaitingGuest("Handling signal 12"))
+precondition(!BloomBoxJITProgressMarker.awaitingGuest("Handling signal abc"))
+precondition(!BloomBoxJITProgressMarker.awaitingGuest("Debugger attach reply: T11"))
+precondition(BloomBoxJITProgressMarker.didTimeOut("JIT timed out. Check LocalDevVPN."))
+precondition(BloomBoxJITProgressMarker.didTimeOut("Debugger attached, but the guest did not finish the JIT protocol."))
+precondition(!BloomBoxJITProgressMarker.didTimeOut("JIT script completed and detached."))
+print("PASS: attached/awaiting/timeout markers cannot be mistaken for confirmed JIT success.")

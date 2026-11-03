@@ -65,6 +65,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     @State private var jitLog = ""
     @State private var jitContinueInGuest = false
     @StateObject private var jitAlert = YesNoHelper()
+    @AppStorage("BloomBoxJITUseLegacyLaunchUI", store: LCUtils.appGroupUserDefault)
+    private var legacyJITUI = false
     @StateObject private var emulatorPrompt = AlertHelper<BloomBoxEmulatorPreflight.Decision>()
     @State private var emulatorPromptName = ""
     @State private var emulatorMissing = BloomBoxEmulatorPreflight.Missing.ramPlus
@@ -548,12 +550,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             Button("Sí, habilitar") {
                 if gameGateMissing == .ramPlus { emulatorRAMSetup = true }
                 else {
-                    // Choosing Yes also enables the app's JIT policy, but never
-                    // grants private-data access or alters signed entitlements.
-                    if !gamePendingAppKey.isEmpty {
-                        BloomBoxJITGuestPolicy.setMode(.enabled, for: gamePendingAppKey,
-                            defaults: LCUtils.appGroupUserDefault)
-                    }
+                    // Configure the debugger only. Never change the per-app
+                    // JIT switch as a side effect of entering Game Mode.
                     emulatorJITSetup = true
                 }
             }
@@ -565,7 +563,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             if gameGateMissing == .ramPlus {
                 Text("Modo Game necesita RAM+ activado y verificado en BloomBox y LiveProcess. ¿Quieres iniciar el proceso para habilitarlo? No se abrirá la app hasta confirmarlo.")
             } else {
-                Text("RAM+ está lista. Modo Game también necesita JIT configurado. ¿Quieres habilitarlo? Se activará al abrir el juego; sin configurarlo no se abrirá la app.")
+                Text("Esta app tiene JIT activado, pero falta configurarlo. ¿Abrir los ajustes de JIT? Las apps con JIT apagado pueden entrar a modo Game sin activarlo.")
             }
         }
         .sheet(isPresented: $emulatorRAMSetup, onDismiss: { if gamePendingEntry { evaluatePendingGame(offerPrompt: true) } }) {
@@ -587,6 +585,13 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
         .onChange(of: jitAlert.show) { newValue in
             sharedModel.isJITModalOpen = newValue
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if !legacyJITUI {
+                BloomBoxJITFloatingView()
+                    .padding(.trailing, 18)
+                    .padding(.bottom, 84)
+            }
         }
         .fullScreenCover(isPresented: $webViewOpened) {
             LCWebView(url: $webViewURL, isPresent: $webViewOpened, itmsServicesHandler: { urlStr in
@@ -770,25 +775,39 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     }
 
     @MainActor
-    private func gameMissing(for app: LCAppModel? = nil) -> BloomBoxGameModeGate.Missing? {
+    private func gameMissing(for app: LCAppModel? = nil,
+                             forcedJIT: Bool? = nil) -> BloomBoxGameModeGate.Missing? {
         BloomBoxRAMPlus.shared.refresh()
         let ram = BloomBoxRAMPlus.shared
         let defaults = LCUtils.appGroupUserDefault
+
+        // Game Mode itself never turns on JIT. Read the same per-app setting
+        // LCAppModel uses to decide whether to start the JIT debugger.
+        var jitRequired = false
+        if let app {
+            let guest = Bundle(path: app.appInfo.bundlePath())
+            let melonNX26 = BloomBoxMeloNXProfile.matches(
+                bundleID: app.appInfo.bundleIdentifier(),
+                version: guest?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+            let policy = BloomBoxJITGuestPolicy.mode(
+                for: app.appInfo.relativeBundlePath, defaults: defaults)
+            jitRequired = BloomBoxJITGuestPolicy.wantsJIT(
+                automatic: app.appInfo.isJITNeeded || app.appInfo.is32bit || melonNX26,
+                forced: forcedJIT, mode: policy)
+        }
         if let missing = BloomBoxGameModeGate.firstMissing(
             ramConfirmed: ram.validation.confirmed,
             liveProcessSigned: ram.extensionSigned == true,
             builtInJITSelected: defaults.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue,
-            debuggingAvailable: LCUtils.strataCanDebug(),
-            pairingPresent: FileManager.default.fileExists(atPath: LiveBoardBuiltInJIT.pairingURL.path)) {
+            debuggingAvailable: jitRequired ? LCUtils.strataCanDebug() : false,
+            pairingPresent: jitRequired && FileManager.default.fileExists(
+                atPath: LiveBoardBuiltInJIT.pairingURL.path),
+            jitRequired: jitRequired) {
             return missing
         }
-        if let app {
-            if BloomBoxJITGuestPolicy.mode(for: app.appInfo.relativeBundlePath, defaults: defaults) == .disabled {
-                return .jit
-            }
-            if !app.uiIsShared && !UserDefaults.standard.bool(forKey: "LCSharePrivateDataWithLiveProcess") {
-                return .jit
-            }
+        if jitRequired, let app, !app.uiIsShared &&
+            !UserDefaults.standard.bool(forKey: "LCSharePrivateDataWithLiveProcess") {
+            return .jit
         }
         return nil
     }
@@ -838,7 +857,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         if let app {
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 350_000_000)
-                await launchFromLiveBoard(app, forceJIT: true, originatingFromGame: true)
+                await launchFromLiveBoard(app, originatingFromGame: true)
             }
         }
     }
@@ -849,7 +868,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         // Suppress the duplicate Game alert but revalidate RAM+/JIT.
         let appKey = app.appInfo.relativeBundlePath ?? ""
         if gameLaunchInProgressKeys.contains(appKey) {
-            return gameMissing(for: app) == nil
+            return gameMissing(for: app, forcedJIT: forceJIT) == nil
         }
         // Apply the same first-run review when launching from the legacy
         // LiveContainer library, not only from the BloomBox Home icons.
@@ -862,9 +881,11 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             compatibilityPrompt = true
             return false
         }
-        // Game Mode already requires RAM+ and configured JIT before launch.
+        // Game Mode needs RAM+; JIT is checked only for guests requesting JIT.
         // Never offer the old optional/suppressible emulator warning here.
-        if liveBoardMode == "cinematic" { return gameMissing(for: app) == nil }
+        if liveBoardMode == "cinematic" {
+            return gameMissing(for: app, forcedJIT: forceJIT) == nil
+        }
         let requiresGame = remoteRequiresGame(app) || BloomBoxGameModeGate.requiresGameMode(
             bundleID: app.appInfo.bundleIdentifier(), name: app.displayName,
             landscapeLocked: app.uiOrientationLock == .Landscape)
@@ -947,7 +968,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         // The rendered Game console is authoritative while SwiftUI rotates;
         // @AppStorage can briefly lag behind what is actually on screen.
         let fromGame = originatingFromGame || liveBoardMode == "cinematic"
-        var gameJIT = forceJIT
+        let jitOverride = BloomBoxGameModeGate.jitOverride(explicitlyRequested: forceJIT)
         if BloomBoxGameModeGate.shouldOfferGameSwitch(
             requiresGame: requiresGame, fromGameLauncher: fromGame,
             persistedMode: liveBoardMode) {
@@ -956,13 +977,10 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             return
         }
         if fromGame {
-            if gameMissing(for: app) != nil {
+            if gameMissing(for: app, forcedJIT: jitOverride) != nil {
                 beginGameMode(for: app)
                 return
             }
-            // Game mode is not JIT-less. Keep the same per-process attach flow
-            // that Husk already proved works on iOS 27.
-            gameJIT = true
         }
         let appKey = app.appInfo.relativeBundlePath ?? ""
         let policy = BloomBoxJITGuestPolicy.mode(for: appKey, defaults: LCUtils.appGroupUserDefault)
@@ -972,13 +990,14 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             version: guestBundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
         let wantsJIT = BloomBoxJITGuestPolicy.wantsJIT(
             automatic: app.appInfo.isJITNeeded || app.appInfo.is32bit || melonProfile,
-            forced: gameJIT ? true : nil, mode: policy)
+            forced: jitOverride, mode: policy)
         let builtInJIT = wantsJIT &&
             LCUtils.appGroupUserDefault.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue
         // Honor the existing per-app orientation picker when running through
         // LiveProcess. Legacy launches already manage their own orientation.
         // The host Home is portrait-locked and otherwise overrides the guest.
-        if builtInJIT {
+        if builtInJIT || fromGame {
+            // Landscape Game Mode must not depend on enabling JIT.
             // Do not inherit Home's portrait-only lock in Auto mode.
             let guestMask: UIInterfaceOrientationMask
             switch app.uiOrientationLock {
@@ -1005,7 +1024,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 // any virtual-window-only iOS/Classic Mode restrictions.
                 if !app.uiIsShared &&
                     !UserDefaults.standard.bool(forKey: "LCSharePrivateDataWithLiveProcess") {
-                    try await app.launchFromLibrary(multitask: false, forceJIT: gameJIT)
+                    try await app.launchFromLibrary(multitask: false, forceJIT: jitOverride)
                     return
                 }
                 guard #available(iOS 16.0, *) else {
@@ -1024,9 +1043,9 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 if defaults.object(forKey: "LCMultitaskBottomWindowBar") == nil {
                     defaults.set(true, forKey: "LCMultitaskBottomWindowBar")
                 }
-                try await app.launchFromLibrary(multitask: true, forceJIT: gameJIT)
+                try await app.launchFromLibrary(multitask: true, forceJIT: jitOverride)
             } else {
-                try await app.launchFromLibrary(forceJIT: gameJIT)
+                try await app.launchFromLibrary(forceJIT: jitOverride)
             }
         } catch {
             LiveBoardOrientation.endGuest(appKey: appKey, window: window)
@@ -1691,15 +1710,22 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     }
 
     func jitLaunch(withScript script: String, appName: String, classicMode: UInt) async {
-        await MainActor.run {
-            jitLog = ""
+        await MainActor.run { jitLog = "" }
+        let record = await MainActor.run {
+            BloomBoxJITLogStore.shared.begin(
+                appName: appName,
+                provider: "JIT launch",
+                showNotification: false)
         }
         let enableJITTask = Task {
-            
             let success = await LCUtils.askForJIT(withScript: script, appName: appName, classicMode: classicMode) { newMsg in
-                Task { await MainActor.run {
+                Task { @MainActor in
                     self.jitLog += "\(newMsg)\n"
-                }}
+                    BloomBoxJITLogStore.shared.append(newMsg, to: record)
+                }
+            }
+            await MainActor.run {
+                BloomBoxJITLogStore.shared.finish(record, success: success)
             }
             if LCUtils.appGroupUserDefault.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue, success {
                 jitAlert.close(result: true)
@@ -1714,26 +1740,39 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             return
         }
         LCSharedUtils.launchToGuestApp(withClassicMode: classicMode)
-
     }
-    
+
     func jitLaunch(withPID pid: Int, withScript script: String? = nil, appName: String) async {
         if LCUtils.appGroupUserDefault.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue {
             jitLog = ""
             jitContinueInGuest = false
+            let useOldUI = legacyJITUI
+            let record = BloomBoxJITLogStore.shared.begin(
+                appName: appName, provider: "Built-in JIT",
+                showNotification: !useOldUI)
             let work = Task {
-                let success = await LiveBoardBuiltInJIT.enable(pid: Int32(pid), script: script) { message in jitLog += message + "\n" }
-                if !jitContinueInGuest { jitAlert.close(result: success) }
-                if !success && !Task.isCancelled { errorInfo = jitLog; errorShow = true }
+                let success = await LiveBoardBuiltInJIT.enable(pid: Int32(pid), script: script) { message in
+                    jitLog += message + "\n"
+                    BloomBoxJITLogStore.shared.append(message, to: record)
+                }
+                BloomBoxJITLogStore.shared.finish(record, success: success)
+                if useOldUI {
+                    if !jitContinueInGuest { jitAlert.close(result: success) }
+                    if !success && !Task.isCancelled { errorInfo = jitLog; errorShow = true }
+                }
             }
-            let completed = await jitAlert.open()
-            if jitContinueInGuest {
-                // Keep the unstructured helper task alive until its normal
-                // completion/timeout. Only the modal is dismissed.
-                return
+            if useOldUI {
+                let completed = await jitAlert.open()
+                if jitContinueInGuest {
+                    // Preserve the latest main behavior: dismissing the old JIT sheet
+                    // does not cancel the helper or kill the guest process.
+                    return
+                }
+                work.cancel()
+                if completed != true { kill(Int32(pid), SIGKILL) }
             }
-            work.cancel()
-            if completed != true { kill(Int32(pid), SIGKILL) }
+            // The guest process was already launched. The compact UI lets it keep
+            // running while the existing JIT helper finishes; no backend changes.
             return
         }
         await MainActor.run {

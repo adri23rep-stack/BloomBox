@@ -83,8 +83,18 @@ enum StrataJITWorker {
             defer { lock.lock(); tokens.remove(token); lock.unlock() }
             let fm = FileManager.default
             let status = container.appendingPathComponent("Library/StrataJIT/\(token).json")
+            // Include buffered output in every status update. A single last-message field
+            // can lose fast script messages between the host's polling intervals.
+            var messages: [String] = []
+            var firstMessageIndex = 0
             func report(_ message: String, done: Bool = false, success: Bool = false) {
-                let object: [String: Any] = ["message": message, "done": done, "success": success]
+                messages.append(String(message.prefix(4096)))
+                if messages.count > 400 {
+                    messages.removeFirst(messages.count - 400)
+                    firstMessageIndex += 1
+                }
+                let object: [String: Any] = ["message": message, "done": done,
+                    "success": success, "messages": messages, "firstMessageIndex": firstMessageIndex]
                 try? fm.createDirectory(at: status.deletingLastPathComponent(), withIntermediateDirectories: true)
                 if let encoded = try? JSONSerialization.data(withJSONObject: object) { try? encoded.write(to: status, options: .atomic) }
             }
