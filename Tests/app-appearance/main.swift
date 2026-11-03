@@ -19,7 +19,8 @@ store.migrateIfNeeded()
 assert(store.names["app1"] == "Keep New Name", "Migrate must not overwrite new names")
 assert(store.icons["app1"] == oldFilename, "Legacy icon mapping must migrate")
 assert(store.iconURL(for: "app1")?.path.contains("BloomBox/Icons") == true)
-assert(try Data(contentsOf: store.iconURL(for: "app1")!) == oldData)
+let migratedData = try Data(contentsOf: store.iconURL(for: "app1")!)
+assert(migratedData == oldData)
 assert(FileManager.default.fileExists(atPath: oldFolder.appendingPathComponent(oldFilename).path),
        "Old data remains available for a rollback")
 
