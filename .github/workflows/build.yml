@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/gamebox-home-wallpaper-modules-20261103
       - fix/jit-guest-orientation-ios27
       - feature/cinematic-game-mode-ram-jit-gate
       - feature/remote-game-compat-profiles
@@ -85,6 +86,11 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxGameModeGate.swift Tests/game-mode-tests/main.swift -o "$RUNNER_TEMP/bloombox-game-tests"
           "$RUNNER_TEMP/bloombox-game-tests"
+
+      - name: Test GameBox cold start launcher preferences
+        run: |
+          swiftc LiveContainerSwiftUI/Views/LiveBoardModeLibrary.swift Tests/gamebox-preferences/main.swift -o "$RUNNER_TEMP/gamebox-preferences-tests"
+          "$RUNNER_TEMP/gamebox-preferences-tests"
 
       - name: Test guest scene orientation and viewport sizing
         run: |
