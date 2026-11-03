@@ -79,7 +79,7 @@ struct BloomBoxWidgetGallery: View {
                 Image(systemName: choice.symbol)
                     .font(.system(size: 20, weight: .semibold))
                     .frame(width: 36, height: 36)
-                    .foregroundStyle(active ? .green : .primary)
+                    .foregroundStyle(active ? Color.green : Color.primary)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(choice.title).font(.headline)
                     Text(choice.description).font(.caption).foregroundStyle(.secondary)
