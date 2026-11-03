@@ -71,6 +71,21 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetGalleryPolicy.swift Tests/widget-gallery/main.swift -o "$RUNNER_TEMP/bloombox-widget-gallery-tests"
           "$RUNNER_TEMP/bloombox-widget-gallery-tests"
+      - name: Verify extracted launcher interaction components
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          home = Path("LiveContainerSwiftUI/Views/LiveBoardHomeScreen.swift").read_text()
+          effects = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherInteractions.swift").read_text()
+          for name in ("BloomBoxAliveIconFrames", "BloomBoxAliveEntrance",
+                       "BloomBoxWidgetMediaPresentation", "BloomBoxWidgetInteraction",
+                       "BloomBoxLivingMotion", "BloomBoxThemeShareSheet"):
+              assert "struct " + name in effects, name
+              assert "struct " + name not in home, name
+          assert "func liveBoardAppKey(" in effects
+          assert "struct LiveBoardHomeScreen: View" in home
+          print("BloomBox interaction effects are isolated from Home")
+          PY
       - name: Verify shared launcher visual surfaces
         run: |
           python3 - <<'PY'

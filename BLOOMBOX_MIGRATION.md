@@ -133,3 +133,9 @@ occurs until the macOS build and on-device tests pass.
 - Page 0 (News), final App Library and saved LiveBoardHiddenPages remain compatible with previous settings and exported themes.
 - Malformed/all-hidden page settings recover automatically; deleting a page adjusts visibility and redistributes widget metadata without dropping widget IDs.
 - Foundation-only navigation and migration tests now run before the iOS archive in GitHub Actions.
+
+## Launcher decomposition — animation and touch interactions (phase 17)
+
+- Extracted the reusable BloomBox Alive intro, Living Widgets motion, widget drag handles, photo/GIF picker presentation and theme export helper from the main Home View.
+- Existing gesture thresholds, haptic hooks, saved theme data, iOS lifecycle behavior, and accessible controls remain unchanged.
+- This isolates the last reusable high-frequency widget animations for subsequent rewrite and profiling.
