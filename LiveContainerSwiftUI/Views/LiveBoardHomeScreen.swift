@@ -3511,6 +3511,8 @@ private struct BloomBoxModulesPanel: View {
     private var ramExperimentalControlsEnabled = false
     @AppStorage("BloomBoxJITTryMeloNXScriptForOtherAppsV2", store: LCUtils.appGroupUserDefault)
     private var melonScriptCrossAppEnabled = false
+    @AppStorage("BloomBoxJITUseLegacyLaunchUI", store: LCUtils.appGroupUserDefault)
+    private var legacyJITUI = false
 
     enum Destination { case jit, desktop, interface, wallpaper, apps, settings, tweaks, sidestore }
     enum Module: String, CaseIterable, Identifiable {
@@ -3791,6 +3793,12 @@ private struct BloomBoxModulesPanel: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Divider()
+                    Toggle("Usar pantalla JIT anterior", isOn: $legacyJITUI)
+                        .tint(.purple)
+                        .accessibilityIdentifier("bloombox.experiments.jitLegacyUI.toggle")
+                    Text("Desactivado: aviso flotante que se hace bolita mientras se activa el JIT. Activado: regresa a la pantalla completa de mensajes. No cambia el método de activación ni los scripts.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Divider()
                     Toggle("Probar script JIT de MeloNX en otras apps", isOn: $melonScriptCrossAppEnabled)
                         .tint(Color(red: 0.72, green: 0.45, blue: 1))
                         .accessibilityIdentifier("bloombox.experiments.melonScriptCrossApp.toggle")
@@ -3885,6 +3893,8 @@ private struct BloomBoxJITControlPanel: View {
     @State private var importing = false
     @State private var target: LCAppModel?
     @State private var scriptError: String?
+    @State private var logAppName: String?
+    @State private var logRecordID: UUID?
     @AppStorage("LCJITEnablerType", store: LCUtils.appGroupUserDefault)
     private var provider = JITEnablerType.SideJITServer.rawValue
 
@@ -3927,13 +3937,33 @@ private struct BloomBoxJITControlPanel: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("bloombox.modules.jit.enable")
+                NavigationLink {
+                    BloomBoxJITLogHistoryView()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "text.book.closed.fill")
+                            .foregroundStyle(.purple)
+                            .frame(width: 40, height: 40)
+                            .background(Color.purple.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Historial de JIT").font(.headline)
+                            Text("Logs completos de activaciones y fallos")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").foregroundStyle(.secondary)
+                    }
+                    .padding(14).background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 17))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("bloombox.modules.jit.history")
 
                 HStack {
                     Text("JIT por aplicación").font(.headline)
                     Spacer()
                     Text(String(installed.count) + " apps").font(.caption).foregroundStyle(.secondary)
                 }
-                Text("Encendido: solicita JIT al abrir. Apagado: abre sin JIT. Universal por defecto excepto MeloNX 2.6. Mantén presionada una app para importar otro script.")
+                Text("Encendido: solicita JIT al abrir. Apagado: abre sin JIT. Universal por defecto excepto MeloNX 2.6. Mantén presionada una app para importar scripts o consultar sus logs.")
                     .font(.footnote).foregroundStyle(.secondary)
                 if provider != JITEnablerType.BuiltIn.rawValue {
                     Label("Para scripts integrados, elige Built-in JIT en Habilitar JIT.", systemImage: "info.circle")
@@ -3943,7 +3973,20 @@ private struct BloomBoxJITControlPanel: View {
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                     .padding(12).background(Color.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 12))
                 ForEach(visible, id: \.appInfo.relativeBundlePath) { app in
-                    BloomBoxJITSwitchRow(app: app) { target = app; importing = true }
+                    BloomBoxJITSwitchRow(
+                        app: app,
+                        importScript: { target = app; importing = true },
+                        viewLatestLog: {
+                            logRecordID = BloomBoxJITLogStore.shared.attempts.first {
+                                $0.appName.caseInsensitiveCompare(app.displayName) == .orderedSame
+                            }?.id
+                            logAppName = app.displayName
+                        },
+                        viewLogHistory: {
+                            logRecordID = nil
+                            logAppName = app.displayName
+                        })
+
                 }
                 if visible.isEmpty {
                     Text("No hay aplicaciones que coincidan.").foregroundStyle(.secondary)
@@ -3954,6 +3997,24 @@ private struct BloomBoxJITControlPanel: View {
         }
         .background(Color(red: 0.055, green: 0.065, blue: 0.13).ignoresSafeArea())
         .navigationTitle("JIT").navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: Binding(
+            get: { logAppName != nil },
+            set: { if !$0 { logAppName = nil; logRecordID = nil } })) {
+            NavigationView {
+                Group {
+                    if let recordID = logRecordID {
+                        BloomBoxJITLogDetailView(recordID: recordID)
+                    } else {
+                        BloomBoxJITLogHistoryView(appName: logAppName)
+                    }
+                }
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Listo") { logAppName = nil; logRecordID = nil }
+                    }
+                }
+            }.navigationViewStyle(.stack)
+        }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.javaScript], allowsMultipleSelection: false) { result in
             let app = target
             target = nil
@@ -3986,10 +4047,15 @@ private struct BloomBoxJITControlPanel: View {
 private struct BloomBoxJITSwitchRow: View {
     @ObservedObject var app: LCAppModel
     let importScript: () -> Void
+    let viewLatestLog: () -> Void
+    let viewLogHistory: () -> Void
     @State private var enabled: Bool
-    init(app: LCAppModel, importScript: @escaping () -> Void) {
+    init(app: LCAppModel, importScript: @escaping () -> Void,
+         viewLatestLog: @escaping () -> Void, viewLogHistory: @escaping () -> Void) {
         self.app = app
         self.importScript = importScript
+        self.viewLatestLog = viewLatestLog
+        self.viewLogHistory = viewLogHistory
         let mode = BloomBoxJITGuestPolicy.mode(
             for: app.appInfo.relativeBundlePath, defaults: LCUtils.appGroupUserDefault)
         let guest = Bundle(path: app.appInfo.bundlePath())
@@ -4029,6 +4095,13 @@ private struct BloomBoxJITSwitchRow: View {
         .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 16))
         .contentShape(Rectangle())
         .contextMenu {
+            Button { viewLatestLog() } label: {
+                Label("Ver último log JIT", systemImage: "doc.text.magnifyingglass")
+            }
+            Button { viewLogHistory() } label: {
+                Label("Ver historial JIT", systemImage: "clock.arrow.circlepath")
+            }
+            Divider()
             Button { importScript() } label: {
                 Label("Importar script JIT (.js)", systemImage: "doc.badge.plus")
             }
