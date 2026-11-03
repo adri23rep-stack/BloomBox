@@ -53,6 +53,10 @@ struct LiveBoardConsoleScreen: View {
         savedConsoleLayouts = LiveBoardConsoleLayout.save(layout, mode: mode, in: savedConsoleLayouts)
     }
     @State private var jitSetup = false
+    @ObservedObject private var jitHistory = BloomBoxJITLogStore.shared
+    @State private var jitHistoryPresented = false
+    @State private var latestLaunchAt: Date?
+    @State private var latestLaunchAppName: String?
     @State private var modulesPresented = false
     @State private var utilitiesPresented = false
     @State private var pendingUtility: GameBoxUtility?
@@ -131,6 +135,16 @@ struct LiveBoardConsoleScreen: View {
     private var selected: LCAppModel? { visibleApps.indices.contains(navigation.selectedIndex) ? visibleApps[navigation.selectedIndex] : visibleApps.first }
     private var keys: [String] { visibleApps.map(liveBoardAppKey) }
     private var bigPicture: Bool { mode == "bigPicture" }
+
+    /// Launch returning means LiveProcess accepted the request, not that the
+    /// debugger finished or the guest drew its first frame.
+    private var currentLaunchJITAttempt: BloomBoxJITLogStore.Attempt? {
+        guard let launchAt = latestLaunchAt, let appName = latestLaunchAppName else { return nil }
+        return jitHistory.attempts.first {
+            $0.appName.caseInsensitiveCompare(appName) == .orderedSame &&
+            $0.createdAt >= launchAt.addingTimeInterval(-3)
+        }
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -229,6 +243,14 @@ struct LiveBoardConsoleScreen: View {
         .sheet(isPresented: $layoutSettings, onDismiss: bindController) { consoleLayoutSettings }
         .sheet(item: $appearanceApp, onDismiss: bindController) { app in LiveBoardAppAppearance(app: app.app) }
         .sheet(isPresented: $jitSetup, onDismiss: bindController) { LiveBoardJITSetup() }
+        .sheet(isPresented: $jitHistoryPresented, onDismiss: bindController) {
+            NavigationView {
+                BloomBoxJITLogHistoryView(appName: latestLaunchAppName)
+                    .toolbar { ToolbarItem(placement: .confirmationAction) {
+                        Button("Listo") { jitHistoryPresented = false }
+                    }}
+            }.navigationViewStyle(.stack)
+        }
         .sheet(isPresented: $utilitiesPresented, onDismiss: handleUtilitySelection) {
             gameBoxUtilitiesSheet
         }
@@ -598,8 +620,32 @@ struct LiveBoardConsoleScreen: View {
                 Text(appCustomization.name(app)).font(.system(size: landscape ? 28 : 38, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.6)
                     .shadow(color: .black.opacity(0.35), radius: 8)
                     .accessibilityIdentifier("console.selected.title")
-                if launchReturned {
-                    Button("Resume controller navigation") { launchReturned = false; bindController() }.font(.caption).foregroundStyle(.white.opacity(0.6))
+                if mode == "cinematic", let attempt = currentLaunchJITAttempt,
+                   latestLaunchAppName?.caseInsensitiveCompare(app.displayName) == .orderedSame {
+                    HStack(spacing: 8) {
+                        Image(systemName: attempt.status == "completed" ? "checkmark.circle" :
+                                ["failed", "interrupted", "timed_out_attached"].contains(attempt.status)
+                                ? "exclamationmark.triangle.fill" : "clock.arrow.circlepath")
+                        Text(attempt.displayStatus)
+                            .lineLimit(1)
+                        Button("Ver registro") {
+                            controller.stop()
+                            jitHistoryPresented = true
+                        }
+                        .fontWeight(.semibold)
+                        .underline()
+                        .accessibilityIdentifier("gamebox.jit.launchHistory")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(attempt.status == "completed" ? .green : .orange)
+                    .accessibilityElement(children: .contain)
+                    Text("JIT no confirma que el juego ya abrió. Si no aparece, revisa el registro.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.60))
+                        .lineLimit(2)
+                } else if launchReturned {
+                    Button("Resume controller navigation") { launchReturned = false; bindController() }
+                        .font(.caption).foregroundStyle(.white.opacity(0.6))
                 }
                 Spacer(minLength: landscape ? 4 : 28)
             }
@@ -978,6 +1024,9 @@ struct LiveBoardConsoleScreen: View {
             LiveBoardOrientation.setLandscape(false, window: launcherWindow)
         }
         controller.stop(); audio.stop(); launching = true
+        launchReturned = false
+        latestLaunchAt = Date()
+        latestLaunchAppName = app.displayName
         Task { @MainActor in
             // This actual rendered console knows whether we are in Game.
             // Do not ask AppStorage again during a pending scene rotation.
@@ -993,7 +1042,8 @@ struct LiveBoardConsoleScreen: View {
     private func bindController() {
         guard scenePhase == .active, !searching, !managingCategories, !jitSetup,
               !modulesPresented, !utilitiesPresented, !tweakStorePresented,
-              !appStorePresented, !quickJITPresented, !wallpaperSettings, !choosingGameBoxPhoto,
+              !appStorePresented, !quickJITPresented, !jitHistoryPresented,
+              !wallpaperSettings, !choosingGameBoxPhoto,
               !choosingGameBoxMotionPhotos, !choosingGameBoxMotionFiles,
               !importingGameBoxMotion, !layoutSettings, !movingLaunchButton,
               appearanceApp == nil, picker == nil, artworkError == nil, !launching else { return }
