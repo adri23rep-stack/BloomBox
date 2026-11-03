@@ -34,3 +34,10 @@ occurs until the macOS build and on-device tests pass.
 - Binary prerequisites now download **directly from their respective upstream projects**, StikJIT and LiveExec32, with SHA-256 verification and atomic replacement. We no longer depend on a Strata release being available for CI downloads.
 - The LiveExec32 nightly release is mutable: its exact SHA-256 is pinned and any change stops the build until reviewed. Device compatibility must be tested before merging.
 - This change does not replace every inherited iOS Home implementation. Attribution and historical commits remain as legally required.
+
+## BloomBox Home layout engine (phase 3)
+
+- Replaced the inherited home-layout algorithm with BloomBox-maintained placement and reconciliation logic.
+- Preserved the JSON format and persistent shortcut IDs so existing users keep their apps, folders, pages and Dock configuration.
+- Added de-duplication of stale app IDs, page repair, safer folder placement and a separate regression suite.
+- Only the layout engine is replaced here. The original iOS Home SwiftUI view, its widgets and other underlying components are still awaiting a complete independent rewrite.

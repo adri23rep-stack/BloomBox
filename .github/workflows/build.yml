@@ -57,6 +57,12 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxRAMValidation.swift Tests/ram-validation/main.swift -o "$RUNNER_TEMP/ram-validation-tests"
           "$RUNNER_TEMP/ram-validation-tests"
+      - name: Test BloomBox native Home layout and legacy data
+        run: |
+          swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-layout/main.swift -o "$RUNNER_TEMP/bloombox-home-layout-tests"
+          "$RUNNER_TEMP/bloombox-home-layout-tests"
+          swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-native-layout/main.swift -o "$RUNNER_TEMP/bloombox-home-native-tests"
+          "$RUNNER_TEMP/bloombox-home-native-tests"
       - name: Test built-in app folder moves and persistence
         run: |
           swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-builtins-folders/main.swift -o "$RUNNER_TEMP/home-folder-tests"
