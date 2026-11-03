@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/gamebox-home-wallpaper-modules-20261103
       - fix/jit-guest-orientation-ios27
       - feature/cinematic-game-mode-ram-jit-gate
       - feature/remote-game-compat-profiles
