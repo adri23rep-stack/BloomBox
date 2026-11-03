@@ -602,6 +602,10 @@ struct LiveBoardHomeScreen: View {
                     page = (visiblePageIndices.first ?? 0) + 1
                 }
                 startBloomBoxAlive()
+                if LCUtils.appGroupUserDefault.bool(forKey: "BloomBoxGameBoxOpenThemeStore") {
+                    LCUtils.appGroupUserDefault.set(false, forKey: "BloomBoxGameBoxOpenThemeStore")
+                    DispatchQueue.main.async { themesPresented = true }
+                }
             }
             .task {
                 // Noncritical popups and status notices are intentionally quiet
