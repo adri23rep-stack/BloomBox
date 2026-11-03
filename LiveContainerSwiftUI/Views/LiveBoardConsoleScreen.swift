@@ -1,6 +1,33 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+
+/// Home tools that also need to be reachable from GameBox.
+private enum GameBoxUtility: String, CaseIterable, Identifiable {
+    case modules, tweakStore, appStore, install, sideStore, themes
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .modules: return "Módulos"
+        case .tweakStore: return "TweakStore"
+        case .appStore: return "AppStore"
+        case .install: return "Instalar IPA"
+        case .sideStore: return "SideStore"
+        case .themes: return "Temas"
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .modules: return "square.stack.3d.up.fill"
+        case .tweakStore: return "wrench.and.screwdriver.fill"
+        case .appStore: return "square.stack.fill"
+        case .install: return "square.and.arrow.down.fill"
+        case .sideStore: return "arrow.triangle.2.circlepath"
+        case .themes: return "paintpalette.fill"
+        }
+    }
+}
+
 struct LiveBoardConsoleScreen: View {
     let apps: [LCAppModel]
     let mode: String
@@ -10,6 +37,10 @@ struct LiveBoardConsoleScreen: View {
     let openManagement: () -> Void
     var launchWithJIT: ((LCAppModel, Bool) async -> Void)? = nil
     var openModuleDestination: ((BloomBoxModulesPanel.Destination) -> Void)? = nil
+    var openInstall: (() -> Void)? = nil
+    var openSideStore: (() -> Void)? = nil
+    var openSources: (() -> Void)? = nil
+    var openThemeStore: (() -> Void)? = nil
     @ObservedObject private var appCustomization = LiveBoardAppCustomization.shared
     @State private var appearanceApp: LiveBoardAppearanceSelection?
     @AppStorage("StrataConsoleLayouts", store: LCUtils.appGroupUserDefault) private var savedConsoleLayouts = "{}"
@@ -23,6 +54,13 @@ struct LiveBoardConsoleScreen: View {
     }
     @State private var jitSetup = false
     @State private var modulesPresented = false
+    @State private var utilitiesPresented = false
+    @State private var pendingUtility: GameBoxUtility?
+    @State private var tweakStorePresented = false
+    @State private var appStorePresented = false
+    @State private var quickJITPresented = false
+    @State private var jitSwitchRevision = 0
+    @ObservedObject private var ramPlus = BloomBoxRAMPlus.shared
     @State private var pendingModuleDestination: BloomBoxModulesPanel.Destination?
     @State private var wallpaperSettings = false
     @State private var pendingWallpaperPicker: GameBoxWallpaperPicker?
@@ -167,6 +205,18 @@ struct LiveBoardConsoleScreen: View {
         .sheet(isPresented: $layoutSettings, onDismiss: bindController) { consoleLayoutSettings }
         .sheet(item: $appearanceApp, onDismiss: bindController) { app in LiveBoardAppAppearance(app: app.app) }
         .sheet(isPresented: $jitSetup, onDismiss: bindController) { LiveBoardJITSetup() }
+        .sheet(isPresented: $utilitiesPresented, onDismiss: handleUtilitySelection) {
+            gameBoxUtilitiesSheet
+        }
+        .sheet(isPresented: $tweakStorePresented, onDismiss: bindController) {
+            BloomBoxTweakStore(apps: apps, focusedApp: nil)
+        }
+        .sheet(isPresented: $appStorePresented, onDismiss: bindController) {
+            BloomBoxAppStore(apps: apps, openSources: {
+                appStorePresented = false
+                openSources?()
+            })
+        }
         .sheet(isPresented: $modulesPresented, onDismiss: handleModuleDismissed) {
             BloomBoxModulesPanel(apps: apps) { destination in
                 pendingModuleDestination = destination
@@ -236,13 +286,18 @@ struct LiveBoardConsoleScreen: View {
         .onReceive(NotificationCenter.default.publisher(for: LiveBoardControllerInput.resumeNotification)) { _ in bindController() }
         .onAppear {
             migrateLibrariesIfNeeded()
+            ramPlus.refresh()
             if mode == "cinematic" { gameBoxPhoto = UIImage(contentsOfFile: gameBoxPhotoURL.path) }
             bindController()
         }
         .onChange(of: navigation.selectedIndex) { _ in if sounds && scenePhase == .active { audio.play() } }
         .onDisappear { controller.stop(); audio.stop() }
         .onChange(of: scenePhase) { phase in
-            if phase == .active { bindController() } else { controller.stop() }
+            if phase == .active {
+                ramPlus.refresh()
+                jitSwitchRevision &+= 1
+                bindController()
+            } else { controller.stop() }
         }
         .onChange(of: mode) { _ in activeCategory = nil; favoritesOnly = false; navigation = LiveBoardConsoleNavigation() }
         .onChange(of: keys) { _ in navigation.selectedIndex = min(navigation.selectedIndex, max(0, visibleApps.count - 1)) }
@@ -318,10 +373,10 @@ struct LiveBoardConsoleScreen: View {
                     Image(systemName: "photo.on.rectangle.angled").frame(width: 36, height: 36)
                         .overlay(Circle().stroke(navigation.focus == .header && navigation.headerIndex == 4 ? .white : .clear, lineWidth: 2))
                 }.accessibilityLabel("Fondo de GameBox").accessibilityIdentifier("gamebox.wallpaper.open")
-                Button { controller.stop(); modulesPresented = true } label: {
+                Button { controller.stop(); utilitiesPresented = true } label: {
                     Image(systemName: "square.grid.2x2.fill").frame(width: 36, height: 36)
                         .overlay(Circle().stroke(navigation.focus == .header && navigation.headerIndex == 5 ? .white : .clear, lineWidth: 2))
-                }.accessibilityLabel("Módulos").accessibilityIdentifier("gamebox.modules.open")
+                }.accessibilityLabel("Utilidades de BloomBox").accessibilityIdentifier("gamebox.utilities.open")
             }
         }.buttonStyle(.plain).frame(maxWidth: .infinity).frame(height: 40)
     }
@@ -333,6 +388,14 @@ struct LiveBoardConsoleScreen: View {
             var state = LiveBoardModeLibrary(); state.assignments = previous
             for category in previous.values.sorted() where !state.categories.contains(category) { state.categories.append(category) }
             all[name] = state; changed = true
+        }
+        if var gameBox = all["cinematic"] {
+            let before = gameBox
+            gameBox.migrateGameBoxCategories()
+            if gameBox != before {
+                all["cinematic"] = gameBox
+                changed = true
+            }
         }
         if changed, let data = try? JSONEncoder().encode(all), let value = String(data: data, encoding: .utf8) { modeLibraries = value }
     }
@@ -395,6 +458,37 @@ struct LiveBoardConsoleScreen: View {
                             cover(app, selected: focused, landscape: landscape, scale: scale)
                         }
                         .buttonStyle(.plain)
+                        // Double-tap toggles Favorites; a single tap still only selects.
+                        .simultaneousGesture(TapGesture(count: 2).onEnded {
+                            favorite(app)
+                            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                        })
+                        .contextMenu {
+                            Button(favoriteKeys.contains(liveBoardAppKey(app))
+                                   ? "Quitar de favoritos" : "Añadir a favoritos",
+                                   systemImage: "star.fill") { favorite(app) }
+                            if mode == "cinematic" {
+                                Menu("Categoría", systemImage: "tag.fill") {
+                                    ForEach(["Games", "Ports", "Emuladores"], id: \.self) { name in
+                                        Button {
+                                            updateLibrary { $0.assignments[liveBoardAppKey(app)] = name }
+                                            if activeCategory != nil { activeCategory = nil }
+                                        } label: {
+                                            Label(name, systemImage: library.assignments[liveBoardAppKey(app)] == name
+                                                  ? "checkmark.circle.fill" : "circle")
+                                        }
+                                    }
+                                    Button("Sin categoría") {
+                                        updateLibrary { $0.assignments[liveBoardAppKey(app)] = nil }
+                                        activeCategory = nil
+                                    }
+                                }
+                            }
+                            Button("Más opciones", systemImage: "ellipsis.circle") {
+                                navigation.selectedIndex = visibleApps.firstIndex(of: app) ?? 0
+                                showDetails()
+                            }
+                        }
                         .id(liveBoardAppKey(app))
                         .accessibilityLabel(appCustomization.name(app))
                         .accessibilityValue(focused ? "Selected" : "")
@@ -479,6 +573,60 @@ struct LiveBoardConsoleScreen: View {
                         .accessibilityLabel("App options").accessibilityIdentifier("console.options")
                 }.buttonStyle(.plain).padding(.top, 2)
     }
+    private var gameBoxUtilitiesSheet: some View {
+        NavigationView {
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
+                          spacing: 14) {
+                    ForEach(GameBoxUtility.allCases) { utility in
+                        Button {
+                            pendingUtility = utility
+                            utilitiesPresented = false
+                        } label: {
+                            VStack(spacing: 12) {
+                                Image(systemName: utility.symbol)
+                                    .font(.system(size: 27, weight: .semibold))
+                                    .frame(width: 54, height: 54)
+                                    .foregroundStyle(.white)
+                                    .background(Color.purple.opacity(0.23),
+                                                in: RoundedRectangle(cornerRadius: 16))
+                                Text(utility.title)
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.75)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 17))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("gamebox.utility." + utility.rawValue)
+                    }
+                }.padding(20)
+            }
+            .background(Color(red: 0.05, green: 0.06, blue: 0.11).ignoresSafeArea())
+            .navigationTitle("Apps de BloomBox")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Listo") { utilitiesPresented = false }
+                }
+            }
+        }.navigationViewStyle(.stack)
+    }
+
+    private func handleUtilitySelection() {
+        guard let utility = pendingUtility else { bindController(); return }
+        pendingUtility = nil
+        switch utility {
+        case .modules: modulesPresented = true
+        case .tweakStore: tweakStorePresented = true
+        case .appStore: appStorePresented = true
+        case .install: openInstall?()
+        case .sideStore: openSideStore?()
+        case .themes: openThemeStore?()
+        }
+    }
+
     private var gameBoxWallpaperSettings: some View {
         NavigationView {
             Form {
@@ -723,7 +871,8 @@ struct LiveBoardConsoleScreen: View {
     }
     private func bindController() {
         guard scenePhase == .active, !searching, !managingCategories, !jitSetup,
-              !modulesPresented, !wallpaperSettings, !choosingGameBoxPhoto,
+              !modulesPresented, !utilitiesPresented, !tweakStorePresented,
+              !appStorePresented, !quickJITPresented, !wallpaperSettings, !choosingGameBoxPhoto,
               !choosingGameBoxMotionPhotos, !choosingGameBoxMotionFiles,
               !importingGameBoxMotion, !layoutSettings, !movingLaunchButton,
               appearanceApp == nil, picker == nil, artworkError == nil, !launching else { return }
@@ -751,7 +900,7 @@ struct LiveBoardConsoleScreen: View {
                 case 2: controller.stop(); openManagement()
                 case 3: controller.stop(); openInterface()
                 case 4 where mode == "cinematic": controller.stop(); wallpaperSettings = true
-                case 5 where mode == "cinematic": controller.stop(); modulesPresented = true
+                case 5 where mode == "cinematic": controller.stop(); utilitiesPresented = true
                 default: controller.stop(); openInterface()
                 }
             } else if navigation.focus == .details { showDetails() }
