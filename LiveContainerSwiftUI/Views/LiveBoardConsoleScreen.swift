@@ -280,7 +280,9 @@ struct LiveBoardConsoleScreen: View {
             }
             LinearGradient(colors: [.black.opacity(0.25), .black.opacity(0.15), .black.opacity(0.85)], startPoint: .top, endPoint: .bottom)
             LinearGradient(colors: [.black.opacity(0.68), .clear], startPoint: .leading, endPoint: .trailing)
-        }.id(selected.map(liveBoardAppKey)).transition(.opacity).frame(width: size.width, height: size.height).clipped()
+        }.id(mode == "cinematic" && gameBoxWallpaperStyle != "dynamic"
+            ? "gamebox-fixed-wallpaper" : (selected.map(liveBoardAppKey) ?? "none"))
+            .transition(.opacity).frame(width: size.width, height: size.height).clipped()
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: selected.map(liveBoardAppKey))
     }
     private func header(landscape: Bool) -> some View {
