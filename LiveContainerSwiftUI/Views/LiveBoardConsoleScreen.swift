@@ -311,6 +311,16 @@ struct LiveBoardConsoleScreen: View {
                 Image(systemName: "gearshape").frame(width: 36, height: 36)
                     .overlay(Circle().stroke(navigation.focus == .header && navigation.headerIndex == 3 ? .white : .clear, lineWidth: 2))
             }.accessibilityLabel("Interface").accessibilityIdentifier("console.interface")
+            if mode == "cinematic" {
+                Button { controller.stop(); wallpaperSettings = true } label: {
+                    Image(systemName: "photo.on.rectangle.angled").frame(width: 36, height: 36)
+                        .overlay(Circle().stroke(navigation.focus == .header && navigation.headerIndex == 4 ? .white : .clear, lineWidth: 2))
+                }.accessibilityLabel("Fondo de GameBox").accessibilityIdentifier("gamebox.wallpaper.open")
+                Button { controller.stop(); modulesPresented = true } label: {
+                    Image(systemName: "square.grid.2x2.fill").frame(width: 36, height: 36)
+                        .overlay(Circle().stroke(navigation.focus == .header && navigation.headerIndex == 5 ? .white : .clear, lineWidth: 2))
+                }.accessibilityLabel("Módulos").accessibilityIdentifier("gamebox.modules.open")
+            }
         }.buttonStyle(.plain).frame(maxWidth: .infinity).frame(height: 40)
     }
     private func migrateLibrariesIfNeeded() {
@@ -467,6 +477,112 @@ struct LiveBoardConsoleScreen: View {
                         .accessibilityLabel("App options").accessibilityIdentifier("console.options")
                 }.buttonStyle(.plain).padding(.top, 2)
     }
+    private var gameBoxWallpaperSettings: some View {
+        NavigationView {
+            Form {
+                Section("Fondo de GameBox") {
+                    Picker("Tipo de fondo", selection: $gameBoxWallpaperStyle) {
+                        Text("Dinámico por juego").tag("dynamic")
+                        Text("Foto").tag("photo")
+                        Text("GIF o video").tag("motion")
+                    }
+                    .accessibilityIdentifier("gamebox.wallpaper.style")
+                    Text("Este fondo es independiente del escritorio iOS. El modo dinámico muestra las ilustraciones de cada juego.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                Section("Seleccionar") {
+                    Button("Foto de la galería") {
+                        pendingWallpaperPicker = .photo
+                        wallpaperSettings = false
+                    }
+                    Button("GIF o video de Fotos") {
+                        pendingWallpaperPicker = .photosMotion
+                        wallpaperSettings = false
+                    }
+                    Button("GIF o video de Archivos") {
+                        pendingWallpaperPicker = .filesMotion
+                        wallpaperSettings = false
+                    }
+                    .accessibilityIdentifier("gamebox.wallpaper.files")
+                }
+                if gameBoxWallpaperStyle == "photo" || gameBoxWallpaperStyle == "motion" {
+                    Section("Apariencia") {
+                        Toggle("Mostrar imagen completa", isOn: $gameBoxWallpaperFit)
+                        HStack {
+                            Text("Oscurecer fondo")
+                            Slider(value: $gameBoxWallpaperDim, in: 0...0.65)
+                        }
+                        if gameBoxWallpaperStyle == "motion" {
+                            Toggle("Pausar animación", isOn: $gameBoxPauseWallpaper)
+                        }
+                    }
+                }
+                Section {
+                    Button("Usar fondo dinámico otra vez") { gameBoxWallpaperStyle = "dynamic" }
+                }
+            }
+            .navigationTitle("Fondo de GameBox")
+            .toolbar { ToolbarItem(placement: .confirmationAction) {
+                Button("Listo") { wallpaperSettings = false }
+            }}
+        }.navigationViewStyle(.stack)
+    }
+
+    private func handleWallpaperSettingsDismissed() {
+        guard let next = pendingWallpaperPicker else { bindController(); return }
+        pendingWallpaperPicker = nil
+        DispatchQueue.main.async {
+            switch next {
+            case .photo: choosingGameBoxPhoto = true
+            case .photosMotion: choosingGameBoxMotionPhotos = true
+            case .filesMotion: choosingGameBoxMotionFiles = true
+            }
+        }
+    }
+
+    private func handleModuleDismissed() {
+        guard let destination = pendingModuleDestination else { bindController(); return }
+        pendingModuleDestination = nil
+        switch destination {
+        case .jit: jitSetup = true
+        case .desktop, .wallpaper: wallpaperSettings = true
+        case .interface: openInterface()
+        case .apps: openManagement()
+        default: openModuleDestination?(destination)
+        }
+    }
+
+    private func saveGameBoxPhoto(_ image: UIImage) {
+        do {
+            let size = image.size
+            guard size.width > 0 && size.height > 0 else { throw CocoaError(.fileReadCorruptFile) }
+            let factor = min(1, 2400 / max(size.width, size.height))
+            let scaled = CGSize(width: size.width * factor, height: size.height * factor)
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            let result = UIGraphicsImageRenderer(size: scaled, format: format).image { _ in
+                image.draw(in: CGRect(origin: .zero, size: scaled))
+            }
+            guard let data = result.jpegData(compressionQuality: 0.88) else { throw CocoaError(.fileWriteUnknown) }
+            try FileManager.default.createDirectory(at: gameBoxPhotoURL.deletingLastPathComponent(),
+                                                    withIntermediateDirectories: true)
+            try data.write(to: gameBoxPhotoURL, options: .atomic)
+            gameBoxPhoto = result
+            gameBoxWallpaperStyle = "photo"
+        } catch { artworkError = error.localizedDescription }
+    }
+
+    private func installGameBoxMotion(_ name: String) {
+        let previous = gameBoxMotionWallpaper
+        gameBoxMotionWallpaper = name
+        gameBoxWallpaperStyle = "motion"
+        // Do not remove an asset still selected by the independent iOS Home.
+        let iosName = LCUtils.appGroupUserDefault.string(forKey: "ManzanaMotionWallpaper") ?? ""
+        if previous != name, previous != iosName, let old = ManzanaWallpaperMedia.url(previous) {
+            try? FileManager.default.removeItem(at: old)
+        }
+    }
+
     private var consoleLayoutSettings: some View {
         NavigationView {
             Form {
@@ -489,7 +605,7 @@ struct LiveBoardConsoleScreen: View {
                 }
                 Section {
                     Button("Reset this mode’s layout") { savedConsoleLayouts = LiveBoardConsoleLayout.save(LiveBoardConsoleLayout(), mode: mode, in: savedConsoleLayouts) }
-                    Text("Game and legacy Big Picture keep separate layouts.").font(.footnote).foregroundStyle(.secondary)
+                    Text("GameBox and legacy Big Picture keep separate layouts.").font(.footnote).foregroundStyle(.secondary)
                 }
             }.navigationTitle("Customize layout")
                 .toolbar {
@@ -500,7 +616,7 @@ struct LiveBoardConsoleScreen: View {
     }
     private var footer: some View {
         HStack(spacing: 16) {
-            Text(bigPicture ? "STRATA / BIG PICTURE" : "BLOOMBOX / GAME")
+            Text(bigPicture ? "STRATA / BIG PICTURE" : "BLOOMBOX / GAMEBOX")
                 .font(.system(size: 9, weight: .semibold)).tracking(1.5).foregroundStyle(.white.opacity(0.4))
             Spacer(minLength: 0)
             if controller.connected {
@@ -604,7 +720,11 @@ struct LiveBoardConsoleScreen: View {
         }
     }
     private func bindController() {
-        guard scenePhase == .active, !searching, !managingCategories, !jitSetup, !layoutSettings, !movingLaunchButton, appearanceApp == nil, picker == nil, artworkError == nil, !launching else { return }
+        guard scenePhase == .active, !searching, !managingCategories, !jitSetup,
+              !modulesPresented, !wallpaperSettings, !choosingGameBoxPhoto,
+              !choosingGameBoxMotionPhotos, !choosingGameBoxMotionFiles,
+              !importingGameBoxMotion, !layoutSettings, !movingLaunchButton,
+              appearanceApp == nil, picker == nil, artworkError == nil, !launching else { return }
         controller.onCommand = { command in handle(command) }
         controller.start()
     }
@@ -627,6 +747,9 @@ struct LiveBoardConsoleScreen: View {
                 case 0: favoritesOnly = false
                 case 1: favoritesOnly = true
                 case 2: controller.stop(); openManagement()
+                case 3: controller.stop(); openInterface()
+                case 4 where mode == "cinematic": controller.stop(); wallpaperSettings = true
+                case 5 where mode == "cinematic": controller.stop(); modulesPresented = true
                 default: controller.stop(); openInterface()
                 }
             } else if navigation.focus == .details { showDetails() }
@@ -635,7 +758,7 @@ struct LiveBoardConsoleScreen: View {
         case .favorite: if let app = selected { favorite(app) }
         case .previousSection: changeSection(-1)
         case .nextSection: changeSection(1)
-        default: navigation.move(command, count: visibleApps.count)
+        default: navigation.move(command, count: visibleApps.count, headerCount: mode == "cinematic" ? 6 : 4)
         }
     }
 }
