@@ -196,12 +196,12 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         _installOptions = State(initialValue: [])
     }
     
-    var body: some View {
-        NavigationView {
-            ZStack {
-                NavigationLink(destination: navigateTo, isActive: $isNavigationActive) { EmptyView() }.hidden()
-                if liveBoardMode == "ios" && !manageLibrary {
-                    LiveBoardHomeScreen(apps: launcherApps,
+
+    // Split the original root ViewBuilder into smaller expressions. This
+    // keeps GameBox utility callbacks from making LCAppListView too complex
+    // for the Swift type checker, without changing its view hierarchy.
+    private var iosLauncher: some View {
+        LiveBoardHomeScreen(apps: launcherApps,
                                         launch: { app in Task { await launchFromLiveBoard(app) } },
                                         manage: manageLauncherApp,
                                         uninstall: uninstallLauncherApp,
@@ -223,14 +223,66 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                                         installProgress: Double(installProgressPercentage),
                                         secondaryInstance: sharedModel.multiLCStatus == 2,
                                         launchWithJIT: { app in Task { await launchFromLiveBoard(app, forceJIT: true) } })
+    }
+
+    private var gameBoxLauncher: some View {
+        LiveBoardConsoleScreen(
+            apps: launcherApps, mode: liveBoardMode,
+            launch: { app, fromGame in
+                await launchFromLiveBoard(app, originatingFromGame: fromGame)
+            },
+            manage: manageLauncherApp,
+            openInterface: openInterface,
+            openManagement: { manageLibrary = true },
+            launchWithJIT: { app, fromGame in
+                await launchFromLiveBoard(app, forceJIT: true, originatingFromGame: fromGame)
+            },
+            openModuleDestination: openGameBoxModuleDestination,
+            openInstall: openGameBoxInstall,
+            openSideStore: openGameBoxSideStore,
+            openSources: { sharedModel.selectedTab = .sources },
+            openThemeStore: openGameBoxThemes
+        )
+    }
+
+    private func openGameBoxInstall() {
+        if sharedModel.multiLCStatus == 2 { manageLibrary = true }
+        else { choosingIPA = true }
+    }
+
+    private func openGameBoxSideStore() {
+        if UserDefaults.sideStoreExist() { LCUtils.openSideStore(delegate: self) }
+        else {
+            errorInfo = "SideStore no está disponible en esta instalación."
+            errorShow = true
+        }
+    }
+
+    private func openGameBoxThemes() {
+        // Theme export/import uses iOS Home's real theme editor.
+        LCUtils.appGroupUserDefault.set(true, forKey: "BloomBoxGameBoxOpenThemeStore")
+        liveBoardMode = "ios"
+    }
+
+    private func openGameBoxModuleDestination(_ destination: BloomBoxModulesPanel.Destination) {
+        switch destination {
+        case .settings: sharedModel.selectedTab = .settings
+        case .tweaks: sharedModel.selectedTab = .tweaks
+        case .sidestore: openGameBoxSideStore()
+        case .apps: manageLibrary = true
+        case .interface, .desktop, .wallpaper: openInterface()
+        case .jit: emulatorJITSetup = true
+        }
+    }
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                NavigationLink(destination: navigateTo, isActive: $isNavigationActive) { EmptyView() }.hidden()
+                if liveBoardMode == "ios" && !manageLibrary {
+                    iosLauncher
                 } else if !manageLibrary {
-                    LiveBoardConsoleScreen(apps: launcherApps, mode: liveBoardMode,
-                                           launch: { app, fromGame in await launchFromLiveBoard(app, originatingFromGame: fromGame) },
-                                           manage: manageLauncherApp,
-                                           openInterface: openInterface,
-                                           openManagement: { manageLibrary = true },
-                                           launchWithJIT: { app, fromGame in await launchFromLiveBoard(app, forceJIT: true, originatingFromGame: fromGame) })
-                } else {
+                    gameBoxLauncher                } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     Button(manageLibrary ? "Back to launcher" : "Manage apps") {
@@ -533,7 +585,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         } message: {
             Text("BloomBox-Catalog recomienda estos ajustes para \(compatibilityApp?.displayName ?? "la app"): \(compatibilitySummary).\n\nSe aplican solo a esta app. Se hará una vez; tus cambios manuales posteriores se respetarán. Ningún permiso global ni firma se modifica.")
         }
-        .alert("Esta app debe iniciarse en modo Game", isPresented: $gameRoutePrompt) {
+        .alert("Esta app debe iniciarse en GameBox", isPresented: $gameRoutePrompt) {
             Button("Entrar a Game") {
                 let app = gameRouteApp
                 gameRouteApp = nil
@@ -544,9 +596,9 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             }
             Button("Cancelar", role: .cancel) { gameRouteApp = nil }
         } message: {
-            Text("Esta app necesita una pantalla horizontal. El escritorio iOS es vertical y podría deformar la imagen. ¿Cambiar a modo Game?")
+            Text("Esta app necesita una pantalla horizontal. El escritorio iOS es vertical y podría deformar la imagen. ¿Cambiar a GameBox?")
         }
-        .alert("Modo Game · " + (gameGateMissing == .ramPlus ? "RAM+" : "JIT"), isPresented: $gameGatePrompt) {
+        .alert("GameBox · " + (gameGateMissing == .ramPlus ? "RAM+" : "JIT"), isPresented: $gameGatePrompt) {
             Button("Sí, habilitar") {
                 if gameGateMissing == .ramPlus { emulatorRAMSetup = true }
                 else {
@@ -561,9 +613,9 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             }
         } message: {
             if gameGateMissing == .ramPlus {
-                Text("Modo Game necesita RAM+ activado y verificado en BloomBox y LiveProcess. ¿Quieres iniciar el proceso para habilitarlo? No se abrirá la app hasta confirmarlo.")
+                Text("GameBox necesita RAM+ activado y verificado en BloomBox y LiveProcess. ¿Quieres iniciar el proceso para habilitarlo? No se abrirá la app hasta confirmarlo.")
             } else {
-                Text("Esta app tiene JIT activado, pero falta configurarlo. ¿Abrir los ajustes de JIT? Las apps con JIT apagado pueden entrar a modo Game sin activarlo.")
+                Text("Esta app tiene JIT activado, pero falta configurarlo. ¿Abrir los ajustes de JIT? Las apps con JIT apagado pueden entrar a GameBox sin activarlo.")
             }
         }
         .sheet(isPresented: $emulatorRAMSetup, onDismiss: { if gamePendingEntry { evaluatePendingGame(offerPrompt: true) } }) {

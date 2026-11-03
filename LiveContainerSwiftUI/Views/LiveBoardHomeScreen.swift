@@ -602,6 +602,10 @@ struct LiveBoardHomeScreen: View {
                     page = (visiblePageIndices.first ?? 0) + 1
                 }
                 startBloomBoxAlive()
+                if LCUtils.appGroupUserDefault.bool(forKey: "BloomBoxGameBoxOpenThemeStore") {
+                    LCUtils.appGroupUserDefault.set(false, forKey: "BloomBoxGameBoxOpenThemeStore")
+                    DispatchQueue.main.async { themesPresented = true }
+                }
             }
             .task {
                 // Noncritical popups and status notices are intentionally quiet
@@ -3506,7 +3510,7 @@ private struct BloomBoxModulesIcon: View {
     }
 }
 
-private struct BloomBoxModulesPanel: View {
+struct BloomBoxModulesPanel: View {
     @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
     private var preferredLanguage = "system"
     @AppStorage("BloomBoxRAMPlusExperimentalControls", store: LCUtils.appGroupUserDefault)
@@ -4554,7 +4558,7 @@ private struct LiveBoardRibbonWallpaper: View {
 
 /// Photos' provider URL is temporary: copy the original GIF/video
 /// into BloomBox storage before the callback returns.
-private struct BloomBoxMotionWallpaperPhotosPicker: UIViewControllerRepresentable {
+struct BloomBoxMotionWallpaperPhotosPicker: UIViewControllerRepresentable {
     let completion: (Result<String, Error>?) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(completion) }
@@ -5064,9 +5068,14 @@ private struct BloomBoxV2StoreHeader: View {
     }
 }
 
-private struct BloomBoxTweakStore: View {
+struct BloomBoxTweakStore: View {
     let apps: [LCAppModel]
     let focusedApp: LCAppModel?
+
+    init(apps: [LCAppModel], focusedApp: LCAppModel?) {
+        self.apps = apps
+        self.focusedApp = focusedApp
+    }
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var sharedModel: SharedModel
     @ObservedObject private var catalog = BloomBoxTweakCatalog.shared
@@ -5696,9 +5705,14 @@ private struct BloomBoxAppStoreIcon: View {
     }
 }
 
-private struct BloomBoxAppStore: View {
+struct BloomBoxAppStore: View {
     let apps: [LCAppModel]
     let openSources: () -> Void
+
+    init(apps: [LCAppModel], openSources: @escaping () -> Void) {
+        self.apps = apps
+        self.openSources = openSources
+    }
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var sharedModel: SharedModel

@@ -86,6 +86,11 @@ jobs:
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxGameModeGate.swift Tests/game-mode-tests/main.swift -o "$RUNNER_TEMP/bloombox-game-tests"
           "$RUNNER_TEMP/bloombox-game-tests"
 
+      - name: Test GameBox cold start launcher preferences
+        run: |
+          swiftc LiveContainerSwiftUI/Views/LiveBoardModeLibrary.swift Tests/gamebox-preferences/main.swift -o "$RUNNER_TEMP/gamebox-preferences-tests"
+          "$RUNNER_TEMP/gamebox-preferences-tests"
+
       - name: Test guest scene orientation and viewport sizing
         run: |
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxGuestSceneGeometry.swift Tests/orientation-tests/main.swift -o "$RUNNER_TEMP/bloombox-orientation-tests"

@@ -102,14 +102,14 @@ struct LiveBoardConsoleNavigation: Equatable {
     var selectedIndex = 0
     var headerIndex = 0
     var focus: Focus = .rail
-    mutating func move(_ command: LiveBoardControllerInput.Command, count: Int) {
+    mutating func move(_ command: LiveBoardControllerInput.Command, count: Int, headerCount: Int = 4) {
         switch command {
         case .left:
             if focus == .header { headerIndex = max(0, headerIndex - 1) }
             else if focus == .details { focus = .launch }
             else if focus == .rail { selectedIndex = max(0, selectedIndex - 1) }
         case .right:
-            if focus == .header { headerIndex = min(3, headerIndex + 1) }
+            if focus == .header { headerIndex = min(max(0, headerCount - 1), headerIndex + 1) }
             else if focus == .launch { focus = .details }
             else if focus == .rail { selectedIndex = min(max(0, count - 1), selectedIndex + 1) }
         case .up: focus = focus == .rail ? .header : .rail
