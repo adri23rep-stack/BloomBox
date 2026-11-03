@@ -23,7 +23,9 @@ enum LiveBoardBuiltInJIT {
     }
     static func enable(pid: Int32 = getpid(), script: String?, operation: String = "enable", progress: @escaping (String) -> Void) async -> Bool {
         var recentMessages: [String] = []
+        var debuggerAttached = false
         let report: (String) -> Void = { message in
+            if BloomBoxJITProgressMarker.attached(message) { debuggerAttached = true }
             progress(message)
             UserDefaults.standard.set(message, forKey: "StrataJITLastStatus")
             recentMessages.append(String(message.prefix(1024)))
@@ -121,7 +123,11 @@ enum LiveBoardBuiltInJIT {
                 }
                 try await Task.sleep(nanoseconds: 200_000_000)
             }
-            report("JIT timed out. Check LocalDevVPN, pairing and Wi-Fi, then retry.")
+            if debuggerAttached {
+                report("Debugger attached, but the guest did not finish the JIT protocol before the timeout. JIT is not confirmed; review the log before retrying.")
+            } else {
+                report("JIT timed out. Check LocalDevVPN, pairing and Wi-Fi, then retry.")
+            }
         } catch is CancellationError { report("JIT cancelled.") }
         catch { report(error.localizedDescription) }
         return false
@@ -169,13 +175,26 @@ final class BloomBoxJITLogStore: ObservableObject {
         var status: String
         var messages: [String]
 
+        var displayStatus: String {
+            switch status {
+            case "running": return "Activando"
+            case "debugger_attached": return "Debugger conectado · sin confirmar"
+            case "awaiting_guest": return "Esperando respuesta del juego"
+            case "timed_out_attached": return "Sin confirmación del juego"
+            case "completed": return "JIT completado"
+            case "failed": return "Falló la activación"
+            case "interrupted": return "Proceso interrumpido"
+            default: return status
+            }
+        }
+
         var exportText: String {
             let header = "BloomBox JIT — \(appName)\n\(createdAt.formatted())\nProvider: \(provider)\nResult: \(status)\n"
             return header + "\n" + messages.joined(separator: "\n")
         }
     }
 
-    enum Phase { case working, success, failure }
+    enum Phase: Equatable { case working, waiting, success, failure }
 
     @Published private(set) var attempts: [Attempt] = []
     @Published private(set) var activeAttemptID: UUID?
@@ -185,6 +204,7 @@ final class BloomBoxJITLogStore: ObservableObject {
     @Published private(set) var activeAppName = ""
 
     private var collapseTask: Task<Void, Never>?
+    private var idleTask: Task<Void, Never>?
     private var dismissTask: Task<Void, Never>?
     private static let maximumRecords = 60
     private static let maximumBytes = 2_000_000
@@ -198,7 +218,8 @@ final class BloomBoxJITLogStore: ObservableObject {
            let loaded = try? JSONDecoder().decode([Attempt].self, from: data) {
             attempts = Array(loaded.prefix(Self.maximumRecords))
             // A terminated host must not leave an old "working" attempt forever.
-            for index in attempts.indices where attempts[index].status == "running" {
+            for index in attempts.indices
+                where ["running", "debugger_attached", "awaiting_guest"].contains(attempts[index].status) {
                 attempts[index].status = "interrupted"
             }
         }
@@ -214,6 +235,7 @@ final class BloomBoxJITLogStore: ObservableObject {
         }
         if showNotification {
             collapseTask?.cancel()
+            idleTask?.cancel()
             dismissTask?.cancel()
             activeAttemptID = attempt.id
             activeAppName = appName
@@ -233,20 +255,53 @@ final class BloomBoxJITLogStore: ObservableObject {
     func append(_ message: String, to id: UUID) {
         guard let index = attempts.firstIndex(where: { $0.id == id }) else { return }
         attempts[index].messages.append(String(message.prefix(4096)))
+        if BloomBoxJITProgressMarker.attached(message) {
+            attempts[index].status = "debugger_attached"
+        } else if BloomBoxJITProgressMarker.awaitingGuest(message) {
+            // The script is waiting for another guest breakpoint or detach. This is
+            // not proof the JIT memory has been prepared successfully.
+            attempts[index].status = "awaiting_guest"
+            if activeAttemptID == id { scheduleWaitingHint(for: id) }
+        }
         save()
+    }
+
+    private func scheduleWaitingHint(for id: UUID) {
+        idleTask?.cancel()
+        idleTask = Task {
+            try? await Task.sleep(nanoseconds: 12_000_000_000)
+            guard !Task.isCancelled, self.activeAttemptID == id,
+                  self.attempts.first(where: { $0.id == id })?.status == "awaiting_guest" else { return }
+            // Stop the endless spinner without sending debugger detach or killing the guest.
+            // Keep collecting logs: only a real helper completion may report success.
+            self.phase = .waiting
+            self.compact = true
+            self.dismissTask?.cancel()
+            self.dismissTask = Task {
+                try? await Task.sleep(nanoseconds: 6_000_000_000)
+                guard !Task.isCancelled, self.activeAttemptID == id, self.phase == .waiting else { return }
+                self.visible = false
+                // Keep activeAttemptID until the real helper result arrives.
+            }
+        }
     }
 
     func finish(_ id: UUID, success: Bool) {
         guard let index = attempts.firstIndex(where: { $0.id == id }) else { return }
-        attempts[index].status = success ? "completed" : "failed"
+        let timedOutAfterAttach = !success
+            && ["debugger_attached", "awaiting_guest"].contains(attempts[index].status)
+            && attempts[index].messages.suffix(3).contains(where: BloomBoxJITProgressMarker.didTimeOut)
+        attempts[index].status = success ? "completed" : timedOutAfterAttach ? "timed_out_attached" : "failed"
         save()
         guard activeAttemptID == id else { return }
         collapseTask?.cancel()
+        idleTask?.cancel()
         compact = true
-        phase = success ? .success : .failure
+        phase = success ? .success : timedOutAfterAttach ? .waiting : .failure
         dismissTask?.cancel()
+        if !visible { activeAttemptID = nil; return }
         dismissTask = Task {
-            // Failures remain on screen longer, but can always be read from Modules > JIT.
+            // Only a completed protocol produces a green confirmation.
             try? await Task.sleep(nanoseconds: success ? 2_500_000_000 : 9_000_000_000)
             guard !Task.isCancelled, self.activeAttemptID == id else { return }
             self.visible = false
@@ -279,6 +334,7 @@ struct BloomBoxJITFloatingView: View {
     private var color: Color {
         switch history.phase {
         case .working: return .purple
+        case .waiting: return .orange
         case .success: return .green
         case .failure: return .red
         }
@@ -287,6 +343,7 @@ struct BloomBoxJITFloatingView: View {
     private var symbol: String {
         switch history.phase {
         case .working: return "bolt.fill"
+        case .waiting: return "clock.fill"
         case .success: return "checkmark"
         case .failure: return "exclamationmark.triangle.fill"
         }
@@ -295,6 +352,7 @@ struct BloomBoxJITFloatingView: View {
     private var label: String {
         switch history.phase {
         case .working: return "Activando JIT"
+        case .waiting: return "Debugger conectado · JIT sin confirmar"
         case .success: return "JIT activado"
         case .failure: return "Error al activar JIT"
         }
@@ -380,9 +438,11 @@ struct BloomBoxJITLogHistoryView: View {
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: record.status == "completed" ? "checkmark.circle.fill" :
-                                    record.status == "running" ? "clock.fill" : "exclamationmark.circle.fill")
+                                    ["running", "debugger_attached", "awaiting_guest", "timed_out_attached"].contains(record.status)
+                                    ? "clock.fill" : "exclamationmark.circle.fill")
                                 .foregroundStyle(record.status == "completed" ? .green :
-                                    record.status == "running" ? .orange : .red)
+                                    ["running", "debugger_attached", "awaiting_guest", "timed_out_attached"].contains(record.status)
+                                    ? .orange : .red)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(record.appName).font(.headline)
                                 Text(record.createdAt, style: .date).font(.caption)
@@ -390,7 +450,7 @@ struct BloomBoxJITLogHistoryView: View {
                                     .foregroundStyle(.secondary)
                             }
                             Spacer()
-                            Text(record.status).font(.caption).foregroundStyle(.secondary)
+                            Text(record.displayStatus).font(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -414,7 +474,7 @@ struct BloomBoxJITLogDetailView: View {
             if let record {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(record.appName).font(.headline)
-                    Text("\(record.provider) · \(record.status)")
+                    Text("\(record.provider) · \(record.displayStatus)")
                         .font(.caption).foregroundStyle(.secondary)
                     Text(record.exportText)
                         .font(.system(size: 12, design: .monospaced))
