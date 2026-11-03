@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct LiveBoardConsoleScreen: View {
     let apps: [LCAppModel]
@@ -8,6 +9,7 @@ struct LiveBoardConsoleScreen: View {
     let openInterface: () -> Void
     let openManagement: () -> Void
     var launchWithJIT: ((LCAppModel, Bool) async -> Void)? = nil
+    var openModuleDestination: ((BloomBoxModulesPanel.Destination) -> Void)? = nil
     @ObservedObject private var appCustomization = LiveBoardAppCustomization.shared
     @State private var appearanceApp: LiveBoardAppearanceSelection?
     @AppStorage("StrataConsoleLayouts", store: LCUtils.appGroupUserDefault) private var savedConsoleLayouts = "{}"
@@ -20,6 +22,32 @@ struct LiveBoardConsoleScreen: View {
         savedConsoleLayouts = LiveBoardConsoleLayout.save(layout, mode: mode, in: savedConsoleLayouts)
     }
     @State private var jitSetup = false
+    @State private var modulesPresented = false
+    @State private var pendingModuleDestination: BloomBoxModulesPanel.Destination?
+    @State private var wallpaperSettings = false
+    @State private var pendingWallpaperPicker: GameBoxWallpaperPicker?
+    @State private var choosingGameBoxPhoto = false
+    @State private var choosingGameBoxMotionPhotos = false
+    @State private var choosingGameBoxMotionFiles = false
+    @State private var importingGameBoxMotion = false
+    @State private var gameBoxPhoto: UIImage?
+    @AppStorage("BloomBoxGameBoxWallpaperStyle", store: LCUtils.appGroupUserDefault)
+    private var gameBoxWallpaperStyle = "dynamic"
+    @AppStorage("BloomBoxGameBoxMotionWallpaper", store: LCUtils.appGroupUserDefault)
+    private var gameBoxMotionWallpaper = ""
+    @AppStorage("BloomBoxGameBoxWallpaperFit", store: LCUtils.appGroupUserDefault)
+    private var gameBoxWallpaperFit = false
+    @AppStorage("BloomBoxGameBoxWallpaperDim", store: LCUtils.appGroupUserDefault)
+    private var gameBoxWallpaperDim = 0.12
+    @AppStorage("BloomBoxGameBoxPauseWallpaper", store: LCUtils.appGroupUserDefault)
+    private var gameBoxPauseWallpaper = false
+
+    private enum GameBoxWallpaperPicker { case photo, photosMotion, filesMotion }
+    private var gameBoxPhotoURL: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("LiveBoard", isDirectory: true)
+            .appendingPathComponent("gamebox-wallpaper.jpg")
+    }
     @AppStorage("LiveBoardFavorites", store: LCUtils.appGroupUserDefault) private var favorites = "[]"
     @AppStorage("LiveBoardCategories", store: LCUtils.appGroupUserDefault) private var categories = "{}"
     @AppStorage("darkModeIcon", store: LCUtils.appGroupUserDefault) private var darkIcons = false
@@ -139,6 +167,57 @@ struct LiveBoardConsoleScreen: View {
         .sheet(isPresented: $layoutSettings, onDismiss: bindController) { consoleLayoutSettings }
         .sheet(item: $appearanceApp, onDismiss: bindController) { app in LiveBoardAppAppearance(app: app.app) }
         .sheet(isPresented: $jitSetup, onDismiss: bindController) { LiveBoardJITSetup() }
+        .sheet(isPresented: $modulesPresented, onDismiss: handleModuleDismissed) {
+            BloomBoxModulesPanel(apps: apps) { destination in
+                pendingModuleDestination = destination
+                modulesPresented = false
+            }
+        }
+        .sheet(isPresented: $wallpaperSettings, onDismiss: handleWallpaperSettingsDismissed) {
+            gameBoxWallpaperSettings
+        }
+        .sheet(isPresented: $choosingGameBoxPhoto, onDismiss: bindController) {
+            LiveBoardWallpaperPicker { image in
+                choosingGameBoxPhoto = false
+                if let image { saveGameBoxPhoto(image) }
+            }
+        }
+        .sheet(isPresented: $choosingGameBoxMotionPhotos, onDismiss: bindController) {
+            BloomBoxMotionWallpaperPhotosPicker { result in
+                choosingGameBoxMotionPhotos = false
+                if let result {
+                    switch result {
+                    case .success(let name): installGameBoxMotion(name)
+                    case .failure(let error): artworkError = error.localizedDescription
+                    }
+                }
+            }
+        }
+        .fileImporter(isPresented: $choosingGameBoxMotionFiles,
+                      allowedContentTypes: [.movie, .gif]) { result in
+            switch result {
+            case .success(let url):
+                importingGameBoxMotion = true
+                Task { @MainActor in
+                    do {
+                        let name = try await Task.detached(priority: .userInitiated) {
+                            try ManzanaWallpaperMedia.importFile(url)
+                        }.value
+                        installGameBoxMotion(name)
+                    } catch { artworkError = error.localizedDescription }
+                    importingGameBoxMotion = false
+                    bindController()
+                }
+            case .failure(let error): artworkError = error.localizedDescription
+            }
+        }
+        .overlay {
+            if importingGameBoxMotion {
+                ProgressView("Preparando fondo GameBox…")
+                    .padding(20).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+                    .allowsHitTesting(true)
+            }
+        }
         .sheet(isPresented: $managingCategories, onDismiss: bindController) { categoryManager }
         .sheet(isPresented: $searching, onDismiss: bindController) { searchSheet }
         .sheet(item: $picker, onDismiss: bindController) { request in
@@ -155,7 +234,11 @@ struct LiveBoardConsoleScreen: View {
         } message: { Text(artworkError ?? "") }
         .onReceive(NotificationCenter.default.publisher(for: LiveBoardControllerInput.pauseNotification)) { _ in controller.stop() }
         .onReceive(NotificationCenter.default.publisher(for: LiveBoardControllerInput.resumeNotification)) { _ in bindController() }
-        .onAppear { migrateLibrariesIfNeeded(); bindController() }
+        .onAppear {
+            migrateLibrariesIfNeeded()
+            if mode == "cinematic" { gameBoxPhoto = UIImage(contentsOfFile: gameBoxPhotoURL.path) }
+            bindController()
+        }
         .onChange(of: navigation.selectedIndex) { _ in if sounds && scenePhase == .active { audio.play() } }
         .onDisappear { controller.stop(); audio.stop() }
         .onChange(of: scenePhase) { phase in
@@ -168,15 +251,32 @@ struct LiveBoardConsoleScreen: View {
     private func backdrop(size: CGSize) -> some View {
         ZStack {
             Color(red: 0.025, green: 0.035, blue: 0.065)
-            if let app = selected {
-                if let image = artwork.image(for: liveBoardAppKey(app), kind: .background, mode: mode) {
-                    Image(uiImage: image).resizable().scaledToFill().frame(width: size.width, height: size.height).clipped()
-                } else {
-                    if let image = LiveBoardIconStore.background(app, dark: darkIcons) {
+            if mode == "cinematic", gameBoxWallpaperStyle == "motion",
+               let url = ManzanaWallpaperMedia.url(gameBoxMotionWallpaper),
+               FileManager.default.fileExists(atPath: url.path) {
+                ManzanaAnimatedWallpaper(url: url, fit: gameBoxWallpaperFit,
+                                         paused: gameBoxPauseWallpaper || reduceMotion)
+                    .id(gameBoxMotionWallpaper)
+                    .frame(width: size.width, height: size.height).clipped()
+                    .accessibilityIdentifier("gamebox.wallpaper.motion")
+            } else if mode == "cinematic", gameBoxWallpaperStyle == "photo",
+                      let gameBoxPhoto {
+                Image(uiImage: gameBoxPhoto).resizable()
+                    .aspectRatio(contentMode: gameBoxWallpaperFit ? .fit : .fill)
+                    .frame(width: size.width, height: size.height).clipped()
+                    .accessibilityIdentifier("gamebox.wallpaper.photo")
+            } else if mode != "cinematic" || gameBoxWallpaperStyle == "dynamic" {
+                if let app = selected {
+                    if let image = artwork.image(for: liveBoardAppKey(app), kind: .background, mode: mode) {
+                        Image(uiImage: image).resizable().scaledToFill().frame(width: size.width, height: size.height).clipped()
+                    } else if let image = LiveBoardIconStore.background(app, dark: darkIcons) {
                         Image(uiImage: image).resizable().scaledToFill()
                             .frame(width: size.width, height: size.height).clipped()
                     }
                 }
+            }
+            if mode == "cinematic" && gameBoxWallpaperStyle != "dynamic" {
+                Color.black.opacity(gameBoxWallpaperDim)
             }
             LinearGradient(colors: [.black.opacity(0.25), .black.opacity(0.15), .black.opacity(0.85)], startPoint: .top, endPoint: .bottom)
             LinearGradient(colors: [.black.opacity(0.68), .clear], startPoint: .leading, endPoint: .trailing)
