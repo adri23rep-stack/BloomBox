@@ -1,11 +1,8 @@
 import Foundation
 
-func suite(_ label: String) -> UserDefaults {
-    let id = "BloomBoxGameBoxTests." + label + "." + UUID().uuidString
-    return UserDefaults(suiteName: id)!
-}
-let defaults = suite("startup")
-defer { defaults.removePersistentDomain(forName: defaults.volatileDomainNames.first ?? "") }
+let suiteID = "BloomBoxGameBoxTests.startup." + UUID().uuidString
+let defaults = UserDefaults(suiteName: suiteID)!
+defer { defaults.removePersistentDomain(forName: suiteID) }
 
 precondition(BloomBoxLaunchPreferences.preferredMode(defaults: defaults) == "ios",
     "An existing user's default must be the iOS launcher.")
