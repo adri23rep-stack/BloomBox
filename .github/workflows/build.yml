@@ -71,6 +71,8 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetGalleryPolicy.swift Tests/widget-gallery/main.swift -o "$RUNNER_TEMP/bloombox-widget-gallery-tests"
           "$RUNNER_TEMP/bloombox-widget-gallery-tests"
+      - name: Verify BloomBox JIT bridge across Objective-C and Swift
+        run: python3 Tests/jit-bridge-tests/test_bridge.py
       - name: Audit retired Strata modules and preserve upstream notices
         run: python3 Scripts/audit-bloombox-independent-launcher.py
       - name: Verify native BloomBox launcher host and GameBox launch gate

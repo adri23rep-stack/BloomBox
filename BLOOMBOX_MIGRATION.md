@@ -191,3 +191,9 @@ occurs until the macOS build and on-device tests pass.
 
 - Added a source audit that checks for retired executable modules and validates that compatibility keys and third-party credits remain.
 - See docs/BLOOMBOX-SOURCE-AUDIT.md. This work is not a claim of clean-room source independence.
+
+## JIT host hook correction (phase 23)
+
+- Fixed an overlooked live Objective-C share-extension host hook which was still listening for strataJIT and invoking a no-longer-present StrataJITRequestHandler. It now dispatches bloomBoxJIT to BloomBoxJITRequestHandler, matching the existing Swift worker and embedded NSExtensionPrincipalClass.
+- Guarded missing Objective-C runtime class/method pointers before installing the hook.
+- Added a cross-language CI contract test to stop this launch-blocking mismatch from returning.
