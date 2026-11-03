@@ -28,7 +28,7 @@ private enum GameBoxUtility: String, CaseIterable, Identifiable {
     }
 }
 
-struct LiveBoardConsoleScreen: View {
+struct BloomBoxGameBoxScreen: View {
     let apps: [LCAppModel]
     let mode: String
     let launch: (LCAppModel, Bool) async -> Void
@@ -1083,3 +1083,6 @@ struct LiveBoardConsoleScreen: View {
         }
     }
 }
+
+// Existing Swift callers retain their types; saved GameBox JSON stays unchanged.
+typealias LiveBoardConsoleScreen = BloomBoxGameBoxScreen

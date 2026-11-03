@@ -203,3 +203,10 @@ occurs until the macOS build and on-device tests pass.
 - Deleted the preinstalled red/blue procedural ribbon wallpaper generator and removed both presets from the Home wallpaper picker. No bundled wallpaper image files were found in the current assets catalog.
 - Fresh installs default to a neutral black background until the owner supplies the new default .bbtheme. The supplied theme is NOT yet applied or configured.
 - Existing personal photo/GIF/video files, exported themes, GameBox per-game art and saved wallpaper preferences remain untouched. Historical red/blue preference values safely render black instead of old stock artwork.
+
+## GameBox source migration (phase 25)
+
+- Moved GameBox screen, layout and category library implementations into Views/BloomBox, retaining thin Swift aliases so LiveContainer host references and current saved models continue to work.
+- Historical StrataConsoleLayouts, LiveBoardModeLibraries and cinematic mode ID settings remain unchanged; deleting them would erase user-adjusted BigPicture layouts/categories.
+- CI now compiles the GameBox layout compatibility tests directly, validates old saved categories and checks that the old GameBox source paths stay retired.
+- File relocation does not prove clean-room authorship or waive existing upstream notices.

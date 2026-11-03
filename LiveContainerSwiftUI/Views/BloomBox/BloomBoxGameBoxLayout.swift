@@ -1,6 +1,6 @@
 import Foundation
 
-struct LiveBoardConsoleLayout: Codable, Equatable {
+struct BloomBoxGameBoxLayout: Codable, Equatable {
     var iconScale: Double = 1
     var launchScale: Double = 1
     var launchX: Double = 0
@@ -31,3 +31,6 @@ struct LiveBoardConsoleLayout: Codable, Equatable {
         return String(data: (try? JSONEncoder().encode(all)) ?? Data(), encoding: .utf8) ?? "{}"
     }
 }
+
+// Existing Swift callers retain their types; saved GameBox JSON stays unchanged.
+typealias LiveBoardConsoleLayout = BloomBoxGameBoxLayout

@@ -5,6 +5,8 @@ ROOT = Path(__file__).resolve().parents[1]
 VIEWS = ROOT / "LiveContainerSwiftUI" / "Views"
 RETIRED = [
     "LiveBoardHomeScreen.swift", "LiveBoard.swift",
+    "LiveBoardConsoleScreen.swift", "LiveBoardConsoleLayout.swift",
+    "LiveBoardModeLibrary.swift",
     "Manzana/ManzanaDesktopView.swift", "Manzana/ManzanaAnimatedWallpaper.swift",
     "Manzana/ManzanaWallpaperMedia.swift",
     "Manzana/ManzanaFileStore.swift", "Manzana/ManzanaFilesView.swift",
@@ -12,6 +14,9 @@ RETIRED = [
 ]
 REQUIRED = [
     "BloomBox/BloomBoxHomeScreen.swift",
+    "BloomBox/BloomBoxGameBoxScreen.swift",
+    "BloomBox/BloomBoxGameBoxLayout.swift",
+    "BloomBox/BloomBoxGameBoxLibrary.swift",
     "BloomBox/BloomBoxLauncherRoot.swift",
     "BloomBox/BloomBoxHomeChrome.swift",
     "BloomBox/BloomBoxHomeLayout.swift",

@@ -1,6 +1,6 @@
 import Foundation
 
-struct LiveBoardModeLibrary: Codable, Equatable {
+struct BloomBoxGameBoxLibrary: Codable, Equatable {
     var categories = ["Games", "Ports", "Emuladores"]
     var assignments: [String: String] = [:]
     var hidden: Set<String> = []
@@ -50,3 +50,6 @@ enum BloomBoxLaunchPreferences {
         return initial
     }
 }
+
+// Existing Swift callers retain their types; saved GameBox JSON stays unchanged.
+typealias LiveBoardModeLibrary = BloomBoxGameBoxLibrary

@@ -284,9 +284,27 @@ jobs:
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxGameModeGate.swift Tests/game-mode-tests/main.swift -o "$RUNNER_TEMP/bloombox-game-tests"
           "$RUNNER_TEMP/bloombox-game-tests"
 
+      - name: Test independent BloomBox GameBox layout and old saves
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxGameBoxLayout.swift Tests/layout-tests/main.swift -o "$RUNNER_TEMP/bloombox-gamebox-layout-tests"
+          "$RUNNER_TEMP/bloombox-gamebox-layout-tests"
+      - name: Verify BloomBox GameBox source boundaries
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path("LiveContainerSwiftUI/Views")
+          for legacy,modern,name in (
+              ("LiveBoardConsoleScreen.swift","BloomBox/BloomBoxGameBoxScreen.swift","BloomBoxGameBoxScreen"),
+              ("LiveBoardConsoleLayout.swift","BloomBox/BloomBoxGameBoxLayout.swift","BloomBoxGameBoxLayout"),
+              ("LiveBoardModeLibrary.swift","BloomBox/BloomBoxGameBoxLibrary.swift","BloomBoxGameBoxLibrary")):
+              assert not (root/legacy).exists(), legacy
+              source=(root/modern).read_text()
+              assert f"struct {name}:" in source, modern
+          print("GameBox source moved to BloomBox-owned components; compatibility aliases remain")
+          PY
       - name: Test GameBox cold start launcher preferences
         run: |
-          swiftc LiveContainerSwiftUI/Views/LiveBoardModeLibrary.swift Tests/gamebox-preferences/main.swift -o "$RUNNER_TEMP/gamebox-preferences-tests"
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxGameBoxLibrary.swift Tests/gamebox-preferences/main.swift -o "$RUNNER_TEMP/gamebox-preferences-tests"
           "$RUNNER_TEMP/gamebox-preferences-tests"
 
       - name: Test guest scene orientation and viewport sizing
