@@ -45,7 +45,7 @@ struct BloomBoxHomeScreen: View {
     @State private var categoryName = ""
     @State private var categoryApp: String?
 
-    @AppStorage("BloomBoxHomeLayout", store: LCUtils.appGroupUserDefault) private var savedLayout = ""
+    @AppStorage("LiveBoardHomeLayout", store: LCUtils.appGroupUserDefault) private var savedLayout = ""
     @AppStorage("LiveBoardFavorites", store: LCUtils.appGroupUserDefault) private var favorites = "[]"
     @AppStorage("LiveBoardCategories", store: LCUtils.appGroupUserDefault) private var categories = "{}"
     @AppStorage("LiveBoardLargeIcons", store: LCUtils.appGroupUserDefault) private var largeIcons = false
@@ -1619,7 +1619,7 @@ struct BloomBoxHomeScreen: View {
     private func currentThemeData() throws -> Data {
         // Export only presentation settings, never installed app data, credentials or private files.
         let defaults = LCUtils.appGroupUserDefault
-        let keys = ["BloomBoxHomeLayout", "LiveBoardHiddenPages", "BloomBoxPlacedWidgetsV2",
+        let keys = ["LiveBoardHomeLayout", "LiveBoardHiddenPages", "BloomBoxPlacedWidgetsV2",
                     "ManzanaPageWidgets", "LiveBoardLargeIcons", "darkModeIcon",
                     "LiveBoardWallpaperStyle", "LiveBoardWallpaperFit", "LiveBoardWallpaperDim",
                     "ManzanaIconStyle", "BloomBoxAliveEnabled", "BloomBoxAliveIdleEnabled"]
