@@ -145,7 +145,7 @@ enum BloomBoxThemePackage {
                 .appendingPathComponent("theme-motion-" + UUID().uuidString + "." + ext)
             do {
                 try motion.write(to: temp, options: .atomic)
-                newMotion = try ManzanaWallpaperMedia.importFile(temp)
+                newMotion = try BloomBoxMotionMedia.importFile(temp)
             } catch {
                 for url in created { try? fileManager.removeItem(at: url) }
                 throw error
@@ -161,7 +161,7 @@ enum BloomBoxThemePackage {
             }
         } catch {
             for url in created { try? fileManager.removeItem(at: url) }
-            if let url = ManzanaWallpaperMedia.url(newMotion) { try? fileManager.removeItem(at: url) }
+            if let url = BloomBoxMotionMedia.url(newMotion) { try? fileManager.removeItem(at: url) }
             throw error
         }
 

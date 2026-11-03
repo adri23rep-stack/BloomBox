@@ -49,6 +49,12 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: recursive
+      - name: Reject stale launcher media types
+        run: |
+          if grep -REn '(ManzanaWallpaperMedia|ManzanaAnimatedWallpaper)' LiveContainerSwiftUI --include='*.swift'; then
+            echo "::error::Obsolete wallpaper references remain in compiled Swift code"
+            exit 1
+          fi
       - name: Test independent BloomBox Files engine and legacy data
         run: |
           swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxFileStore.swift Tests/manzana-files/main.swift -o "$RUNNER_TEMP/bloombox-files-tests"

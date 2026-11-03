@@ -81,3 +81,8 @@ occurs until the macOS build and on-device tests pass.
 - The SwiftUI Files view is renamed to BloomBoxFilesView with a temporary compatibility alias for any old launcher references.
 - User files, app signing, RAM+, guest executables and shared containers are unchanged.
 - Existing Files regression checks are now run in CI together with boundary and migration tests.
+
+## Media reference audit (phase 10)
+
+- GameBox and Theme Store now use BloomBoxMotionMedia and BloomBoxAnimatedWallpaper instead of removed launcher types.
+- CI rejects stale Swift references to the deleted media classes before running Xcode.

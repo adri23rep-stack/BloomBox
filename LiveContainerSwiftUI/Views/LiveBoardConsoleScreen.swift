@@ -297,7 +297,7 @@ struct LiveBoardConsoleScreen: View {
                 Task { @MainActor in
                     do {
                         let name = try await Task.detached(priority: .userInitiated) {
-                            try ManzanaWallpaperMedia.importFile(url)
+                            try BloomBoxMotionMedia.importFile(url)
                         }.value
                         installGameBoxMotion(name)
                     } catch { artworkError = error.localizedDescription }
@@ -353,9 +353,9 @@ struct LiveBoardConsoleScreen: View {
         ZStack {
             Color(red: 0.025, green: 0.035, blue: 0.065)
             if mode == "cinematic", gameBoxWallpaperStyle == "motion",
-               let url = ManzanaWallpaperMedia.url(gameBoxMotionWallpaper),
+               let url = BloomBoxMotionMedia.url(gameBoxMotionWallpaper),
                FileManager.default.fileExists(atPath: url.path) {
-                ManzanaAnimatedWallpaper(url: url, fit: gameBoxWallpaperFit,
+                BloomBoxAnimatedWallpaper(url: url, fit: gameBoxWallpaperFit,
                                          paused: gameBoxPauseWallpaper || reduceMotion)
                     .id(gameBoxMotionWallpaper)
                     .frame(width: size.width, height: size.height).clipped()
@@ -882,7 +882,7 @@ struct LiveBoardConsoleScreen: View {
         gameBoxWallpaperStyle = "motion"
         // Do not remove an asset still selected by the independent iOS Home.
         let iosName = LCUtils.appGroupUserDefault.string(forKey: "ManzanaMotionWallpaper") ?? ""
-        if previous != name, previous != iosName, let old = ManzanaWallpaperMedia.url(previous) {
+        if previous != name, previous != iosName, let old = BloomBoxMotionMedia.url(previous) {
             try? FileManager.default.removeItem(at: old)
         }
     }
