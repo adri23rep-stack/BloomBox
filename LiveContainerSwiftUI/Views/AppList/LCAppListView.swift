@@ -196,12 +196,12 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         _installOptions = State(initialValue: [])
     }
     
-    var body: some View {
-        NavigationView {
-            ZStack {
-                NavigationLink(destination: navigateTo, isActive: $isNavigationActive) { EmptyView() }.hidden()
-                if liveBoardMode == "ios" && !manageLibrary {
-                    LiveBoardHomeScreen(apps: launcherApps,
+
+    // Split the original root ViewBuilder into smaller expressions. This
+    // keeps GameBox utility callbacks from making LCAppListView too complex
+    // for the Swift type checker, without changing its view hierarchy.
+    private var iosLauncher: some View {
+        LiveBoardHomeScreen(apps: launcherApps,
                                         launch: { app in Task { await launchFromLiveBoard(app) } },
                                         manage: manageLauncherApp,
                                         uninstall: uninstallLauncherApp,
@@ -223,48 +223,66 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                                         installProgress: Double(installProgressPercentage),
                                         secondaryInstance: sharedModel.multiLCStatus == 2,
                                         launchWithJIT: { app in Task { await launchFromLiveBoard(app, forceJIT: true) } })
+    }
+
+    private var gameBoxLauncher: some View {
+        LiveBoardConsoleScreen(
+            apps: launcherApps, mode: liveBoardMode,
+            launch: { app, fromGame in
+                await launchFromLiveBoard(app, originatingFromGame: fromGame)
+            },
+            manage: manageLauncherApp,
+            openInterface: openInterface,
+            openManagement: { manageLibrary = true },
+            launchWithJIT: { app, fromGame in
+                await launchFromLiveBoard(app, forceJIT: true, originatingFromGame: fromGame)
+            },
+            openModuleDestination: openGameBoxModuleDestination,
+            openInstall: openGameBoxInstall,
+            openSideStore: openGameBoxSideStore,
+            openSources: { sharedModel.selectedTab = .sources },
+            openThemeStore: openGameBoxThemes
+        )
+    }
+
+    private func openGameBoxInstall() {
+        if sharedModel.multiLCStatus == 2 { manageLibrary = true }
+        else { choosingIPA = true }
+    }
+
+    private func openGameBoxSideStore() {
+        if UserDefaults.sideStoreExist() { LCUtils.openSideStore(delegate: self) }
+        else {
+            errorInfo = "SideStore no está disponible en esta instalación."
+            errorShow = true
+        }
+    }
+
+    private func openGameBoxThemes() {
+        // Theme export/import uses iOS Home's real theme editor.
+        LCUtils.appGroupUserDefault.set(true, forKey: "BloomBoxGameBoxOpenThemeStore")
+        liveBoardMode = "ios"
+    }
+
+    private func openGameBoxModuleDestination(_ destination: BloomBoxModulesPanel.Destination) {
+        switch destination {
+        case .settings: sharedModel.selectedTab = .settings
+        case .tweaks: sharedModel.selectedTab = .tweaks
+        case .sidestore: openGameBoxSideStore()
+        case .apps: manageLibrary = true
+        case .interface, .desktop, .wallpaper: openInterface()
+        case .jit: emulatorJITSetup = true
+        }
+    }
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                NavigationLink(destination: navigateTo, isActive: $isNavigationActive) { EmptyView() }.hidden()
+                if liveBoardMode == "ios" && !manageLibrary {
+                    iosLauncher
                 } else if !manageLibrary {
-                    LiveBoardConsoleScreen(apps: launcherApps, mode: liveBoardMode,
-                                           launch: { app, fromGame in await launchFromLiveBoard(app, originatingFromGame: fromGame) },
-                                           manage: manageLauncherApp,
-                                           openInterface: openInterface,
-                                           openManagement: { manageLibrary = true },
-                                           launchWithJIT: { app, fromGame in await launchFromLiveBoard(app, forceJIT: true, originatingFromGame: fromGame) },
-                                           openInstall: {
-                                               if sharedModel.multiLCStatus == 2 { manageLibrary = true }
-                                               else { choosingIPA = true }
-                                           },
-                                           openSideStore: {
-                                               if UserDefaults.sideStoreExist() { LCUtils.openSideStore(delegate: self) }
-                                               else {
-                                                   errorInfo = "SideStore no está disponible en esta instalación."
-                                                   errorShow = true
-                                               }
-                                           },
-                                           openSources: { sharedModel.selectedTab = .sources },
-                                           openThemeStore: {
-                                               // The theme editor belongs to iOS Home because it
-                                               // edits Home pages/widgets. Open that exact editor
-                                               // instead of creating an incompatible duplicate.
-                                               LCUtils.appGroupUserDefault.set(true, forKey: "BloomBoxGameBoxOpenThemeStore")
-                                               liveBoardMode = "ios"
-                                           },
-                                           openModuleDestination: { destination in
-                                               switch destination {
-                                               case .settings: sharedModel.selectedTab = .settings
-                                               case .tweaks: sharedModel.selectedTab = .tweaks
-                                               case .sidestore:
-                                                   if UserDefaults.sideStoreExist() { LCUtils.openSideStore(delegate: self) }
-                                                   else {
-                                                       errorInfo = "SideStore no está disponible en esta instalación."
-                                                       errorShow = true
-                                                   }
-                                               case .apps: manageLibrary = true
-                                               case .interface, .desktop, .wallpaper: openInterface()
-                                               case .jit: emulatorJITSetup = true
-                                               }
-                                           })
-                } else {
+                    gameBoxLauncher                } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     Button(manageLibrary ? "Back to launcher" : "Manage apps") {
