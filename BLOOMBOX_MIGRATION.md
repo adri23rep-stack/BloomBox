@@ -93,3 +93,10 @@ occurs until the macOS build and on-device tests pass.
 - Preserves existing comma-separated widget order, photo preview, note text and per-page toggle callbacks.
 - Gallery preference normalization is isolated in a Foundation policy with CI coverage; legacy saved keys remain readable.
 - The old desktop screen still contains other widget presentation code to refactor separately.
+
+## Launcher decomposition — remote stores (phase 12)
+
+- Extracted TweakStore and AppStore views/catalog logic from the ~6,000-line iOS Home Swift file to `Views/BloomBox/BloomBoxRemoteStores.swift`.
+- Preserved app IDs, stored catalog settings, download logic, JIT and signed guest launch plumbing; no changes to installed app containers.
+- Made only the two cross-file model/catalog types accessible to the Home view. Private helpers remain private inside the new store module.
+- Added CI checks preventing the remote stores from being inadvertently re-added to the Home source.

@@ -71,6 +71,21 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetGalleryPolicy.swift Tests/widget-gallery/main.swift -o "$RUNNER_TEMP/bloombox-widget-gallery-tests"
           "$RUNNER_TEMP/bloombox-widget-gallery-tests"
+      - name: Check launcher remote-store module boundaries
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          home = Path("LiveContainerSwiftUI/Views/LiveBoardHomeScreen.swift").read_text()
+          stores = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxRemoteStores.swift").read_text()
+          assert "struct LiveBoardHomeScreen: View" in home
+          assert "struct BloomBoxTweakStore: View" in stores
+          assert "struct BloomBoxAppStore: View" in stores
+          assert "final class BloomBoxTweakCatalog: ObservableObject" in stores
+          assert "private final class BloomBoxTweakCatalog" not in stores
+          assert "struct BloomBoxTweakStore: View" not in home
+          assert "struct BloomBoxAppStore: View" not in home
+          print("BloomBox remote stores are separate from Home")
+          PY
       - name: Test BloomBox native Home layout and legacy data
         run: |
           swiftc LiveContainerSwiftUI/Views/LiveBoardHomeLayout.swift Tests/home-layout/main.swift -o "$RUNNER_TEMP/bloombox-home-layout-tests"
