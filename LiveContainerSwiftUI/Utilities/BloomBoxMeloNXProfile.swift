@@ -85,6 +85,25 @@ enum BloomBoxEmulatorPreflight {
     }
 }
 
+/// Diagnostic markers, deliberately separate from a JIT success decision.
+/// A debugger attach does NOT prove the guest prepared executable memory or detached.
+enum BloomBoxJITProgressMarker {
+    static func attached(_ line: String) -> Bool {
+        line.hasPrefix("Debugger attach reply: T")
+    }
+
+    static func awaitingGuest(_ line: String) -> Bool {
+        let prefix = "Handling signal "
+        guard line.hasPrefix(prefix) else { return false }
+        return Int(line.dropFirst(prefix.count)) != nil
+    }
+
+    static func didTimeOut(_ line: String) -> Bool {
+        line.hasPrefix("JIT timed out.") ||
+        line.hasPrefix("Debugger attached, but the guest did not finish")
+    }
+}
+
 /// MeloNX 2.6, GPL-3.0; Stossy11 and MeloNX contributors.
 /// Pinned source: https://starforgejo.dev/projects/MeloNX/src/tag/2.6/src/MeloNX/MeloNX/Common/JIT/EnableJIT.swift
 /// Commit: 0b0800d37142a28efa24aa6444d47b1f331bfc2f
