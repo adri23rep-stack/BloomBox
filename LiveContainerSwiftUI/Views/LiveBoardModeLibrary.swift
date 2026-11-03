@@ -1,9 +1,20 @@
 import Foundation
 
 struct LiveBoardModeLibrary: Codable, Equatable {
-    var categories = ["Games", "Ports", "Tools"]
+    var categories = ["Games", "Ports", "Emuladores"]
     var assignments: [String: String] = [:]
     var hidden: Set<String> = []
+    /// Migrate only the GameBox library; other launcher categories are untouched.
+    /// Preserve assignments that users saved under the previous "Tools" tab.
+    mutating func migrateGameBoxCategories() {
+        categories = categories.map { $0 == "Tools" ? "Emuladores" : $0 }
+        var unique = Set<String>()
+        categories = categories.filter { unique.insert($0).inserted }
+        if !categories.contains("Emuladores") { categories.append("Emuladores") }
+        for (app, category) in assignments where category == "Tools" {
+            assignments[app] = "Emuladores"
+        }
+    }
     mutating func addCategory(_ value: String) -> Bool {
         let name = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, name.count <= 30,
