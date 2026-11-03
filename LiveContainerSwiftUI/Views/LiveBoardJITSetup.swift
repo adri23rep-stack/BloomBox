@@ -11,7 +11,7 @@ struct LiveBoardJITSetup: View {
     // Never turn this on automatically: it affects all private guest containers.
     @AppStorage("LCSharePrivateDataWithLiveProcess") private var sharePrivateDataWithLiveProcess = false
     @State private var importing = false
-    @State private var hasPairing = FileManager.default.fileExists(atPath: LiveBoardBuiltInJIT.pairingURL.path)
+    @State private var hasPairing = BloomBoxJITPairingStorage().hasRecord
     let embedded: Bool
 
     init(embedded: Bool = false) {
@@ -105,12 +105,12 @@ struct LiveBoardJITSetup: View {
                         Button(hasPairing ? "Replace pairing file" : "Import remote pairing file") { importing = true }
                         if hasPairing {
                             Button("Remove pairing file", role: .destructive) {
-                                do { try FileManager.default.removeItem(at: LiveBoardBuiltInJIT.pairingURL); hasPairing = false; session.message = "Pairing file removed." }
+                                do { try BloomBoxJITPairingStorage().remove(); hasPairing = false; session.message = "Pairing file removed." }
                                 catch { session.message = error.localizedDescription }
                             }
                         }
                         Text("Enable Developer Mode in Settings. Connect your existing LocalDevVPN before Prepare device or Launch with JIT; SideStore can keep using the same VPN. The first launch may download a developer disk image.")
-                        Label(LCUtils.strataCanDebug() ? "Debugging permission available" : "Re-signing required: debugging permission missing", systemImage: LCUtils.strataCanDebug() ? "checkmark.shield" : "exclamationmark.shield")
+                        Label(LCUtils.bloomBoxCanDebug() ? "Debugging permission available" : "Re-signing required: debugging permission missing", systemImage: LCUtils.bloomBoxCanDebug() ? "checkmark.shield" : "exclamationmark.shield")
                         Text("JIT applies only to guests installed inside BloomBox, not other iPhone apps. It runs through LiveProcess, and some guest engines need a matching iOS 27 JIT script. Keep extensions when updating.").foregroundStyle(.secondary)
                     }
                     Section("Datos privados de las apps") {

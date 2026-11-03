@@ -709,7 +709,7 @@ struct LiveBoardHomeScreen: View {
             if pendingUninstall?.uiIsShared == true {
                 Text("Esta app está compartida entre instancias de LiveContainer. Por seguridad, conviértela a app privada desde sus ajustes antes de desinstalarla.")
             } else {
-                Text("Se quitará la app de LiveContainer y del escritorio de Manzana. Sus carpetas de datos se conservarán. Esta acción no se puede deshacer.")
+                Text("Se quitará la app de LiveContainer y del escritorio de BloomBox. Sus carpetas de datos se conservarán. Esta acción no se puede deshacer.")
             }
         }
         .confirmationDialog("Editar icono", isPresented: Binding(

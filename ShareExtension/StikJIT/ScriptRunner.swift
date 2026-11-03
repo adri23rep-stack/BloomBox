@@ -24,7 +24,7 @@ final class ScriptRunner {
     }
 
     func run() throws {
-        let source = StrataJITScriptSafety.harden(try BundledScript.source(for: script))
+        let source = BloomBoxJITScriptSafety.harden(try BundledScript.source(for: script))
 
         guard let context = JSContext() else { throw StikJITError.scriptUnavailable }
         self.context = context
@@ -54,10 +54,10 @@ final class ScriptRunner {
 
         context.setObject(getPID,  forKeyedSubscript: "get_pid" as NSString)
         let lastError: @convention(block) () -> String = { [weak self] in self?.executionError?.localizedDescription ?? "The debugger connection closed." }
-        context.setObject(send, forKeyedSubscript: "__strata_send_command" as NSString)
-        context.setObject(prepare, forKeyedSubscript: "__strata_prepare_memory_region" as NSString)
-        context.setObject(lastError, forKeyedSubscript: "__strata_last_error" as NSString)
-        context.evaluateScript(StrataJITScriptSafety.bridge)
+        context.setObject(send, forKeyedSubscript: "__bloombox_send_command" as NSString)
+        context.setObject(prepare, forKeyedSubscript: "__bloombox_prepare_memory_region" as NSString)
+        context.setObject(lastError, forKeyedSubscript: "__bloombox_last_error" as NSString)
+        context.evaluateScript(BloomBoxJITScriptSafety.bridge)
         context.setObject(log,     forKeyedSubscript: "log" as NSString)
 
         progress("Running \(script.name) against pid \(targetPID)…")

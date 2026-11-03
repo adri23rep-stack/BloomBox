@@ -38,7 +38,7 @@
 + (unsigned long long)bloomBoxAvailableMemory {
     return os_proc_available_memory();
 }
-+ (BOOL)strataCanDebug {
++ (BOOL)bloomBoxCanDebug {
     void *task = SecTaskCreateFromSelf(NULL);
     if (!task) return NO;
     CFTypeRef value = SecTaskCopyValueForEntitlement(task, CFSTR("get-task-allow"), NULL);
@@ -47,7 +47,7 @@
     CFRelease(task);
     return allowed;
 }
-+ (NSObject *)strataStartJITHelper:(NSDictionary *)payload error:(NSError **)error {
++ (NSObject *)bloomBoxStartJITHelper:(NSDictionary *)payload error:(NSError **)error {
     // Read the extension's actual identifier: SideStore can rewrite both identifiers when signing.
     NSString *helperPath = [NSBundle.mainBundle.builtInPlugInsPath stringByAppendingPathComponent:@"JITHelper.appex"];
     NSBundle *bundle = [NSBundle bundleWithPath:helperPath];
@@ -59,7 +59,7 @@
     [ext beginExtensionRequestWithInputItems:@[item] completion:^(NSUUID *request) {}];
     return ext;
 }
-+ (void)strataStopJITHelper:(NSObject *)helper { [(NSExtension *)helper _kill:0]; }
++ (void)bloomBoxStopJITHelper:(NSObject *)helper { [(NSExtension *)helper _kill:0]; }
 
 #pragma mark Certificate & password
 

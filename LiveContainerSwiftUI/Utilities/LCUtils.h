@@ -25,11 +25,11 @@ uint32_t dyld_get_sdk_version(const struct mach_header* mh);
 @end
 
 @interface LCUtils : NSObject
-+ (BOOL)strataCanDebug;
++ (BOOL)bloomBoxCanDebug;
 + (NSNumber * _Nullable)bloomBoxMemoryEntitlement;
 + (unsigned long long)bloomBoxAvailableMemory;
-+ (NSObject *)strataStartJITHelper:(NSDictionary *)payload error:(NSError **)error;
-+ (void)strataStopJITHelper:(NSObject *)helper;
++ (NSObject *)bloomBoxStartJITHelper:(NSDictionary *)payload error:(NSError **)error;
++ (void)bloomBoxStopJITHelper:(NSObject *)helper;
 
 + (void)validateJITLessSetupWithCompletionHandler:(void (^)(BOOL success, NSError *error))completionHandler;
 + (NSURL *)archiveIPAWithBundleName:(NSString*)newBundleName includingExtraInfoDict:(NSDictionary *)extraInfoDict error:(NSError **)error;

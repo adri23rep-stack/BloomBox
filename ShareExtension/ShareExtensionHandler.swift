@@ -5,7 +5,7 @@ final class ShareExtensionHandler: UIViewController {
     private var jitStarted = false
     private func handleJIT(_ context: NSExtensionContext) -> Bool {
         if jitStarted { return true }
-        jitStarted = StrataJITWorker.handle(context)
+        jitStarted = BloomBoxJITWorker.handle(context)
         return jitStarted
     }
     private let viewModel = ShareExtensionViewModel()

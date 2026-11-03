@@ -54,7 +54,7 @@ static void BloomBoxReportJITPermissions(void) {
     CFRelease(task);
     NSURL *root = [LCSharedUtils appGroupPath];
     if (!root) return;
-    NSURL *directory = [root URLByAppendingPathComponent:@"Library/StrataJIT/Targets" isDirectory:YES];
+    NSURL *directory = [root URLByAppendingPathComponent:@"Library/BloomBoxJIT/Targets" isDirectory:YES];
     [NSFileManager.defaultManager createDirectoryAtURL:directory withIntermediateDirectories:YES attributes:nil error:nil];
     NSURL *file = [directory URLByAppendingPathComponent:[NSString stringWithFormat:@"%d.json", getpid()]];
     NSData *data = [NSJSONSerialization dataWithJSONObject:report options:0 error:nil];

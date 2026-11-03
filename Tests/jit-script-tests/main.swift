@@ -142,12 +142,12 @@ func run(_ mode: String) -> (String?, [String]) {
     let error: @convention(block) () -> String = { "Debugger transport closed" }
     let log: @convention(block) (JSValue?) -> Void = { _ in }
     context.setObject(pid, forKeyedSubscript: "get_pid" as NSString)
-    context.setObject(send, forKeyedSubscript: "__strata_send_command" as NSString)
-    context.setObject(prepare, forKeyedSubscript: "__strata_prepare_memory_region" as NSString)
-    context.setObject(error, forKeyedSubscript: "__strata_last_error" as NSString)
+    context.setObject(send, forKeyedSubscript: "__bloombox_send_command" as NSString)
+    context.setObject(prepare, forKeyedSubscript: "__bloombox_prepare_memory_region" as NSString)
+    context.setObject(error, forKeyedSubscript: "__bloombox_last_error" as NSString)
     context.setObject(log, forKeyedSubscript: "log" as NSString)
-    context.evaluateScript(StrataJITScriptSafety.bridge)
-    context.evaluateScript(StrataJITScriptSafety.harden(source))
+    context.evaluateScript(BloomBoxJITScriptSafety.bridge)
+    context.evaluateScript(BloomBoxJITScriptSafety.harden(source))
     return (context.exception?.toString(), commands)
 }
 for mode in ["minimal", "missing-thread"] {

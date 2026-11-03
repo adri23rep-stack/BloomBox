@@ -1,7 +1,7 @@
 import Foundation
 
 /// Discovers the current iOS RemotePairing port rather than assuming it is always 49152.
-/// This runs synchronously on StrataJITWorker's dedicated serial helper queue.
+/// This runs synchronously on BloomBoxJITWorker's dedicated serial helper queue.
 private final class BloomBoxRemotePairingDiscovery: NSObject, NetServiceBrowserDelegate, NetServiceDelegate {
     private let browser = NetServiceBrowser()
     private var services: [NetService] = []
@@ -60,19 +60,19 @@ private enum BloomBoxJITEndpoint {
 }
 
 /// Runs debugger work outside the target process, serially. Pairing data never enters logs.
-enum StrataJITWorker {
+enum BloomBoxJITWorker {
     private static let lock = NSLock()
     private static var tokens = Set<String>()
-    static let queue = DispatchQueue(label: "Strata.JIT.helper")
+    static let queue = DispatchQueue(label: "BloomBox.JIT.helper")
     static func handle(_ context: NSExtensionContext) -> Bool {
         guard let item = context.inputItems.first as? NSExtensionItem,
-              let input = item.userInfo, input["strataJIT"] as? Bool == true else { return false }
+              let input = item.userInfo, input["bloomBoxJIT"] as? Bool == true else { return false }
         guard let token = input["token"] as? String, UUID(uuidString: token) != nil,
               let pid = input["pid"] as? Int32, pid > 0,
               let data = input["pairing"] as? Data, data.count < 2_000_000,
               let group = input["group"] as? String,
               let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) else {
-            context.cancelRequest(withError: NSError(domain: "StrataJIT", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid JIT request."]))
+            context.cancelRequest(withError: NSError(domain: "BloomBoxJIT", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid JIT request."]))
             return true
         }
         lock.lock()
@@ -82,7 +82,7 @@ enum StrataJITWorker {
         queue.async {
             defer { lock.lock(); tokens.remove(token); lock.unlock() }
             let fm = FileManager.default
-            let status = container.appendingPathComponent("Library/StrataJIT/\(token).json")
+            let status = container.appendingPathComponent("Library/BloomBoxJIT/\(token).json")
             // Include buffered output in every status update. A single last-message field
             // can lose fast script messages between the host's polling intervals.
             var messages: [String] = []
@@ -104,7 +104,13 @@ enum StrataJITWorker {
             do {
                 try data.write(to: pairing, options: [.atomic, .completeFileProtection])
                 let library = fm.urls(for: .libraryDirectory, in: .userDomainMask)[0]
-                let paths = DDIPaths.default(in: library.appendingPathComponent("StrataJIT"))
+                // Move the existing developer disk image cache instead of downloading it again.
+                let legacyCache = library.appendingPathComponent("StrataJIT")
+                let bloomboxCache = library.appendingPathComponent("BloomBoxJIT")
+                if fm.fileExists(atPath: legacyCache.path) && !fm.fileExists(atPath: bloomboxCache.path) {
+                    try? fm.moveItem(at: legacyCache, to: bloomboxCache)
+                }
+                let paths = DDIPaths.default(in: bloomboxCache)
                 let operation = input["operation"] as? String ?? "enable"
                 if operation == "reset" {
                     try StikJIT.resetCachedDDI(at: paths)
@@ -117,7 +123,7 @@ enum StrataJITWorker {
                     report(String(describing: stage))
                 }
                 switch readiness {
-                case .unreachable(let reason), .preparationFailed(let reason): throw NSError(domain: "StrataJIT", code: 2, userInfo: [NSLocalizedDescriptionKey: reason])
+                case .unreachable(let reason), .preparationFailed(let reason): throw NSError(domain: "BloomBoxJIT", code: 2, userInfo: [NSLocalizedDescriptionKey: reason])
                 case .ready(let state):
                     if operation == "prepare" {
                         let txm = state.isTXMPresent.map { $0 ? "present" : "not present" } ?? "unknown"
@@ -125,9 +131,9 @@ enum StrataJITWorker {
                         context.completeRequest(returningItems: nil)
                         return
                     }
-                    guard let txm = state.isTXMPresent else { throw NSError(domain: "StrataJIT", code: 3, userInfo: [NSLocalizedDescriptionKey: "Cannot determine device JIT requirements."]) }
+                    guard let txm = state.isTXMPresent else { throw NSError(domain: "BloomBoxJIT", code: 3, userInfo: [NSLocalizedDescriptionKey: "Cannot determine device JIT requirements."]) }
                     let script = input["script"] as? String ?? ""
-                    if txm && script.isEmpty { throw NSError(domain: "StrataJIT", code: 4, userInfo: [NSLocalizedDescriptionKey: "This guest needs a compatible iOS JIT script. Configure its JIT script in app settings before launching."]) }
+                    if txm && script.isEmpty { throw NSError(domain: "BloomBoxJIT", code: 4, userInfo: [NSLocalizedDescriptionKey: "This guest needs a compatible iOS JIT script. Configure its JIT script in app settings before launching."]) }
                     report("Connecting debugger…")
                     // Preserve the guest's existing protocol; never substitute a universal script for an arbitrary engine.
                     try StikJIT.enableJIT(targetPID: pid, pairingFile: pairing, ddiPaths: paths, configuration: config,
@@ -142,9 +148,9 @@ enum StrataJITWorker {
 }
 
 /// Request entry point used before a share view is created.
-@objc(StrataJITRequestHandler)
-final class StrataJITRequestHandler: NSObject, NSExtensionRequestHandling {
-    func beginRequest(with context: NSExtensionContext) { _ = StrataJITWorker.handle(context) }
+@objc(BloomBoxJITRequestHandler)
+final class BloomBoxJITRequestHandler: NSObject, NSExtensionRequestHandling {
+    func beginRequest(with context: NSExtensionContext) { _ = BloomBoxJITWorker.handle(context) }
     @objc(begin:)
-    static func begin(_ context: NSExtensionContext) { _ = StrataJITWorker.handle(context) }
+    static func begin(_ context: NSExtensionContext) { _ = BloomBoxJITWorker.handle(context) }
 }

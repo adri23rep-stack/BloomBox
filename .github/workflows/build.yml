@@ -73,9 +73,13 @@ jobs:
         run: python3 Scripts/fetch-bundled-dependencies.py
       - name: Test JIT debugger protocol and MeloNX 2.6 profile
         run: |
-          swiftc ShareExtension/StrataJITScriptSafety.swift LiveContainerSwiftUI/Utilities/BloomBoxMeloNXProfile.swift Tests/jit-script-tests/main.swift -o "$RUNNER_TEMP/jit-script-tests"
+          swiftc ShareExtension/BloomBoxJITScriptSafety.swift LiveContainerSwiftUI/Utilities/BloomBoxMeloNXProfile.swift Tests/jit-script-tests/main.swift -o "$RUNNER_TEMP/jit-script-tests"
           "$RUNNER_TEMP/jit-script-tests"
           "$RUNNER_TEMP/jit-script-tests" melonx
+      - name: Test BloomBox remote pairing validation and migration
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBoxRemotePairingRecord.swift Tests/jit-tests/main.swift -o "$RUNNER_TEMP/bloombox-pairing-tests"
+          "$RUNNER_TEMP/bloombox-pairing-tests"
       - name: Test remote Game compatibility profiles
         run: |
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxGameProfileSchema.swift Tests/remote-game-profiles/main.swift -o "$RUNNER_TEMP/game-profiles-tests"

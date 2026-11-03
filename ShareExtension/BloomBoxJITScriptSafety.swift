@@ -1,11 +1,12 @@
 import Foundation
 
 /// Compatibility fixes for the known universal protocol, preserving guest-specific handlers.
-enum StrataJITScriptSafety {
+enum BloomBoxJITScriptSafety {
     static let bridge = #"""
     function send_command(command) {
-        const reply = __strata_send_command(command);
-        if (reply === null || reply === undefined) throw new Error(__strata_last_error());
+        if (typeof command !== 'string' || command.length > 16384) throw new Error('Invalid debugger command.');
+        const reply = __bloombox_send_command(command);
+        if (reply === null || reply === undefined) throw new Error(__bloombox_last_error());
         if ((command.startsWith('vAttach;') || command === 'c') && /^E[0-9a-f]+(?:;|$)/i.test(reply)) {
             const parts = reply.split(';');
             let detail = '';
@@ -20,11 +21,11 @@ enum StrataJITScriptSafety {
         return reply;
     }
     function prepare_memory_region(address, length) {
-        const reply = __strata_prepare_memory_region(address, length);
-        if (reply === null || reply === undefined) throw new Error(__strata_last_error());
+        const reply = __bloombox_prepare_memory_region(address, length);
+        if (reply === null || reply === undefined) throw new Error(__bloombox_last_error());
         return reply;
     }
-    function strataReadRegister(reply, register, thread) {
+    function bloomBoxReadRegister(reply, register, thread) {
         const match = new RegExp('(?:^|;)' + register + ':([0-9a-f]{16});', 'i').exec(reply);
         if (match) return match[1];
         const value = send_command('p' + register + ';thread:' + thread + ';');
@@ -47,14 +48,14 @@ enum StrataJITScriptSafety {
                 }
                 if (!tid || !/^T[0-9a-f]{2}/i.test(brkResponse))
                     throw new Error('Unexpected debugger stop reply: ' + brkResponse);
-                pc = strataReadRegister(brkResponse, '20', tid);
-                x16 = strataReadRegister(brkResponse, '10', tid);
+                pc = bloomBoxReadRegister(brkResponse, '20', tid);
+                x16 = bloomBoxReadRegister(brkResponse, '10', tid);
             
             """#)
         }
         let first = "        tmpMatch = /00:(?<reg>[0-9a-f]{16});/.exec(brkResponse);"
         if let a = result.range(of: first), let b = result.range(of: "        x0 = littleEndianHexStringToNumber(x0);", range: a.upperBound..<result.endIndex) {
-            result.replaceSubrange(a.lowerBound..<b.lowerBound, with: "        x0 = strataReadRegister(brkResponse, '00', tid);\n        x1 = strataReadRegister(brkResponse, '01', tid);\n")
+            result.replaceSubrange(a.lowerBound..<b.lowerBound, with: "        x0 = bloomBoxReadRegister(brkResponse, '00', tid);\n        x1 = bloomBoxReadRegister(brkResponse, '01', tid);\n")
         }
         return result
     }

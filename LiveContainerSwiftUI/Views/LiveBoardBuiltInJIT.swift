@@ -6,8 +6,7 @@ import SwiftUI
 enum LiveBoardBuiltInJIT {
     private static var busy = false
     static var pairingURL: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("StrataJIT/pairingFile.plist")
+        BloomBoxJITPairingStorage().pairingURL
     }
     static func importPairing(_ url: URL) throws {
         let scoped = url.startAccessingSecurityScopedResource()
@@ -16,10 +15,8 @@ enum LiveBoardBuiltInJIT {
     }
     /// The in-app iOS 27 pairing host hands us exactly the same remote pairing format.
     static func storeOnDevicePairing(_ data: Data) throws {
-        try StrataPairingRecord.validate(data)
-        try FileManager.default.createDirectory(at: pairingURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try data.write(to: pairingURL, options: [.atomic, .completeFileProtection])
-        UserDefaults.standard.set("On-device pairing ready. Connect LocalDevVPN, then prepare JIT.", forKey: "StrataJITLastStatus")
+        try BloomBoxJITPairingStorage().save(data)
+        UserDefaults.standard.set("On-device pairing ready. Connect LocalDevVPN, then prepare JIT.", forKey: "BloomBoxJITLastStatus")
     }
     static func enable(pid: Int32 = getpid(), script: String?, operation: String = "enable", progress: @escaping (String) -> Void) async -> Bool {
         var recentMessages: [String] = []
@@ -27,7 +24,7 @@ enum LiveBoardBuiltInJIT {
         let report: (String) -> Void = { message in
             if BloomBoxJITProgressMarker.attached(message) { debuggerAttached = true }
             progress(message)
-            UserDefaults.standard.set(message, forKey: "StrataJITLastStatus")
+            UserDefaults.standard.set(message, forKey: "BloomBoxJITLastStatus")
             recentMessages.append(String(message.prefix(1024)))
             recentMessages = Array(recentMessages.suffix(40))
             let status: [String: Any] = ["message": message, "operation": operation, "recentMessages": recentMessages]
@@ -41,12 +38,13 @@ enum LiveBoardBuiltInJIT {
         busy = true
         defer { busy = false }
         guard #available(iOS 17.4, *) else { report("Built-in JIT requires iOS 17.4 or later."); return false }
-        guard operation == "enable" || LCUtils.strataCanDebug() else { report("This installation lacks debugging permission (get-task-allow). Re-sign using a compatible signing method."); return false }
-        guard let data = try? Data(contentsOf: pairingURL) else { report("Import your pairing file in JIT setup first."); return false }
-        do { try StrataPairingRecord.validate(data) } catch { report(error.localizedDescription); return false }
+        guard operation == "enable" || LCUtils.bloomBoxCanDebug() else { report("This installation lacks debugging permission (get-task-allow). Re-sign using a compatible signing method."); return false }
+        let data: Data
+        do { data = try BloomBoxJITPairingStorage().load() }
+        catch { report(error.localizedDescription); return false }
         guard let group = LCSharedUtils.appGroupID(), let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) else { report("The shared app container is unavailable."); return false }
         if operation == "enable" {
-            let file = root.appendingPathComponent("Library/StrataJIT/Targets/\(pid).json")
+            let file = root.appendingPathComponent("Library/BloomBoxJIT/Targets/\(pid).json")
             report("Checking the running LiveProcess signature (PID \(pid))…")
             var target: [String: Any]?
             for _ in 0..<50 {
@@ -74,7 +72,7 @@ enum LiveBoardBuiltInJIT {
             report("LiveProcess: debugging permitted; RAM+ \(ram).")
         }
         let token = UUID().uuidString
-        let status = root.appendingPathComponent("Library/StrataJIT/\(token).json")
+        let status = root.appendingPathComponent("Library/BloomBoxJIT/\(token).json")
         let manualPortText = (LCUtils.appGroupUserDefault.string(forKey: "BloomBoxJITRemotePort") ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let manualPort = manualPortText.isEmpty ? nil : UInt16(manualPortText)
@@ -82,16 +80,16 @@ enum LiveBoardBuiltInJIT {
             report("Invalid remote pairing port. Enter 1–65535 or leave the field empty for auto discovery.")
             return false
         }
-        var helperInput: [String: Any] = ["strataJIT": true, "group": group, "operation": operation,
+        var helperInput: [String: Any] = ["bloomBoxJIT": true, "group": group, "operation": operation,
                                           "token": token, "pid": pid, "pairing": data, "script": script ?? ""]
         if let manualPort { helperInput["remotePort"] = Int(manualPort) }
         var helper: NSObject?
         defer {
-            if let helper { LCUtils.strataStopJITHelper(helper) }
+            if let helper { LCUtils.bloomBoxStopJITHelper(helper) }
             try? FileManager.default.removeItem(at: status)
         }
         do {
-            helper = try LCUtils.strataStartJITHelper(helperInput)
+            helper = try LCUtils.bloomBoxStartJITHelper(helperInput)
             guard helper != nil else { report("JIT helper unavailable. Reinstall keeping app extensions."); return false }
             report("Preparing device. Keep LocalDevVPN connected and Developer Mode enabled.")
             var lastMessage = ""
@@ -145,7 +143,7 @@ enum LiveBoardBuiltInJIT {
 /// Owns preparation independently of the setup sheet's lifetime.
 @MainActor final class LiveBoardJITSession: ObservableObject {
     static let shared = LiveBoardJITSession()
-    @Published var message = UserDefaults.standard.string(forKey: "StrataJITLastStatus") ?? ""
+    @Published var message = UserDefaults.standard.string(forKey: "BloomBoxJITLastStatus") ?? UserDefaults.standard.string(forKey: "StrataJITLastStatus") ?? ""
     @Published private(set) var busy = false
     @Published private(set) var success: Bool?
     private var task: Task<Void, Never>?
@@ -232,11 +230,17 @@ final class BloomBoxJITLogStore: ObservableObject {
     private static let maximumBytes = 2_000_000
     private static var logURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("BloomBoxJIT/jit-history.json")
+    }
+
+    private static var legacyLogURL: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("StrataJIT/jit-history.json")
     }
 
     private init() {
-        if let data = try? Data(contentsOf: Self.logURL),
+        let savedURL = FileManager.default.fileExists(atPath: Self.logURL.path) ? Self.logURL : Self.legacyLogURL
+        if let data = try? Data(contentsOf: savedURL),
            let loaded = try? JSONDecoder().decode([Attempt].self, from: data) {
             attempts = Array(loaded.prefix(Self.maximumRecords))
             // A terminated host must not leave an old "working" attempt forever.
