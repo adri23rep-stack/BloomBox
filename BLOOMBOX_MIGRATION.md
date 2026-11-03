@@ -146,3 +146,9 @@ occurs until the macOS build and on-device tests pass.
 - Existing app key strings, folder identifiers, Codable fields, page data and Dock ordering remain unchanged.
 - Fixed repeated creation of a new page for every installed app when visible Home pages are full: new icons now share the new page until it fills.
 - Regression tests verify folder migration, page retention and multiple new installations from full visible pages.
+
+## Original BloomBox folder panel (phase 18)
+
+- Replaced Home's inline folder-overlay view with a standalone `BloomBoxFolderPanel` that owns the iOS-style expanding folder UI, paginated 3x3 app tiles, rename and close controls.
+- The new view receives a read-only folder, a page binding and action callbacks; only the Home coordinator can change the app layout or launch a guest.
+- Existing folder identifiers, saved contents and editing menus stay unchanged. Accessibility labels and Reduce Motion behavior are preserved.

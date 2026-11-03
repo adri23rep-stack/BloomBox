@@ -2742,41 +2742,23 @@ struct LiveBoardHomeScreen: View {
     }
 
     private func folderOverlay(_ folder: LiveBoardHomeLayout.Folder, width: CGFloat) -> some View {
-        ZStack {
-            Color.black.opacity(0.12).ignoresSafeArea().contentShape(Rectangle()).onTapGesture {
-                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.24)) { openFolder = nil }
-            }
-            VStack(spacing: 28) {
-                Button { renameKey = folder.id; renameValue = folder.name } label: { Text(folder.name).font(.system(size: 30, weight: .semibold)) }.buttonStyle(.plain)
-                TabView(selection: $folderPage) {
-                    ForEach(0..<max(1, (folder.apps.count + 8) / 9), id: \.self) { p in
-                        VStack(spacing: 0) {
-                            ForEach(0..<3, id: \.self) { row in
-                                HStack(alignment: .top, spacing: 0) {
-                                    ForEach(0..<3, id: \.self) { col in
-                                        let index = p * 9 + row * 3 + col
-                                        Group {
-                                            if index < folder.apps.count { homeItem(folder.apps[index], showLabel: !largeIcons) }
-                                            else { Color.clear.frame(width: 60, height: 80) }
-                                        }.frame(maxWidth: .infinity).frame(height: 96, alignment: .top)
-                                    }
-                                }
-                            }
-                        }.padding(.horizontal, 12).padding(.top, 28).tag(p)
-                    }
+        BloomBoxFolderPanel(
+            folder: folder,
+            width: width,
+            showLabels: !largeIcons,
+            reduceMotion: reduceMotion,
+            page: $folderPage,
+            icon: { key in homeItem(key, showLabel: !largeIcons) },
+            rename: {
+                renameKey = folder.id
+                renameValue = folder.name
+            },
+            close: {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.24)) {
+                    openFolder = nil
                 }
-                .tabViewStyle(.page(indexDisplayMode: folder.apps.count > 9 ? .always : .never))
-                .frame(width: min(width - 56, 340), height: 340)
-                .liveBoardGlass(radius: 38, interactive: false)
-                Button("Cerrar") {
-                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.24)) { openFolder = nil }
-                }.font(.subheadline).accessibilityIdentifier("home.folder.close")
-            }.offset(y: -25)
-        }
-        .accessibilityAddTraits(.isModal)
-        .transition(reduceMotion ? .opacity :
-            .asymmetric(insertion: .scale(scale: 0.58, anchor: .center).combined(with: .opacity),
-                        removal: .scale(scale: 0.78, anchor: .center).combined(with: .opacity)))
+            }
+        )
     }
 
     private var controls: some View {

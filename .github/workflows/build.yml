@@ -71,6 +71,18 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetGalleryPolicy.swift Tests/widget-gallery/main.swift -o "$RUNNER_TEMP/bloombox-widget-gallery-tests"
           "$RUNNER_TEMP/bloombox-widget-gallery-tests"
+      - name: Check independent BloomBox folder UI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          home = Path("LiveContainerSwiftUI/Views/LiveBoardHomeScreen.swift").read_text()
+          panel = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxFolderPanel.swift").read_text()
+          assert "BloomBoxFolderPanel(" in home
+          assert "struct BloomBoxFolderPanel<Icon: View>: View" in panel
+          assert "folder.apps.indices.contains(position)" in panel
+          assert "home.folder.close" in panel
+          print("Folder UI is hosted in its own BloomBox component")
+          PY
       - name: Verify extracted launcher interaction components
         run: |
           python3 - <<'PY'
