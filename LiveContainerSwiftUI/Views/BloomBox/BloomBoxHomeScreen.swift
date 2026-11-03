@@ -50,7 +50,7 @@ struct BloomBoxHomeScreen: View {
     @AppStorage("LiveBoardCategories", store: LCUtils.appGroupUserDefault) private var categories = "{}"
     @AppStorage("LiveBoardLargeIcons", store: LCUtils.appGroupUserDefault) private var largeIcons = false
     @AppStorage("darkModeIcon", store: LCUtils.appGroupUserDefault) private var darkIcons = false
-    @AppStorage("LiveBoardWallpaperStyle", store: LCUtils.appGroupUserDefault) private var wallpaperStyle = "red"
+    @AppStorage("LiveBoardWallpaperStyle", store: LCUtils.appGroupUserDefault) private var wallpaperStyle = "black"
     @AppStorage("LiveBoardWallpaperFit", store: LCUtils.appGroupUserDefault) private var wallpaperFit = false
     @AppStorage("LiveBoardWallpaperDim", store: LCUtils.appGroupUserDefault) private var wallpaperDim = 0.1
     @Environment(\.scenePhase) private var scenePhase
@@ -895,9 +895,10 @@ struct BloomBoxHomeScreen: View {
                 } else if wallpaperStyle == "photo", let wallpaper {
                     Image(uiImage: wallpaper).resizable().aspectRatio(contentMode: wallpaperFit ? .fit : .fill)
                         .frame(width: geometry.size.width, height: geometry.size.height).clipped()
-                } else if wallpaperStyle != "black" {
-                    LiveBoardRibbonWallpaper(blue: wallpaperStyle == "blue")
                 }
+                // New installs have no packaged stock wallpaper. Previously
+                // saved red/blue presets fall back to neutral black without
+                // deleting user data; photo/GIF/video remain supported.
                 Color.black.opacity(wallpaperDim)
             }
         }.ignoresSafeArea()
@@ -2821,7 +2822,7 @@ struct BloomBoxHomeScreen: View {
                     if !motionWallpaper.isEmpty { Toggle("Pausar fondo animado", isOn: $pauseWallpaper) }
                     Button("Choose Photo") { customizing = false; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { choosingWallpaper = true } }
                     Picker("Background", selection: $wallpaperStyle) {
-                        Text("Red ribbons").tag("red"); Text("Blue ribbons").tag("blue"); Text("Black").tag("black")
+                        Text("Negro (sin fondo preinstalado)").tag("black")
                         if wallpaper != nil { Text("Your photo").tag("photo") }
                         if !motionWallpaper.isEmpty { Text("Video / GIF").tag("motion") }
                     }

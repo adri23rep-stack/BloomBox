@@ -197,3 +197,9 @@ occurs until the macOS build and on-device tests pass.
 - Fixed an overlooked live Objective-C share-extension host hook which was still listening for strataJIT and invoking a no-longer-present StrataJITRequestHandler. It now dispatches bloomBoxJIT to BloomBoxJITRequestHandler, matching the existing Swift worker and embedded NSExtensionPrincipalClass.
 - Guarded missing Objective-C runtime class/method pointers before installing the hook.
 - Added a cross-language CI contract test to stop this launch-blocking mismatch from returning.
+
+## Wallpaper presets retirement (phase 24)
+
+- Deleted the preinstalled red/blue procedural ribbon wallpaper generator and removed both presets from the Home wallpaper picker. No bundled wallpaper image files were found in the current assets catalog.
+- Fresh installs default to a neutral black background until the owner supplies the new default .bbtheme. The supplied theme is NOT yet applied or configured.
+- Existing personal photo/GIF/video files, exported themes, GameBox per-game art and saved wallpaper preferences remain untouched. Historical red/blue preference values safely render black instead of old stock artwork.

@@ -90,6 +90,20 @@ jobs:
           assert not (root / "LiveBoard.swift").exists()
           print("Native launcher host and GameBox request gate preserved")
           PY
+      - name: Reject removed stock ribbon wallpapers from the active launcher
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          home = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
+          visuals = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherVisuals.swift").read_text()
+          assert 'wallpaperStyle = "black"' in home
+          assert 'LiveBoardRibbonWallpaper' not in home + visuals
+          assert 'Text("Red ribbons")' not in home
+          assert 'Text("Blue ribbons")' not in home
+          assert '@AppStorage("LiveBoardWallpaperStyle"' in home
+          assert 'BloomBoxAnimatedWallpaper' in home
+          print("No bundled stock ribbons; user wallpapers and persisted keys retained.")
+          PY
       - name: Verify BloomBox native Home entry and visual controls
         run: |
           python3 - <<'PY'
@@ -141,7 +155,7 @@ jobs:
           home = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
           visual = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherVisuals.swift").read_text()
           for required in ("struct LiveBoardHomeIcon: View", "struct LiveBoardIconImage: View",
-                           "struct LiveBoardMoveDropDelegate: DropDelegate", "struct LiveBoardRibbonWallpaper: View",
+                           "struct LiveBoardMoveDropDelegate: DropDelegate",
                            "func liveBoardGlass("):
               assert required in visual, required
           assert "struct LiveBoardHomeIcon: View" not in home

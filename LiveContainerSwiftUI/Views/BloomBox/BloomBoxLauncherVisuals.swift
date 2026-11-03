@@ -95,26 +95,6 @@ struct LiveBoardIconImage: View {
 }
 
 /// Original procedural wallpaper; user photos are rendered separately, without app-bundle changes.
-struct LiveBoardRibbonWallpaper: View {
-    let blue: Bool
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                Color.black
-                Ellipse().fill(RadialGradient(colors: [accent.opacity(0.45), accent.opacity(0.08), .black], center: .center, startRadius: 0, endRadius: geometry.size.height * 0.48))
-                    .frame(width: geometry.size.width * 1.5, height: geometry.size.height * 0.9).rotationEffect(.degrees(-20)).offset(x: -40, y: -70)
-                ForEach(0..<3) { index in
-                    Ellipse().stroke(LinearGradient(colors: [.black, accent.opacity(0.6), .black, accent.opacity(0.9), .black], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 3 + CGFloat(index) * 1.5)
-                        .background(Ellipse().fill(LinearGradient(colors: [.black.opacity(0.9), accent.opacity(0.22), .black], startPoint: .topLeading, endPoint: .bottomTrailing)))
-                        .frame(width: geometry.size.width * (0.7 + Double(index) * 0.13), height: geometry.size.height * (0.65 - Double(index) * 0.1))
-                        .rotationEffect(.degrees(Double(index) * 38 - 34)).offset(x: CGFloat(index - 1) * 32, y: CGFloat(index - 1) * 35)
-                }
-            }.frame(width: geometry.size.width, height: geometry.size.height).clipped()
-        }
-    }
-    private var accent: Color { blue ? Color(red: 0.04, green: 0.25, blue: 0.85) : Color(red: 0.7, green: 0.035, blue: 0.01) }
-}
-
 /// Photos' provider URL is temporary: copy the original GIF/video
 /// into BloomBox storage before the callback returns.
 struct BloomBoxMotionWallpaperPhotosPicker: UIViewControllerRepresentable {
