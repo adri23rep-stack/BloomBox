@@ -1635,34 +1635,9 @@ struct LiveBoardHomeScreen: View {
         UISelectionFeedbackGenerator().selectionChanged()
     }
     private func moveIconsOutOfWidgetArea() {
-        // Reflow, never discard app keys or modify their data. A fully occupied
-        // page spills excess icons onto the next available Home page.
-        for index in layout.pages.indices {
-            let occupied = occupiedCells(on: index)
-            var displaced: [String] = []
-            for slot in occupied where layout.pages[index].indices.contains(slot) {
-                if let key = layout.pages[index][slot] {
-                    displaced.append(key)
-                    layout.pages[index][slot] = nil
-                }
-            }
-            for key in displaced {
-                var target = index
-                while true {
-                    if !layout.pages.indices.contains(target) {
-                        layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity))
-                    }
-                    let reserved = occupiedCells(on: target)
-                    if let free = layout.pages[target].indices.first(where: {
-                        layout.pages[target][$0] == nil && !reserved.contains($0)
-                    }) {
-                        layout.pages[target][free] = key
-                        break
-                    }
-                    target += 1
-                }
-            }
-        }
+        layout = BloomBoxHomeIconReflow.apply(
+            to: layout, widgets: placedWidgets, hiddenPages: hiddenPageIndices
+        )
     }
     private func restoreWidgetSpace() { moveIconsOutOfWidgetArea() }
 

@@ -158,3 +158,10 @@ occurs until the macOS build and on-device tests pass.
 - A Foundation-only placement policy now locates existing free space on visible Home pages before adding pages for new or relocated widgets.
 - Deleting a Home page repairs its hidden-page indexes before relocating widgets; widget media and IDs are preserved.
 - Invalid widget shapes cannot create a blank Home page. Regression tests cover hidden pages, full pages and geometry.
+
+## Independent icon reflow around widgets (phase 18)
+
+- Extracted Home icon/widget collision handling into BloomBoxHomeIconReflow, a Foundation-only component with no app launch or container writes.
+- Reflow preserves dock and folder membership, keeps hidden pages untouched, and finds room on visible pages before creating a new one.
+- Uses deterministic cell ordering, reuses new overflow pages for an entire icon batch and is idempotent when the widget grid is unchanged.
+- CI tests cover full/hidden pages, preserved app IDs, overflow and repeat runs.
