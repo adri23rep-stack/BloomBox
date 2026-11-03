@@ -71,6 +71,20 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetGalleryPolicy.swift Tests/widget-gallery/main.swift -o "$RUNNER_TEMP/bloombox-widget-gallery-tests"
           "$RUNNER_TEMP/bloombox-widget-gallery-tests"
+      - name: Verify shared launcher visual surfaces
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          home = Path("LiveContainerSwiftUI/Views/LiveBoardHomeScreen.swift").read_text()
+          visual = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherVisuals.swift").read_text()
+          for required in ("struct LiveBoardHomeIcon: View", "struct LiveBoardIconImage: View",
+                           "struct LiveBoardMoveDropDelegate: DropDelegate", "struct LiveBoardRibbonWallpaper: View",
+                           "func liveBoardGlass("):
+              assert required in visual, required
+          assert "struct LiveBoardHomeIcon: View" not in home
+          assert "struct LiveBoardMoveDropDelegate: DropDelegate" not in home
+          print("BloomBox launcher visual surfaces loaded from one module")
+          PY
       - name: Check isolated BloomBox Modules and JIT UI
         run: |
           python3 - <<'PY'

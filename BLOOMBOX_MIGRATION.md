@@ -107,3 +107,9 @@ occurs until the macOS build and on-device tests pass.
 - The Home surface now references these BloomBox screens as separate components rather than compiling their entire UI inside the launcher file.
 - All `@AppStorage` preference names, existing guest launch hooks and module destinations remain unchanged.
 - CI checks the new boundaries. Legacy JIT implementation itself was migrated in earlier phases.
+
+## Launcher decomposition — reusable visual components (phase 14)
+
+- Shared Home icon tiles, wobble, drag-and-drop proposal, icon renderer, wallpaper pickers, ribbon background and glass modifiers now live in `Views/BloomBox/BloomBoxLauncherVisuals.swift`.
+- The original Home View retains interaction state, but its visual components can now be individually audited, rewritten and tested without touching JIT/RAM+ or guest launch.
+- The Swift types and existing theme/saved-preference keys remain compatible; CI enforces the boundary.
