@@ -851,7 +851,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             ramConfirmed: ram.validation.confirmed,
             liveProcessSigned: ram.extensionSigned == true,
             builtInJITSelected: defaults.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue,
-            debuggingAvailable: jitRequired ? LCUtils.strataCanDebug() : false,
+            debuggingAvailable: jitRequired ? LCUtils.bloomBoxCanDebug() : false,
             pairingPresent: jitRequired && FileManager.default.fileExists(
                 atPath: LiveBoardBuiltInJIT.pairingURL.path),
             jitRequired: jitRequired) {
@@ -964,7 +964,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         let intentionallyOff = policy == .disabled || forceJIT == false
         let jitReady = intentionallyOff || (jitRequested &&
             defaults.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue &&
-            LCUtils.strataCanDebug() &&
+            LCUtils.bloomBoxCanDebug() &&
             FileManager.default.fileExists(atPath: LiveBoardBuiltInJIT.pairingURL.path))
         guard let missing = BloomBoxEmulatorPreflight.firstMissing(
             ramReady: ramReady, jitReady: jitReady,
