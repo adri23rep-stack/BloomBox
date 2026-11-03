@@ -6,7 +6,6 @@ import SwiftUI
 struct BloomBoxFolderPanel<Icon: View>: View {
     let folder: LiveBoardHomeLayout.Folder
     let width: CGFloat
-    let showLabels: Bool
     let reduceMotion: Bool
     @Binding var page: Int
     let icon: (String) -> Icon

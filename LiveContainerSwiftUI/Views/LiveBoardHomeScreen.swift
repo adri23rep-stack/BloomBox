@@ -2745,7 +2745,6 @@ struct LiveBoardHomeScreen: View {
         BloomBoxFolderPanel(
             folder: folder,
             width: width,
-            showLabels: !largeIcons,
             reduceMotion: reduceMotion,
             page: $folderPage,
             icon: { key in homeItem(key, showLabel: !largeIcons) },
