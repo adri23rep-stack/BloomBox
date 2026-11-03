@@ -291,7 +291,7 @@ enum BloomBoxWidgetMedia {
               CGImageSourceGetCount(source) > 0,
               let type = CGImageSourceGetType(source) as String?,
               let imageType = UTType(type), imageType.conforms(to: .image)
-        else { throw ManzanaWallpaperMedia.failure("Selecciona una imagen o GIF válido de hasta 30 MB.") }
+        else { throw BloomBoxMotionMedia.failure("Selecciona una imagen o GIF válido de hasta 30 MB.") }
 
         let isGIF = type == UTType.gif.identifier
         // Image providers can return HEIC/HEIF/TIFF and other iPhone formats.
@@ -310,7 +310,7 @@ enum BloomBoxWidgetMedia {
         } else {
             guard let image = UIImage(data: data),
                   let converted = image.jpegData(compressionQuality: 0.9) else {
-                throw ManzanaWallpaperMedia.failure("No se pudo convertir esa foto. Prueba con JPG, PNG o GIF.")
+                throw BloomBoxMotionMedia.failure("No se pudo convertir esa foto. Prueba con JPG, PNG o GIF.")
             }
             extensionName = "jpg"; payload = converted
         }
@@ -319,7 +319,7 @@ enum BloomBoxWidgetMedia {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         do {
             try payload.write(to: target, options: .atomic)
-            if isGIF { _ = try ManzanaWallpaperMedia.gifFrames(target) }
+            if isGIF { _ = try BloomBoxMotionMedia.gifFrames(target) }
             return file
         } catch {
             try? FileManager.default.removeItem(at: target)
@@ -336,7 +336,7 @@ enum BloomBoxWidgetMedia {
         }
         if let coordError { throw coordError }
         if let readError { throw readError }
-        guard let fileData else { throw ManzanaWallpaperMedia.failure("No se pudo leer la imagen.") }
+        guard let fileData else { throw BloomBoxMotionMedia.failure("No se pudo leer la imagen.") }
         return try importData(fileData)
     }
 }
@@ -845,7 +845,7 @@ private struct BloomBoxRemoteNewsSection: View {
             request.timeoutInterval = 15
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
-                  data.count <= 256_000 else { throw ManzanaWallpaperMedia.failure("La lista de noticias no está disponible.") }
+                  data.count <= 256_000 else { throw BloomBoxMotionMedia.failure("La lista de noticias no está disponible.") }
             let decoded = try JSONDecoder().decode(BloomBoxNewsFeed.self, from: data)
             posts = Array(decoded.posts.prefix(12))
             error = nil
@@ -891,7 +891,7 @@ private struct BloomBoxRemoteNewsImage: View {
                     .map { String(format: "%02x", $0) }.joined() + ".gif"
                 let target = directory.appendingPathComponent(name)
                 try data.write(to: target, options: .atomic)
-                _ = try ManzanaWallpaperMedia.gifFrames(target)
+                _ = try BloomBoxMotionMedia.gifFrames(target)
                 gifFile = target
             } catch {
                 gifFile = nil

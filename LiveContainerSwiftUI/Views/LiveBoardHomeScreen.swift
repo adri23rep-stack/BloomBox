@@ -1024,7 +1024,7 @@ struct LiveBoardHomeScreen: View {
                 importingMotionWallpaper = true
                 Task {
                     do {
-                        let name = try await Task.detached(priority: .userInitiated) { try ManzanaWallpaperMedia.importFile(url) }.value
+                        let name = try await Task.detached(priority: .userInitiated) { try BloomBoxMotionMedia.importFile(url) }.value
                         installMotionWallpaper(name)
                     } catch { wallpaperError = error.localizedDescription }
                     importingMotionWallpaper = false
@@ -1105,9 +1105,7 @@ struct LiveBoardHomeScreen: View {
         let old = motionWallpaper
         motionWallpaper = name
         wallpaperStyle = "motion"
-        if old != name, let oldURL = ManzanaWallpaperMedia.url(old) {
-            try? FileManager.default.removeItem(at: oldURL)
-        }
+        if old != name { BloomBoxMotionMedia.remove(old) }
     }
 
     private var background: some View { wallpaperBackground(paused: pageManager) }
@@ -1116,7 +1114,7 @@ struct LiveBoardHomeScreen: View {
         GeometryReader { geometry in
             ZStack {
                 Color.black
-                if wallpaperStyle == "motion", let url = ManzanaWallpaperMedia.url(motionWallpaper) {
+                if wallpaperStyle == "motion", let url = BloomBoxMotionMedia.url(motionWallpaper) {
                     ManzanaAnimatedWallpaper(url: url, fit: wallpaperFit,
                         paused: pauseWallpaper || reduceMotion || paused)
                         .id(motionWallpaper)
@@ -1953,7 +1951,7 @@ struct LiveBoardHomeScreen: View {
         if let wallpaper = try? Data(contentsOf: wallpaperURL) {
             media["wallpaper.jpg"] = wallpaper.base64EncodedString()
         }
-        if let url = ManzanaWallpaperMedia.url(motionWallpaper),
+        if let url = BloomBoxMotionMedia.url(motionWallpaper),
            let bytes = try? Data(contentsOf: url) {
             media["motion-wallpaper"] = bytes.base64EncodedString()
             settings["ManzanaMotionWallpaper"] = motionWallpaper
@@ -4590,7 +4588,7 @@ struct BloomBoxMotionWallpaperPhotosPicker: UIViewControllerRepresentable {
                 })
             guard let type else {
                 DispatchQueue.main.async {
-                    self.completion(.failure(ManzanaWallpaperMedia.failure(
+                    self.completion(.failure(BloomBoxMotionMedia.failure(
                         "Ese archivo no es un GIF ni un video. Para fotos normales usa Elegir foto."
                     )))
                 }
@@ -4601,13 +4599,13 @@ struct BloomBoxMotionWallpaperPhotosPicker: UIViewControllerRepresentable {
                 if let url {
                     do {
                         let ext = isGIF ? "gif" : (UTType(type)?.preferredFilenameExtension ?? "mov")
-                        let name = try ManzanaWallpaperMedia.importFile(url, fileExtension: ext)
+                        let name = try BloomBoxMotionMedia.importFile(url, fileExtension: ext)
                         result = .success(name)
                     } catch {
                         result = .failure(error)
                     }
                 } else {
-                    result = .failure(error ?? ManzanaWallpaperMedia.failure(
+                    result = .failure(error ?? BloomBoxMotionMedia.failure(
                         "Fotos no pudo entregar el video o GIF. Prueba importarlo desde Archivos."
                     ))
                 }

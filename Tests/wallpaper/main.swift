@@ -17,18 +17,36 @@ for (delay, value) in [(0.05, 0.2), (0.2, 0.8)] {
         [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: delay]] as CFDictionary)
 }
 assert(CGImageDestinationFinalize(output))
-let frames = try ManzanaWallpaperMedia.gifFrames(gif)
+let frames = try BloomBoxMotionMedia.gifFrames(gif)
 assert(frames.0.count == 2)
 assert(abs(frames.2 - 0.25) < 0.01)
 assert(abs(frames.1[1].doubleValue - 0.2) < 0.01)
-let imported = try ManzanaWallpaperMedia.importFile(gif)
-let owned = ManzanaWallpaperMedia.url(imported)!
+let imported = try BloomBoxMotionMedia.importFile(gif)
+let owned = BloomBoxMotionMedia.url(imported)!
 defer { try? fm.removeItem(at: owned) }
 assert(fm.fileExists(atPath: owned.path))
 assert(fm.fileExists(atPath: gif.path))
-assert(ManzanaWallpaperMedia.url("../outside.mov") == nil)
+assert(BloomBoxMotionMedia.url("../outside.mov") == nil)
 let broken = temp.appendingPathComponent("broken.gif")
 try Data("not a gif".utf8).write(to: broken)
-do { _ = try ManzanaWallpaperMedia.importFile(broken); fatalError("Corrupt GIF accepted") } catch {}
+do { _ = try BloomBoxMotionMedia.importFile(broken); fatalError("Corrupt GIF accepted") } catch {}
 assert(fm.fileExists(atPath: owned.path))
 print("GIF import, timing, corruption and persistence checks passed")
+
+let current = temp.appendingPathComponent("BloomBox")
+let legacy = temp.appendingPathComponent("LiveBoard")
+try fm.createDirectory(at: legacy, withIntermediateDirectories: true)
+let previousName = "motion-01234567-89AB-CDEF-0123-456789ABCDEF.gif"
+let previous = legacy.appendingPathComponent(previousName)
+try fm.copyItem(at: gif, to: previous)
+assert(BloomBoxMotionMedia.resolve(previousName, current: current, legacy: legacy) == previous)
+try fm.createDirectory(at: current, withIntermediateDirectories: true)
+let preferred = current.appendingPathComponent(previousName)
+try fm.copyItem(at: gif, to: preferred)
+assert(BloomBoxMotionMedia.resolve(previousName, current: current, legacy: legacy) == preferred)
+assert(BloomBoxMotionMedia.resolve("motion-../../steal.gif", current: current, legacy: legacy) == nil)
+assert(BloomBoxMotionMedia.resolve("motion-evil.exe", current: current, legacy: legacy) == nil)
+let unsupported = temp.appendingPathComponent("invalid.txt")
+try Data("garbage".utf8).write(to: unsupported)
+do { _ = try BloomBoxMotionMedia.importFile(unsupported); fatalError("Accepted invalid format") } catch {}
+print("BloomBox motion migration and strict filename checks passed")

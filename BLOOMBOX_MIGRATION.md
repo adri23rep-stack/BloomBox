@@ -49,3 +49,9 @@ occurs until the macOS build and on-device tests pass.
 - Artwork is copied into BloomBox/Icons only when needed; previous files remain for rollback until the user explicitly replaces or resets a custom icon.
 - Storage filenames reject directory traversal. App bundles and original IPA metadata are never rewritten.
 - The presentation UI remains compatible with existing icon picker and settings screens.
+
+## BloomBox wallpaper media (phase 5)
+
+- Replaced the inherited media importer with BloomBox-owned file validation, bounded GIF decoding and new BloomBox/Wallpapers storage.
+- Existing LiveBoard motion files remain readable without duplicating video data. Theme filenames and preferences stay compatible.
+- The existing animated view remains temporarily while the playback implementation is being replaced.

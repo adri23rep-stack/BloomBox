@@ -56,7 +56,7 @@ private struct ManzanaMotionSurface: UIViewRepresentable {
                 stop(); loadedURL = url; wantsPlayback = playing
                 if url.pathExtension.lowercased() == "gif" {
                     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                        guard let result = try? ManzanaWallpaperMedia.gifFrames(url) else { return }
+                        guard let result = try? BloomBoxMotionMedia.gifFrames(url) else { return }
                         DispatchQueue.main.async { [weak self] in
                             guard let self, self.loadedURL == url else { return }
                             self.imageLayer.contents = result.0.first
