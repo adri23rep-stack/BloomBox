@@ -1134,70 +1134,37 @@ struct LiveBoardHomeScreen: View {
     /// glass previews. A miniature is material, not another wallpaper image.
     // MARK: - App Library: final page of Manzana's Home
     // Only guests installed in LiveContainer are listed, not unrelated iOS apps.
-    private func libraryCategory(for key: String, assigned: [String: String], appsByKey: [String: LCAppModel]) -> String {
-        if let custom = assigned[key], !custom.isEmpty {
-            return custom
+    // Classification, favorites, recents and search are owned by BloomBox's
+    // portable library policy rather than baked into the SwiftUI Home view.
+    private func libraryEntries() -> [BloomBoxAppLibraryPolicy.Entry] {
+        let appsByKey = appMap
+        let builtIns = Set([
+            Self.sideStoreKey, Self.installKey, Self.tweakStoreKey,
+            Self.appStoreKey, Self.modulesKey, Self.themesKey
+        ])
+        return appKeys.map { key in
+            BloomBoxAppLibraryPolicy.Entry(
+                key: key,
+                name: title(key, appsByKey: appsByKey),
+                bundleID: appsByKey[key]?.bundleIdentifier ?? "",
+                isBuiltIn: builtIns.contains(key)
+            )
         }
-        if [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey, Self.themesKey].contains(key) { return "Utilidades" }
-        let hint = "\(title(key, appsByKey: appsByKey)) \(appsByKey[key]?.bundleIdentifier ?? "")".lowercased()
-        func containsAny(_ words: [String]) -> Bool { words.contains { hint.contains($0) } }
-        if containsAny(["youtube", "tiktok", "instagram", "whatsapp", "discord", "facebook",
-                         "twitter", "threads", "telegram", "reddit", "messenger", "social"]) {
-            return "Social"
-        }
-        if containsAny(["game", "mario", "samba", "kart", "taiko", "melon", "emu",
-                         "minecraft", "ryujinx", "retro", "puzzle", "play"]) {
-            return "Juegos"
-        }
-        if containsAny(["ibis", "pixiv", "camera", "photo", "editor", "draw", "pinterest",
-                         "art", "paint", "creative", "music", "video"]) {
-            return "Creatividad"
-        }
-        if containsAny(["notes", "office", "docs", "drive", "calendar", "notion",
-                         "word", "excel", "productivity", "file", "takopi"]) {
-            return "Productividad"
-        }
-        if containsAny(["settings", "clock", "utility", "utilities", "browser",
-                         "safari", "remote", "tool", "jit", "terminal", "store"]) {
-            return "Utilidades"
-        }
-        return "Otras apps"
     }
 
     private var librarySections: [LibrarySection] {
-        let keys = appKeys
-        let appsByKey = appMap
-        let keySet = Set(keys)
-        let assigned = (try? JSONDecoder().decode([String: String].self, from: Data(categories.utf8))) ?? [:]
-        let favorites = favoriteKeys.filter { keySet.contains($0) }
-        var suggestions = favorites
-        suggestions.append(contentsOf: keys.filter { !suggestions.contains($0) })
-        let stored = recentLibraryKeys.filter { keySet.contains($0) }
-        let recent = Array((stored + keys.reversed().filter { !stored.contains($0) }).prefix(8))
-        var groups: [String: [String]] = [:]
-        for key in keys {
-            groups[libraryCategory(for: key, assigned: assigned, appsByKey: appsByKey), default: []].append(key)
-        }
-        let categoryNames = ["Social", "Productividad", "Utilidades", "Juegos", "Creatividad", "Otras apps"]
-        let otherNames = groups.keys.filter { !categoryNames.contains($0) }.sorted()
-        let categories = (categoryNames + otherNames).compactMap { name -> LibrarySection? in
-            guard let items = groups[name], !items.isEmpty else { return nil }
-            return LibrarySection(title: name, keys: items)
-        }
-        return [LibrarySection(title: "Sugerencias", keys: Array(suggestions.prefix(8))),
-                LibrarySection(title: "Añadidas recientemente", keys: recent)] + categories
+        let assigned = (try? JSONDecoder().decode([String: String].self,
+                              from: Data(categories.utf8))) ?? [:]
+        return BloomBoxAppLibraryPolicy.sections(
+            entries: libraryEntries(),
+            favorites: favoriteKeys,
+            recent: recentLibraryKeys,
+            assigned: assigned
+        ).map { LibrarySection(title: $0.title, keys: $0.keys) }
     }
 
     private var librarySearchMatches: [String] {
-        let appsByKey = appMap
-        // Resolve each display name once, instead of decoding preferences during sorting.
-        let entries = appKeys.map { (key: $0, name: title($0, appsByKey: appsByKey)) }
-        return entries.filter {
-            libraryQuery.isEmpty ||
-            $0.name.localizedCaseInsensitiveContains(libraryQuery) ||
-            (appsByKey[$0.key]?.bundleIdentifier.localizedCaseInsensitiveContains(libraryQuery) ?? false)
-        }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-            .map { $0.key }
+        BloomBoxAppLibraryPolicy.search(libraryEntries(), query: libraryQuery)
     }
 
     private func appLibrary(width: CGFloat) -> some View {

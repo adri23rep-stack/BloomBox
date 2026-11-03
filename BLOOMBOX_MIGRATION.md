@@ -120,3 +120,9 @@ occurs until the macOS build and on-device tests pass.
 - Replaced Home's inline move/resize behavior with a tested placement planner that preserves stable widget IDs, uses collision-safe fallback slots and removes stale duplicates.
 - Widget movement continues to select the moved widget for subsequent editing. Existing JSON keys and theme exports remain compatible.
 - New CI tests exercise moves, resizing, overlapping widgets, malformed dimensions and saved JSON round-trips.
+
+## Independent App Library (phase 16)
+
+- Moved category rules, suggestions, favorites, recently added ordering and search into `BloomBoxAppLibraryPolicy.swift`, a Foundation-only component.
+- Home supplies only installed guest apps and its permanent built-in shortcuts. User-defined categories and saved favorites remain unchanged.
+- Added tests for category ordering, duplicate filtering, case-insensitive name/bundle search and old shortcut keys.
