@@ -172,3 +172,11 @@ occurs until the macOS build and on-device tests pass.
 - Remote News and widget rendering now live in separate BloomBox source modules; saved News feed URL and locale settings stay compatible.
 - GIF downloads are capped at 10 MB each, validated before replacing an existing image, and stored in a bounded 64 MB cache rather than growing indefinitely. Existing user wallpaper and widget directories are never pruned.
 - The News cache has offline regression tests for HTTPS links, oldest-first eviction, pinned active images and unrelated files.
+
+## Native BloomBox Home entry and chrome (phase 20)
+
+- The active SwiftUI launcher entry now resides at Views/BloomBox/BloomBoxHomeScreen.swift. A source compatibility alias keeps existing LiveContainer host callers working.
+- Deleted the old LiveBoardHomeScreen.swift source path. This is a source/module transition, not a claim that all inherited Home source ancestry has been rewritten from scratch.
+- Reimplemented the installer progress display, launch welcome overlay, and full-size (44pt minimum) Edit/Done toolbar as separate BloomBox-owned views.
+- Home, all user preferences, launch actions, existing app folders and theme exports remain available without changing saved formats or installed guest data.
+- Build workflow and IPA source checks now require the new source layout and reject reappearance of the old Home file.

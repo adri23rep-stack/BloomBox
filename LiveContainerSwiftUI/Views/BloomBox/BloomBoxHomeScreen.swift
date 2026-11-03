@@ -3,7 +3,7 @@ import CryptoKit
 import PhotosUI
 import UniformTypeIdentifiers
 
-struct LiveBoardHomeScreen: View {
+struct BloomBoxHomeScreen: View {
     let apps: [LCAppModel]
     let launch: (LCAppModel) -> Void
     let manage: (LCAppModel) -> Void
@@ -45,7 +45,7 @@ struct LiveBoardHomeScreen: View {
     @State private var categoryName = ""
     @State private var categoryApp: String?
 
-    @AppStorage("LiveBoardHomeLayout", store: LCUtils.appGroupUserDefault) private var savedLayout = ""
+    @AppStorage("BloomBoxHomeLayout", store: LCUtils.appGroupUserDefault) private var savedLayout = ""
     @AppStorage("LiveBoardFavorites", store: LCUtils.appGroupUserDefault) private var favorites = "[]"
     @AppStorage("LiveBoardCategories", store: LCUtils.appGroupUserDefault) private var categories = "{}"
     @AppStorage("LiveBoardLargeIcons", store: LCUtils.appGroupUserDefault) private var largeIcons = false
@@ -66,7 +66,7 @@ struct LiveBoardHomeScreen: View {
     private var livingWidgetSettingsJSON = "{}"
     @State private var themeExportURL: URL?
     @State private var themeExportError: String?
-    @State private var layout = LiveBoardHomeLayout()
+    @State private var layout = BloomBoxHomeLayout()
     @State private var page = 1
     @State private var homeHasAppeared = false
     @AppStorage("BloomBoxAliveEnabled", store: LCUtils.appGroupUserDefault)
@@ -266,101 +266,30 @@ struct LiveBoardHomeScreen: View {
                 .allowsHitTesting(!searching)
                 .accessibilityHidden(searching)
                 if installInProgress {
-                    VStack {
-                        HStack(spacing: 10) {
-                            ProgressView()
-                                .tint(.white)
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text("Instalando aplicación…")
-                                    .font(.system(size: 14, weight: .semibold))
-                                ProgressView(value: min(1, max(0, installProgress)), total: 1)
-                                    .tint(.white)
-                                Text("\(Int(min(1, max(0, installProgress)) * 100)) %")
-                                    .font(.caption2.monospacedDigit())
-                                    .foregroundStyle(.white.opacity(0.8))
-                            }
-                            Spacer(minLength: 0)
-                        }
-                        .padding(15)
-                        .liveBoardGlass(radius: 22, interactive: false)
-                        .padding(.horizontal, 24)
-                        .padding(.top, 8)
-                        Spacer()
-                    }
-                    .allowsHitTesting(false)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Instalando aplicación")
-                    .accessibilityValue("(Int(min(1, max(0, installProgress)) * 100)) por ciento")
-                    .transition(.opacity)
+                    BloomBoxHomeInstallationNotice(progress: installProgress)
+                        .transition(.opacity)
                 }
                 if aliveEnabled && aliveBooting && aliveStartupPage == page && !reduceMotion {
-                    // A blurred welcome layer that never intercepts taps or swipes.
-                    ZStack {
-                        // Blur the *existing* wallpaper, do not create a second
-                        // video/GIF player just for the welcome screen.
-                        Rectangle().fill(.regularMaterial)
-                        Color.black.opacity(0.22)
-                        VStack(spacing: 12) {
-                            Text("BloomBox")
-                                .font(.system(size: 53, weight: .bold, design: .rounded))
-                                .tracking(-2)
-                                .shadow(color: .white.opacity(0.28), radius: 23)
-                            Text(LocalizedStringKey(aliveSplashLine))
-                                .font(.system(size: 18, weight: .heavy, design: .rounded))
-                                .foregroundStyle(Color(red: 1, green: 0.87, blue: 0.38))
-                                .shadow(color: .black.opacity(0.55), radius: 8, y: 3)
-                                .rotationEffect(.degrees(-5))
-                                .lineLimit(2)
-                                .minimumScaleFactor(0.72)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 30)
-                                .accessibilityLabel(aliveSplashLine.loc)
-                        }
-                        .scaleEffect(aliveIntroVisible ? 1 : 1.05)
-                    }
-                    .ignoresSafeArea()
-                    .opacity(aliveIntroVisible ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.27), value: aliveIntroVisible)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-                    .zIndex(20)
+                    BloomBoxHomeWelcome(message: aliveSplashLine, visible: aliveIntroVisible)
+                        .zIndex(20)
                 }
                 if editing && !searching {
-                    // Keep the editing toolbar only as tall as its actual
-                    // buttons. The previous full-screen VStack + Spacer was a
-                    // topmost interaction layer over page controls and widgets.
-                    HStack {
-                        Menu {
-                            Button("Añadir widget", systemImage: "square.grid.2x2.badge.plus") { showWidgetGallery = true }
-                            Button("Personalizar", systemImage: "paintbrush") { iconCustomization = true }
-                            Button("Exportar tema", systemImage: "square.and.arrow.up") { exportCurrentTheme() }
-                            Button("Añadir página", systemImage: "plus") { addPage() }
-                            Button("Gestionar páginas", systemImage: "square.grid.2x2") { pageManager = true }
-                            Button("Biblioteca de apps", systemImage: "square.grid.2x2") {
-                                finishEditing()
-                                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.4)) {
-                                    page = libraryPageIndex
-                                }
+                    BloomBoxHomeEditorToolbar(
+                        exportURL: $themeExportURL,
+                        addWidget: { showWidgetGallery = true },
+                        customize: { iconCustomization = true },
+                        exportTheme: exportCurrentTheme,
+                        addPage: addPage,
+                        managePages: { pageManager = true },
+                        openLibrary: {
+                            finishEditing()
+                            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.4)) {
+                                page = libraryPageIndex
                             }
-                        } label: {
-                            Text("Editar").font(.system(size: 16, weight: .semibold))
-                                .padding(.horizontal, 18)
-                                .padding(.vertical, 8)
-                        }
-                        .liveBoardGlass(radius: 18, interactive: false)
-                        Spacer()
-                        Button("Listo") { finishEditing() }
-                            .font(.system(size: 16, weight: .semibold))
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 8)
-                            .liveBoardGlass(radius: 18, interactive: false)
-                    }
-                    .padding(.horizontal, 22)
+                        },
+                        finish: finishEditing
+                    )
                     .zIndex(15)
-                    .sheet(isPresented: Binding(get: { themeExportURL != nil },
-                                                set: { if !$0 { themeExportURL = nil } })) {
-                        if let url = themeExportURL { BloomBoxThemeShareSheet(fileURL: url) }
-                    }
                 }
                 if let exportError = themeExportError {
                     Color.clear.frame(width: 0, height: 0).alert("Exportar tema", isPresented: Binding(
@@ -430,7 +359,7 @@ struct LiveBoardHomeScreen: View {
             .onAppear {
                 ramPlus.refresh()
                 Task { await tweakCatalog.refreshIfNeeded() }
-                layout = LiveBoardHomeLayout.decode(savedLayout)
+                layout = BloomBoxHomeLayout.decode(savedLayout)
                 reconcile()
                 migrateLegacyPageWidgets()
                 restoreWidgetSpace()
@@ -1221,7 +1150,7 @@ struct LiveBoardHomeScreen: View {
                             }.padding(8)
                         }
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 4), spacing: 7) {
-                            ForEach(0..<LiveBoardHomeLayout.capacity, id: \.self) { slot in
+                            ForEach(0..<BloomBoxHomeLayout.capacity, id: \.self) { slot in
                                 if let key = layout.pages[index][slot] {
                                     miniatureIcon(key, size: iconSize)
                                 } else {
@@ -1481,7 +1410,7 @@ struct LiveBoardHomeScreen: View {
             return
         }
         if free == nil {
-            layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity))
+            layout.pages.append(Array(repeating: nil, count: BloomBoxHomeLayout.capacity))
         }
         let target = free?.page ?? (layout.pages.count - 1)
         let slot = free?.slot ?? 0
@@ -1690,7 +1619,7 @@ struct LiveBoardHomeScreen: View {
     private func currentThemeData() throws -> Data {
         // Export only presentation settings, never installed app data, credentials or private files.
         let defaults = LCUtils.appGroupUserDefault
-        let keys = ["LiveBoardHomeLayout", "LiveBoardHiddenPages", "BloomBoxPlacedWidgetsV2",
+        let keys = ["BloomBoxHomeLayout", "LiveBoardHiddenPages", "BloomBoxPlacedWidgetsV2",
                     "ManzanaPageWidgets", "LiveBoardLargeIcons", "darkModeIcon",
                     "LiveBoardWallpaperStyle", "LiveBoardWallpaperFit", "LiveBoardWallpaperDim",
                     "ManzanaIconStyle", "BloomBoxAliveEnabled", "BloomBoxAliveIdleEnabled"]
@@ -2640,7 +2569,7 @@ struct LiveBoardHomeScreen: View {
         .accessibilityIdentifier("home.pages")
     }
 
-    @ViewBuilder private func folderIcon(_ folder: LiveBoardHomeLayout.Folder, showLabel: Bool) -> some View {
+    @ViewBuilder private func folderIcon(_ folder: BloomBoxHomeLayout.Folder, showLabel: Bool) -> some View {
         let size: CGFloat = largeIcons ? 76 : 64
         let folderTile = Button {
             guard !editing else { return }
@@ -2721,7 +2650,7 @@ struct LiveBoardHomeScreen: View {
         }
     }
 
-    private func folderOverlay(_ folder: LiveBoardHomeLayout.Folder, width: CGFloat) -> some View {
+    private func folderOverlay(_ folder: BloomBoxHomeLayout.Folder, width: CGFloat) -> some View {
         BloomBoxFolderPanel(
             folder: folder,
             width: width,
@@ -3087,7 +3016,7 @@ struct LiveBoardHomeScreen: View {
         if let folder = layout.folders.first(where: { $0.id == key }) { return folder.name }
         return (appsByKey ?? appMap)[key].map { appCustomization.name($0) } ?? "App"
     }
-    private func addPage() { layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity)); page = layout.pages.count }
+    private func addPage() { layout.pages.append(Array(repeating: nil, count: BloomBoxHomeLayout.capacity)); page = layout.pages.count }
     private func setCategory(_ value: String?, key: String) {
         var map = (try? JSONDecoder().decode([String: String].self, from: Data(categories.utf8))) ?? [:]
         map[key] = value
@@ -3103,7 +3032,7 @@ struct LiveBoardHomeScreen: View {
             slot: 0, columns: widget.columns, rows: widget.rows
         ) != nil else { return }
         if free == nil {
-            layout.pages.append(Array(repeating: nil, count: LiveBoardHomeLayout.capacity))
+            layout.pages.append(Array(repeating: nil, count: BloomBoxHomeLayout.capacity))
         }
         let target = free?.page ?? (layout.pages.count - 1)
         let chosen = free?.slot ?? 0
@@ -3177,3 +3106,7 @@ struct LiveBoardHomeScreen: View {
 
 
 /// Visual-only shortcut. Future .bbtheme exports will retain this stable key.
+
+// Source-compatible entry point for LiveContainer's existing host navigation.
+// New launcher logic and UI are implemented in BloomBoxHomeScreen.
+typealias LiveBoardHomeScreen = BloomBoxHomeScreen

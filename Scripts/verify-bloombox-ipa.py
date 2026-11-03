@@ -38,10 +38,11 @@ with zipfile.ZipFile(ipa) as archive:
     for item in ("BloomBox/BloomBoxNewsPage.swift", "BloomBox/BloomBoxWidgetViews.swift", "BloomBox/BloomBoxAnimatedWallpaper.swift",
                  "BloomBox/BloomBoxMotionMedia.swift", "BloomBox/BloomBoxIconCustomization.swift",
                  "BloomBox/BloomBoxArtworkLibrary.swift",
-                 "BloomBox/BloomBoxFilesView.swift", "BloomBox/BloomBoxFileStore.swift"):
+                 "BloomBox/BloomBoxFilesView.swift", "BloomBox/BloomBoxFileStore.swift",
+                 "BloomBox/BloomBoxHomeChrome.swift", "BloomBox/BloomBoxHomeScreen.swift"):
         if not (source_root / item).is_file():
             raise SystemExit("Wrong source branch: missing BloomBox UI file " + item)
-    home_source = (source_root / "LiveBoardHomeScreen.swift").read_text()
+    home_source = (source_root / "BloomBox/BloomBoxHomeScreen.swift").read_text()
     for expected in ("ManzanaPageWidgets", "LiveBoardHiddenPages", "ManzanaMotionWallpaper", "ManzanaExpiryReminderCenter"):
         if expected not in home_source:
             raise SystemExit("Missing an expected BloomBox UI feature: " + expected)

@@ -71,11 +71,28 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetGalleryPolicy.swift Tests/widget-gallery/main.swift -o "$RUNNER_TEMP/bloombox-widget-gallery-tests"
           "$RUNNER_TEMP/bloombox-widget-gallery-tests"
+      - name: Verify BloomBox native Home entry and visual controls
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("LiveContainerSwiftUI/Views")
+          home = (root / "BloomBox/BloomBoxHomeScreen.swift").read_text()
+          chrome = (root / "BloomBox/BloomBoxHomeChrome.swift").read_text()
+          assert "struct BloomBoxHomeScreen: View" in home
+          assert "typealias LiveBoardHomeScreen = BloomBoxHomeScreen" in home
+          assert not (root / "LiveBoardHomeScreen.swift").exists()
+          for name in ("BloomBoxHomeInstallationNotice", "BloomBoxHomeWelcome",
+                       "BloomBoxHomeEditorToolbar"):
+              assert "struct " + name in chrome, name
+              assert name + "(" in home, name
+          assert "accessibilityValue" in chrome and "minHeight: 44" in chrome
+          print("BloomBox native Home, installation and toolbar controls are isolated")
+          PY
       - name: Check independent BloomBox folder UI
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          home = Path("LiveContainerSwiftUI/Views/LiveBoardHomeScreen.swift").read_text()
+          home = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
           panel = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxFolderPanel.swift").read_text()
           assert "BloomBoxFolderPanel(" in home
           assert "struct BloomBoxFolderPanel<Icon: View>: View" in panel
@@ -87,7 +104,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          home = Path("LiveContainerSwiftUI/Views/LiveBoardHomeScreen.swift").read_text()
+          home = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
           effects = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherInteractions.swift").read_text()
           for name in ("BloomBoxAliveIconFrames", "BloomBoxAliveEntrance",
                        "BloomBoxWidgetMediaPresentation", "BloomBoxWidgetInteraction",
@@ -95,14 +112,14 @@ jobs:
               assert "struct " + name in effects, name
               assert "struct " + name not in home, name
           assert "func liveBoardAppKey(" in effects
-          assert "struct LiveBoardHomeScreen: View" in home
+          assert "struct BloomBoxHomeScreen: View" in home
           print("BloomBox interaction effects are isolated from Home")
           PY
       - name: Verify shared launcher visual surfaces
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          home = Path("LiveContainerSwiftUI/Views/LiveBoardHomeScreen.swift").read_text()
+          home = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
           visual = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherVisuals.swift").read_text()
           for required in ("struct LiveBoardHomeIcon: View", "struct LiveBoardIconImage: View",
                            "struct LiveBoardMoveDropDelegate: DropDelegate", "struct LiveBoardRibbonWallpaper: View",
@@ -116,7 +133,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          home = Path("LiveContainerSwiftUI/Views/LiveBoardHomeScreen.swift").read_text()
+          home = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
           ui = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxModulesAndJIT.swift").read_text()
           for name in ("BloomBoxModulesPanel", "BloomBoxJITGuestControlsView", "BloomBoxConnectivityModule"):
               assert name in ui, name
@@ -128,9 +145,9 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          home = Path("LiveContainerSwiftUI/Views/LiveBoardHomeScreen.swift").read_text()
+          home = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
           stores = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxRemoteStores.swift").read_text()
-          assert "struct LiveBoardHomeScreen: View" in home
+          assert "struct BloomBoxHomeScreen: View" in home
           assert "struct BloomBoxTweakStore: View" in stores
           assert "struct BloomBoxAppStore: View" in stores
           assert "final class BloomBoxTweakCatalog: ObservableObject" in stores
@@ -155,7 +172,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          home = Path("LiveContainerSwiftUI/Views/LiveBoardHomeScreen.swift").read_text()
+          home = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
           news = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxNewsPage.swift").read_text()
           widgets = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetViews.swift").read_text()
           assert "BloomBoxNewsPage(openSettings:" in home
