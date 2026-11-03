@@ -24,4 +24,18 @@ precondition(defaults.string(forKey: BloomBoxLaunchPreferences.sessionKey) == "c
 defaults.set("future-mode", forKey: BloomBoxLaunchPreferences.primaryKey)
 precondition(BloomBoxLaunchPreferences.resetForNewProcess(defaults: defaults) == "ios",
     "Unknown preferences must be safely reset to iOS Home.")
-print("PASS: GameBox startup honors the user's primary launcher and clears temporary mode state")
+var categories = LiveBoardModeLibrary()
+categories.categories = ["Games", "Ports", "Tools", "Retro", "Emuladores"]
+categories.assignments["OldEmulator.app"] = "Tools"
+categories.assignments["CustomGame.app"] = "Retro"
+categories.migrateGameBoxCategories()
+precondition(categories.categories == ["Games", "Ports", "Emuladores", "Retro"],
+    "Migrate Tools to Emuladores without duplicating existing tabs.")
+precondition(categories.assignments["OldEmulator.app"] == "Emuladores",
+    "Retain all existing emulator category assignments.")
+precondition(categories.assignments["CustomGame.app"] == "Retro",
+    "Preserve the user's custom categories.")
+categories.migrateGameBoxCategories()
+precondition(categories.categories == ["Games", "Ports", "Emuladores", "Retro"],
+    "Migrating a second time must not change the library.")
+print("PASS: GameBox startup honors the user's primary launcher and clears temporary mode state, emulator categories")
