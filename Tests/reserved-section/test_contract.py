@@ -36,6 +36,32 @@ assert "BloomBoxOrientationLock(mask: .landscape)" in gamebox
 assert "gameIcon(app, size:" in gamebox and "Image(uiImage: image)" in gamebox
 assert "LCAppModel" not in gamebox and "LCUtils" not in gamebox
 assert "BloomBoxGameBoxEntry(" in host
+# Crash recovery never mounts the complex GameBox view on an unfinished previous
+# session; there is always a usable exit and launch path.
+safe = (ui / "BloomBoxGameBoxSafeScreen.swift").read_text()
+policy = (root / "LiveContainerSwiftUI/Utilities/BloomBoxGameBoxRecoveryPolicy.swift").read_text()
+assert "BloomBoxGameBoxRecoveryPolicy.recoverPreviousSession(" in launcher
+assert "BloomBoxGameBoxRecoveryPolicy.begin(" in launcher
+assert "BloomBoxGameBoxSafeScreen(" in host
+assert "if gameBoxSafeMode {" in host
+assert "retryFull:" in host
+assert "gameBoxSafeMode = false" in host
+assert "guard !gameBoxSafeMode else { return }" in host
+assert "icon: nil," in host
+assert "gameBoxDisplayEntries[index] = entry" in host
+assert "BloomBoxGameBoxRecoveryPolicy.noteIcon(id," in host
+assert "BloomBoxGameBoxRecoveryPolicy.shouldSkipIcon(id," in host
+assert "private func prepareGameBox() async" in host
+assert "BloomBoxGameBoxRecoveryPolicy.useFullUI" in host
+assert "BloomBoxGameBoxRecoveryPolicy.close(" in host
+assert "BloomBoxGameBoxRecoveryPolicy.recoverPreviousSession" in policy
+assert "BloomBoxGameBoxRecoveryPolicy.shouldSkipIcon" in host
+assert "BloomBoxOrientationLock" not in safe
+assert "BloomBoxAnimatedWallpaper" not in safe
+assert "ScrollView" in safe and "LazyVGrid" in safe
+assert "launchWithJIT(app.id)" in safe
+assert "launch(app.id)" in safe
+
 # On-entry view construction does not decode every guest icon repeatedly;
 # loading happens once after the host's first scene/layout transition.
 assert "@State private var gameBoxDisplayEntries:" in host
@@ -44,7 +70,7 @@ assert "private func prepareGameBox() async" in host
 assert "gameBoxDisplayEntries = prepared" in host
 assert "gameBoxReady = true" in host
 assert "if #available(iOS 16.0, *), gameBoxReady" in host
-assert ".task(id: liveBoardMode)" in host
+assert ".task(id: liveBoardMode + (gameBoxSafeMode ? \"-safe\" : \"-full\"))" in host
 assert "UIGraphicsImageRenderer(size: size" in host
 assert "BloomBoxArtworkLibrary" in gamebox
 assert "LazyHStack" in gamebox and "ScrollViewReader" in gamebox
@@ -79,7 +105,7 @@ assert "CGImageSourceCreateThumbnailAtIndex" in gamebox
 assert "artworkIsActive = true" in gamebox
 assert "guard artworkIsActive else { return nil }" in gamebox
 assert '"BloomBoxGameBoxV2OpenStage"' in gamebox
-assert '"BloomBoxGameBoxV2OpenStage"' in host
+assert "BloomBoxGameBoxRecoveryPolicy.checkpoint" in host
 assert "let columns: CGFloat = viewportWidth >= 650 ? 5" in gamebox
 assert "geometry.size.width.isFinite && geometry.size.width > 0" in gamebox
 assert "geometry.size.height.isFinite && geometry.size.height > 0" in gamebox
