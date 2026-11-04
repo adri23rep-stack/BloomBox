@@ -60,7 +60,10 @@ Esto **no** significa que toda la autoría esté resuelta ni que BloomBox ya est
 - [x] Comprobar que el mayor bloque consecutivo idéntico en `BloomBoxHomeScreen.swift` frente a `LiveBoardHomeScreen.swift` pasó de **32 a 10 líneas** (espacios normalizados, revisión Strata fijada; métrica de duplicación, no prueba legal).
 - [ ] Revisar la procedencia de los fragmentos restantes de estado y compatibilidad; conservar identificadores de ajustes heredados aunque se reescriba la lógica.
 - [ ] Pasar el resto del Home a componentes de dominio independientes, sobre todo edición, renombrado, carpetas y transiciones.
-- [ ] Encapsular el acceso directo a `LCAppModel`, `LCUtils` y otros tipos del runtime dentro de `LiveContainerAdapter`; hoy el Home sigue siendo un adaptador temporal.
+- [x] Incorporar `LiveContainerHomeAdapter` para la identidad de apps, listas, estados de apertura/firma, bloqueos de Internet, iconos de SideStore y edición de nombres; el archivo principal ya no referencia directamente las APIs de esas funciones.
+- [x] Incorporar `LiveContainerPreferencesAdapter`: sustituir **32 referencias** directas a `LCUtils.appGroupUserDefault` en Home conservando exactamente el mismo `UserDefaults` y las mismas claves.
+- [x] Añadir la estructura portable `BloomBoxHomeGuestSnapshot` y la verificación de los límites en `Tests/home-adapter-tests/test_adapter.py`.
+- [ ] Encapsular el resto de accesos directos del Home a `LCAppModel`, `SharedModel`, tabulación, gestión de tweaks y ejecución de apps en un `LiveContainerAdapter` completo; por ahora sigue existiendo un puente para no romper el lanzamiento.
 - [ ] Confirmar la compilación del **último commit** y verificar el comportamiento de las nuevas pantallas en iOS 27.
 
 - [ ] Reimplementar lógica de menús contextuales, búsqueda, renombrado, favoritos, categorías y edición que coincida con la implementación original de Strata.
