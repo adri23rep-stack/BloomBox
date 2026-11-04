@@ -30,7 +30,7 @@ Se encontraron secuencias **exactamente iguales** al comparar archivos de Strata
 **En curso:** evidencia de esta etapa en [auditoría](STRATA-PROVENANCE-AUDIT.md) y
 [manifiesto SHA por archivo](STRATA-PROVENANCE-MANIFEST.json).
 Ya se fijaron cuatro revisiones, se clasificaron coincidencias exactas de
-263 fuentes y 29 recursos, se compararon 17 pares de módulos modificados y
+263 fuentes, 29 recursos multimedia y 143 archivos de metadatos/configuración (435 archivos Git en total), se compararon 17 pares de módulos modificados y
 se añadió una comprobación de integridad del manifiesto a CI.
 **No está terminada:** faltan análisis del historial, autoría de bloques
 modificados, otros tipos de recursos/binarios y pruebas de referencia en dispositivo.
@@ -71,6 +71,7 @@ modificados, otros tipos de recursos/binarios y pruebas de referencia en disposi
 - [ ] Auditar componentes visuales y de escritorio extraídos, helpers Obj-C/Swift, hooks, módulos JIT y RAM+, ShareExtension, widgets, app list, fuentes de temas y CI.
 - [ ] Verificar que JIT y RAM+ no empaqueten código/binarios de Strata; registrar dependencias directas permitidas con su licencia.
 - [ ] Revisar marcas, iconos, sonidos, fondos, imágenes y otros recursos; eliminar o reemplazar los que procedan de Strata **si existe una alternativa válida**.
+- [ ] Corregir **39 metadatos de idiomas** que conservan `CFBundleName = Strata`, conservando los identificadores de compatibilidad.
 - [ ] Mantener el origen legítimo de LiveContainer, SideStore, StikJIT, Husk, MeloNX y demás terceros con sus avisos.
 - [ ] Inspeccionar también documentación y referencias históricas: diferenciar referencias de atribución/legalidad de etiquetas visibles al usuario.
 
