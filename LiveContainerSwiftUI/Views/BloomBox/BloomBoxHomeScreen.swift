@@ -121,7 +121,6 @@ struct BloomBoxHomeScreen: View {
     @AppStorage("ManzanaLibraryRecents", store: LCUtils.appGroupUserDefault) private var libraryRecentsJSON = "[]"
     @FocusState private var librarySearchFocused: Bool
     @State private var expandedLibraryCategory: LibrarySection?
-    @FocusState private var searchFocused: Bool
     @State private var customizing = false
     @State private var iconCustomization = false
     @State private var choosingWallpaper = false
@@ -2737,80 +2736,44 @@ struct BloomBoxHomeScreen: View {
         withAnimation(reduceMotion ? nil : .easeOut(duration: 0.24)) { searching = true }
     }
     private func closeSearch() {
-        searchFocused = false
         withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) { searching = false }
         query = ""
     }
 
     private func searchOverlay(height: CGFloat) -> some View {
-        ZStack(alignment: .top) {
-            Color.black.opacity(0.12).contentShape(Rectangle()).onTapGesture { closeSearch() }
-            VStack(spacing: 16) {
-                HStack(spacing: 10) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "magnifyingglass").font(.system(size: 21)).foregroundStyle(.white.opacity(0.75))
-                        TextField("Search Apps", text: $query)
-                            .font(.system(size: 22, weight: .regular))
-                            .textInputAutocapitalization(.never).disableAutocorrection(true)
-                            .submitLabel(.search).focused($searchFocused)
-                            .accessibilityIdentifier("home.search.field")
-                            .onSubmit {
-                                if !query.isEmpty, let app = searchResults.first { closeSearch(); requestLaunch(app) }
-                            }
-                        if !query.isEmpty {
-                            Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.white.opacity(0.65)) }
-                                .accessibilityLabel("Clear search")
-                        }
-                    }.padding(.horizontal, 18).frame(height: 58).liveBoardGlass(radius: 28)
-                    Button { closeSearch() } label: {
-                        Image(systemName: "xmark").font(.system(size: 18, weight: .medium)).frame(width: 48, height: 48)
-                    }.liveBoardGlass(radius: 24).accessibilityLabel("Done").accessibilityIdentifier("home.search.done")
-                }
-                if query.isEmpty {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("Suggestions").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.65))
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 18) {
-                            ForEach(Array(searchResults.prefix(8)), id: \.self) { app in
-                                searchIcon(app)
-                            }
-                        }
-                    }.padding(18).liveBoardGlass(radius: 30, interactive: false)
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(searchResults, id: \.self) { app in
-                                let key = liveBoardAppKey(app)
-                                Button { closeSearch(); requestLaunch(app) } label: {
-                                    HStack(spacing: 14) {
-                                        LiveBoardIconImage(app: app, dark: darkIcons).frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
-                                        Text(title(key)).font(.system(size: 17)).lineLimit(1)
-                                        Spacer()
-                                        if layout.hidden.contains(key) { Image(systemName: "plus.circle").foregroundStyle(.white.opacity(0.6)) }
-                                    }.padding(.horizontal, 18).padding(.vertical, 11)
-                                }.buttonStyle(.plain).contextMenu { searchMenu(key, app: app) }
-                            }
-                            if searchResults.isEmpty { Text("No Results").foregroundStyle(.white.opacity(0.65)).padding(24) }
-                        }
-                    }
-                    .frame(height: min(380, height * 0.48, CGFloat(max(1, searchResults.count)) * 66))
-                    .liveBoardGlass(radius: 30, interactive: false)
-                }
-                Spacer(minLength: 0)
-            }.padding(.horizontal, 12).padding(.top, 8)
+        // The search view sees stable keys and names only. LiveContainer models
+        // are used exclusively by this temporary adapter for icons and launch.
+        let guests = Dictionary(
+            apps.map { (liveBoardAppKey($0), $0) },
+            uniquingKeysWith: { original, _ in original }
+        )
+        var used = Set<String>()
+        let entries = searchResults.compactMap { app -> BloomBoxHomeSearchEntry? in
+            let key = liveBoardAppKey(app)
+            guard used.insert(key).inserted else { return nil }
+            return BloomBoxHomeSearchEntry(
+                key: key, title: title(key),
+                isHidden: layout.hidden.contains(key)
+            )
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear { DispatchQueue.main.async { searchFocused = true } }
-        .accessibilityAddTraits(.isModal)
-        .accessibilityAction(.escape) { closeSearch() }
-    }
-    private func searchIcon(_ app: LCAppModel) -> some View {
-        let key = liveBoardAppKey(app)
-        return Button { closeSearch(); requestLaunch(app) } label: {
-            VStack(spacing: 6) {
-                LiveBoardIconImage(app: app, dark: darkIcons).frame(width: 60, height: 60).clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                Text(title(key)).font(.system(size: 12)).lineLimit(1)
+        return BloomBoxHomeSearchPanel(
+            query: $query, height: height, entries: entries, englishUI: englishUI,
+            onLaunch: { key in
+                guard let app = guests[key] else { return }
+                requestLaunch(app)
+            },
+            onClose: closeSearch,
+            icon: { key in
+                if let app = guests[key] {
+                    LiveBoardIconImage(app: app, dark: darkIcons)
+                } else {
+                    Image(systemName: "square.grid.2x2.fill")
+                }
+            },
+            contextMenu: { key in
+                if let app = guests[key] { searchMenu(key, app: app) }
             }
-        }.buttonStyle(.plain).contextMenu { searchMenu(key, app: app) }
+        )
     }
     @ViewBuilder private func searchMenu(_ key: String, app: LCAppModel) -> some View {
         if layout.hidden.contains(key) {
