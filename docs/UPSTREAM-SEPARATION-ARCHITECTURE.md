@@ -41,7 +41,9 @@ LiveContainer runtime          SideStore (embedded, luego opcional externo)
 - `BloomBoxRefreshRequest`, `BloomBoxRefreshState`, `BloomBoxSigningService`: la UI pide renovar y observa el resultado; SideStore gestiona sesión, firma y credenciales.
 - `BloomBoxIntegrationProtocol.majorVersion = 1`: punto de control para compatibilidad y futura negociación de capacidades.
 
-**Ya existe un primer adaptador funcional para Home:** `Views/BloomBoxAdapters/LiveContainerHomeAdapter.swift` transforma las apps instaladas a claves/estado de presentación, y encapsula catálogo, selección, bloqueos de Internet e icono de SideStore. `LiveContainerPreferencesAdapter.swift` mantiene las mismas preferencias de app group, con **32 usos** de `LCUtils.appGroupUserDefault` retirados del archivo principal del Home. Los contratos son portables, pero **el lanzamiento real y la firma todavía dependen del host**, no se han reemplazado por `BloomBoxGuestHost` ni `BloomBoxSigningService`.
+**Adaptadores en uso por el Home:** `Views/BloomBoxAdapters/LiveContainerHomeAdapter.swift` centraliza identidad, estado, iconos del signer, bloqueo de red, visibilidad de invitados y **la importación de tweaks con manejo de Mach-O**. `LiveContainerPreferencesAdapter.swift` conserva los datos de app group, sustituyendo **32 accesos directos** en el Home. `LiveContainerHomeActions.swift` convierte las solicitudes portables `BloomBoxHomeGuestCommand` (`open/JIT/manage/uninstall`) a los callbacks de LiveContainer **sin mover ni sustituir los avisos de compatibilidad o confirmaciones de desinstalación**. El mapa distingue incluso selecciones con claves duplicadas.
+
+**El lanzamiento real y la firma todavía dependen del host** y aún no están migrados al contrato asíncrono `BloomBoxGuestHost` / `BloomBoxSigningService`; sí están concentradas las acciones del Home en la capa adaptadora. La compilación actual sigue integrando el runtime, la interfaz y SideStore en un mismo producto.
 
 El motivo de mantener ese puente temporal es no arriesgar JIT, RAM+, firmas o datos guardados mientras se instala y prueba cada tramo en iOS 27.
 
@@ -101,7 +103,7 @@ La fecha de una nightly **no equivale a versión estable**; el SHA identifica el
 
 ## Qué falta para conseguir separación real
 
-- Completar `LiveContainerHomeAdapter` con acciones de lanzamiento/gestión y conectar `BloomBoxGuestHost` al flujo real; agregar el adaptador de firmado `SideStoreAdapter` y sus pruebas. Los adaptadores actuales solo aíslan identidad, estado, bloqueo de red y preferencias del Home.
+- Conectar los comandos ya implementados del Home en `LiveContainerHomeActions` al futuro contrato asíncrono `BloomBoxGuestHost` sin alterar advertencias JIT/tweaks; crear el adaptador de firmado `SideStoreAdapter` y sus pruebas. El Home ya encapsula consultas, firma/ejecución observable, acciones y filesystem de tweaks, pero sigue compilando en el target del host.
 - Migrar progresivamente todas las vistas BloomBox al contrato, reducir a cero las excepciones y separar el Xcode target.
 - Sincronizar por commit el código upstream de LiveContainer en una carpeta/fork mantenible (hoy hay una copia con modificaciones históricas).
 - Aislar el build del SideStore integrado, y después estudiar una app SideStore externa (si el sistema y la integración lo admiten).
