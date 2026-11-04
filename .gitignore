@@ -18,3 +18,7 @@ Vendor/HuskRPPairing/libhusk_rppairing.a
 
 # Reassembled from original checked-in ThemeSources chunks before iOS archive
 Resources/StarterThemes/YellowBowser.bbtheme
+
+# SHA-256 checked build tools and SideStore, restored from upstream
+tmp/SideStore.ipa
+dylibify
