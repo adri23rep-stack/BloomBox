@@ -1947,12 +1947,12 @@ struct BloomBoxHomeScreen: View {
                     y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch)
             .modifier(BloomBoxLivingMotion(mode: living.mode, speed: living.speed, travel: living.travel,
                 enabled: scenePhase == .active && page == index + 1 && !editing && !decorativeMotionDisabled && !searching))
-            .shadow(color: (living.depth ?? false) && !editing ? Color.black.opacity(0.38) : .clear,
-                    radius: (living.depth ?? false) && !editing ? 15 : 0, x: 0, y: 12)
-            .shadow(color: (living.glow ?? false) && !editing ? accent.opacity(0.48) : .clear,
-                    radius: (living.glow ?? false) && !editing ? 20 : 0, x: 0, y: 8)
+            .shadow(color: (living.depth ?? false) && !editing && !performanceBudget.constrained ? Color.black.opacity(0.38) : .clear,
+                    radius: (living.depth ?? false) && !editing && !performanceBudget.constrained ? 15 : 0, x: 0, y: 12)
+            .shadow(color: (living.glow ?? false) && !editing && !performanceBudget.constrained ? accent.opacity(0.48) : .clear,
+                    radius: (living.glow ?? false) && !editing && !performanceBudget.constrained ? 20 : 0, x: 0, y: 8)
             .overlay {
-                if (living.adaptiveGlass ?? false) && widget.glass && !editing {
+                if (living.adaptiveGlass ?? false) && widget.glass && !editing && !performanceBudget.constrained {
                     RoundedRectangle(cornerRadius: 19)
                         .strokeBorder(accent.opacity(0.34), lineWidth: 1)
                         .allowsHitTesting(false)
