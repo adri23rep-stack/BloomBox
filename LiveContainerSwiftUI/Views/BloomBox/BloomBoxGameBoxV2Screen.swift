@@ -106,12 +106,15 @@ struct BloomBoxGameBoxV2Screen: View {
     var body: some View {
         GeometryReader { geometry in
             let compact = geometry.size.height < 370
-            // Size icon-only cells to the actual landscape viewport, keeping
-            // the entire app image visible instead of cropping a cover card.
-            let iconSide = min(compact ? 136.0 : 164.0,
-                               max(94.0, geometry.size.height * (compact ? 0.37 : 0.39)))
-            let cardHeight = iconSide + 36
-            let cardWidth = iconSide + 16
+            // 3 or 5 whole cells fill the REAL visible viewport exactly.
+            // A selected app sits in the middle without splitting neighbors
+            // at either edge, unlike the previous free-width card carousel.
+            let viewportWidth = max(250, geometry.size.width - (compact ? 46.0 : 60.0))
+            let columns: CGFloat = viewportWidth >= 650 ? 5 : viewportWidth >= 380 ? 3 : 1
+            let cardWidth = (viewportWidth - (columns - 1) * 17) / columns
+            let iconSide = min(cardWidth - 16, compact ? 136 : 164,
+                               geometry.size.height * (compact ? 0.37 : 0.39))
+            let cardHeight = max(118, iconSide + 36)
             ZStack {
                 consoleBackground
                 VStack(spacing: compact ? 7 : 15) {
@@ -123,7 +126,7 @@ struct BloomBoxGameBoxV2Screen: View {
                             .frame(height: cardHeight)
                     } else {
                         carousel(cardWidth: cardWidth, height: cardHeight,
-                                 viewportWidth: geometry.size.width)
+                                 viewportWidth: viewportWidth)
                             .frame(height: cardHeight + 12)
                     }
                     detailPanel(compact: compact)
