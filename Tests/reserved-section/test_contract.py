@@ -43,6 +43,9 @@ policy = (root / "LiveContainerSwiftUI/Utilities/BloomBoxGameBoxRecoveryPolicy.s
 assert "BloomBoxGameBoxRecoveryPolicy.recoverPreviousSession(" in launcher
 assert "BloomBoxGameBoxRecoveryPolicy.begin(" in launcher
 assert "BloomBoxGameBoxSafeScreen(" in host
+assert "enterSafeMode:" in host
+assert 'Button("Abrir GameBox en modo seguro"' in gamebox
+assert "BloomBoxGameBoxRecoveryPolicy.useSafeUI(" in host
 assert "if gameBoxSafeMode {" in host
 assert "retryFull:" in host
 assert "gameBoxSafeMode = false" in host
