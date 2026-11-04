@@ -83,6 +83,12 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxIntegrationContracts.swift Tests/integration-contracts/main.swift -o "$RUNNER_TEMP/bloombox-integration-tests"
           "$RUNNER_TEMP/bloombox-integration-tests"
+      - name: Test BloomBox Home app-policy persistence and localized search
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeAppPolicy.swift Tests/home-app-policy/main.swift -o "$RUNNER_TEMP/bloombox-home-app-policy-tests"
+          "$RUNNER_TEMP/bloombox-home-app-policy-tests"
+      - name: Guard extracted Home app-menu boundary and saved-state keys
+        run: python3 Tests/home-menu-tests/test_bridge.py
       - name: Verify BloomBox expiry reminder module migration
         run: |
           python3 - <<'PY'
