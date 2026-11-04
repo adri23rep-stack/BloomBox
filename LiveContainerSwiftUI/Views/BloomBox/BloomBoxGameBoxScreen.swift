@@ -1131,45 +1131,128 @@ struct BloomBoxGameBoxScreen: View {
         .buttonStyle(.plain)
     }
 
+    /// Search every installed guest, including those hidden in the current GameBox mode.
+    /// Choosing a result unhides just that guest instead of resetting its categories.
+    private var matchingSearchApps: [LCAppModel] {
+        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !term.isEmpty else { return apps }
+        return apps.filter {
+            appCustomization.name($0).localizedStandardContains(term) ||
+            $0.bundleIdentifier.localizedStandardContains(term)
+        }
+    }
+
+    private func revealSearchResult(_ app: LCAppModel) {
+        let key = liveBoardAppKey(app)
+        favoritesOnly = false
+        activeCategory = nil
+        updateLibrary { $0.hidden.remove(key) }
+        navigation.selectedIndex = visibleApps.firstIndex(of: app) ?? 0
+        navigation.focus = .rail
+        searching = false
+    }
+
     private var searchSheet: some View {
-        NavigationView {
-            List(matchingApps, id: \.self, rowContent: searchResultRow)
-                .searchable(text: $query, prompt: "Search library")
-                .navigationTitle("Library")
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") { searching = false }
+        NavigationStack {
+            List(matchingSearchApps, id: \.self) { app in
+                Button {
+                    revealSearchResult(app)
+                } label: {
+                    Label {
+                        Text(appCustomization.name(app))
+                            .foregroundStyle(.primary)
+                    } icon: {
+                        LiveBoardIconImage(app: app, dark: darkIcons)
+                            .frame(width: 44, height: 44)
+                            .clipShape(RoundedRectangle(cornerRadius: 11))
                     }
                 }
+                .buttonStyle(.plain)
+            }
+            .searchable(text: $query, prompt: "Search library")
+            .navigationTitle("Library")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { searching = false }
+                }
+            }
         }
-        .navigationViewStyle(.stack)
     }
+
     private func category(_ app: LCAppModel) -> String {
-        return library.assignments[liveBoardAppKey(app)] ?? "App"
+        library.assignments[liveBoardAppKey(app)] ?? "App"
     }
+
     private func favorite(_ app: LCAppModel) {
-        var keys = favoriteKeys; let key = liveBoardAppKey(app)
-        if keys.contains(key) { keys.removeAll { $0 == key } } else { keys.append(key) }
-        if let data = try? JSONEncoder().encode(keys), let string = String(data: data, encoding: .utf8) { favorites = string }
+        let key = liveBoardAppKey(app)
+        var updated = favoriteKeys
+        if let index = updated.firstIndex(of: key) {
+            updated.remove(at: index)
+        } else {
+            updated.append(key)
+        }
+        guard let bytes = try? JSONEncoder().encode(updated),
+              let serialized = String(data: bytes, encoding: .utf8) else { return }
+        favorites = serialized
     }
-    private func openSearch() { controller.stop(); searching = true }
-    private func showDetails() { guard selected != nil else { return }; detailsIndex = 0; details = true }
+
+    private func openSearch() {
+        controller.stop()
+        searching = true
+    }
+
+    private func showDetails() {
+        guard selected != nil else { return }
+        detailsIndex = 0
+        details = true
+    }
+
+    // Menu option indices intentionally match the existing accessibility identifiers.
+    private enum GameBoxOption: Int {
+        case launch = 0, manage, cover, background, favorite, clearArtwork
+        case portrait, hide, launchWithJIT, customize
+    }
+
+    private func resetArtwork(for app: LCAppModel) {
+        let key = liveBoardAppKey(app)
+        for kind in [BloomBoxArtworkLibrary.Kind.cover, .background, .portrait] {
+            artwork.remove(for: key, kind: kind, mode: mode)
+        }
+    }
+
     private func detailAction(_ index: Int, app: LCAppModel) {
-        switch index {
-        case 0: details = false; activate(app)
-        case 1: details = false; controller.stop(); manage(app)
-        case 2, 3, 6:
-            details = false; controller.stop()
-            picker = ArtworkRequest(key: liveBoardAppKey(app), kind: index == 2 ? .cover : (index == 6 ? .portrait : .background))
-        case 8: details = false; activate(app, forceJIT: true)
-        case 9: details = false; controller.stop(); appearanceApp = BloomBoxAppearanceSelection(app: app)
-        case 4: favorite(app)
-        case 7: updateLibrary { $0.hidden.insert(liveBoardAppKey(app)) }; details = false
-        case 5:
-            artwork.remove(for: liveBoardAppKey(app), kind: .cover, mode: mode)
-            artwork.remove(for: liveBoardAppKey(app), kind: .background, mode: mode)
-            artwork.remove(for: liveBoardAppKey(app), kind: .portrait, mode: mode)
-        default: break
+        guard let option = GameBoxOption(rawValue: index) else { return }
+        switch option {
+        case .launch, .launchWithJIT:
+            details = false
+            activate(app, forceJIT: option == .launchWithJIT)
+        case .manage:
+            details = false
+            controller.stop()
+            manage(app)
+        case .cover, .background, .portrait:
+            details = false
+            controller.stop()
+            let kind: BloomBoxArtworkLibrary.Kind
+            switch option {
+            case .cover: kind = .cover
+            case .portrait: kind = .portrait
+            default: kind = .background
+            }
+            picker = ArtworkRequest(key: liveBoardAppKey(app), kind: kind)
+        case .favorite:
+            favorite(app)
+        case .hide:
+            let key = liveBoardAppKey(app)
+            updateLibrary { $0.hidden.insert(key) }
+            details = false
+        case .clearArtwork:
+            resetArtwork(for: app)
+        case .customize:
+            details = false
+            controller.stop()
+            appearanceApp = BloomBoxAppearanceSelection(app: app)
         }
     }
     private func activate(_ app: LCAppModel, forceJIT: Bool = false) {
