@@ -214,11 +214,29 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     // GameBox only owns presentation. Every action reuses the live host launch,
     // preflight, compatibility, guest orientation and app-management paths.
     private var gameBoxV2: some View {
-        BloomBoxGameBoxV2Screen(
-            apps: launcherApps,
-            launch: { app in Task { await launchFromLiveBoard(app) } },
-            launchWithJIT: { app in Task { await launchFromLiveBoard(app, forceJIT: true) } },
-            manage: manageLauncherApp,
+        let guests = launcherApps
+        // Adapt host guest models to a portable, display-only BloomBox contract.
+        // No LiveContainer/SideStore runtime types leak into GameBox source.
+        return BloomBoxGameBoxV2Screen(
+            entries: guests.map { app in
+                BloomBoxGameBoxEntry(
+                    id: liveBoardAppKey(app),
+                    name: LiveBoardAppCustomization.shared.name(app),
+                    icon: LiveBoardIconStore.image(app, dark: darkModeIcon),
+                    requiresJIT: app.appInfo.isJITNeeded)
+            },
+            launch: { key in
+                guard let app = guests.first(where: { liveBoardAppKey($0) == key }) else { return }
+                Task { await launchFromLiveBoard(app) }
+            },
+            launchWithJIT: { key in
+                guard let app = guests.first(where: { liveBoardAppKey($0) == key }) else { return }
+                Task { await launchFromLiveBoard(app, forceJIT: true) }
+            },
+            manage: { key in
+                guard let app = guests.first(where: { liveBoardAppKey($0) == key }) else { return }
+                manageLauncherApp(app)
+            },
             backToHome: { liveBoardMode = "ios" },
             openInterface: openInterface,
             openManagement: { manageLibrary = true },
