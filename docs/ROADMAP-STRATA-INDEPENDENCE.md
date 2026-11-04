@@ -26,7 +26,15 @@ Se encontraron secuencias **exactamente iguales** al comparar archivos de Strata
 ## Etapas
 
 ### 0. Inventario y atribución de procedencia — P0
-- [ ] Congelar un punto de referencia: SHA de BloomBox, SHA de Strata y SHA de LiveContainer y conservarlos en la auditoría.
+
+**En curso:** evidencia de esta etapa en [auditoría](STRATA-PROVENANCE-AUDIT.md) y
+[manifiesto SHA por archivo](STRATA-PROVENANCE-MANIFEST.json).
+Ya se fijaron cuatro revisiones, se clasificaron coincidencias exactas de
+263 fuentes y 29 recursos, se compararon 17 pares de módulos modificados y
+se añadió una comprobación de integridad del manifiesto a CI.
+**No está terminada:** faltan análisis del historial, autoría de bloques
+modificados, otros tipos de recursos/binarios y pruebas de referencia en dispositivo.
+- [x] Congelar un punto de referencia: SHA de BloomBox, SHA de Strata y SHA de LiveContainer y conservarlos en la auditoría.
 - [ ] Inventariar archivos ejecutables, recursos, bibliotecas, scripts de compilación, extensiones, documentación y material gráfico.
 - [ ] Comparar por **bloques funcionales**, no solo por nombre de archivo: Strata ↔ BloomBox ↔ LiveContainer; incluir origen de Strata que a su vez copie componentes upstream.
 - [ ] Clasificar cada coincidencia como: (A) original de Strata, (B) upstream de LiveContainer/terceros, (C) interfaz/API/datos inevitables, (D) original de BloomBox, o (E) pendiente.
@@ -111,7 +119,7 @@ Se permiten pruebas y mejoras de CI en paralelo, pero **no** se deben quitar los
 
 | Etapa | Estado al crear este roadmap | Bloqueante de cierre |
 |---|---|---|
-| 0. Procedencia | Pendiente | Clasificar material A/E |
+| 0. Procedencia | En curso (inventario inicial listo) | Verificar procedencia de bloques y completar clasificación A/E |
 | 1. Home | Pendiente | Sustituir y probar bloques coincidentes |
 | 2. GameBox | Pendiente | Sustituir y probar bloques coincidentes |
 | 3. Controles y apariencia | Pendiente | Sustituir y probar bloques coincidentes |
