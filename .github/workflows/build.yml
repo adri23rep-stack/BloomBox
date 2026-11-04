@@ -94,7 +94,7 @@ jobs:
         run: python3 Tests/upstream-boundaries-tests/test_boundaries.py
       - name: Test GameBox crash recovery, safe-mode and quarantine
         run: |
-          swiftc LiveContainerSwiftUI/Utilities/BloomBoxGameBoxRecoveryPolicy.swift Tests/gamebox-recovery-tests/main.swift -o "$RUNNER_TEMP/gamebox-recovery-tests"
+          swiftc -parse-as-library LiveContainerSwiftUI/Utilities/BloomBoxGameBoxRecoveryPolicy.swift Tests/gamebox-recovery-tests/main.swift -o "$RUNNER_TEMP/gamebox-recovery-tests"
           "$RUNNER_TEMP/gamebox-recovery-tests"
       - name: Test portable host and signer bridge contracts
         run: |
