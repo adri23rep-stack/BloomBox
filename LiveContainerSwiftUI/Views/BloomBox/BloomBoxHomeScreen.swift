@@ -230,54 +230,37 @@ struct BloomBoxHomeScreen: View {
                         Color.black.opacity(searching ? 0.25 : page == libraryPageIndex ? 0.16 : 0)
                             .allowsHitTesting(false)
                     }
-                // Render every page in the full GeometryReader. The old VStack
-                // permanently reserved ~140pt for a Dock that is hidden on
-                // Widgets and App Library, leaving a blank strip and clipping
-                // the bottom rows of the library.
-                ZStack(alignment: .bottom) {
-                    TabView(selection: $page) {
-                        BloomBoxNewsPage(openSettings: { desktopSettings = true }, active: page == 0)
-                            .padding(.bottom, 136)
-                            .tag(0)
-                        ForEach(visiblePageIndices, id: \.self) { index in
+                // The Dock belongs to each Home page's physical pager surface.
+                // Native TabView swipes move it together with the Home canvas;
+                // News and App Library NEVER render a Dock or fade it away.
+                TabView(selection: $page) {
+                    BloomBoxNewsPage(openSettings: { desktopSettings = true }, active: page == 0)
+                        .tag(0)
+                    ForEach(visiblePageIndices, id: \.self) { index in
+                        ZStack(alignment: .bottom) {
                             homePage(index,
                                      width: geometry.size.width,
                                      height: max(400, geometry.size.height - 146))
-                                // Home pages still reserve space for their Dock;
-                                // Widgets and App Library use the full viewport.
                                 .padding(.bottom, 146)
-                                .tag(index + 1)
+                            VStack(spacing: 0) {
+                                pageControl
+                                    .padding(.bottom, 18)
+                                dock(width: geometry.size.width, homePageIndex: index)
+                                    .padding(.horizontal, 12)
+                                    .padding(.bottom, -22)
+                                    .blur(radius: openFolder == nil || performanceBudget.constrained ? 0 : 8)
+                            }
+                            .padding(.bottom, 8)
                         }
-                        appLibrary(width: geometry.size.width)
-                            .padding(.bottom, 136)
-                            .tag(libraryPageIndex)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .tag(index + 1)
                     }
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                    .blur(radius: openFolder == nil || performanceBudget.constrained ? 0 : 8)
-
-                    // One persistent Dock above the pager, like iOS. It never fades or
-                    // gets recreated when entering News, Home or App Library.
-                    // Only the page controls are Home-specific.
-                    VStack(spacing: 0) {
-                        pageControl
-                            .padding(.bottom, 18)
-                            .opacity(page == libraryPageIndex || page == 0 ? 0 : 1)
-                            .allowsHitTesting(page != libraryPageIndex && page != 0)
-                            .accessibilityHidden(page == libraryPageIndex || page == 0)
-                        dock(width: geometry.size.width)
-                            .padding(.horizontal, 12)
-                            .padding(.bottom, -22)
-                            .blur(radius: openFolder == nil || performanceBudget.constrained ? 0 : 8)
-                            // The keyboard owns the bottom area while searching Library.
-                            .opacity(librarySearchFocused ? 0 : 1)
-                            .allowsHitTesting(!librarySearchFocused && !searching)
-                            .accessibilityHidden(librarySearchFocused)
-                    }
-                    .padding(.bottom, 8)
-                    // Do not animate Dock opacity or position on page transitions.
+                    appLibrary(width: geometry.size.width)
+                        .tag(libraryPageIndex)
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height)
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .blur(radius: openFolder == nil || performanceBudget.constrained ? 0 : 8)
                 .blur(radius: searching && !performanceBudget.constrained ? 8 : 0)
                 .allowsHitTesting(!searching)
                 .accessibilityHidden(searching)
@@ -2493,13 +2476,13 @@ struct BloomBoxHomeScreen: View {
         }
     }
 
-    private func dock(width: CGFloat) -> some View {
+    private func dock(width: CGFloat, homePageIndex: Int) -> some View {
         HStack(spacing: 0) {
             ForEach(0..<4, id: \.self) { slot in
                 ZStack {
                     if layout.dock.indices.contains(slot) {
                         homeItem(layout.dock[slot], showLabel: false)
-                            .modifier(aliveEntrance(for: max(0, page - 1),
+                            .modifier(aliveEntrance(for: homePageIndex,
                                  delay: 0.69 + Double(slot) * 0.16, key: layout.dock[slot]))
                     } else {
                         Color.clear
@@ -2511,7 +2494,7 @@ struct BloomBoxHomeScreen: View {
                 .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
                     acceptDrop(providers) { key in
                         withAnimation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.84)) {
-                            _ = layout.moveToDock(key, at: slot, fallbackPage: min(max(0, page - 1), layout.pages.count - 1))
+                            _ = layout.moveToDock(key, at: slot, fallbackPage: homePageIndex)
                             reconcile()
                         }
                     }
