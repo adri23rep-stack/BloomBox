@@ -33,12 +33,25 @@ enum LiveContainerHomeAdapter {
         return result
     }
 
+    static func searchModelsByKey(_ apps: [LCAppModel]) -> [String: LCAppModel] {
+        var result: [String: LCAppModel] = [:]
+        for app in apps {
+            let id = key(app)
+            if result[id] == nil { result[id] = app }
+        }
+        return result
+    }
+
+    static func isShared(_ app: LCAppModel) -> Bool {
+        app.uiIsShared
+    }
+
     static func snapshot(_ app: LCAppModel, displayName: String) -> BloomBoxHomeGuestSnapshot {
         BloomBoxHomeGuestSnapshot(
             stableKey: key(app),
             bundleIdentifier: app.bundleIdentifier,
             displayName: displayName,
-            isShared: app.uiIsShared,
+            isShared: isShared(app),
             isRunning: app.isAppRunning,
             isSigning: app.isSigningInProgress,
             isEmbeddedSigner: isEmbeddedSigner(app),
