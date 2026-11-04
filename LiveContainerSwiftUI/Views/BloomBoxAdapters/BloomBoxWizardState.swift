@@ -5,11 +5,13 @@ import UIKit
 
 /// Wizard only presents once per installation, then one page per new build.
 enum BloomBoxWizardMode {
-    case firstRun, update
+    case firstRun, update, replay
 }
 
 enum BloomBoxWizardGate {
     static let completedBuildKey = "BloomBoxWizardLastSeenBuild"
+    /// Reopens the guided setup without clearing onboarding or user data.
+    static let replayRequested = Notification.Name("BloomBox.Wizard.ReplayRequested")
     static let stepKey = "BloomBoxWizardDraftStep"
     static let countKey = "BloomBoxWizardDraftProfileCount"
 
