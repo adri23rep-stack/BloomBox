@@ -6,6 +6,7 @@ on:
       - main
       - fix/jit-guest-orientation-ios27
       - feature/cinematic-game-mode-ram-jit-gate
+      - refactor/remove-gamebox-reserve-slot-20261104
       - feature/remote-game-compat-profiles
       - fix/game-mode-launch-loop-ios27
       - fix/finish-astra-home-20261101
@@ -22,6 +23,7 @@ on:
   pull_request:
     branches:
       - main
+      - refactor/bloombox-independent-core
   workflow_dispatch:
     inputs: 
       release__nightly:
@@ -114,7 +116,7 @@ jobs:
           assert not (root/"ManzanaExpiryReminderSettings.swift").exists()
           print("BloomBox SideStore expiry UI preserves existing notification and Live Activity data")
           PY
-      - name: Verify native BloomBox launcher host and GameBox launch gate
+      - name: Verify BloomBox Home host and future feature reservation
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -123,11 +125,10 @@ jobs:
           assert "struct BloomBoxLauncherRootView: View" in host
           assert "typealias LiveBoardRootView = BloomBoxLauncherRootView" in host
           for term in ("LCAppListView(openInterface:", "BloomBoxLaunchPreferences.resetForNewProcess",
-                       "BloomBoxRequestGameMode", "LiveBoardControllerInput.pauseNotification",
-                       "BloomBoxPrimaryLauncher"):
+                       'value: "reserved"', "Espacio reservado"):
               assert term in host, term
           assert not (root / "LiveBoard.swift").exists()
-          print("Native launcher host and GameBox request gate preserved")
+          print("Native Home host and empty future-destination slot preserved")
           PY
       - name: Reject removed stock ribbon wallpapers from the active launcher
         run: |
@@ -333,55 +334,30 @@ jobs:
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxGameProfileSchema.swift Tests/remote-game-profiles/main.swift -o "$RUNNER_TEMP/game-profiles-tests"
           "$RUNNER_TEMP/game-profiles-tests"
 
-      - name: Test Game Mode RAM+ and JIT prerequisites
+      - name: Verify retired GameBox is absent and a reserved slot remains
+        run: python3 Tests/reserved-section/test_contract.py
+      - name: Test BloomBox launcher startup fallback
         run: |
-          swiftc LiveContainerSwiftUI/Utilities/BloomBoxGameModeGate.swift Tests/game-mode-tests/main.swift -o "$RUNNER_TEMP/bloombox-game-tests"
-          "$RUNNER_TEMP/bloombox-game-tests"
-
-      - name: Test independent BloomBox GameBox layout and old saves
-        run: |
-          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxGameBoxLayout.swift Tests/layout-tests/main.swift -o "$RUNNER_TEMP/bloombox-gamebox-layout-tests"
-          "$RUNNER_TEMP/bloombox-gamebox-layout-tests"
-      - name: Verify BloomBox interaction and media modules
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherPreferences.swift Tests/launcher-preferences/main.swift -o "$RUNNER_TEMP/bloombox-launcher-preferences-tests"
+          "$RUNNER_TEMP/bloombox-launcher-preferences-tests"
+      - name: Verify reusable native BloomBox UI modules
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          root=Path("LiveContainerSwiftUI/Views")
-          mapping={
-              "LiveBoardAppCustomization.swift":"BloomBox/BloomBoxAppCustomization.swift",
-              "LiveBoardControllerInput.swift":"BloomBox/BloomBoxControllerInput.swift",
-              "LiveBoardIconEdges.swift":"BloomBox/BloomBoxIconEdges.swift",
-              "LiveBoardIconStore.swift":"BloomBox/BloomBoxIconStore.swift",
-              "LiveBoardNavigationAudio.swift":"BloomBox/BloomBoxNavigationAudio.swift",
-              "LiveBoardOrientation.swift":"BloomBox/BloomBoxOrientation.swift",
-              "LiveBoardLaunchAction.swift":"BloomBox/BloomBoxLaunchAction.swift",
+          root = Path("LiveContainerSwiftUI/Views")
+          mapping = {
+              "LiveBoardAppCustomization.swift": "BloomBox/BloomBoxAppCustomization.swift",
+              "LiveBoardIconEdges.swift": "BloomBox/BloomBoxIconEdges.swift",
+              "LiveBoardIconStore.swift": "BloomBox/BloomBoxIconStore.swift",
+              "LiveBoardOrientation.swift": "BloomBox/BloomBoxOrientation.swift",
+              "LiveBoardLaunchAction.swift": "BloomBox/BloomBoxLaunchAction.swift",
           }
-          for old,new in mapping.items():
-              assert not (root/old).exists(), old
-              assert (root/new).is_file(), new
-          audio=(root/"BloomBox/BloomBoxNavigationAudio.swift").read_text()
-          assert "Strata-Navigation.wav" not in audio
-          print("GameBox input, icon, orientation, launch and synthesized audio now live under BloomBox")
+          for old, new in mapping.items():
+              assert not (root / old).exists(), old
+              assert (root / new).is_file(), new
+          assert (root / "BloomBox/BloomBoxReservedSection.swift").is_file()
+          print("Original BloomBox Home, icons and guest orientation retained")
           PY
-      - name: Verify BloomBox GameBox source boundaries
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          root=Path("LiveContainerSwiftUI/Views")
-          for legacy,modern,name in (
-              ("LiveBoardConsoleScreen.swift","BloomBox/BloomBoxGameBoxScreen.swift","BloomBoxGameBoxScreen"),
-              ("LiveBoardConsoleLayout.swift","BloomBox/BloomBoxGameBoxLayout.swift","BloomBoxGameBoxLayout"),
-              ("LiveBoardModeLibrary.swift","BloomBox/BloomBoxGameBoxLibrary.swift","BloomBoxGameBoxLibrary")):
-              assert not (root/legacy).exists(), legacy
-              source=(root/modern).read_text()
-              assert f"struct {name}:" in source, modern
-          print("GameBox source moved to BloomBox-owned components; compatibility aliases remain")
-          PY
-      - name: Test GameBox cold start launcher preferences
-        run: |
-          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxGameBoxLibrary.swift Tests/gamebox-preferences/main.swift -o "$RUNNER_TEMP/gamebox-preferences-tests"
-          "$RUNNER_TEMP/gamebox-preferences-tests"
-
       - name: Test guest scene orientation and viewport sizing
         run: |
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxGuestSceneGeometry.swift Tests/orientation-tests/main.swift -o "$RUNNER_TEMP/bloombox-orientation-tests"

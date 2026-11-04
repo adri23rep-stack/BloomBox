@@ -394,10 +394,6 @@ struct BloomBoxHomeScreen: View {
                 }
                 page = navigation.safePage
                 startBloomBoxAlive()
-                if LiveContainerPreferencesAdapter.defaults.bool(forKey: "BloomBoxGameBoxOpenThemeStore") {
-                    LiveContainerPreferencesAdapter.defaults.set(false, forKey: "BloomBoxGameBoxOpenThemeStore")
-                    DispatchQueue.main.async { themesPresented = true }
-                }
             }
             .task {
                 // Noncritical popups and status notices are intentionally quiet

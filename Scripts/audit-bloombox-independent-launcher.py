@@ -17,20 +17,24 @@ RETIRED = [
     "Manzana/ManzanaDesktopView.swift", "Manzana/ManzanaAnimatedWallpaper.swift",
     "Manzana/ManzanaWallpaperMedia.swift",
     "Manzana/ManzanaFileStore.swift", "Manzana/ManzanaFilesView.swift",
-    "StrataPairingRecord.swift"
+    "StrataPairingRecord.swift",
+    "BloomBox/BloomBoxGameBoxScreen.swift",
+    "BloomBox/BloomBoxGameBoxLayout.swift",
+    "BloomBox/BloomBoxGameBoxLibrary.swift",
+    "BloomBox/BloomBoxControllerInput.swift",
+    "BloomBox/BloomBoxNavigationAudio.swift"
 ]
 REQUIRED = [
     "BloomBox/BloomBoxHomeScreen.swift",
-    "BloomBox/BloomBoxGameBoxScreen.swift",
-    "BloomBox/BloomBoxAppCustomization.swift", "BloomBox/BloomBoxControllerInput.swift",
+    "BloomBox/BloomBoxReservedSection.swift",
+    "BloomBox/BloomBoxLauncherPreferences.swift",
+    "BloomBox/BloomBoxAppCustomization.swift",
     "BloomBox/BloomBoxIconEdges.swift", "BloomBox/BloomBoxIconStore.swift",
-    "BloomBox/BloomBoxNavigationAudio.swift", "BloomBox/BloomBoxOrientation.swift",
+    "BloomBox/BloomBoxOrientation.swift",
     "BloomBox/BloomBoxLaunchAction.swift",
     "BloomBox/BloomBoxJITCoordinator.swift", "BloomBox/BloomBoxJITSetup.swift",
     "BloomBox/BloomBoxOnDevicePairing.swift",
     "BloomBox/BloomBoxExpiryReminderCenter.swift", "BloomBox/BloomBoxExpiryReminderSettings.swift",
-    "BloomBox/BloomBoxGameBoxLayout.swift",
-    "BloomBox/BloomBoxGameBoxLibrary.swift",
     "BloomBox/BloomBoxLauncherRoot.swift",
     "BloomBox/BloomBoxHomeChrome.swift",
     "BloomBox/BloomBoxHomeLayout.swift",
@@ -107,11 +111,19 @@ for catalog in ("AppIcon.appiconset", "AppIconGrey.appiconset"):
         )
         if tracked.returncode == 0:
             raise SystemExit("Old app icon binary is still committed: " + str(path))
-game_box = (VIEWS / "BloomBox/BloomBoxGameBoxScreen.swift").read_text(encoding="utf-8")
-if "STRATA / BIG PICTURE" in game_box:
-    raise SystemExit("Old visible console branding returned")
+# The removed console is not compiled: only the isolated placeholder stays.
+reserved = (VIEWS / "BloomBox/BloomBoxReservedSection.swift").read_text(encoding="utf-8")
+launcher = (VIEWS / "BloomBox/BloomBoxLauncherRoot.swift").read_text(encoding="utf-8")
+app_list = (VIEWS / "AppList/LCAppListView.swift").read_text(encoding="utf-8")
+if "struct BloomBoxReservedSection: View" not in reserved:
+    raise SystemExit("Missing independent future-feature slot")
+for code in (reserved, launcher, app_list):
+    if "BloomBoxRequestGameMode" in code or "BloomBoxGameBoxScreen" in code:
+        raise SystemExit("Retired console route returned")
+if "GameBox" in launcher or 'value: "reserved"' not in launcher:
+    raise SystemExit("Old launcher card returned")
 icon_source = (VIEWS / "BloomBox/BloomBoxIconStore.swift").read_text(encoding="utf-8")
 if "LiveBoardByeTunes" in icon_source or "com.EduAlexxis.MusicManager" in icon_source:
     raise SystemExit("Legacy music artwork override returned")
 
-print(f"BloomBox code audit passed: {count} source files; user saves and legal credits preserved")
+print(f"BloomBox code audit passed: {count} source files; GameBox retired, reserved slot active, credits preserved")
