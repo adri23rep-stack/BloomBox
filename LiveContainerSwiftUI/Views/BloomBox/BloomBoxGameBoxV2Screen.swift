@@ -243,8 +243,17 @@ struct BloomBoxGameBoxV2Screen: View {
                 Text("V2").font(.system(size: 10, weight: .heavy, design: .rounded))
                     .padding(.horizontal, 6).padding(.vertical, 2)
                     .background(focusedAccent.opacity(0.35), in: Capsule())
+                TimelineView(.periodic(from: .now, by: 60)) { time in
+                    Text(time.date, format: .dateTime.hour().minute())
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                }
                 if let batteryPercent {
-                    Image(systemName: "battery.100").font(.system(size: 12))
+                    Image(systemName: batteryPercent >= 85 ? "battery.100" :
+                          batteryPercent >= 60 ? "battery.75" :
+                          batteryPercent >= 35 ? "battery.50" :
+                          batteryPercent >= 12 ? "battery.25" : "battery.0")
+                        .font(.system(size: 12))
                     Text(String(batteryPercent) + "%")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                 }
