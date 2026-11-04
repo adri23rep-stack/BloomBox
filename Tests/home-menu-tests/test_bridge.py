@@ -9,8 +9,9 @@ home = (ui / "BloomBoxHomeScreen.swift").read_text()
 policy = (ui / "BloomBoxHomeAppPolicy.swift").read_text()
 menu = (ui / "BloomBoxHomeContextMenu.swift").read_text()
 search = (ui / "BloomBoxHomeSearchPanel.swift").read_text()
+dialogs = (ui / "BloomBoxHomeNameDialogs.swift").read_text()
 
-for name, body in (("Home policy", policy), ("context-menu UI", menu), ("search overlay UI", search)):
+for name, body in (("Home policy", policy), ("context-menu UI", menu), ("search overlay UI", search), ("Home rename dialogs", dialogs)):
     for token in ("LCAppModel", "LCUtils", "DataManager", "BuiltInSideStoreAppInfo", "runApp", "ShareExtension"):
         assert re.search(r"\b" + token + r"\b", body) is None, f"{name} imports host symbol {token}"
 
@@ -21,6 +22,9 @@ assert "BloomBoxHomeAppPolicy.assigningCategory(value, to: key, in: categories)"
 assert "BloomBoxHomeAppPolicy.addingCategory(value, to: homeCategories)" in home
 assert "BloomBoxHomeContextMenu(state: menuState, actions: actions)" in home
 assert "BloomBoxHomeSearchPanel(" in home
+assert ".modifier(BloomBoxHomeNameDialogs(" in home
+assert "onCreateFolder: { key, name in" in home
+assert "onRename: { key, name in" in home
 assert "searchMenu(key, app: app)" in home
 assert "home.search.field" in search
 assert "home.search.done" in search
