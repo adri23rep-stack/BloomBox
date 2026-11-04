@@ -336,6 +336,7 @@ struct BloomBoxHomeScreen: View {
                 }
             })
             .onChange(of: scenePhase) { phase in
+                performanceBudget.refresh()
                 stopAlivePlayfulness()
                 if phase == .active { ramPlus.refresh() }
                 if phase == .active, #available(iOS 16.2, *) {
@@ -343,6 +344,24 @@ struct BloomBoxHomeScreen: View {
                 }
             }
             .onChange(of: page) { _ in stopAlivePlayfulness() }
+            .onChange(of: performanceBudget.constrained) { constrained in
+                if constrained {
+                    stopAlivePlayfulness()
+                    aliveBooting = false
+                    aliveIntroVisible = false
+                    aliveRevealed = true
+                }
+            }
+            .onChange(of: placedWidgetsJSON) { value in
+                placedWidgetsCache = (try? JSONDecoder().decode([Int: [BloomBoxPlacedWidget]].self,
+                                      from: Data(value.utf8))) ?? [:]
+                placedWidgetsCacheSource = value
+            }
+            .onChange(of: livingWidgetSettingsJSON) { value in
+                livingSettingsCache = (try? JSONDecoder().decode([String: LivingSettings].self,
+                                       from: Data(value.utf8))) ?? [:]
+                livingSettingsCacheSource = value
+            }
             .onChange(of: editing) { _ in stopAlivePlayfulness() }
             .onChange(of: searching) { _ in stopAlivePlayfulness() }
             .onChange(of: openFolder) { _ in stopAlivePlayfulness() }
@@ -367,6 +386,13 @@ struct BloomBoxHomeScreen: View {
                 })
             }
             .onAppear {
+                performanceBudget.refresh()
+                placedWidgetsCacheSource = placedWidgetsJSON
+                placedWidgetsCache = (try? JSONDecoder().decode([Int: [BloomBoxPlacedWidget]].self,
+                                      from: Data(placedWidgetsJSON.utf8))) ?? [:]
+                livingSettingsCacheSource = livingWidgetSettingsJSON
+                livingSettingsCache = (try? JSONDecoder().decode([String: LivingSettings].self,
+                                       from: Data(livingWidgetSettingsJSON.utf8))) ?? [:]
                 ramPlus.refresh()
                 Task { await tweakCatalog.refreshIfNeeded() }
                 // Only a genuinely fresh Home receives the owner's Kirby preset.
@@ -415,7 +441,7 @@ struct BloomBoxHomeScreen: View {
                     } catch { break }
                     guard scenePhase == .active, aliveEnabled, aliveIdleEnabled,
                           Date().timeIntervalSince(aliveLastInteraction) >= 5,
-                          !reduceMotion, !aliveBooting, !editing, !searching,
+                          !decorativeMotionDisabled, !aliveBooting, !editing, !searching,
                           openFolder == nil, !pageManager, !customizing,
                           !desktopSettings, !appStorePresented, !tweakStorePresented,
                           !modulesPresented, !jitSetup,
@@ -899,7 +925,7 @@ struct BloomBoxHomeScreen: View {
                 Color.black
                 if wallpaperStyle == "motion", let url = BloomBoxMotionMedia.url(motionWallpaper) {
                     BloomBoxAnimatedWallpaper(url: url, fit: wallpaperFit,
-                        paused: pauseWallpaper || reduceMotion || paused)
+                        paused: pauseWallpaper || decorativeMotionDisabled || paused)
                         .id(motionWallpaper)
                         .frame(width: geometry.size.width, height: geometry.size.height).clipped()
                 } else if wallpaperStyle == "photo", let wallpaper {
@@ -1360,12 +1386,15 @@ struct BloomBoxHomeScreen: View {
         (try? JSONDecoder().decode([Int: [String]].self, from: Data(pageWidgetsJSON.utf8))) ?? [:]
     }
     private var placedWidgets: [Int: [BloomBoxPlacedWidget]] {
-        (try? JSONDecoder().decode([Int: [BloomBoxPlacedWidget]].self,
-                                   from: Data(placedWidgetsJSON.utf8))) ?? [:]
+        if placedWidgetsCacheSource == placedWidgetsJSON { return placedWidgetsCache }
+        return (try? JSONDecoder().decode([Int: [BloomBoxPlacedWidget]].self,
+                                          from: Data(placedWidgetsJSON.utf8))) ?? [:]
     }
     private func savePlacedWidgets(_ values: [Int: [BloomBoxPlacedWidget]]) {
         if let data = try? JSONEncoder().encode(values),
            let encoded = String(data: data, encoding: .utf8) {
+            placedWidgetsCache = values
+            placedWidgetsCacheSource = encoded
             placedWidgetsJSON = encoded
         }
     }
@@ -1742,7 +1771,7 @@ struct BloomBoxHomeScreen: View {
     private func startBloomBoxAlive() {
         guard !aliveStartupPlayed else { return }
         aliveStartupPlayed = true
-        guard aliveEnabled, !reduceMotion,
+        guard aliveEnabled, !decorativeMotionDisabled,
               page > 0, page < libraryPageIndex else { return }
         aliveStartupPage = page
         // Never show the same phrase on consecutive starts.
@@ -1789,7 +1818,7 @@ struct BloomBoxHomeScreen: View {
     }
 
     private func aliveEntrance(for pageIndex: Int, delay: Double, key: String? = nil) -> BloomBoxAliveEntrance {
-        let enabled = aliveEnabled && !reduceMotion && aliveBooting &&
+        let enabled = aliveEnabled && !decorativeMotionDisabled && aliveBooting &&
                       aliveStartupPage == pageIndex + 1 && page == pageIndex + 1
         return BloomBoxAliveEntrance(
             entranceEnabled: enabled, revealed: !enabled || aliveRevealed,
@@ -1830,6 +1859,9 @@ struct BloomBoxHomeScreen: View {
     }
 
     private func livingSettings(for id: String) -> LivingSettings {
+        if livingSettingsCacheSource == livingWidgetSettingsJSON {
+            return livingSettingsCache[id] ?? LivingSettings()
+        }
         let values = (try? JSONDecoder().decode([String: LivingSettings].self,
             from: Data(livingWidgetSettingsJSON.utf8))) ?? [:]
         return values[id] ?? LivingSettings()
@@ -1843,6 +1875,8 @@ struct BloomBoxHomeScreen: View {
         values[id] = settings
         if let data = try? JSONEncoder().encode(values),
            let json = String(data: data, encoding: .utf8) {
+            livingSettingsCache = values
+            livingSettingsCacheSource = json
             livingWidgetSettingsJSON = json
         }
     }
@@ -1910,7 +1944,7 @@ struct BloomBoxHomeScreen: View {
             .offset(x: 14 + CGFloat(widget.slot % 4) * cellWidth,
                     y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch)
             .modifier(BloomBoxLivingMotion(mode: living.mode, speed: living.speed, travel: living.travel,
-                enabled: scenePhase == .active && page == index + 1 && !editing && !reduceMotion && !searching))
+                enabled: scenePhase == .active && page == index + 1 && !editing && !decorativeMotionDisabled && !searching))
             .shadow(color: (living.depth ?? false) && !editing ? Color.black.opacity(0.38) : .clear,
                     radius: (living.depth ?? false) && !editing ? 15 : 0, x: 0, y: 12)
             .shadow(color: (living.glow ?? false) && !editing ? accent.opacity(0.48) : .clear,
@@ -2182,6 +2216,8 @@ struct BloomBoxHomeScreen: View {
     private func homeIconGrid(_ index: Int, width: CGFloat, height: CGFloat) -> some View {
         let cellWidth = (width - 28) / 4
         let pitch = min(editing ? 92 : 99, max(72, (height - (editing ? 69 : 39)) / 6))
+        // Compute widget occupancy once per page, not once per each of 24 cells.
+        let occupied = occupiedCells(on: index)
         return VStack(spacing: 0) {
             ForEach(0..<6, id: \.self) { row in
                 HStack(alignment: .top, spacing: 0) {
@@ -2189,7 +2225,7 @@ struct BloomBoxHomeScreen: View {
                         let slot = row * 4 + column
                         let key = layout.pages[index][slot]
                         ZStack(alignment: .top) {
-                            if let key, !occupiedCells(on: index).contains(slot) {
+                            if let key, !occupied.contains(slot) {
                                 homeItem(key, showLabel: !largeIcons)
                                     .modifier(aliveEntrance(for: index,
                                         delay: Double(column) * 0.145 + Double(row) * 0.026,
@@ -2242,7 +2278,7 @@ struct BloomBoxHomeScreen: View {
             } else if let app = appMap[key] {
                 LiveBoardHomeIcon(app: app, title: title(key), size: largeIcons ? 76 : 64,
                                   showLabel: showLabel, dark: darkIcons, editing: editing,
-                                  reduceMotion: reduceMotion, action: {
+                                  reduceMotion: decorativeMotionDisabled, action: {
                     if editing { return }
                     requestLaunch(app)
                 })
@@ -2310,7 +2346,7 @@ struct BloomBoxHomeScreen: View {
                 .frame(width: size, height: size)
                 .modifier(BloomBoxIconTreatment())
                 .clipShape(RoundedRectangle(cornerRadius: size * 0.23))
-                .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
+                .modifier(LiveBoardEditWobble(active: editing && !decorativeMotionDisabled,
                          phase: isSideStore ? 0.7 : 2.1))
                 if showLabel {
                     Text(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : isModules ? "Módulos" : isThemes ? "Temas" : "Instalar app")
@@ -2582,7 +2618,7 @@ struct BloomBoxHomeScreen: View {
                 }
                 .padding(6).frame(width: size, height: size)
                 .liveBoardGlass(radius: size * 0.23)
-                .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
+                .modifier(LiveBoardEditWobble(active: editing && !decorativeMotionDisabled,
                                                 phase: Double(abs(folder.id.hashValue % 31)) / 7,
                                                 speed: 8.0, amplitude: 1.0))
                 if showLabel { Text(folder.name).font(.system(size: 12)).lineLimit(1).shadow(color: .black.opacity(0.8), radius: 2, y: 1).frame(width: 80) }
