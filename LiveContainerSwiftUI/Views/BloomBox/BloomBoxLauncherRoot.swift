@@ -66,6 +66,11 @@ struct BloomBoxLauncherRootView: View {
         }
         .onAppear {
             if !BloomBoxLauncherSession.restored {
+                // Recover a GameBox runtime termination BEFORE resetting
+                // LiveBoardMode to Home. Otherwise the host's .task on Home
+                // would erase the checkpoint and hide the previous crash.
+                BloomBoxGameBoxRecoveryPolicy.recoverPreviousSession(
+                    defaults: LCUtils.appGroupUserDefault)
                 mode = BloomBoxLaunchPreferences.resetForNewProcess(
                     defaults: LCUtils.appGroupUserDefault)
                 BloomBoxLauncherSession.restored = true
@@ -85,6 +90,13 @@ struct BloomBoxLauncherRootView: View {
 
     private func launcherOption(title: String, detail: String, icon: String, value: String) -> some View {
         Button {
+            if value == "gamebox" {
+                BloomBoxGameBoxRecoveryPolicy.begin(
+                    defaults: LCUtils.appGroupUserDefault)
+            } else {
+                BloomBoxGameBoxRecoveryPolicy.close(
+                    defaults: LCUtils.appGroupUserDefault)
+            }
             mode = value
             showModeSheet = false
         } label: {
