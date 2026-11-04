@@ -30,7 +30,9 @@ assert "launchFromLiveBoard(app, forceJIT: true)" in host
 assert 'liveBoardMode == "ios" || liveBoardMode == "gamebox"' in host
 assert "BloomBoxReservedSection(backToHome:" in host
 assert "BloomBoxOrientationLock(mask: .landscape)" in gamebox
-assert "LiveBoardIconImage(app: app, dark: false)" in gamebox
+assert "gameIcon(app, size:" in gamebox and "Image(uiImage: image)" in gamebox
+assert "LCAppModel" not in gamebox and "LCUtils" not in gamebox
+assert "BloomBoxGameBoxEntry(" in host
 assert "BloomBoxArtworkLibrary" in gamebox
 assert "LazyHStack" in gamebox and "ScrollViewReader" in gamebox
 assert "UISelectionFeedbackGenerator().selectionChanged()" in gamebox
