@@ -244,8 +244,16 @@ occurs until the macOS build and on-device tests pass.
   `Scripts/audit-bloombox-independent-launcher.py` are absent in this branch.
   Legacy setting keys, bridge aliases and user-owned files remain to prevent
   loss of previously saved layouts, guest apps, wallpapers and pairing.
-- The default wallpaper is neutral black. A replacement starter `.bbtheme`
-  must come from the owner; no theme has been invented or installed.
+- The owner supplied both Kirby Pink and Yellow Bowser v2 `.bbtheme` files.
+  This branch now bundles both exact files, verifies their SHA-256 digests in
+  the IPA and shows image previews in the Theme Store.
+- For a genuinely fresh installation with no Home preferences or wallpaper,
+  BloomBox applies Kirby Pink automatically on the first Home appearance.
+  Existing layouts, imported themes and personalized wallpapers are untouched.
+  The included themes clear the original owner's exported hidden-app list
+  before applying, so guest apps are not accidentally hidden on other devices.
+- The future first-run tutorial/wizard will offer both presets; it is not
+  implemented as part of this change.
 - **Still unverified on-device (iOS 27):** first start and Home migration,
   existing folders/pages, widget editing and GIF/video playback, theme import,
   GameBox/game launch (including Husk), JIT with LocalDevVPN, RAM+ reinstall,
@@ -255,3 +263,19 @@ occurs until the macOS build and on-device tests pass.
   been independently rewritten merely because old module filenames are gone.
 - Do not merge this draft PR into `main` or publish a release before the owner
   verifies the on-device behavior and explicitly approves.
+
+## Owner-provided starter themes (phase 29)
+
+- Kirby Pink: default on an untouched first install; includes wallpaper,
+  animated wallpaper, clock and media widgets, and the original layout style.
+- Yellow Bowser: shipped in the same app and selectable in Themes; includes
+  the owner's larger animated GIF and alternative wallpaper/widget style.
+- Git tracks the complete original Kirby file and nine unmodified text parts
+  for the large Bowser file. The build reconstructs Bowser and verifies both
+  against their original bytes and SHA-256 before packing them in the IPA.
+- Starter assets are available offline. The Theme Store can apply either
+  with a recovery copy of the current Home; the future onboarding wizard is
+  explicitly deferred.
+- Only new and unconfigured Home instances receive the automatic default.
+  Existing user data, installed apps, Dock customizations and manual themes
+  are not reset by app updates.
