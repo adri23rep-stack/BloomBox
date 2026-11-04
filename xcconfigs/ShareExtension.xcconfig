@@ -1,0 +1,18 @@
+//
+//  BloomBox ShareExtension target settings.
+//  Derived from LiveContainer's Xcode integration; preserve upstream author
+//  credits and licenses (original configuration by s s, 2025-05-24).
+//
+//  BloomBox keeps its JIT dependencies pinned and explicitly linked rather
+//  than importing a donor application at archive time.
+//
+
+#include "Global.xcconfig"
+
+PRODUCT_BUNDLE_IDENTIFIER = $(LIVECONTAINER_BUNDLE_IDENTIFIER).ShareExtension
+
+// Original include and link contracts are intentionally unchanged.
+SWIFT_INCLUDE_PATHS = $(inherited) $(SRCROOT)/Vendor/StikJIT/idevice $(SRCROOT)/Vendor/StikJIT/iokit
+HEADER_SEARCH_PATHS = $(inherited) $(SRCROOT)/Vendor/StikJIT/idevice $(SRCROOT)/Vendor/StikJIT/iokit
+LIBRARY_SEARCH_PATHS = $(inherited) $(SRCROOT)/Vendor/StikJIT/idevice
+OTHER_LDFLAGS = $(inherited) -Wl,-hidden-lidevice_ffi -framework JavaScriptCore -framework Network -framework Security -framework CFNetwork -framework SystemConfiguration -framework IOKit

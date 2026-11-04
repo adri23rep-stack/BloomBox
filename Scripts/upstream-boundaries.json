@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Keep future BloomBox code independent from LiveContainer/SideStore internals; legacy direct references are an explicit migration backlog.",
+  "boundaries": {
+    "bloomboxUI": "LiveContainerSwiftUI/Views/BloomBox",
+    "liveContainerCore": [
+      "LiveContainer/",
+      "LiveContainerShared/",
+      "LiveProcess/",
+      "LiveContainerSwiftUI/Models/",
+      "LiveContainerSwiftUI/Utilities/"
+    ],
+    "sideStoreEmbedded": [
+      "SideStoreSupport/",
+      ".github/sidelc/",
+      "tmp/SideStore.ipa"
+    ],
+    "adaptersPlanned": "LiveContainerSwiftUI/Views/BloomBoxAdapters/"
+  },
+  "pinnedDependencyPaths": [
+    "tmp/SideStore.ipa",
+    "dylibify",
+    "Vendor/StikJIT/idevice/libidevice_ffi.a",
+    "Resources/BundledRuntime/LiveExec32.ipa"
+  ],
+  "allowedLegacyBloomBoxSwiftFiles": [
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxAnimatedWallpaper.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxAppCustomization.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxAppLibraryPolicy.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxArtworkLibrary.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxBundledThemes.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxControllerInput.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxExpiryReminderCenter.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxExpiryReminderSettings.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxFileStore.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxFilesView.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxFolderPanel.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxGameBoxLayout.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxGameBoxLibrary.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxGameBoxScreen.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeChrome.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeIconReflow.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeLayout.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeNavigation.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxIconCustomization.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxIconEdges.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxIconStore.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxJITCoordinator.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxJITSetup.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxLaunchAction.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherInteractions.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherRoot.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherVisuals.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxModulesAndJIT.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxMotionMedia.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxNavigationAudio.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxNewsCachePolicy.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxNewsPage.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxOnDevicePairing.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxOrientation.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxRemoteStores.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetGallery.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetGalleryPolicy.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetLayout.swift",
+    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetViews.swift"
+  ],
+  "directHostTokens": [
+    "LCAppModel",
+    "LCUtils",
+    "DataManager",
+    "MultitaskManager",
+    "MultitaskWindowManager",
+    "MultitaskDockManager",
+    "runApp"
+  ],
+  "directSignerTokens": [
+    "SideStoreSupport",
+    "SideStoreApp.framework",
+    "SideSign"
+  ],
+  "protectedCompatibilityKeys": [
+    "LiveBoardHomeLayout",
+    "ManzanaMotionWallpaper",
+    "BloomBoxPlacedWidgetsV2",
+    "LiveBoardFavorites",
+    "LiveBoardCategories",
+    "ManzanaSideStoreExpiryRemindersEnabled"
+  ],
+  "status": "baseline - prohibit new direct coupling files, then shrink legacy allowlist as adapters replace it"
+}

@@ -1,0 +1,39 @@
+import UIKit
+import CoreImage
+
+/// Separate presentation cache: never reuse or rewrite upstream's bordered icon files.
+@MainActor enum BloomBoxIconStore {
+    private static let icons: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.totalCostLimit = 32 * 1024 * 1024
+        return cache
+    }()
+    private static let backgrounds: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.totalCostLimit = 8 * 1024 * 1024
+        return cache
+    }()
+    private static let context = CIContext(options: [.cacheIntermediates: false])
+    static func image(_ app: LCAppModel, dark: Bool) -> UIImage? {
+        if let custom = BloomBoxAppCustomization.shared.image(app) { return custom }
+        let key = (app.appInfo.bundlePath() + (dark ? ":dark" : ":light")) as NSString
+        if let image = icons.object(forKey: key) { return image }
+        guard let image = UIImage.generateIcon(forBundleURL: URL(fileURLWithPath: app.appInfo.bundlePath()), style: dark ? .Dark : .Light, hasBorder: false) else { return nil }
+        let cleaned = BloomBoxIconEdges.clean(image)
+        icons.setObject(cleaned, forKey: key, cost: (cleaned.cgImage?.bytesPerRow ?? 0) * (cleaned.cgImage?.height ?? 0))
+        return cleaned
+    }
+    static func background(_ app: LCAppModel, dark: Bool) -> UIImage? {
+        let key = (app.appInfo.bundlePath() + (dark ? ":dark" : ":light") + ":" + BloomBoxAppCustomization.shared.iconCacheIdentifier(app)) as NSString
+        if let image = backgrounds.object(forKey: key) { return image }
+        guard let source = image(app, dark: dark) else { return nil }
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1
+        let small = UIGraphicsImageRenderer(size: CGSize(width: 160, height: 160), format: format).image { _ in source.draw(in: CGRect(x: 0, y: 0, width: 160, height: 160)) }
+        guard let input = CIImage(image: small), let filter = CIFilter(name: "CIGaussianBlur", parameters: [kCIInputImageKey: input.clampedToExtent(), kCIInputRadiusKey: 18]), let output = filter.outputImage, let cg = context.createCGImage(output, from: input.extent) else { return small }
+        let result = UIImage(cgImage: cg); backgrounds.setObject(result, forKey: key, cost: cg.bytesPerRow * cg.height)
+        return result
+    }
+}
+
+// Compatibility only: existing host callers and saved names still resolve.
+typealias LiveBoardIconStore = BloomBoxIconStore

@@ -1,0 +1,31 @@
+name: BloomBox - Strata contributor-history preview
+
+# One-time, review-only isolated history preview. This does not rewrite main.
+on:
+  push:
+    branches:
+      - refactor/bloombox-independent-core
+    paths:
+      - '.github/workflows/strata-history-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  independent-snapshot-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout refactor branch with full ancestry
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Guard original license notices and saved Home data
+        run: |
+          python3 Scripts/audit-bloombox-independent-launcher.py
+          python3 Tests/branding-tests/test_localized_names.py
+
+      - name: Create new-root review branch (never rewrite main)
+        run: bash Scripts/create-strata-independent-history-preview.sh
