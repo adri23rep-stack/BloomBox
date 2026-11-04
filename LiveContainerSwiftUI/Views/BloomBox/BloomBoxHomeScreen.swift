@@ -476,7 +476,7 @@ struct BloomBoxHomeScreen: View {
             set: { if !$0 { pendingUninstall = nil } }
         ), titleVisibility: .visible) {
             if let app = pendingUninstall {
-                if LiveContainerHomeAdapter.snapshot(app, displayName: "").isShared {
+                if LiveContainerHomeAdapter.isShared(app) {
                     Button("Abrir ajustes para convertir a privada") {
                         pendingUninstall = nil
                         manage(app)
@@ -490,7 +490,7 @@ struct BloomBoxHomeScreen: View {
             }
             Button("Cancelar", role: .cancel) { pendingUninstall = nil }
         } message: {
-            if pendingUninstall?.uiIsShared == true {
+            if pendingUninstall.map { LiveContainerHomeAdapter.isShared($0) } == true {
                 Text("Esta app está compartida entre instancias de LiveContainer. Por seguridad, conviértela a app privada desde sus ajustes antes de desinstalarla.")
             } else {
                 Text("Se quitará la app de LiveContainer y del escritorio de BloomBox. Sus carpetas de datos se conservarán. Esta acción no se puede deshacer.")
@@ -2440,7 +2440,7 @@ struct BloomBoxHomeScreen: View {
         guard !urls.isEmpty else { return }
         let fm = FileManager.default
         let folderName = app.uiTweakFolder ?? ("BloomBox-" + String(UUID().uuidString.prefix(12)))
-        let root = app.uiIsShared ? LCPath.lcGroupTweakPath : LCPath.tweakPath
+        let root = LiveContainerHomeAdapter.isShared(app) ? LCPath.lcGroupTweakPath : LCPath.tweakPath
         let folder = root.appendingPathComponent(folderName, isDirectory: true)
         var imported = 0
         var failures: [String] = []
@@ -2479,7 +2479,7 @@ struct BloomBoxHomeScreen: View {
         }
         if imported > 0 {
             if app.uiTweakFolder == nil { app.uiTweakFolder = folderName }
-            if !app.uiIsShared && !sharedModel.tweakFolderNames.contains(folderName) {
+            if !LiveContainerHomeAdapter.isShared(app) && !sharedModel.tweakFolderNames.contains(folderName) {
                 sharedModel.tweakFolderNames.append(folderName)
             }
         }
@@ -2722,10 +2722,7 @@ struct BloomBoxHomeScreen: View {
     private func searchOverlay(height: CGFloat) -> some View {
         // The search view sees stable keys and names only. LiveContainer models
         // are used exclusively by this temporary adapter for icons and launch.
-        let guests = Dictionary(
-            apps.map { (LiveContainerHomeAdapter.key($0), $0) },
-            uniquingKeysWith: { original, _ in original }
-        )
+        let guests = LiveContainerHomeAdapter.searchModelsByKey(apps)
         var used = Set<String>()
         let entries = searchResults.compactMap { app -> BloomBoxHomeSearchEntry? in
             let key = LiveContainerHomeAdapter.key(app)
