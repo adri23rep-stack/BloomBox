@@ -54,7 +54,7 @@ assert "BloomBoxGameBoxRecoveryPolicy.shouldSkipIcon(id," in host
 assert "private func prepareGameBox() async" in host
 assert "BloomBoxGameBoxRecoveryPolicy.useFullUI" in host
 assert "BloomBoxGameBoxRecoveryPolicy.close(" in host
-assert "BloomBoxGameBoxRecoveryPolicy.recoverPreviousSession" in policy
+assert "static func recoverPreviousSession(defaults:" in policy
 assert "BloomBoxGameBoxRecoveryPolicy.shouldSkipIcon" in host
 assert "BloomBoxOrientationLock" not in safe
 assert "BloomBoxAnimatedWallpaper" not in safe
