@@ -183,13 +183,11 @@ struct BloomBoxHomeScreen: View {
     private enum DesktopAction { case interface, sources, tweaks, wallpaper, apps, settings, jit }
 
     private var appKeys: [String] {
-        apps.filter { !($0.appInfo is BuiltInSideStoreAppInfo) }.map(liveBoardAppKey)
+        LiveContainerHomeAdapter.visibleKeys(apps)
             + [Self.sideStoreKey, Self.installKey, Self.tweakStoreKey, Self.appStoreKey, Self.modulesKey, Self.themesKey]
     }
     private var appMap: [String: LCAppModel] {
-        Dictionary(apps.filter { !($0.appInfo is BuiltInSideStoreAppInfo) }.map {
-            (liveBoardAppKey($0), $0)
-        }, uniquingKeysWith: { first, _ in first })
+        LiveContainerHomeAdapter.modelsByKey(apps)
     }
     private var homeNavigation: BloomBoxHomeNavigation {
         BloomBoxHomeNavigation(pageCount: layout.pages.count, currentPage: page,
@@ -507,7 +505,7 @@ struct BloomBoxHomeScreen: View {
                     Button("Quitar de la pantalla de inicio", role: .destructive) {
                         removeFromHome(key)
                     }
-                    if !(app.appInfo is BuiltInSideStoreAppInfo) {
+                    if !LiveContainerHomeAdapter.isEmbeddedSigner(app) {
                         Button("Administrar o desinstalar…") {
                             pendingRemovalKey = nil
                             finishEditing()
@@ -843,7 +841,7 @@ struct BloomBoxHomeScreen: View {
                 if let index = layout.folders.firstIndex(where: { $0.id == key }) {
                     if !name.isEmpty { layout.folders[index].name = name }
                 } else if let app = appMap[key] {
-                    appCustomization.rename(app, to: name)
+                    LiveContainerHomeAdapter.rename(app, to: name, using: appCustomization)
                     layout.aliases[key] = nil
                 }
             },
@@ -1103,7 +1101,7 @@ struct BloomBoxHomeScreen: View {
 
 
     private func requestLaunch(_ app: LCAppModel, jit: Bool = false) {
-        guard !(app.appInfo is BuiltInSideStoreAppInfo) else {
+        guard !LiveContainerHomeAdapter.isEmbeddedSigner(app) else {
             launch(app)
             return
         }
@@ -2361,16 +2359,17 @@ struct BloomBoxHomeScreen: View {
     private func appMenu(_ key: String, app: LCAppModel) -> some View {
         // The presentation reads only stable menu state. Host-specific calls
         // remain here until a LiveContainer adapter replaces this bridge.
+        let guest = LiveContainerHomeAdapter.snapshot(app, displayName: title(key))
         let menuState = BloomBoxHomeContextMenu.State(
-            isRunning: app.isAppRunning,
-            isSigning: app.isSigningInProgress,
-            isSideStore: app.appInfo is BuiltInSideStoreAppInfo,
+            isRunning: guest.isRunning,
+            isSigning: guest.isSigning,
+            isSideStore: guest.isEmbeddedSigner,
             englishUI: englishUI,
             isFavorite: favoriteKeys.contains(key),
             isInDock: layout.dock.contains(key),
             dockHasSpace: layout.dock.count < BloomBoxHomeLayout.dockCapacity,
             isInFolder: layout.folders.contains { $0.apps.contains(key) },
-            networkBlocked: app.uiNetworkBlocked,
+            networkBlocked: guest.isNetworkBlocked,
             pageIndices: Array(layout.pages.indices),
             folders: layout.folders.map { .init(id: $0.id, name: $0.name) },
             categories: BloomBoxHomeAppPolicy.categoryNames(from: homeCategories)
@@ -2399,9 +2398,8 @@ struct BloomBoxHomeScreen: View {
             setCategory: { value in setCategory(value, key: key) },
             newCategory: { categoryApp = key; categoryName = ""; addingCategory = true },
             toggleNetwork: {
-                app.uiNetworkBlocked.toggle()
-                let blocked = app.uiNetworkBlocked
-                let name = title(key)
+                let blocked = LiveContainerHomeAdapter.toggleNetwork(app)
+                let name = guest.displayName
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                     showNetworkNotice(blocked
                         ? "«\(name)» ya no contará con acceso a Internet."
@@ -2709,7 +2707,7 @@ struct BloomBoxHomeScreen: View {
         BloomBoxHomeAppPolicy.matching(
             apps, query: query,
             title: { title(liveBoardAppKey($0)) },
-            bundleID: { $0.bundleIdentifier }
+            bundleID: { LiveContainerHomeAdapter.snapshot($0, displayName: "").bundleIdentifier }
         )
     }
     private func beginSearch() {
@@ -2979,7 +2977,8 @@ struct BloomBoxHomeScreen: View {
         if key == Self.modulesKey { return "Módulos" }
         if key == Self.themesKey { return "Temas" }
         if let folder = layout.folders.first(where: { $0.id == key }) { return folder.name }
-        return (appsByKey ?? appMap)[key].map { appCustomization.name($0) } ?? "App"
+        return (appsByKey ?? appMap)[key]
+            .map { LiveContainerHomeAdapter.displayName($0, using: appCustomization) } ?? "App"
     }
     private func addPage() { layout.pages.append(Array(repeating: nil, count: BloomBoxHomeLayout.capacity)); page = layout.pages.count }
     private func setCategory(_ value: String?, key: String) {
