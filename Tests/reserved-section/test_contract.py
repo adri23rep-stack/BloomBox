@@ -36,6 +36,16 @@ assert "BloomBoxOrientationLock(mask: .landscape)" in gamebox
 assert "gameIcon(app, size:" in gamebox and "Image(uiImage: image)" in gamebox
 assert "LCAppModel" not in gamebox and "LCUtils" not in gamebox
 assert "BloomBoxGameBoxEntry(" in host
+# On-entry view construction does not decode every guest icon repeatedly;
+# loading happens once after the host's first scene/layout transition.
+assert "@State private var gameBoxDisplayEntries:" in host
+assert "await Task.yield()" in host
+assert "private func prepareGameBox() async" in host
+assert "gameBoxDisplayEntries = prepared" in host
+assert "gameBoxReady = true" in host
+assert "if #available(iOS 16.0, *), gameBoxReady" in host
+assert ".task(id: liveBoardMode)" in host
+assert "UIGraphicsImageRenderer(size: size" in host
 assert "BloomBoxArtworkLibrary" in gamebox
 assert "LazyHStack" in gamebox and "ScrollViewReader" in gamebox
 assert "UISelectionFeedbackGenerator().selectionChanged()" in gamebox
@@ -46,7 +56,11 @@ assert "requiresJIT: jitEnabled" in host
 assert '"bolt.fill"' in gamebox
 # Native iOS 17 snapping owns the gesture; the old competing swipe hook is gone.
 assert ".scrollTargetBehavior(.viewAligned)" in gamebox
-assert ".scrollPosition(id: $focusedKey, anchor: .center)" in gamebox
+assert ".scrollPosition(id: $focusedKey, anchor: .center)" not in gamebox
+assert ".onScrollGeometryChange(for: Int.self" in gamebox
+assert ".onScrollPhaseChange" in gamebox
+assert "requestedScrollKey = next" in gamebox
+assert "withTransaction(transaction) { focusedKey = key }" in gamebox
 assert ".simultaneousGesture(DragGesture" not in gamebox
 # Cover images and default app icons fit, instead of cropping tall cards.
 assert "if let customCover = cover(app)" in gamebox
@@ -62,6 +76,10 @@ assert 'backgroundMode = "photo"' in gamebox
 assert 'backgroundMode = "motion"' in gamebox
 assert "backgroundMode = \"auto\"" in gamebox
 assert "CGImageSourceCreateThumbnailAtIndex" in gamebox
+assert "artworkIsActive = true" in gamebox
+assert "guard artworkIsActive else { return nil }" in gamebox
+assert '"BloomBoxGameBoxV2OpenStage"' in gamebox
+assert '"BloomBoxGameBoxV2OpenStage"' in host
 assert "let columns: CGFloat = viewportWidth >= 650 ? 5" in gamebox
 assert "let cardWidth = (viewportWidth - (columns - 1) * 17) / columns" in gamebox
 assert "viewportWidth: viewportWidth" in gamebox
