@@ -17,7 +17,8 @@ enum BloomBoxWizardGate {
         let info = Bundle.main.infoDictionary ?? [:]
         let version = info["CFBundleShortVersionString"] as? String ?? "0"
         let number = info["CFBundleVersion"] as? String ?? "0"
-        return version + " (" + number + ")"
+        let commit = info["BloomBoxBuildCommit"] as? String ?? ""
+        return version + " (" + number + ")" + (commit.isEmpty ? "" : " " + commit)
     }
 
     static func pending(defaults: UserDefaults = LCUtils.appGroupUserDefault) -> BloomBoxWizardMode? {
@@ -28,9 +29,11 @@ enum BloomBoxWizardGate {
         let hasExistingHome = defaults.bool(forKey: BloomBoxBundledThemes.initializedKey)
             || !(defaults.string(forKey: "LiveBoardHomeLayout") ?? "").isEmpty
             || FileManager.default.fileExists(atPath: LCPath.docPath.appendingPathComponent("LiveBoardWallpaper.jpg").path)
+        let hasOldHostSettings = UserDefaults.standard.bool(forKey: "LCBundleIdChecked")
+            || UserDefaults.standard.string(forKey: "LCCertificateTeamId") != nil
         let hasExistingGuests = !DataManager.shared.model.apps.isEmpty
             || !DataManager.shared.model.hiddenApps.isEmpty
-        return hasExistingHome || hasExistingGuests ? .update : .firstRun
+        return hasExistingHome || hasExistingGuests || hasOldHostSettings ? .update : .firstRun
     }
 
     static func finish(defaults: UserDefaults = LCUtils.appGroupUserDefault) {
