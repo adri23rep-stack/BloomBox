@@ -344,6 +344,13 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             openInstall: {
                 if sharedModel.multiLCStatus == 2 { manageLibrary = true }
                 else { choosingIPA = true }
+            },
+            enterSafeMode: {
+                BloomBoxGameBoxRecoveryPolicy.useSafeUI(
+                    defaults: LCUtils.appGroupUserDefault)
+                gameBoxSafeMode = true
+                gameBoxReady = false
+                gameBoxDisplayEntries = []
             })
     }
 
