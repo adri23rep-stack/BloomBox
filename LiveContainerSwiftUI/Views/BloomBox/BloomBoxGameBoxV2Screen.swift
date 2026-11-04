@@ -6,21 +6,28 @@
 import SwiftUI
 import UIKit
 
+/// Portable UI item. Only the existing host adapts installed guest metadata.
+struct BloomBoxGameBoxEntry: Identifiable {
+    let id: String
+    let name: String
+    let icon: UIImage?
+    let requiresJIT: Bool
+}
+
 struct BloomBoxGameBoxV2Screen: View {
-    let apps: [LCAppModel]
-    let launch: (LCAppModel) -> Void
-    let launchWithJIT: (LCAppModel) -> Void
-    let manage: (LCAppModel) -> Void
+    let entries: [BloomBoxGameBoxEntry]
+    let launch: (String) -> Void
+    let launchWithJIT: (String) -> Void
+    let manage: (String) -> Void
     let backToHome: () -> Void
     let openInterface: () -> Void
     let openManagement: () -> Void
     let openInstall: () -> Void
 
-    @ObservedObject private var customization = BloomBoxAppCustomization.shared
     @StateObject private var artwork = BloomBoxArtworkLibrary()
-    @AppStorage("BloomBoxGameBoxV2Favorites", store: LCUtils.appGroupUserDefault)
+    @AppStorage("BloomBoxGameBoxV2Favorites", store: LiveContainerPreferencesAdapter.defaults)
     private var favoritesJSON = "[]"
-    @AppStorage("LiveBoardReduceMotion", store: LCUtils.appGroupUserDefault)
+    @AppStorage("LiveBoardReduceMotion", store: LiveContainerPreferencesAdapter.defaults)
     private var localReduceMotion = false
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @State private var focusedKey: String?
@@ -34,11 +41,11 @@ struct BloomBoxGameBoxV2Screen: View {
     private var favorites: Set<String> {
         Set(BloomBoxHomeAppPolicy.favorites(from: favoritesJSON))
     }
-    private func key(_ app: LCAppModel) -> String { liveBoardAppKey(app) }
-    private func title(_ app: LCAppModel) -> String { customization.name(app) }
+    private func key(_ app: BloomBoxGameBoxEntry) -> String { app.id }
+    private func title(_ app: BloomBoxGameBoxEntry) -> String { app.name }
 
-    private var visibleApps: [LCAppModel] {
-        let indexed = Array(apps.enumerated())
+    private var visibleApps: [BloomBoxGameBoxEntry] {
+        let indexed = Array(entries.enumerated())
         return indexed.sorted { lhs, rhs in
             let favoriteL = favorites.contains(key(lhs.element))
             let favoriteR = favorites.contains(key(rhs.element))
@@ -50,14 +57,14 @@ struct BloomBoxGameBoxV2Screen: View {
             return lhs.offset < rhs.offset
         }.map(\.element)
     }
-    private var selectedApp: LCAppModel? {
+    private var selectedApp: BloomBoxGameBoxEntry? {
         visibleApps.first(where: { key($0) == focusedKey }) ?? visibleApps.first
     }
     private var focusedAccent: Color {
         guard let app = selectedApp else { return Color(red: 0.42, green: 0.79, blue: 0.98) }
         return accent(for: app)
     }
-    private func accent(for app: LCAppModel) -> Color {
+    private func accent(for app: BloomBoxGameBoxEntry) -> Color {
         let colors: [Color] = [
             Color(red: 0.44, green: 0.81, blue: 0.99),
             Color(red: 0.99, green: 0.67, blue: 0.40),
@@ -68,13 +75,13 @@ struct BloomBoxGameBoxV2Screen: View {
         let seed = key(app).utf8.reduce(0) { (($0 &* 31) &+ Int($1)) & 0x7fffffff }
         return colors[seed % colors.count]
     }
-    private func cover(_ app: LCAppModel) -> UIImage? {
+    private func cover(_ app: BloomBoxGameBoxEntry) -> UIImage? {
         artwork.image(for: key(app), kind: .cover)
     }
-    private func backdrop(_ app: LCAppModel) -> UIImage? {
+    private func backdrop(_ app: BloomBoxGameBoxEntry) -> UIImage? {
         artwork.image(for: key(app), kind: .background) ??
         artwork.image(for: key(app), kind: .cover) ??
-        LiveBoardIconStore.image(app, dark: false)
+        app.icon
     }
 
     var body: some View {
@@ -113,7 +120,7 @@ struct BloomBoxGameBoxV2Screen: View {
             UIDevice.current.isBatteryMonitoringEnabled = true
             refreshBattery()
         }
-        .onChange(of: apps.map(key)) { keys in
+        .onChange(of: entries.map(key)) { keys in
             if let focusedKey, !keys.contains(focusedKey) {
                 self.focusedKey = visibleApps.first.map(key)
             }
@@ -258,8 +265,8 @@ struct BloomBoxGameBoxV2Screen: View {
         }
     }
 
-    private func gameCard(_ app: LCAppModel, width: CGFloat, height: CGFloat) -> some View {
-        let focused = key(app) == selectedApp.map(key)
+    private func gameCard(_ app: BloomBoxGameBoxEntry, width: CGFloat, height: CGFloat) -> some View {
+        let focused = key(app) == focusedKey
         return ZStack {
             RoundedRectangle(cornerRadius: 19, style: .continuous)
                 .fill(LinearGradient(colors: [accent(for: app).opacity(0.9),
@@ -274,9 +281,7 @@ struct BloomBoxGameBoxV2Screen: View {
             } else {
                 VStack(spacing: 13) {
                     Spacer(minLength: 5)
-                    LiveBoardIconImage(app: app, dark: false)
-                        .frame(width: min(width * 0.58, height * 0.48),
-                               height: min(width * 0.58, height * 0.48))
+                    gameIcon(app, size: min(width * 0.58, height * 0.48))
                         .clipShape(RoundedRectangle(cornerRadius: 18))
                         .shadow(color: .black.opacity(0.28), radius: 12, y: 8)
                     Text(title(app))
@@ -299,7 +304,7 @@ struct BloomBoxGameBoxV2Screen: View {
                             .background(.black.opacity(0.55), in: Circle())
                     }
                     Spacer()
-                    if app.appInfo.isJITNeeded {
+                    if app.requiresJIT {
                         Text("JIT")
                             .font(.system(size: 10, weight: .black, design: .rounded))
                             .padding(.horizontal, 8).padding(.vertical, 5)
@@ -309,8 +314,7 @@ struct BloomBoxGameBoxV2Screen: View {
                 Spacer()
                 HStack(spacing: 7) {
                     // The real installed app icon remains visible, even with cover art.
-                    LiveBoardIconImage(app: app, dark: false)
-                        .frame(width: 26, height: 26)
+                    gameIcon(app, size: 26)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                     Text(title(app))
                         .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -346,11 +350,28 @@ struct BloomBoxGameBoxV2Screen: View {
         .accessibilityIdentifier("bloombox.gamebox.card." + key(app))
     }
 
+    @ViewBuilder private func gameIcon(_ app: BloomBoxGameBoxEntry, size: CGFloat) -> some View {
+        Group {
+            if let image = app.icon {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else {
+                ZStack {
+                    Color.white.opacity(0.16)
+                    Image(systemName: "app.dashed")
+                        .resizable().scaledToFit()
+                        .padding(size * 0.22)
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: max(6, size * 0.23), style: .continuous))
+    }
+
     private func detailPanel(compact: Bool) -> some View {
         HStack(spacing: compact ? 10 : 18) {
             if let app = selectedApp {
-                LiveBoardIconImage(app: app, dark: false)
-                    .frame(width: compact ? 54 : 68, height: compact ? 54 : 68)
+                gameIcon(app, size: compact ? 54 : 68)
                     .clipShape(RoundedRectangle(cornerRadius: 15))
                 VStack(alignment: .leading, spacing: 5) {
                     Text(title(app))
@@ -366,7 +387,7 @@ struct BloomBoxGameBoxV2Screen: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Button {
                     UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-                    launch(app)
+                    launch(key(app))
                 } label: {
                     Label("Jugar", systemImage: "play.fill")
                         .font(.system(size: compact ? 14 : 17, weight: .bold, design: .rounded))
@@ -377,10 +398,10 @@ struct BloomBoxGameBoxV2Screen: View {
                 .background(.white, in: Capsule())
                 .accessibilityIdentifier("bloombox.gamebox.play")
                 Menu {
-                    Button("Abrir con JIT", systemImage: "bolt.fill") { launchWithJIT(app) }
+                    Button("Abrir con JIT", systemImage: "bolt.fill") { launchWithJIT(key(app)) }
                     Button(favorites.contains(key(app)) ? "Quitar de favoritos" : "Añadir a favoritos",
                            systemImage: "heart") { toggleFavorite(app) }
-                    Button("Ajustes de esta app", systemImage: "gearshape") { manage(app) }
+                    Button("Ajustes de esta app", systemImage: "gearshape") { manage(key(app)) }
                 } label: {
                     footerCircle("ellipsis", label: "Más opciones")
                 }
@@ -428,7 +449,7 @@ struct BloomBoxGameBoxV2Screen: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func select(_ app: LCAppModel) {
+    private func select(_ app: BloomBoxGameBoxEntry) {
         let next = key(app)
         guard focusedKey != next else { return }
         focusedKey = next
@@ -442,7 +463,7 @@ struct BloomBoxGameBoxV2Screen: View {
         select(visibleApps[next])
     }
 
-    private func toggleFavorite(_ app: LCAppModel) {
+    private func toggleFavorite(_ app: BloomBoxGameBoxEntry) {
         favoritesJSON = BloomBoxHomeAppPolicy.toggledFavorite(key(app), in: favoritesJSON)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
