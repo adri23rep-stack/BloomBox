@@ -119,7 +119,7 @@ jobs:
           assert not (root/"ManzanaExpiryReminderSettings.swift").exists()
           print("BloomBox SideStore expiry UI preserves existing notification and Live Activity data")
           PY
-      - name: Verify BloomBox Home host and future feature reservation
+      - name: Verify BloomBox Home host and GameBox v2 choice
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -128,10 +128,10 @@ jobs:
           assert "struct BloomBoxLauncherRootView: View" in host
           assert "typealias LiveBoardRootView = BloomBoxLauncherRootView" in host
           for term in ("LCAppListView(openInterface:", "BloomBoxLaunchPreferences.resetForNewProcess",
-                       'value: "reserved"', "Espacio reservado"):
+                       'value: "gamebox"', "GameBox v2"):
               assert term in host, term
           assert not (root / "LiveBoard.swift").exists()
-          print("Native Home host and empty future-destination slot preserved")
+          print("Native Home host preserved and GameBox v2 is selectable")
           PY
       - name: Reject removed stock ribbon wallpapers from the active launcher
         run: |
