@@ -75,6 +75,8 @@ jobs:
         run: python3 Tests/jit-bridge-tests/test_bridge.py
       - name: Audit retired Strata modules and preserve upstream notices
         run: python3 Scripts/audit-bloombox-independent-launcher.py
+      - name: Validate pinned upstream provenance inventory
+        run: python3 Tests/provenance-tests/test_manifest.py
       - name: Verify BloomBox expiry reminder module migration
         run: |
           python3 - <<'PY'
