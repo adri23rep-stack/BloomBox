@@ -38,21 +38,13 @@ struct BloomBoxJITSetup: View {
                 }.navigationViewStyle(.stack)
             }
         }
-        .fileImporter(isPresented: $importing, allowedContentTypes: [.data]) { result in
-                    do {
-                        let url = try result.get()
-                        try LiveBoardBuiltInJIT.importPairing(url)
-                        hasPairing = true
-                        session.message = "Pairing file imported. Connect LocalDevVPN, then launch an app with JIT."
-                    } catch { session.message = error.localizedDescription }
-                }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.data], onCompletion: importPairing)
         .onChange(of: pairing.phase) { phase in
-                if case .paired = phase {
-                    hasPairing = true
-                    provider = JITEnablerType.BuiltIn.rawValue
-                    session.message = "Pairing saved. Keep LocalDevVPN connected, then tap Prepare device."
-                }
-            }
+            guard case .paired = phase else { return }
+            hasPairing = true
+            provider = JITEnablerType.BuiltIn.rawValue
+            session.message = "Pairing saved. Keep LocalDevVPN connected, then tap Prepare device."
+        }
     }
 
     private var jitForm: some View {
@@ -150,6 +142,17 @@ struct BloomBoxJITSetup: View {
                 }
                 if provider != JITEnablerType.BuiltIn.rawValue && !session.message.isEmpty { Section { Text(session.message) } }
                 Section { NavigationLink("JIT-less setup and diagnostics") { LCJITLessDiagnoseView() } }
+        }
+    }
+
+    private func importPairing(_ result: Result<URL, Error>) {
+        do {
+            let selected = try result.get()
+            try LiveBoardBuiltInJIT.importPairing(selected)
+            hasPairing = true
+            session.message = "Pairing file imported. Connect LocalDevVPN, then launch an app with JIT."
+        } catch {
+            session.message = error.localizedDescription
         }
     }
 

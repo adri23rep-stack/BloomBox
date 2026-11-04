@@ -101,9 +101,9 @@ No. Guest compatibility depends on LiveContainer, the app's requirements, your d
 
 No. RAM+ concerns the permitted memory limit; JIT concerns executing code generated at runtime. Check them separately.
 
-**Why are there LiveContainer, Manzana or Strata names in the source?**
+**Why do older internal identifiers still appear in the source?**
 
-BloomBox evolved from those projects. Some internal names remain to preserve settings, signing compatibility and guest data. The app's current display branding is BloomBox.
+BloomBox keeps some legacy data keys for app updates, signing compatibility and saved layouts. The current launcher, icon and app branding are BloomBox; technical history is documented separately.
 
 **Where can I check progress?**
 
@@ -117,7 +117,7 @@ A useful bug report includes your device, iOS version, BloomBox version or branc
 
 ## Open source, with credit where it belongs
 
-BloomBox is a separate, independently maintained GitHub project — not code written from scratch. Its Git history and copyright notices are preserved from [Manzana](https://github.com/adri23rep-stack/Manzana), with original foundations from [Strata](https://github.com/huzaifahshahid71-ops/Strata) and [LiveContainer](https://github.com/LiveContainer/LiveContainer).
+BloomBox is an independently maintained GitHub project built on [LiveContainer](https://github.com/LiveContainer/LiveContainer) technology. Its source is open, and upstream copyright, licensing and historical provenance records remain available. The launcher itself has been extensively rebuilt and is not presented as entirely written from scratch.
 
 ### RAM+ acknowledgments
 

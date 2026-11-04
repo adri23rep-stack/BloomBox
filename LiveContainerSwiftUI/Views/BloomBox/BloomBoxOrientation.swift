@@ -61,10 +61,10 @@ struct BloomBoxOrientationLock: UIViewRepresentable {
         var requestedMask: UIInterfaceOrientationMask = .allButUpsideDown
         var applied = false
         func apply() {
-            guard window != nil else { return }
-            applied = true
+            guard let targetWindow = window else { return }
             BloomBoxOrientation.owner = token
-            BloomBoxOrientation.apply(requestedMask, window: window)
+            BloomBoxOrientation.apply(requestedMask, window: targetWindow)
+            applied = true
         }
         override func didMoveToWindow() {
             super.didMoveToWindow()

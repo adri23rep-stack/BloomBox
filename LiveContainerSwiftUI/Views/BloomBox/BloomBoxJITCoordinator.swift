@@ -137,14 +137,13 @@ enum BloomBoxBuiltInJIT {
                         let message = result["message"] as? String ?? ""
                         if message != lastMessage { report(message); lastMessage = message }
                     }
-                    if result["done"] as? Bool == true {
-                        let attached = result["success"] as? Bool == true
-                        if attached {
-                            // The helper can verify that the debugger/script detached,
-                            // not that the guest has successfully executed JIT memory.
+                    if let finished = result["done"] as? Bool, finished {
+                        let completed = (result["success"] as? Bool) ?? false
+                        if completed {
+                            // Debugger success alone is not proof of executable JIT memory.
                             report("Debugger script finished. Verify executable JIT memory inside the guest before launching a game.")
                         }
-                        return attached
+                        return completed
                     }
                 }
                 if !receivedStatus && Date().timeIntervalSince(started) > 12 {

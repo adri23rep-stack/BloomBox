@@ -86,9 +86,11 @@ for file in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
     if not (ROOT / file).is_file():
         raise SystemExit("Missing source license/credits: " + file)
 credits = (ROOT / "THIRD_PARTY_NOTICES.md").read_text()
-for project in ("Strata", "LiveContainer", "SideStore", "StikJIT"):
+for project in ("LiveContainer", "SideStore", "StikJIT"):
     if project not in credits:
-        raise SystemExit("Attribution missing: " + project)
+        raise SystemExit("Third-party attribution missing: " + project)
+if "docs/STRATA-PROVENANCE-AUDIT.md" not in credits:
+    raise SystemExit("The historical provenance record was disconnected")
 
 # Distribution branding must not reintroduce Strata's localized app name or
 # store legacy icon binaries in the repository. Build scripts regenerate icons.
