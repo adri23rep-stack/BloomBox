@@ -92,6 +92,10 @@ jobs:
         run: python3 Tests/provenance-tests/test_manifest.py
       - name: Guard new BloomBox code from direct LiveContainer / SideStore coupling
         run: python3 Tests/upstream-boundaries-tests/test_boundaries.py
+      - name: Test GameBox crash recovery, safe-mode and quarantine
+        run: |
+          swiftc LiveContainerSwiftUI/Utilities/BloomBoxGameBoxRecoveryPolicy.swift Tests/gamebox-recovery-tests/main.swift -o "$RUNNER_TEMP/gamebox-recovery-tests"
+          "$RUNNER_TEMP/gamebox-recovery-tests"
       - name: Test portable host and signer bridge contracts
         run: |
           swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxIntegrationContracts.swift Tests/integration-contracts/main.swift -o "$RUNNER_TEMP/bloombox-integration-tests"
