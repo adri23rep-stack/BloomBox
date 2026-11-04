@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/dock-fluidity-adaptive-home-20261104
       - fix/jit-guest-orientation-ios27
       - feature/cinematic-game-mode-ram-jit-gate
       - refactor/remove-gamebox-reserve-slot-20261104
