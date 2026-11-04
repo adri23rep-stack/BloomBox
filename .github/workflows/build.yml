@@ -77,6 +77,8 @@ jobs:
         run: python3 Tests/jit-bridge-tests/test_bridge.py
       - name: Audit retired Strata modules and preserve upstream notices
         run: python3 Scripts/audit-bloombox-independent-launcher.py
+      - name: Test BloomBox original-code attribution terms
+        run: python3 Tests/attribution-tests/test_attribution.py
       - name: Test localized InfoPlist.strings conversion and branding
         run: python3 Tests/branding-tests/test_localized_names.py
       - name: Validate pinned upstream provenance inventory

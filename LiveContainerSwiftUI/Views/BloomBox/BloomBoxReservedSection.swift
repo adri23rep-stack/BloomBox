@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 adri23rep-stack (original BloomBox material only).
+// Additional author-attribution term under AGPLv3 section 7(b):
+// see LICENSE-ADDITIONAL-TERMS.md.
+
 import SwiftUI
 
 /// Empty destination for a future first-party BloomBox feature.

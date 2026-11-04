@@ -1,5 +1,7 @@
 BloomBox retains applicable copyright and third-party license notices. It incorporates technology from LiveContainer and other separately licensed projects. Historical changes and licensing evidence are documented in [the source provenance audit](docs/STRATA-PROVENANCE-AUDIT.md); a new Git root does not change underlying copyright ownership.
 
+**Original-work attribution terms:** [LICENSE-ADDITIONAL-TERMS.md](LICENSE-ADDITIONAL-TERMS.md) and [NOTICE.md](NOTICE.md) apply only to marked BloomBox-authored material; they do not change any upstream license.
+
 # Third-party notices
 
 - LiveContainer: https://github.com/LiveContainer/LiveContainer — AGPL-3.0; source base bdc07ed9d0fce19f79db78a4a1015d67d4312597. The upstream license is retained; the source base is identified above.

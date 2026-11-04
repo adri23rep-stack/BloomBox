@@ -9,7 +9,7 @@ A personal home for your apps, widgets and files — with room to experiment.
 [**Download BloomBox**](https://github.com/adri23rep-stack/BloomBox/releases) · [What's new](https://github.com/adri23rep-stack/BloomBox/releases/tag/v1.3.0) · [Report an issue](https://github.com/adri23rep-stack/BloomBox/issues)
 
 [![Build](https://github.com/adri23rep-stack/BloomBox/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/adri23rep-stack/BloomBox/actions/workflows/build.yml)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-purple.svg)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-purple.svg)](LICENSE) · [Original-work attribution](LICENSE-ADDITIONAL-TERMS.md)
 
 </div>
 
@@ -147,4 +147,6 @@ The MeloNX script attribution applies to the experimental branch, not the v1.3.0
 
 These acknowledgments do not imply endorsement by the original developers. Their copyright notices and component licenses remain in effect.
 
-It remains under the [AGPL-3.0 license](LICENSE). Husk pairing components retain their stated GPL-2.0-or-later license; other components retain their respective licenses. See [third-party notices](THIRD_PARTY_NOTICES.md) and [screenshot provenance](screenshots/showcase/README.md).
+**Attribution required for marked original BloomBox code:** the [GNU AGPL-3.0](LICENSE) remains unchanged. Original source files expressly marked as covered have an additional [AGPL section 7(b) attribution-preservation term](LICENSE-ADDITIONAL-TERMS.md). If you redistribute their original material or modifications, keep the author credit in the source or Appropriate Legal Notices. See the [copyable notice](NOTICE.md).
+
+The extra term does **not** relicense upstream code. Husk pairing components retain GPL-2.0-or-later, and LiveContainer, SideStore, StikJIT and other projects retain their own licenses and [third-party notices](THIRD_PARTY_NOTICES.md). See [screenshot provenance](screenshots/showcase/README.md).
