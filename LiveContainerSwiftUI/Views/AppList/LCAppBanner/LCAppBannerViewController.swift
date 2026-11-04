@@ -91,23 +91,36 @@ final class LCAppBannerViewController: UIViewController, UIContextMenuInteractio
         openSettings()
     }
 
+    // LiveContainer owns the banner and its UI. BloomBox's launch modes are
+    // routed here without changing the guest model or the existing menu actions.
+    private enum BannerLaunchRequest {
+        case regular
+        case alternateWindow(Bool?)
+    }
+
+    private func launchBannerGuest(_ request: BannerLaunchRequest) async {
+        do {
+            switch request {
+            case .regular:
+                try await configuration.model.launchFromLibrary()
+            case .alternateWindow(let multitask):
+                try await configuration.model.launchFromLibrary(
+                    multitask: multitask, reuseExistingWindow: false
+                )
+            }
+        } catch {
+            showError(error.localizedDescription)
+        }
+    }
+
     @objc private func runButtonTapped() {
         Task { [weak self] in
-            guard let self else { return }
-            do {
-                try await configuration.model.launchFromLibrary()
-            } catch {
-                showError(error.localizedDescription)
-            }
+            await self?.launchBannerGuest(.regular)
         }
     }
 
     private func runApp(multitask: Bool? = nil) async {
-        do {
-            try await configuration.model.launchFromLibrary(multitask: multitask, reuseExistingWindow: false)
-        } catch {
-            showError(error.localizedDescription)
-        }
+        await launchBannerGuest(.alternateWindow(multitask))
     }
 
     private func makeContextMenu() -> UIMenu {
