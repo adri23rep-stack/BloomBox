@@ -146,17 +146,23 @@ struct BloomBoxLivingMotion: ViewModifier {
     let travel: Double
     let enabled: Bool
 
-    func body(content: Content) -> some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !enabled || mode == "none")) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            let frequency = 0.15 + max(0, min(100, speed)) / 100.0 * 0.75
-            let phase = t * frequency * .pi * 2
-            let distance = CGFloat(max(0, min(100, travel))) * 0.65
-            let dx: CGFloat = mode == "horizontal" ? CGFloat(sin(phase)) * distance :
-                mode == "wander" ? CGFloat(sin(phase * 0.63)) * distance : 0
-            let dy: CGFloat = mode == "float" ? CGFloat(sin(phase)) * distance * 0.45 :
-                mode == "wander" ? CGFloat(cos(phase * 0.79)) * distance * 0.35 : 0
-            content.offset(x: enabled ? dx : 0, y: enabled ? dy : 0)
+    @ViewBuilder func body(content: Content) -> some View {
+        if enabled && mode != "none" {
+            // No TimelineView at all for offscreen/paused widgets. Their content
+            // stays stable, instead of keeping a dormant per-widget renderer.
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+                let t = timeline.date.timeIntervalSinceReferenceDate
+                let frequency = 0.15 + max(0, min(100, speed)) / 100.0 * 0.75
+                let phase = t * frequency * .pi * 2
+                let distance = CGFloat(max(0, min(100, travel))) * 0.65
+                let dx: CGFloat = mode == "horizontal" ? CGFloat(sin(phase)) * distance :
+                    mode == "wander" ? CGFloat(sin(phase * 0.63)) * distance : 0
+                let dy: CGFloat = mode == "float" ? CGFloat(sin(phase)) * distance * 0.45 :
+                    mode == "wander" ? CGFloat(cos(phase * 0.79)) * distance * 0.35 : 0
+                content.offset(x: dx, y: dy)
+            }
+        } else {
+            content
         }
     }
 }
