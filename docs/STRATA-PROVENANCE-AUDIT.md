@@ -140,3 +140,63 @@ Antes de la etapa 1:
 5. Validar la evidencia antes de afirmar que Strata ya no tiene material protegido en BloomBox.
 
 **Conservar `LICENSE`, `THIRD_PARTY_NOTICES.md` y la historia Git.** Solo al concluir esta auditoría y la sustitución de código se podrá decidir qué crédito visible sobra, sin borrar avisos obligatorios.
+
+## 0E. Cierre técnico y entrega a las siguientes fases (3 nov 2026)
+
+**Terminada la base de la etapa 0**: manifiesto con los 435 archivos Git del
+snapshot, referencias por SHA, comparación binaria y por bloques, límites de
+compatibilidad, riesgos pendientes, contratos neutrales y regla de CI para
+reducir el acoplamiento. **No** se ha declarado independencia total ni se han
+retirado créditos. Las decisiones sobre autoría original de los elementos E
+siguen siendo tarea de las fases 1–4 y revisión final de licencias.
+
+### Matriz de riesgo y propiedad técnica
+
+| Grupo | Elementos en snapshot | Dueño o procedencia demostrada | Acción pendiente |
+|---|---:|---|---|
+| Coincide exactamente con LiveContainer | 173 | B — LiveContainer en la revisión fijada | Mantener avisos; actualizar por versión/adapter |
+| Coincide con StikJIT (no LC) | 17 | B — StikJIT en la revisión fijada | Mantener avisos y SHA upstream |
+| Coincide con Strata pero no con esas dos revisiones | 55 | E — **no** prueba de autoría de Strata | Revisar: 2 fuentes, 7 recursos, 46 metadatos/otros (39 traducciones con marca) |
+| Sin coincidencia exacta | 190 | E — pueden ser modificaciones o material propio/de terceros | Auditar módulos parcialmente heredados y su historial antes de declarar D |
+| **Total** | **435** | | |
+
+**Importante:** son coincidencias con snapshots, no una evaluación de si un
+archivo es compilado, redistribuido o de quién son los derechos. Ejemplo:
+`LCAppBannerViewController.swift` coincide con Strata pero contiene un tramo
+de 251 líneas idénticas a LiveContainer de agosto de 2026, anterior a Strata.
+La procedencia de sus diferencias queda abierta.
+
+### Seams preparados para actualización independiente
+
+- [Arquitectura y flujo por dependencia](UPSTREAM-SEPARATION-ARCHITECTURE.md):
+  UI BloomBox → contratos propios → adaptadores LiveContainer/SideStore.
+- `BloomBoxIntegrationContracts.swift` define las solicitudes de invitadas y
+  firma, sin importar ningún modelo host ni exponer tokens de sesión.
+- `Scripts/upstream-boundaries.json` registra **40 fuentes antiguas**
+  permitidas temporalmente; cualquier **archivo nuevo** de UI con dependencia
+  directa a modelos LC o al signer falla el guard de CI.
+- `Scripts/bundled-dependencies.json` ahora fija el SHA-256 de
+  `SideStore.ipa` y `dylibify`; el empaquetado no vuelve a ejecutar wget de
+  una nightly mutable. Un cambio del IPA sin actualización consciente del hash
+  detiene la preparación.
+- Compilación de contratos comprobada fuera de Xcode; nueva validación CI
+  integrada. El archive actual y las pruebas en el iPhone siguen pendientes.
+
+### Puertas que no se han aprobado
+
+1. Las 55 coincidencias E con Strata, las 190 E no idénticas y los bloques
+   parcialmente idénticos **no** pueden etiquetarse como BloomBox original
+   sin revisar su procedencia. `Manzana` no está accesible como repositorio
+   separado en esta conexión; usar historial y fuentes alternativas.
+2. Los iconos originales, imagen Apple Music y las 39 traducciones con
+   `CFBundleName = Strata` siguen pendientes de limpieza, sin tocar IDs de
+   datos o bundle hasta probar migración.
+3. LiveContainer y SideStore **continúan acoplados físicamente** en el Xcode
+   target y el IPA actuales; los contratos todavía no tienen adaptadores
+   de producción. Eso se implementará incrementalmente en fases posteriores.
+4. Un paso verde de CI no valida un upgrade en iOS 27, JIT, RAM+, firma,
+   contenedores ni pérdida de datos. Tampoco autoriza retirar avisos legales.
+
+La meta de la etapa 0 era poder empezar la reescritura con un mapa verificable
+y con fronteras nuevas; **esa base está lista**, pero no se debe confundir
+con la eliminación efectiva de todo código heredado de Strata.
