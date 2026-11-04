@@ -54,16 +54,21 @@ struct BloomBoxHomeScreen: View {
     @AppStorage("LiveBoardWallpaperFit", store: LiveContainerPreferencesAdapter.defaults) private var wallpaperFit = false
     @AppStorage("LiveBoardWallpaperDim", store: LiveContainerPreferencesAdapter.defaults) private var wallpaperDim = 0.1
     @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject private var performanceBudget = BloomBoxPerformanceBudget.shared
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @AppStorage("LiveBoardReduceMotion", store: LiveContainerPreferencesAdapter.defaults) private var customReduceMotion = false
     @AppStorage("LiveBoardHiddenPages", store: LiveContainerPreferencesAdapter.defaults) private var hiddenPagesJSON = "[]"
     private var reduceMotion: Bool { systemReduceMotion || customReduceMotion }
+    // Keep gestures and page swipes native; shed only decorative work under pressure.
+    private var decorativeMotionDisabled: Bool { reduceMotion || performanceBudget.constrained }
     @AppStorage("BloomBoxBuiltInFolderMigrated", store: LiveContainerPreferencesAdapter.defaults)
     private var builtInFolderMigrated = false
     @AppStorage("BloomBoxWidgetMissingAppFallbacks", store: LiveContainerPreferencesAdapter.defaults)
     private var widgetFallbacksJSON = "{}"
     @AppStorage("BloomBoxLivingWidgetSettings", store: LiveContainerPreferencesAdapter.defaults)
     private var livingWidgetSettingsJSON = "{}"
+    @State private var livingSettingsCacheSource = ""
+    @State private var livingSettingsCache: [String: LivingSettings] = [:]
     @State private var themeExportURL: URL?
     @State private var themeExportError: String?
     @State private var layout = BloomBoxHomeLayout()
@@ -95,6 +100,8 @@ struct BloomBoxHomeScreen: View {
     @AppStorage("ManzanaPageWidgets", store: LiveContainerPreferencesAdapter.defaults) private var pageWidgetsJSON = "{}"
     @AppStorage("BloomBoxPlacedWidgetsV2", store: LiveContainerPreferencesAdapter.defaults) private var placedWidgetsJSON = "{}"
     @AppStorage("BloomBoxPlacedWidgetsMigrated", store: LiveContainerPreferencesAdapter.defaults) private var placedWidgetsMigrated = false
+    @State private var placedWidgetsCacheSource = ""
+    @State private var placedWidgetsCache: [Int: [BloomBoxPlacedWidget]] = [:]
     @State private var widgetMediaID: String?
     @State private var widgetMediaChoicePresented = false
     @State private var pendingWidgetMediaAfterGallery: String?
@@ -217,15 +224,16 @@ struct BloomBoxHomeScreen: View {
         GeometryReader { geometry in
             ZStack(alignment: .top) {
                 background
-                    .blur(radius: (searching || page == libraryPageIndex) ? 14 : 0)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.38), value: page == libraryPageIndex)
+                    // Avoid animated full-screen blurs during paging and thermal throttling.
+                    .blur(radius: (searching || page == libraryPageIndex) && !performanceBudget.constrained ? 6 : 0)
                 // Render every page in the full GeometryReader. The old VStack
                 // permanently reserved ~140pt for a Dock that is hidden on
                 // Widgets and App Library, leaving a blank strip and clipping
                 // the bottom rows of the library.
                 ZStack(alignment: .bottom) {
                     TabView(selection: $page) {
-                        BloomBoxNewsPage(openSettings: { desktopSettings = true })
+                        BloomBoxNewsPage(openSettings: { desktopSettings = true }, active: page == 0)
+                            .padding(.bottom, 136)
                             .tag(0)
                         ForEach(visiblePageIndices, id: \.self) { index in
                             homePage(index,
@@ -237,15 +245,16 @@ struct BloomBoxHomeScreen: View {
                                 .tag(index + 1)
                         }
                         appLibrary(width: geometry.size.width)
+                            .padding(.bottom, 136)
                             .tag(libraryPageIndex)
                     }
                     .frame(width: geometry.size.width, height: geometry.size.height)
                     .tabViewStyle(.page(indexDisplayMode: .never))
-                    .blur(radius: openFolder == nil ? 0 : 18)
+                    .blur(radius: openFolder == nil || performanceBudget.constrained ? 0 : 8)
 
-                    // Overlay instead of taking height away from the pages.
-                    // Widgets and Library both hide floating navigation and Dock.
-                    // On the widgets page, swiping still switches Home pages.
+                    // One persistent Dock above the pager, like iOS. It never fades or
+                    // gets recreated when entering News, Home or App Library.
+                    // Only the page controls are Home-specific.
                     VStack(spacing: 0) {
                         pageControl
                             .padding(.bottom, 18)
@@ -255,19 +264,15 @@ struct BloomBoxHomeScreen: View {
                         dock(width: geometry.size.width)
                             .padding(.horizontal, 12)
                             .padding(.bottom, -22)
-                            .blur(radius: openFolder == nil ? 0 : 18)
-                            .opacity((page == 0 || page == libraryPageIndex) ? 0 : 1)
-                            .allowsHitTesting(page > 0 && page < libraryPageIndex)
-                            .accessibilityHidden(page == 0 || page == libraryPageIndex)
+                            .blur(radius: openFolder == nil || performanceBudget.constrained ? 0 : 8)
+                            .allowsHitTesting(!librarySearchFocused && !searching)
+                            .accessibilityHidden(librarySearchFocused)
                     }
                     .padding(.bottom, 8)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.38),
-                               value: page == libraryPageIndex)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.28),
-                               value: page == 0)
+                    // Do not animate Dock opacity or position on page transitions.
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height)
-                .blur(radius: searching ? 14 : 0)
+                .blur(radius: searching && !performanceBudget.constrained ? 8 : 0)
                 .allowsHitTesting(!searching)
                 .accessibilityHidden(searching)
                 if installInProgress {
