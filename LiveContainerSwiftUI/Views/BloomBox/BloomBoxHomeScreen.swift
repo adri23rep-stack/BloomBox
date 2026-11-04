@@ -189,6 +189,13 @@ struct BloomBoxHomeScreen: View {
     private var appMap: [String: LCAppModel] {
         LiveContainerHomeAdapter.modelsByKey(apps)
     }
+    private var hostActions: LiveContainerHomeActions {
+        LiveContainerHomeActions(guests: apps, open: launch, openJIT: launchWithJIT,
+                                 manage: manage, uninstall: uninstall)
+    }
+    private func performGuest(_ command: BloomBoxHomeGuestCommand) {
+        hostActions.perform(command)
+    }
     private var homeNavigation: BloomBoxHomeNavigation {
         BloomBoxHomeNavigation(pageCount: layout.pages.count, currentPage: page,
                                hiddenJSON: hiddenPagesJSON)
@@ -479,12 +486,12 @@ struct BloomBoxHomeScreen: View {
                 if LiveContainerHomeAdapter.isShared(app) {
                     Button("Abrir ajustes para convertir a privada") {
                         pendingUninstall = nil
-                        manage(app)
+                        performGuest(.manage(key: LiveContainerHomeAdapter.key(app)))
                     }
                 } else {
                     Button("Desinstalar app", role: .destructive) {
                         pendingUninstall = nil
-                        uninstall(app)
+                        performGuest(.uninstall(key: LiveContainerHomeAdapter.key(app)))
                     }
                 }
             }
@@ -509,7 +516,7 @@ struct BloomBoxHomeScreen: View {
                         Button("Administrar o desinstalar…") {
                             pendingRemovalKey = nil
                             finishEditing()
-                            manage(app)
+                            performGuest(.manage(key: LiveContainerHomeAdapter.key(app)))
                         }
                     }
                 } else if layout.folders.contains(where: { $0.id == key }) {
@@ -729,8 +736,7 @@ struct BloomBoxHomeScreen: View {
             }
             Button("Abrir de todas formas") {
                 if let app = pendingAlertApp {
-                    if pendingAlertJIT, let launchWithJIT { launchWithJIT(app) }
-                    else { launch(app) }
+                    performGuest(.open(key: LiveContainerHomeAdapter.key(app), jit: pendingAlertJIT))
                 }
                 pendingAlertApp = nil
                 pendingAlertTweak = nil
@@ -1101,8 +1107,9 @@ struct BloomBoxHomeScreen: View {
 
 
     private func requestLaunch(_ app: LCAppModel, jit: Bool = false) {
+        let stableKey = LiveContainerHomeAdapter.key(app)
         guard !LiveContainerHomeAdapter.isEmbeddedSigner(app) else {
-            launch(app)
+            performGuest(.open(key: stableKey, jit: false))
             return
         }
         Task { @MainActor in
@@ -1116,10 +1123,8 @@ struct BloomBoxHomeScreen: View {
                 pendingAlertTweak = tweak
                 pendingAlertJIT = jit
                 showTweakLevel3Alert = true
-            } else if jit, let launchWithJIT {
-                launchWithJIT(app)
             } else {
-                launch(app)
+                performGuest(.open(key: stableKey, jit: jit))
             }
         }
     }
@@ -2412,7 +2417,7 @@ struct BloomBoxHomeScreen: View {
                     if pendingTweakApp === app { choosingAppTweak = true }
                 }
             },
-            settings: { searching = false; manage(app) },
+            settings: { searching = false; performGuest(.manage(key: LiveContainerHomeAdapter.key(app))) },
             uninstall: { pendingUninstall = app },
             removeFromHome: { removeFromHome(key) }
         )
