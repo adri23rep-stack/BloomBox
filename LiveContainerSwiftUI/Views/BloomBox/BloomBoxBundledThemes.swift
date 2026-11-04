@@ -88,7 +88,11 @@ enum BloomBoxBundledThemes {
             return nil
         }
 
-        let package = try data(for: "KirbyPink")
+        // The first-run wizard may have selected Bowser before Home appears.
+        // Existing homes are protected by previouslyCustomized above.
+        let requested = defaults.string(forKey: chosenKey) ?? "KirbyPink"
+        let selected = presets.contains(where: { $0.id == requested }) ? requested : "KirbyPink"
+        let package = try data(for: selected)
         let layout = try BloomBoxThemePackage.apply(
             package, defaults: defaults, currentLayout: BloomBoxHomeLayout(),
             appKeys: appKeys, favorites: favorites, wallpaperURL: wallpaperURL)
@@ -96,7 +100,7 @@ enum BloomBoxBundledThemes {
         // The supplied theme already has its own Dock/folder positions. Do not
         // let the old first-run folder migration rearrange them immediately.
         defaults.set(true, forKey: "BloomBoxBuiltInFolderMigrated")
-        defaults.set("KirbyPink", forKey: chosenKey)
+        defaults.set(selected, forKey: chosenKey)
         defaults.set(true, forKey: initializedKey)
         return layout
     }
