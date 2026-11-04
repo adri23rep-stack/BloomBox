@@ -1,96 +1,149 @@
 import Foundation
 import GameController
 
-/// Input is owned only while the launcher is visible. No guest controller configuration is changed.
+/// Controller input is active only while a BloomBox screen owns focus.
+/// Every previous gamepad handler is restored before a guest takes over.
 @MainActor
 final class BloomBoxControllerInput: ObservableObject {
+    // Persisted notification spellings remain compatible with existing callers.
     static let pauseNotification = Notification.Name("LiveBoardPauseController")
     static let resumeNotification = Notification.Name("LiveBoardResumeController")
-    enum Command: Equatable { case left, right, up, down, confirm, back, details, favorite, previousSection, nextSection }
+
+    enum Command: Equatable {
+        case left, right, up, down
+        case confirm, back, details, favorite
+        case previousSection, nextSection
+    }
+
     @Published private(set) var connected = false
     @Published private(set) var confirmSymbol = "a.circle"
     @Published private(set) var detailsSymbol = "x.circle"
     var onCommand: ((Command) -> Void)?
-    private var active = false
-    private var observers: [NSObjectProtocol] = []
-    private var profiles: [(GCExtendedGamepad, GCExtendedGamepadValueChangedHandler?)] = []
-    private var repeatTask: Task<Void, Never>?
-    private var heldDirection: Command?
+
+    private struct Binding {
+        let gamepad: GCExtendedGamepad
+        let priorHandler: GCExtendedGamepadValueChangedHandler?
+    }
+
+    private var enabled = false
+    private var bindings: [Binding] = []
+    private var notifications: [NSObjectProtocol] = []
+    private var directionInProgress: Command?
+    private var navigationRepeat: Task<Void, Never>?
 
     func start() {
-        guard !active else { return }
-        active = true
-        for controller in GCController.controllers() { attach(controller) }
-        connected = !profiles.isEmpty
+        guard !enabled else { return }
+        enabled = true
+        GCController.controllers().forEach(attach)
+
         let center = NotificationCenter.default
-        observers = [
-            center.addObserver(forName: .GCControllerDidConnect, object: nil, queue: .main) { [weak self] notification in
-                guard let controller = notification.object as? GCController else { return }
-                Task { @MainActor [weak self] in self?.attach(controller) }
-            },
-            center.addObserver(forName: .GCControllerDidDisconnect, object: nil, queue: .main) { [weak self] notification in
-                guard let controller = notification.object as? GCController else { return }
-                Task { @MainActor [weak self] in self?.detach(controller) }
-            }
-        ]
+        notifications.append(center.addObserver(
+            forName: .GCControllerDidConnect, object: nil, queue: .main
+        ) { [weak self] event in
+            guard let device = event.object as? GCController else { return }
+            Task { @MainActor [weak self] in self?.attach(device) }
+        })
+        notifications.append(center.addObserver(
+            forName: .GCControllerDidDisconnect, object: nil, queue: .main
+        ) { [weak self] event in
+            guard let device = event.object as? GCController else { return }
+            Task { @MainActor [weak self] in self?.detach(device) }
+        })
     }
+
     func stop() {
         onCommand = nil
-        guard active else { return }
-        active = false
-        repeatTask?.cancel(); repeatTask = nil; heldDirection = nil
-        for (profile, previous) in profiles { profile.valueChangedHandler = previous }
-        profiles.removeAll()
-        for observer in observers { NotificationCenter.default.removeObserver(observer) }
-        observers.removeAll(); connected = false
+        guard enabled else { return }
+        enabled = false
+        clearNavigationRepeat()
+        for binding in bindings {
+            binding.gamepad.valueChangedHandler = binding.priorHandler
+        }
+        bindings.removeAll()
+        let center = NotificationCenter.default
+        notifications.forEach(center.removeObserver)
+        notifications.removeAll()
+        updateConnectionState()
     }
-    // Internal for tests with GameController's supported synthetic extended-gamepad profile.
+
     func attach(_ controller: GCController) {
-        guard active, let profile = controller.extendedGamepad,
-              !profiles.contains(where: { $0.0 === profile }) else { return }
-        profiles.append((profile, profile.valueChangedHandler))
-        profile.valueChangedHandler = { [weak self] gamepad, element in
-            Task { @MainActor [weak self] in self?.handle(gamepad, element: element) }
+        guard enabled, let gamepad = controller.extendedGamepad else { return }
+        guard !bindings.contains(where: { $0.gamepad === gamepad }) else { return }
+
+        bindings.append(Binding(gamepad: gamepad, priorHandler: gamepad.valueChangedHandler))
+        gamepad.valueChangedHandler = { [weak self] sender, element in
+            Task { @MainActor [weak self] in
+                self?.receiveChange(on: sender, element: element)
+            }
         }
-        confirmSymbol = profile.buttonA.sfSymbolsName ?? "a.circle"
-        detailsSymbol = profile.buttonX.sfSymbolsName ?? "x.circle"
-        connected = true
+        updateConnectionState()
     }
-    private func detach(_ controller: GCController) {
-        guard let profile = controller.extendedGamepad else { return }
-        if let index = profiles.firstIndex(where: { $0.0 === profile }) {
-            let previous = profiles.remove(at: index); profile.valueChangedHandler = previous.1
+
+    private func detach(_ device: GCController) {
+        guard let gamepad = device.extendedGamepad else { return }
+        guard let index = bindings.firstIndex(where: { $0.gamepad === gamepad }) else { return }
+        let binding = bindings.remove(at: index)
+        binding.gamepad.valueChangedHandler = binding.priorHandler
+        clearNavigationRepeat()
+        updateConnectionState()
+    }
+
+    private func updateConnectionState() {
+        connected = !bindings.isEmpty
+        confirmSymbol = bindings.last?.gamepad.buttonA.sfSymbolsName ?? "a.circle"
+        detailsSymbol = bindings.last?.gamepad.buttonX.sfSymbolsName ?? "x.circle"
+    }
+
+    private func receiveChange(on pad: GCExtendedGamepad, element: GCControllerElement) {
+        guard enabled else { return }
+
+        if element === pad.dpad {
+            navigate(x: pad.dpad.xAxis.value, y: pad.dpad.yAxis.value)
+            return
         }
-        repeatTask?.cancel(); heldDirection = nil
-        connected = !profiles.isEmpty
+        if element === pad.leftThumbstick {
+            navigate(x: pad.leftThumbstick.xAxis.value, y: pad.leftThumbstick.yAxis.value)
+            return
+        }
+
+        let buttons: [(GCControllerButtonInput, Command)] = [
+            (pad.buttonA, .confirm), (pad.buttonB, .back),
+            (pad.buttonX, .details), (pad.buttonY, .favorite),
+            (pad.leftShoulder, .previousSection),
+            (pad.rightShoulder, .nextSection),
+            (pad.buttonMenu, .details)
+        ]
+        if let pressed = buttons.first(where: { $0.0 === element && $0.0.isPressed }) {
+            onCommand?(pressed.1)
+        }
     }
-    private func handle(_ profile: GCExtendedGamepad, element: GCControllerElement) {
-        guard active else { return }
-        if element === profile.dpad || element === profile.leftThumbstick {
-            let pad = element === profile.dpad ? profile.dpad : profile.leftThumbstick
-            updateDirection(x: pad.xAxis.value, y: pad.yAxis.value)
-        } else if element === profile.buttonA, profile.buttonA.isPressed { onCommand?(.confirm) }
-        else if element === profile.buttonB, profile.buttonB.isPressed { onCommand?(.back) }
-        else if element === profile.buttonX, profile.buttonX.isPressed { onCommand?(.details) }
-        else if element === profile.buttonY, profile.buttonY.isPressed { onCommand?(.favorite) }
-        else if element === profile.leftShoulder, profile.leftShoulder.isPressed { onCommand?(.previousSection) }
-        else if element === profile.rightShoulder, profile.rightShoulder.isPressed { onCommand?(.nextSection) }
-        else if element === profile.buttonMenu, profile.buttonMenu.isPressed { onCommand?(.details) }
+
+    private static func direction(x: Float, y: Float) -> Command? {
+        let horizontal = abs(x) >= abs(y)
+        let strength = horizontal ? abs(x) : abs(y)
+        guard strength >= 0.55 else { return nil }
+        return horizontal ? (x > 0 ? .right : .left) : (y > 0 ? .up : .down)
     }
-    private func updateDirection(x: Float, y: Float) {
-        let direction: Command?
-        if max(abs(x), abs(y)) < 0.55 { direction = nil }
-        else if abs(x) >= abs(y) { direction = x > 0 ? .right : .left }
-        else { direction = y > 0 ? .up : .down }
-        guard heldDirection != direction else { return }
-        repeatTask?.cancel(); heldDirection = direction
-        guard let direction else { return }
-        onCommand?(direction)
-        repeatTask = Task { [weak self] in
+
+    private func clearNavigationRepeat() {
+        navigationRepeat?.cancel()
+        navigationRepeat = nil
+        directionInProgress = nil
+    }
+
+    private func navigate(x: Float, y: Float) {
+        let incoming = Self.direction(x: x, y: y)
+        guard incoming != directionInProgress else { return }
+        clearNavigationRepeat()
+        guard let incoming else { return }
+
+        directionInProgress = incoming
+        onCommand?(incoming)
+        navigationRepeat = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 350_000_000)
-            while !Task.isCancelled {
-                guard let self, self.active else { return }
-                self.onCommand?(direction)
+            guard let self else { return }
+            while !Task.isCancelled && self.enabled && self.directionInProgress == incoming {
+                self.onCommand?(incoming)
                 try? await Task.sleep(nanoseconds: 140_000_000)
             }
         }
@@ -102,24 +155,34 @@ struct BloomBoxGameBoxNavigation: Equatable {
     var selectedIndex = 0
     var headerIndex = 0
     var focus: Focus = .rail
-    mutating func move(_ command: BloomBoxControllerInput.Command, count: Int, headerCount: Int = 4) {
-        switch command {
-        case .left:
-            if focus == .header { headerIndex = max(0, headerIndex - 1) }
-            else if focus == .details { focus = .launch }
-            else if focus == .rail { selectedIndex = max(0, selectedIndex - 1) }
-        case .right:
-            if focus == .header { headerIndex = min(max(0, headerCount - 1), headerIndex + 1) }
-            else if focus == .launch { focus = .details }
-            else if focus == .rail { selectedIndex = min(max(0, count - 1), selectedIndex + 1) }
-        case .up: focus = focus == .rail ? .header : .rail
-        case .down: focus = focus == .header ? .rail : .launch
-        case .back: focus = .rail
-        default: break
+
+    mutating func move(_ command: BloomBoxControllerInput.Command,
+                       count: Int, headerCount: Int = 4) {
+        switch (focus, command) {
+        case (.header, .left):
+            headerIndex = max(0, headerIndex - 1)
+        case (.header, .right):
+            headerIndex = min(max(0, headerCount - 1), headerIndex + 1)
+        case (.rail, .left):
+            selectedIndex = max(0, selectedIndex - 1)
+        case (.rail, .right):
+            selectedIndex = min(max(0, count - 1), selectedIndex + 1)
+        case (.details, .left):
+            focus = .launch
+        case (.launch, .right):
+            focus = .details
+        case (_, .up):
+            focus = focus == .rail ? .header : .rail
+        case (_, .down):
+            focus = focus == .header ? .rail : .launch
+        case (_, .back):
+            focus = .rail
+        default:
+            break
         }
     }
 }
 
-// Compatibility only: existing host callers and saved names still resolve.
+// Binary/API compatibility for host callers. Not a separate LiveBoard runtime.
 typealias LiveBoardControllerInput = BloomBoxControllerInput
 typealias LiveBoardConsoleNavigation = BloomBoxGameBoxNavigation

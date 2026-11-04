@@ -941,30 +941,92 @@ struct BloomBoxGameBoxScreen: View {
             } else { Image(systemName: "gamecontroller").foregroundStyle(.white.opacity(0.4)).accessibilityLabel("Connect a controller to navigate") }
         }.font(.system(size: 11)).foregroundStyle(.white.opacity(0.6))
     }
+    private struct DetailOption: Identifiable {
+        let id: Int
+        let label: String
+        let symbol: String
+    }
+
+    /// Stable IDs are shared with controller focus and detailAction(_:app:).
+    private func actions(for app: LCAppModel) -> [DetailOption] {
+        let favorited = favoriteKeys.contains(liveBoardAppKey(app))
+        let items: [(String, String)] = [
+            ("Launch", "play.fill"),
+            ("App settings", "gearshape"),
+            ("Choose landscape cover", "photo"),
+            ("Choose background", "rectangle"),
+            (favorited ? "Remove favorite" : "Add favorite", "star"),
+            ("Reset artwork", "arrow.counterclockwise"),
+            ("Choose portrait cover", "rectangle.portrait"),
+            ("Hide in this mode", "eye.slash"),
+            ("Launch with JIT", "bolt.fill"),
+            ("Rename / change app icon", "pencil")
+        ]
+        return items.enumerated().compactMap { index, item in
+            (bigPicture || index != 6)
+                ? DetailOption(id: index, label: item.0, symbol: item.1)
+                : nil
+        }
+    }
+
+    private func optionRow(_ option: DetailOption, app: LCAppModel) -> some View {
+        Button {
+            detailAction(option.id, app: app)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: option.symbol)
+                    .frame(width: 24)
+                Text(option.label).font(.system(size: 15))
+                Spacer(minLength: 0)
+            }
+            .padding(10)
+            .frame(minHeight: 40)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(detailsIndex == option.id ? .white.opacity(0.17) : .clear)
+            )
+        }
+        .buttonStyle(.plain)
+        .id(option.id)
+        .accessibilityIdentifier("console.option.\(option.id)")
+    }
+
     private func detailsOverlay(_ app: LCAppModel, height: CGFloat) -> some View {
         ZStack {
-            Color.black.opacity(0.45).ignoresSafeArea().onTapGesture { details = false }
+            Color.black.opacity(0.45)
+                .ignoresSafeArea()
+                .onTapGesture { details = false }
+
             VStack(alignment: .leading, spacing: 10) {
-                Text(appCustomization.name(app)).font(.headline).lineLimit(1)
-                ScrollViewReader { proxy in
+                Text(appCustomization.name(app))
+                    .font(.headline)
+                    .lineLimit(1)
+
+                ScrollViewReader { reader in
                     ScrollView {
-                        VStack(spacing: 4) {
-                            ForEach((0..<10).filter { bigPicture || $0 != 6 }, id: \.self) { index in
-                                Button { detailAction(index, app: app) } label: {
-                                    HStack(spacing: 10) {
-                                        Image(systemName: ["play.fill", "gearshape", "photo", "rectangle", "star", "arrow.counterclockwise", "rectangle.portrait", "eye.slash", "bolt.fill", "pencil"][index]).frame(width: 24)
-                                        Text(["Launch", "App settings", "Choose landscape cover", "Choose background", favoriteKeys.contains(liveBoardAppKey(app)) ? "Remove favorite" : "Add favorite", "Reset artwork", "Choose portrait cover", "Hide in this mode", "Launch with JIT", "Rename / change app icon"][index]).font(.system(size: 15))
-                                        Spacer(minLength: 0)
-                                    }.padding(10).frame(minHeight: 40).background(detailsIndex == index ? .white.opacity(0.17) : .clear, in: RoundedRectangle(cornerRadius: 10))
-                                }.buttonStyle(.plain).id(index).accessibilityIdentifier("console.option.\(index)")
+                        LazyVStack(spacing: 4) {
+                            ForEach(actions(for: app)) { option in
+                                optionRow(option, app: app)
                             }
                         }
-                    }.accessibilityIdentifier("console.options.scroll").onChange(of: detailsIndex) { index in proxy.scrollTo(index) }
+                    }
+                    .accessibilityIdentifier("console.options.scroll")
+                    .onChange(of: detailsIndex) { index in
+                        reader.scrollTo(index)
+                    }
                 }
-                Button("Close") { details = false }.frame(maxWidth: .infinity, minHeight: 36).accessibilityIdentifier("console.options.close")
-            }.padding(16).frame(width: 340).frame(maxHeight: max(160, height - 24))
-                .liveBoardGlass(radius: 24, interactive: false).padding(.horizontal, 12)
-        }.accessibilityAddTraits(.isModal)
+
+                Button("Close") { details = false }
+                    .frame(maxWidth: .infinity, minHeight: 36)
+                    .accessibilityIdentifier("console.options.close")
+            }
+            .padding(16)
+            .frame(width: 340)
+            .frame(maxHeight: max(160, height - 24))
+            .liveBoardGlass(radius: 24, interactive: false)
+            .padding(.horizontal, 12)
+        }
+        .accessibilityAddTraits(.isModal)
     }
     private var searchSheet: some View {
         NavigationView {
