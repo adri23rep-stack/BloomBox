@@ -33,6 +33,7 @@ struct BloomBoxGameBoxV2Screen: View {
     private var localReduceMotion = false
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @State private var focusedKey: String?
+    @State private var lastSelectedKey: String?
     @State private var alphabetical = false
     @State private var quickMenu = false
     @State private var upcomingFeature: String?
@@ -95,8 +96,12 @@ struct BloomBoxGameBoxV2Screen: View {
     var body: some View {
         GeometryReader { geometry in
             let compact = geometry.size.height < 370
-            let cardHeight = max(125, min(compact ? 191 : 290, geometry.size.height * (compact ? 0.44 : 0.47)))
-            let cardWidth = cardHeight * 0.79
+            // Size icon-only cells to the actual landscape viewport, keeping
+            // the entire app image visible instead of cropping a cover card.
+            let iconSide = min(compact ? 136.0 : 164.0,
+                               max(94.0, geometry.size.height * (compact ? 0.37 : 0.39)))
+            let cardHeight = iconSide + 36
+            let cardWidth = iconSide + 16
             ZStack {
                 consoleBackground
                 VStack(spacing: compact ? 7 : 15) {
@@ -107,14 +112,16 @@ struct BloomBoxGameBoxV2Screen: View {
                         emptyLibrary
                             .frame(height: cardHeight)
                     } else {
-                        carousel(cardWidth: cardWidth, height: cardHeight)
+                        carousel(cardWidth: cardWidth, height: cardHeight,
+                                 viewportWidth: geometry.size.width)
                             .frame(height: cardHeight + 12)
                     }
                     detailPanel(compact: compact)
                         .frame(height: compact ? 92 : 122)
                 }
-                .padding(.horizontal, compact ? 12 : 25)
-                .padding(.vertical, compact ? 3 : 12)
+                .padding(.horizontal, compact ? 23 : 30)
+                .padding(.top, compact ? 23 : 29)
+                .padding(.bottom, compact ? 8 : 14)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
@@ -162,9 +169,15 @@ struct BloomBoxGameBoxV2Screen: View {
         }
         .onAppear {
             if focusedKey == nil { focusedKey = visibleApps.first.map(key) }
+            lastSelectedKey = focusedKey
             refreshSystemBudget()
             UIDevice.current.isBatteryMonitoringEnabled = true
             refreshBattery()
+        }
+        .onChange(of: focusedKey) { key in
+            guard let key, key != lastSelectedKey else { return }
+            if lastSelectedKey != nil { selectionHaptic() }
+            lastSelectedKey = key
         }
         .onChange(of: entries.map(key)) { keys in
             if let focusedKey, !keys.contains(focusedKey) {
@@ -221,22 +234,25 @@ struct BloomBoxGameBoxV2Screen: View {
             )
         }
         .ignoresSafeArea()
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.34), value: focusedKey)
+        // Never transform or pan the full screen when selecting another app.
+        .animation(nil, value: focusedKey)
         .accessibilityHidden(true)
     }
 
     private func header(compact: Bool) -> some View {
         HStack(spacing: compact ? 5 : 9) {
-            topButton("ellipsis", label: "Menú") { quickMenu = true }
+            HStack(spacing: 7) {
+                topButton("ellipsis", label: "Menú") { quickMenu = true }
             topButton("person.2.fill", label: "Amigos") {
                 upcomingFeature = "La sección de amigos y Discord está reservada para una próxima versión."
             }
-            topButton("arrow.up.arrow.down", label: "Ordenar") {
-                alphabetical.toggle()
-                selectionHaptic()
+                topButton("arrow.up.arrow.down", label: "Ordenar") {
+                    alphabetical.toggle()
+                    selectionHaptic()
+                }
             }
-            Spacer(minLength: 4)
-            HStack(spacing: 8) {
+            .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: compact ? 5 : 8) {
                 Image(systemName: "gamecontroller.fill")
                     .font(.system(size: compact ? 13 : 17, weight: .semibold))
                 Text("GAMEBOX").font(.system(size: compact ? 12 : 15, weight: .black, design: .rounded))
@@ -265,15 +281,17 @@ struct BloomBoxGameBoxV2Screen: View {
             .frame(height: compact ? 36 : 46)
             .background(.black.opacity(0.23), in: Capsule())
             .overlay(Capsule().strokeBorder(.white.opacity(0.15)))
-            Spacer(minLength: 4)
-            topButton("bell.fill", label: "Notificaciones") {
+            HStack(spacing: 7) {
+                topButton("bell.fill", label: "Notificaciones") {
                 upcomingFeature = "Las notificaciones de GameBox se añadirán después."
             }
             topButton("music.note", label: "Música") {
                 upcomingFeature = "El reproductor y el ecualizador están preparados para una próxima actualización."
             }
             topButton("power", label: "Volver al escritorio", action: backToHome)
-            topButton("gearshape.fill", label: "Ajustes", action: openInterface)
+                topButton("gearshape.fill", label: "Ajustes", action: openInterface)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 
@@ -282,7 +300,7 @@ struct BloomBoxGameBoxV2Screen: View {
             Image(systemName: symbol)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 39, height: 39)
+                .frame(width: 35, height: 35)
                 .background(.white.opacity(0.12), in: Circle())
                 .overlay(Circle().strokeBorder(.white.opacity(0.16), lineWidth: 1))
         }
@@ -290,110 +308,109 @@ struct BloomBoxGameBoxV2Screen: View {
         .accessibilityLabel(label)
     }
 
-    private func carousel(cardWidth: CGFloat, height: CGFloat) -> some View {
-        ScrollViewReader { scroll in
+    @ViewBuilder
+    private func carousel(cardWidth: CGFloat, height: CGFloat,
+                          viewportWidth: CGFloat) -> some View {
+        if #available(iOS 17.0, *) {
+            // One native scroll system owns both finger tracking and snapping.
+            // Do NOT add a competing DragGesture or second scrollTo on drag end.
             ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(alignment: .center, spacing: 14) {
+                LazyHStack(alignment: .center, spacing: 17) {
                     ForEach(visibleApps, id: \.id) { app in
                         gameCard(app, width: cardWidth, height: height)
-                            .id(key(app))
+                            .id(app.id)
                     }
                 }
-                .padding(.horizontal, 9)
-                .padding(.vertical, 5)
+                .scrollTargetLayout()
+                .padding(.horizontal, max(0, (viewportWidth - cardWidth) / 2))
+                .padding(.vertical, 4)
             }
-            .simultaneousGesture(DragGesture(minimumDistance: 35).onEnded { value in
-                guard abs(value.translation.width) > 45 else { return }
-                moveSelection(value.translation.width < 0 ? 1 : -1)
-            })
-            .onChange(of: focusedKey) { changed in
-                guard let changed else { return }
-                withAnimation(reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.85)) {
-                    scroll.scrollTo(changed, anchor: .center)
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $focusedKey, anchor: .center)
+        } else {
+            // iOS 16 fallback. Only the native pan handles swipes; scrolling
+            // programmatically is reserved for deliberate taps.
+            ScrollViewReader { scroll in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .center, spacing: 17) {
+                        ForEach(visibleApps, id: \.id) { app in
+                            gameCard(app, width: cardWidth, height: height)
+                                .id(app.id)
+                        }
+                    }
+                    .padding(.horizontal, max(0, (viewportWidth - cardWidth) / 2))
+                    .padding(.vertical, 4)
                 }
-            }
-            .onAppear {
-                if let focusedKey {
-                    scroll.scrollTo(focusedKey, anchor: .center)
+                .onChange(of: focusedKey) { key in
+                    guard let key else { return }
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.42)) {
+                        scroll.scrollTo(key, anchor: .center)
+                    }
+                }
+                .onAppear {
+                    if let focusedKey { scroll.scrollTo(focusedKey, anchor: .center) }
                 }
             }
         }
     }
 
-    private func gameCard(_ app: BloomBoxGameBoxEntry, width: CGFloat, height: CGFloat) -> some View {
+    private func gameCard(_ app: BloomBoxGameBoxEntry,
+                          width: CGFloat, height: CGFloat) -> some View {
         let focused = key(app) == focusedKey
-        return ZStack {
-            RoundedRectangle(cornerRadius: 19, style: .continuous)
-                .fill(LinearGradient(colors: [accent(for: app).opacity(0.9),
-                                              Color(red: 0.10, green: 0.12, blue: 0.20)],
-                                     startPoint: .topLeading, endPoint: .bottomTrailing))
-            if let art = cover(app) {
-                Image(uiImage: art)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: width, height: height)
-                    .clipped()
-            } else {
-                VStack(spacing: 13) {
-                    Spacer(minLength: 5)
-                    gameIcon(app, size: min(width * 0.58, height * 0.48))
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
-                        .shadow(color: .black.opacity(0.28), radius: 12, y: 8)
-                    Text(title(app))
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .padding(.horizontal, 9)
-                    Spacer(minLength: 12)
-                }
-                .frame(width: width, height: height)
-            }
-            LinearGradient(colors: [.clear, .black.opacity(0.06), .black.opacity(0.68)],
-                           startPoint: .top, endPoint: .bottom)
-            VStack {
-                HStack {
-                    if favorites.contains(key(app)) {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 11, weight: .bold))
-                            .padding(7)
-                            .background(.black.opacity(0.55), in: Circle())
-                    }
-                    Spacer()
-                    if app.requiresJIT {
-                        Text("JIT")
-                            .font(.system(size: 10, weight: .black, design: .rounded))
-                            .padding(.horizontal, 8).padding(.vertical, 5)
-                            .background(.black.opacity(0.57), in: Capsule())
+        let side = width - 16
+        return VStack(spacing: 9) {
+            ZStack(alignment: .topTrailing) {
+                // A complete uncropped app icon. Custom covers remain optional,
+                // never automatically impose a tall trading-card crop.
+                Group {
+                    if let customCover = cover(app) {
+                        Image(uiImage: customCover).resizable().scaledToFit()
+                    } else {
+                        gameIcon(app, size: side)
                     }
                 }
-                Spacer()
-                HStack(spacing: 7) {
-                    // The real installed app icon remains visible, even with cover art.
-                    gameIcon(app, size: 26)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                    Text(title(app))
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
+                .frame(width: side, height: side)
+                .background(.white.opacity(0.055),
+                            in: RoundedRectangle(cornerRadius: 27, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 27, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 27, style: .continuous)
+                        .strokeBorder(focused ? .white.opacity(0.97) : .white.opacity(0.12),
+                                      lineWidth: focused ? 2.3 : 0.7)
+                }
+                .shadow(color: focused && !constrained ? focusedAccent.opacity(0.28) : .clear,
+                        radius: 15, y: 5)
+                if app.requiresJIT {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.black)
+                        .frame(width: 28, height: 28)
+                        .background(Color(red: 1, green: 0.84, blue: 0.32), in: Circle())
+                        .overlay(Circle().strokeBorder(.black.opacity(0.14)))
+                        .offset(x: 7, y: -7)
+                        .accessibilityLabel("JIT configurado para esta app")
+                }
+                if favorites.contains(key(app)) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(7)
+                        .background(.black.opacity(0.65), in: Circle())
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .offset(x: -5, y: -5)
                 }
             }
-            .padding(9)
+            .frame(width: side, height: side)
+            Text(title(app))
+                .font(.system(size: 12, weight: focused ? .bold : .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(focused ? 1 : 0.80))
+                .lineLimit(1)
+                .minimumScaleFactor(0.76)
+                .frame(width: width)
         }
-        .frame(width: width, height: height)
-        .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 19, style: .continuous)
-                .strokeBorder(focused ? .white.opacity(0.98) : .white.opacity(0.20),
-                              lineWidth: focused ? 2.8 : 1)
-        }
-        .shadow(color: focused ? focusedAccent.opacity(0.34) : .black.opacity(0.12),
-                radius: focused ? 15 : 3, y: 4)
-        .scaleEffect(focused && !reduceMotion ? 1.025 : 1)
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: focused)
-        .contentShape(RoundedRectangle(cornerRadius: 19))
-        .onTapGesture {
-            select(app)
-        }
+        .frame(width: width, height: height, alignment: .top)
+        .contentShape(Rectangle())
+        .onTapGesture { select(app) }
         .highPriorityGesture(TapGesture(count: 2).onEnded {
             select(app)
             toggleFavorite(app)
@@ -401,14 +418,14 @@ struct BloomBoxGameBoxV2Screen: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title(app) + (favorites.contains(key(app)) ? ", favorito" : ""))
         .accessibilityAddTraits(focused ? .isSelected : [])
-        .accessibilityHint("Toca para seleccionar, dos veces para alternar favorito. Usa Jugar para abrir.")
+        .accessibilityHint("Toca para seleccionar, dos veces para favoritos. Jugar abre la app.")
         .accessibilityIdentifier("bloombox.gamebox.card." + key(app))
     }
 
     @ViewBuilder private func gameIcon(_ app: BloomBoxGameBoxEntry, size: CGFloat) -> some View {
         Group {
             if let image = app.icon {
-                Image(uiImage: image).resizable().scaledToFill()
+                Image(uiImage: image).resizable().scaledToFit()
             } else {
                 ZStack {
                     Color.white.opacity(0.16)
@@ -525,8 +542,9 @@ struct BloomBoxGameBoxV2Screen: View {
     private func select(_ app: BloomBoxGameBoxEntry) {
         let next = key(app)
         guard focusedKey != next else { return }
-        focusedKey = next
-        selectionHaptic()
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.42)) {
+            focusedKey = next
+        }
     }
 
     private func moveSelection(_ delta: Int) {
