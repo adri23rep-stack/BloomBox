@@ -648,7 +648,7 @@ struct BloomBoxGameBoxV2Screen: View {
         if !old.isEmpty && old != filename { BloomBoxMotionMedia.remove(old) }
     }
 
-    private enum ImportedWallpaperFile {
+    private enum ImportedWallpaperFile: Sendable {
         case motion(String)
         case photo(Data)
     }
