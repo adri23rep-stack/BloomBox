@@ -26,6 +26,9 @@ assert 'value: "gamebox"' in launcher
 assert 'value: "ios"' in launcher
 assert 'liveBoardMode == "gamebox"' in host
 assert "BloomBoxGameBoxV2Screen(" in host
+assert "@available(iOS 16.0, *)" in gamebox
+assert "if #available(iOS 16.0, *)" in host
+assert "if #available(iOS 16.0, *)" in launcher
 assert "launchFromLiveBoard(app, forceJIT: true)" in host
 assert 'liveBoardMode == "ios" || liveBoardMode == "gamebox"' in host
 assert "BloomBoxReservedSection(backToHome:" in host
