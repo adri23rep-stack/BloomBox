@@ -26,21 +26,30 @@ struct LiveContainerHomeActions {
     /// A missing guest after uninstall/reconciliation cannot trigger another
     /// guest's action. JIT falls back to normal only if no JIT handler exists,
     /// preserving the legacy host callback semantics.
+    /// Keep the exact selected guest when two installations share a legacy
+    /// key. Unknown or stale keys never resolve to a different guest.
+    private func resolve(_ key: String, selected: LCAppModel?) -> LCAppModel? {
+        if let selected, LiveContainerHomeAdapter.key(selected) == key {
+            return selected
+        }
+        return byKey[key]
+    }
+
     @discardableResult
-    func perform(_ command: BloomBoxHomeGuestCommand) -> Bool {
+    func perform(_ command: BloomBoxHomeGuestCommand, selected: LCAppModel? = nil) -> Bool {
         switch command {
         case let .open(key, jit):
-            guard let app = byKey[key] else { return false }
+            guard let app = resolve(key, selected: selected) else { return false }
             if jit, let openWithJIT {
                 openWithJIT(app)
             } else {
                 openNormally(app)
             }
         case let .manage(key):
-            guard let app = byKey[key] else { return false }
+            guard let app = resolve(key, selected: selected) else { return false }
             showSettings(app)
         case let .uninstall(key):
-            guard let app = byKey[key] else { return false }
+            guard let app = resolve(key, selected: selected) else { return false }
             removeApp(app)
         }
         return true
