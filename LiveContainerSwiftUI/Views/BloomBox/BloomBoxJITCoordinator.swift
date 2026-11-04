@@ -18,26 +18,50 @@ enum BloomBoxBuiltInJIT {
         try BloomBoxJITPairingStorage().save(data)
         UserDefaults.standard.set("On-device pairing ready. Connect LocalDevVPN, then prepare JIT.", forKey: "BloomBoxJITLastStatus")
     }
+    private static func saveLaunchStatus(message: String, operation: String, recent: [String]) {
+        UserDefaults.standard.set(message, forKey: "BloomBoxJITLastStatus")
+        let report: [String: Any] = [
+            "operation": operation,
+            "message": message,
+            "recentMessages": recent
+        ]
+        guard let bytes = try? JSONSerialization.data(withJSONObject: report) else { return }
+        let destination = pairingURL.deletingLastPathComponent()
+            .appendingPathComponent("last-status.json")
+        try? bytes.write(to: destination, options: .atomic)
+    }
+
     static func enable(pid: Int32 = getpid(), script: String?, operation: String = "enable", progress: @escaping (String) -> Void) async -> Bool {
         var recentMessages: [String] = []
         var debuggerAttached = false
         let report: (String) -> Void = { message in
-            if BloomBoxJITProgressMarker.attached(message) { debuggerAttached = true }
+            debuggerAttached = debuggerAttached || BloomBoxJITProgressMarker.attached(message)
             progress(message)
-            UserDefaults.standard.set(message, forKey: "BloomBoxJITLastStatus")
             recentMessages.append(String(message.prefix(1024)))
-            recentMessages = Array(recentMessages.suffix(40))
-            let status: [String: Any] = ["message": message, "operation": operation, "recentMessages": recentMessages]
-            let file = pairingURL.deletingLastPathComponent().appendingPathComponent("last-status.json")
-            if let data = try? JSONSerialization.data(withJSONObject: status) { try? data.write(to: file, options: .atomic) }
+            if recentMessages.count > 40 { recentMessages.removeFirst(recentMessages.count - 40) }
+            saveLaunchStatus(message: message, operation: operation, recent: recentMessages)
         }
-        guard !busy else { report("Another JIT operation is already running."); return false }
-        guard ["enable", "prepare", "reset"].contains(operation), operation != "enable" || (pid > 0 && pid != getpid()) else {
-            report("JIT requires a separate guest process."); return false
+        if busy {
+            report("Another JIT operation is already running.")
+            return false
+        }
+        switch operation {
+        case "enable":
+            guard pid > 0 && pid != getpid() else {
+                report("JIT requires a separate guest process.")
+                return false
+            }
+        case "prepare", "reset": break
+        default:
+            report("Unsupported JIT action.")
+            return false
+        }
+        guard #available(iOS 17.4, *) else {
+            report("Built-in JIT requires iOS 17.4 or later.")
+            return false
         }
         busy = true
         defer { busy = false }
-        guard #available(iOS 17.4, *) else { report("Built-in JIT requires iOS 17.4 or later."); return false }
         guard operation == "enable" || LCUtils.bloomBoxCanDebug() else { report("This installation lacks debugging permission (get-task-allow). Re-sign using a compatible signing method."); return false }
         let data: Data
         do { data = try BloomBoxJITPairingStorage().load() }

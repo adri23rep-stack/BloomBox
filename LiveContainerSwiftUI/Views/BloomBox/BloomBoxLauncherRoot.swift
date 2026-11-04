@@ -52,14 +52,7 @@ struct BloomBoxLauncherRootView: View {
         }) {
             VStack(spacing: 0) {
                 HStack { Spacer(); Button("Done") { showDestination = false }.padding() }
-                Group {
-                    switch sharedModel.selectedTab {
-                    case .sources: LCSourcesView()
-                    case .tweaks: LCTweaksView()
-                    case .settings: LCSettingsView()
-                    case .apps: EmptyView()
-                    }
-                }
+                destinationContent
             }
         }
         .onChange(of: sharedModel.selectedTab) { tab in
@@ -76,6 +69,15 @@ struct BloomBoxLauncherRootView: View {
                 BloomBoxLauncherSession.restored = true
             }
             ready = true
+        }
+    }
+
+    @ViewBuilder private var destinationContent: some View {
+        switch sharedModel.selectedTab {
+        case .apps: EmptyView()
+        case .settings: LCSettingsView()
+        case .sources: LCSourcesView()
+        case .tweaks: LCTweaksView()
         }
     }
 

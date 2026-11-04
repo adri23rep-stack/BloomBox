@@ -136,17 +136,8 @@ struct BloomBoxJITSetup: View {
                         Text("Leave blank for automatic detection. If JIT times out on port 49152, find the current port under SideStore > Settings > Experimental Features > Network Discovery > local > Remote Pairing and enter it here. This is not the pairing PIN.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
-                        Button("Prepare device") { perform("prepare") }.disabled(session.busy || !hasPairing)
-                        Button("Reset developer disk image cache") { perform("reset") }.disabled(session.busy || !hasPairing)
-                        if session.busy {
-                            ProgressView("Working…")
-                            Button("Cancel") { session.cancel() }
-                        }
-                        if let operationSucceeded = session.success {
-                            Label(operationSucceeded ? "Completed" : "Could not complete", systemImage: operationSucceeded ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                                .foregroundStyle(operationSucceeded ? .green : .orange)
-                        }
-                        if !session.message.isEmpty { Text(session.message).font(.footnote).textSelection(.enabled).accessibilityIdentifier("jit.status") }
+                        connectionActions
+                        connectionFeedback
                     }
                     Section("Launch") {
                         Text("Touch and hold an app, or open its console options, and choose Launch with JIT. BloomBox prepares the device and connects its helper automatically. Errors appear in the launch window.")
@@ -159,6 +150,33 @@ struct BloomBoxJITSetup: View {
                 }
                 if provider != JITEnablerType.BuiltIn.rawValue && !session.message.isEmpty { Section { Text(session.message) } }
                 Section { NavigationLink("JIT-less setup and diagnostics") { LCJITLessDiagnoseView() } }
+        }
+    }
+
+    /// Pairing controls and feedback are kept separate from the provider form.
+    @ViewBuilder private var connectionActions: some View {
+        HStack(spacing: 12) {
+            Button("Prepare device") { perform("prepare") }
+            Button("Reset developer disk image cache") { perform("reset") }
+        }
+        .disabled(session.busy || !hasPairing)
+        if session.busy {
+            HStack {
+                ProgressView("Working…")
+                Button("Cancel") { session.cancel() }
+            }
+        }
+    }
+
+    @ViewBuilder private var connectionFeedback: some View {
+        if let completed = session.success {
+            Label(completed ? "Completed" : "Could not complete",
+                  systemImage: completed ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(completed ? Color.green : Color.orange)
+        }
+        if !session.message.isEmpty {
+            Text(session.message).font(.footnote).textSelection(.enabled)
+                .accessibilityIdentifier("jit.status")
         }
     }
 

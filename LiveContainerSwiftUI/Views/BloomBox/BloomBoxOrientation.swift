@@ -66,13 +66,23 @@ struct BloomBoxOrientationLock: UIViewRepresentable {
             BloomBoxOrientation.owner = token
             BloomBoxOrientation.apply(requestedMask, window: window)
         }
-        override func didMoveToWindow() { super.didMoveToWindow(); applied = false; apply() }
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            applied = false
+            apply()
+        }
     }
-    func makeUIView(context: Context) -> WindowObserver { WindowObserver() }
+    func makeUIView(context: Context) -> WindowObserver {
+        WindowObserver(frame: .zero)
+    }
     func updateUIView(_ view: WindowObserver, context: Context) {
-        if view.requestedMask != mask { view.applied = false }
+        let needsRefresh = view.requestedMask != mask || !view.applied
         view.requestedMask = mask
-        if !view.applied { DispatchQueue.main.async { [weak view] in view?.apply() } }
+        guard needsRefresh else { return }
+        view.applied = false
+        DispatchQueue.main.async { [weak view] in
+            view?.apply()
+        }
     }
     static func dismantleUIView(_ view: WindowObserver, coordinator: ()) {
         guard BloomBoxOrientation.owner == view.token else { return }
