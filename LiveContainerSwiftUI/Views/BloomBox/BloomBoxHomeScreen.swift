@@ -202,7 +202,7 @@ struct BloomBoxHomeScreen: View {
     private var recentLibraryKeys: [String] {
         (try? JSONDecoder().decode([String].self, from: Data(libraryRecentsJSON.utf8))) ?? []
     }
-    private var favoriteKeys: [String] { (try? JSONDecoder().decode([String].self, from: Data(favorites.utf8))) ?? [] }
+    private var favoriteKeys: [String] { BloomBoxHomeAppPolicy.favorites(from: favorites) }
     private var wallpaperURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("LiveBoard", isDirectory: true).appendingPathComponent("wallpaper.jpg")
@@ -670,9 +670,7 @@ struct BloomBoxHomeScreen: View {
             Button("Add") {
                 let value = categoryName.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !value.isEmpty, value.count <= 30 else { return }
-                var names = (try? JSONDecoder().decode([String].self, from: Data(homeCategories.utf8))) ?? []
-                if !names.contains(where: { $0.caseInsensitiveCompare(value) == .orderedSame }) { names.append(value) }
-                if let data = try? JSONEncoder().encode(names), let text = String(data: data, encoding: .utf8) { homeCategories = text }
+                homeCategories = BloomBoxHomeAppPolicy.addingCategory(value, to: homeCategories)
                 if let key = categoryApp { setCategory(value, key: key) }
             }
             Button("Cancel", role: .cancel) { }
@@ -941,8 +939,7 @@ struct BloomBoxHomeScreen: View {
     }
 
     private var librarySections: [LibrarySection] {
-        let assigned = (try? JSONDecoder().decode([String: String].self,
-                              from: Data(categories.utf8))) ?? [:]
+        let assigned = BloomBoxHomeAppPolicy.assignedCategories(from: categories)
         return BloomBoxAppLibraryPolicy.sections(
             entries: libraryEntries(),
             favorites: favoriteKeys,
@@ -2376,9 +2373,7 @@ struct BloomBoxHomeScreen: View {
         Button("Rename", systemImage: "pencil") { renameValue = title(key); renameKey = key }
         Button("Change app icon", systemImage: "photo") { appearanceApp = LiveBoardAppearanceSelection(app: app) }
         Button(favoriteKeys.contains(key) ? "Unfavorite" : "Favorite", systemImage: "star") {
-            var values = favoriteKeys
-            if values.contains(key) { values.removeAll { $0 == key } } else { values.append(key) }
-            if let data = try? JSONEncoder().encode(values), let string = String(data: data, encoding: .utf8) { favorites = string }
+            favorites = BloomBoxHomeAppPolicy.toggledFavorite(key, in: favorites)
         }
         if layout.dock.contains(key) {
             Button("Remove from Dock", systemImage: "rectangle.bottomthird.inset.filled") { layout.place(key, on: max(0, page - 1)); reconcile() }
@@ -2401,7 +2396,7 @@ struct BloomBoxHomeScreen: View {
             }
         }
         Menu("Category", systemImage: "tag") {
-            ForEach((try? JSONDecoder().decode([String].self, from: Data(homeCategories.utf8))) ?? ["Games", "Ports", "Tools"], id: \.self) { value in Button(value) { setCategory(value, key: key) } }
+            ForEach(BloomBoxHomeAppPolicy.categoryNames(from: homeCategories), id: \.self) { value in Button(value) { setCategory(value, key: key) } }
             Button("New Category…") { categoryApp = key; categoryName = ""; addingCategory = true }
             Button("Uncategorized") { setCategory(nil, key: key) }
         }
@@ -2736,7 +2731,11 @@ struct BloomBoxHomeScreen: View {
     }
 
     private var searchResults: [LCAppModel] {
-        apps.filter { query.isEmpty || title(liveBoardAppKey($0)).localizedCaseInsensitiveContains(query) || $0.bundleIdentifier.localizedCaseInsensitiveContains(query) }
+        BloomBoxHomeAppPolicy.matching(
+            apps, query: query,
+            title: { title(liveBoardAppKey($0)) },
+            bundleID: { $0.bundleIdentifier }
+        )
     }
     private func beginSearch() {
         openFolder = nil
@@ -3045,9 +3044,7 @@ struct BloomBoxHomeScreen: View {
     }
     private func addPage() { layout.pages.append(Array(repeating: nil, count: BloomBoxHomeLayout.capacity)); page = layout.pages.count }
     private func setCategory(_ value: String?, key: String) {
-        var map = (try? JSONDecoder().decode([String: String].self, from: Data(categories.utf8))) ?? [:]
-        map[key] = value
-        if let data = try? JSONEncoder().encode(map), let string = String(data: data, encoding: .utf8) { categories = string }
+        categories = BloomBoxHomeAppPolicy.assigningCategory(value, to: key, in: categories)
     }
     private func moveWidgetToAvailablePage(_ widget: BloomBoxPlacedWidget, preferred: Int) {
         var all = placedWidgets
