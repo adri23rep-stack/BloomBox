@@ -21,7 +21,8 @@ struct BloomBoxAnimatedWallpaper: View {
             url: url,
             fit: fit,
             playing: appeared && scenePhase == .active && !paused && !reduceMotion && !performanceBudget.constrained,
-            transparentGIF: clearBackground
+            transparentGIF: clearBackground,
+            memoryConstrained: performanceBudget.constrained
         )
         .onAppear { appeared = true }
         .onDisappear { appeared = false }
@@ -35,6 +36,7 @@ private struct BloomBoxMotionPlayer: UIViewRepresentable {
     let fit: Bool
     let playing: Bool
     let transparentGIF: Bool
+    let memoryConstrained: Bool
 
     func makeUIView(context: Context) -> BloomBoxMotionSurface {
         BloomBoxMotionSurface()
@@ -42,7 +44,8 @@ private struct BloomBoxMotionPlayer: UIViewRepresentable {
 
     func updateUIView(_ surface: BloomBoxMotionSurface, context: Context) {
         surface.configure(url: url, fit: fit, playing: playing,
-                          transparentGIF: transparentGIF)
+                          transparentGIF: transparentGIF,
+                          memoryConstrained: memoryConstrained)
     }
 
     static func dismantleUIView(_ surface: BloomBoxMotionSurface, coordinator: ()) {
@@ -60,6 +63,7 @@ private final class BloomBoxMotionSurface: UIView {
     private var generation = UUID()
     private var shouldPlay = false
     private var preparingGIF = false
+    private var gifLoadFailed = false
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -85,7 +89,8 @@ private final class BloomBoxMotionSurface: UIView {
         CATransaction.commit()
     }
 
-    func configure(url: URL, fit: Bool, playing: Bool, transparentGIF: Bool) {
+    func configure(url: URL, fit: Bool, playing: Bool,
+                   transparentGIF: Bool, memoryConstrained: Bool) {
         let isGIF = url.pathExtension.lowercased() == "gif"
         shouldPlay = playing
         backgroundColor = isGIF && transparentGIF ? .clear : .black
@@ -100,8 +105,12 @@ private final class BloomBoxMotionSurface: UIView {
                 // Do not decode an entire GIF for an offscreen tile or Low Power Mode.
                 if playing { prepareGIF(url) } else { prepareGIFPreview(url) }
             } else { prepareVideo(url) }
-        } else if isGIF && playing && framesAnimation == nil && !preparingGIF {
+        } else if isGIF && playing && framesAnimation == nil && !preparingGIF && !gifLoadFailed {
             prepareGIF(url)
+        }
+        if isGIF && memoryConstrained {
+            gifLayer.removeAnimation(forKey: "BloomBoxGIF")
+            framesAnimation = nil
         }
         updatePlayback()
     }
@@ -129,7 +138,7 @@ private final class BloomBoxMotionSurface: UIView {
     }
 
     private func prepareGIF(_ url: URL) {
-        guard !preparingGIF else { return }
+        guard !preparingGIF && !gifLoadFailed else { return }
         preparingGIF = true
         let expectedGeneration = generation
         DispatchQueue.global(qos: .utility).async { [weak self] in
@@ -138,8 +147,12 @@ private final class BloomBoxMotionSurface: UIView {
                 guard let self, self.generation == expectedGeneration,
                       self.currentURL == url else { return }
                 self.preparingGIF = false
-                guard let frames else { return }
+                guard let frames else {
+                    self.gifLoadFailed = true
+                    return
+                }
                 self.gifLayer.contents = frames.0.first
+                guard self.shouldPlay else { return }
                 let animation = CAKeyframeAnimation(keyPath: "contents")
                 animation.values = frames.0
                 animation.keyTimes = frames.1
@@ -175,6 +188,7 @@ private final class BloomBoxMotionSurface: UIView {
         gifLayer.contents = nil
         framesAnimation = nil
         preparingGIF = false
+        gifLoadFailed = false
         currentURL = nil
     }
 
