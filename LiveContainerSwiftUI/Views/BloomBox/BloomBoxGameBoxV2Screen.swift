@@ -27,6 +27,7 @@ struct BloomBoxGameBoxV2Screen: View {
     let openInterface: () -> Void
     let openManagement: () -> Void
     let openInstall: () -> Void
+    let enterSafeMode: () -> Void
 
     @StateObject private var artwork = BloomBoxArtworkLibrary()
     @AppStorage("BloomBoxGameBoxV2Favorites", store: LiveContainerPreferencesAdapter.defaults)
@@ -259,6 +260,7 @@ struct BloomBoxGameBoxV2Screen: View {
             }
             Button("Administrar aplicaciones", action: openManagement)
             Button("Instalar IPA", action: openInstall)
+            Button("Abrir GameBox en modo seguro", action: enterSafeMode)
             Button("Cambiar interfaz", action: openInterface)
             Button("Volver al escritorio", action: backToHome)
         }
