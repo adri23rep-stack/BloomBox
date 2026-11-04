@@ -1,6 +1,7 @@
 import SwiftUI
 import CryptoKit
 import ImageIO
+import UniformTypeIdentifiers
 
 /// BloomBox's native News desktop. No guest execution or installer state lives
 /// on this page. The old Manzana widget-page entry point is retained as an alias.
@@ -108,6 +109,7 @@ private struct BloomBoxRemoteNewsSection: View {
     @State private var editingFeed = false
     @State private var feedDraft = ""
     @State private var lastRefresh: Date?
+    @State private var lastRefreshFeed = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
@@ -148,7 +150,8 @@ private struct BloomBoxRemoteNewsSection: View {
         }
         .task(id: active ? activeFeed : "") {
             guard active else { return }
-            if lastRefresh.map({ Date().timeIntervalSince($0) < 600 }) != true {
+            if lastRefreshFeed != activeFeed ||
+               lastRefresh.map({ Date().timeIntervalSince($0) < 600 }) != true {
                 await refresh()
             }
         }
@@ -188,6 +191,7 @@ private struct BloomBoxRemoteNewsSection: View {
             let decoded = try JSONDecoder().decode(BloomBoxNewsFeed.self, from: data)
             posts = Array(decoded.posts.prefix(12))
             lastRefresh = Date()
+            lastRefreshFeed = activeFeed
             error = nil
         } catch {
             self.error = english ? "Could not load news. Tap refresh to try again." : "No se pudieron cargar las noticias. Desliza o toca actualizar para intentar otra vez."
@@ -266,7 +270,9 @@ private struct BloomBoxRemoteNewsImage: View {
     }
 
     private func validGIF(_ url: URL) -> Bool {
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return false }
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let kind = CGImageSourceGetType(source) as String?,
+              kind == UTType.gif.identifier else { return false }
         return CGImageSourceGetCount(source) > 0
     }
 }
