@@ -32,6 +32,12 @@ on:
         type: boolean
         required: false
 
+# Only the latest commit on a given branch should consume a macOS build
+# runner. Push and PR triggers for the same branch share this group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build using xcodebuild command
