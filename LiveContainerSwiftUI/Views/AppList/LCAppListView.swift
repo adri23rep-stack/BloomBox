@@ -220,11 +220,21 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         // No LiveContainer/SideStore runtime types leak into GameBox source.
         return BloomBoxGameBoxV2Screen(
             entries: guests.map { app in
-                BloomBoxGameBoxEntry(
+                let policy = BloomBoxJITGuestPolicy.mode(
+                    for: app.appInfo.relativeBundlePath,
+                    defaults: LCUtils.appGroupUserDefault)
+                let bundle = Bundle(path: app.appInfo.bundlePath())
+                let isMeloNX = BloomBoxMeloNXProfile.matches(
+                    bundleID: app.bundleIdentifier,
+                    version: bundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+                let jitEnabled = BloomBoxJITGuestPolicy.wantsJIT(
+                    automatic: app.appInfo.isJITNeeded || app.appInfo.is32bit || isMeloNX,
+                    forced: nil, mode: policy)
+                return BloomBoxGameBoxEntry(
                     id: liveBoardAppKey(app),
                     name: LiveBoardAppCustomization.shared.name(app),
                     icon: LiveBoardIconStore.image(app, dark: darkModeIcon),
-                    requiresJIT: app.appInfo.isJITNeeded)
+                    requiresJIT: jitEnabled)
             },
             launch: { key in
                 guard let app = guests.first(where: { liveBoardAppKey($0) == key }) else { return }
