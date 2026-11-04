@@ -115,6 +115,12 @@ do {
     for name in ["AppIcon1024.png", "AppIconDark1024.png", "AppIconDark1024 1.png"] {
         try save("\(catalog)/\(name)", width: 1024, height: 1024)
     }
+    // Generate every app icon from our own vector artwork at build time.
+    // Do not keep binary copies from legacy source distributions in Git.
+    let greyCatalog = "Resources/Assets.xcassets/AppIconGrey.appiconset"
+    for name in ["AppIconGrey1024.png", "AppIconGreyDark1024.png", "AppIconGreyDark1024 1.png"] {
+        try save("\(greyCatalog)/\(name)", width: 1024, height: 1024)
+    }
     try save("Resources/Branding/AppIcon60x60@2x.png", width: 120, height: 120)
     try save("Resources/Branding/AppIcon76x76@2x~ipad.png", width: 152, height: 152)
     try save("Resources/Branding/BloomBox1024.png", width: 1024, height: 1024)

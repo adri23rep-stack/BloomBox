@@ -932,7 +932,7 @@ struct BloomBoxGameBoxScreen: View {
     }
     private var footer: some View {
         HStack(spacing: 16) {
-            Text(bigPicture ? "STRATA / BIG PICTURE" : "BLOOMBOX / GAMEBOX")
+            Text(bigPicture ? "BLOOMBOX / BIG PICTURE" : "BLOOMBOX / GAMEBOX")
                 .font(.system(size: 9, weight: .semibold)).tracking(1.5).foregroundStyle(.white.opacity(0.4))
             Spacer(minLength: 0)
             if controller.connected {

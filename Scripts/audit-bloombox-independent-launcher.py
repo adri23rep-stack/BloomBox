@@ -85,4 +85,30 @@ credits = (ROOT / "THIRD_PARTY_NOTICES.md").read_text()
 for project in ("Strata", "LiveContainer", "SideStore", "StikJIT"):
     if project not in credits:
         raise SystemExit("Attribution missing: " + project)
+
+# Distribution branding must not reintroduce Strata's localized app name or
+# store legacy icon binaries in the repository. Build scripts regenerate icons.
+import subprocess
+localizations = sorted((ROOT / "Resources").glob("*.lproj/InfoPlist.strings"))
+if len(localizations) != 39:
+    raise SystemExit(f"Unexpected InfoPlist localization count: {len(localizations)}")
+for entry in localizations:
+    value = entry.read_text(encoding="utf-8")
+    if '"CFBundleName" = "BloomBox";' not in value or "Strata" in value:
+        raise SystemExit("Legacy localized app name in " + str(entry.relative_to(ROOT)))
+if (ROOT / "Resources/Assets.xcassets/LiveBoardByeTunes.imageset").exists():
+    raise SystemExit("Retired artwork still present in Assets.xcassets")
+for catalog in ("AppIcon.appiconset", "AppIconGrey.appiconset"):
+    for path in (ROOT / "Resources/Assets.xcassets" / catalog).glob("*.png"):
+        tracked = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", str(path.relative_to(ROOT))],
+            cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        if tracked.returncode == 0:
+            raise SystemExit("Old app icon binary is still committed: " + str(path))
+game_box = (VIEWS / "BloomBox/BloomBoxGameBoxScreen.swift").read_text(encoding="utf-8")
+if "STRATA / BIG PICTURE" in game_box:
+    raise SystemExit("Old visible console branding returned")
+
 print(f"BloomBox code audit passed: {count} source files; user saves and legal credits preserved")
