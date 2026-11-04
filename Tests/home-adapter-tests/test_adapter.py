@@ -69,6 +69,8 @@ for case in ("case let .open(key, jit):", "case let .manage(key):", "case let .u
 for token in ("launch(app)", "launchWithJIT(app)", "manage(app)", "uninstall(app)",
               "LCParseMachO(", "LCPatchAddRPath(", "LCPath.tweakPath"):
     assert token not in HOME, f"Host action leaked back into BloomBox Home: {token}"
+assert "LiveContainerHomeAdapter.moduleGuests(apps, sharedModel: sharedModel)" in HOME
+assert 'static func moduleGuests(' in GUEST
 assert "LiveContainerHomeAdapter.installTweakFiles(" in HOME
 assert "static func installTweakFiles(" in GUEST
 assert "LCParseMachO(" in GUEST and "LCPatchAddRPath(" in GUEST
