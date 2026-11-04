@@ -723,7 +723,7 @@ struct BloomBoxHomeScreen: View {
             })
         }
         .sheet(isPresented: $modulesPresented, onDismiss: performModuleAction) {
-            BloomBoxModulesPanel(apps: apps + (!LiveContainerPreferencesAdapter.defaults.bool(forKey: "LCStrictHiding") || sharedModel.isHiddenAppUnlocked ? sharedModel.hiddenApps : [])) { destination in
+            BloomBoxModulesPanel(apps: LiveContainerHomeAdapter.moduleGuests(apps, sharedModel: sharedModel)) { destination in
                 pendingModuleDestination = destination
                 modulesPresented = false
             }
