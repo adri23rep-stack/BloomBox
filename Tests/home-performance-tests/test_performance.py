@@ -12,15 +12,24 @@ visuals = (VIEW / "BloomBoxLauncherVisuals.swift").read_text()
 news = (VIEW / "BloomBoxNewsPage.swift").read_text()
 wallpaper = (VIEW / "BloomBoxAnimatedWallpaper.swift").read_text()
 
-# Dock is a single persistent overlay across News, Home and App Library.
-assert home.count("dock(width: geometry.size.width)") == 1
-dock_overlay = home.split("dock(width: geometry.size.width)", 1)[1].split(".padding(.bottom, 8)", 1)[0]
-assert "page == 0 || page == libraryPageIndex" not in dock_overlay
-assert "page > 0 && page < libraryPageIndex" not in dock_overlay
-assert ".allowsHitTesting(!librarySearchFocused && !searching)" in dock_overlay
+# The Dock is a physical part of the Home page inside the native pager.
+# It slides offscreen WITH Home toward News or App Library, never fading.
+assert home.count("dock(width: geometry.size.width, homePageIndex: index)") == 1
+pager = home.split("TabView(selection: $page) {", 1)[1].split(".tabViewStyle(.page(indexDisplayMode: .never))", 1)[0]
+assert pager.index("BloomBoxNewsPage(") < pager.index("ForEach(visiblePageIndices")
+assert pager.index("ForEach(visiblePageIndices") < pager.index("appLibrary(width:")
+home_pages = pager.split("ForEach(visiblePageIndices", 1)[1].split("appLibrary(width:", 1)[0]
+assert "dock(width: geometry.size.width, homePageIndex: index)" in home_pages
+assert "pageControl" in home_pages
+assert "ZStack(alignment: .bottom)" in home_pages
+news_page = pager.split("BloomBoxNewsPage(", 1)[1].split("ForEach(visiblePageIndices", 1)[0]
+library_page = pager.split("appLibrary(width:", 1)[1]
+assert "dock(" not in news_page and "dock(" not in library_page
+assert "opacity(page == libraryPageIndex" not in pager
+assert "opacity(librarySearchFocused" not in pager
+assert "fallbackPage: homePageIndex" in home
 assert "BloomBoxNewsPage(openSettings: { desktopSettings = true }, active: page == 0)" in home
-assert "appLibrary(width: geometry.size.width)\n                            .padding(.bottom, 136)" in home
-assert "fallbackPage: min(max(0, page - 1), layout.pages.count - 1)" in home
+assert "homePageIndex" in home
 
 # No decode-per-cell hot loop. Cached JSON still invalidates on imported themes.
 assert "let occupied = occupiedCells(on: index)" in home
@@ -66,4 +75,4 @@ assert "(living.glow ?? false) && !editing && !performanceBudget.constrained" in
 assert "if enabled && mode != \"none\"" in interactions
 assert "TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused:" not in interactions
 
-print("Dock stays persistent; Home caches data and adapts to thermal/power pressure.")
+print("Dock slides with Home, and Home caches data and adapts to thermal/power pressure.")
