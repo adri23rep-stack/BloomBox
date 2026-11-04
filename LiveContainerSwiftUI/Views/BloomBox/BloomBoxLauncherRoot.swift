@@ -29,8 +29,10 @@ struct BloomBoxLauncherRootView: View {
                     VStack(spacing: 16) {
                         launcherOption(title: "iOS Home", detail: "Escritorio, apps y widgets.",
                                        icon: "square.grid.3x3.fill", value: "ios")
-                        launcherOption(title: "Espacio reservado", detail: "Listo para una futura función.",
-                                       icon: "square.dashed", value: "reserved")
+                        if #available(iOS 16.0, *) {
+                            launcherOption(title: "GameBox v2", detail: "Biblioteca de juegos, carátulas y controles de consola.",
+                                           icon: "gamecontroller.fill", value: "gamebox")
+                        }
                         Text("El escritorio es el inicio predeterminado de BloomBox.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
