@@ -89,6 +89,8 @@ jobs:
           "$RUNNER_TEMP/bloombox-home-app-policy-tests"
       - name: Guard extracted Home app-menu boundary and saved-state keys
         run: python3 Tests/home-menu-tests/test_bridge.py
+      - name: Guard Home guest and preferences adapter boundary
+        run: python3 Tests/home-adapter-tests/test_adapter.py
       - name: Verify BloomBox expiry reminder module migration
         run: |
           python3 - <<'PY'
