@@ -27,6 +27,7 @@ RETIRED = [
 REQUIRED = [
     "BloomBox/BloomBoxHomeScreen.swift",
     "BloomBox/BloomBoxReservedSection.swift",
+    "BloomBox/BloomBoxGameBoxV2Screen.swift",
     "BloomBox/BloomBoxLauncherPreferences.swift",
     "BloomBox/BloomBoxAppCustomization.swift",
     "BloomBox/BloomBoxIconEdges.swift", "BloomBox/BloomBoxIconStore.swift",
@@ -119,7 +120,8 @@ for catalog in ("AppIcon.appiconset", "AppIconGrey.appiconset"):
         )
         if tracked.returncode == 0:
             raise SystemExit("Old app icon binary is still committed: " + str(path))
-# The removed console is not compiled: only the isolated placeholder stays.
+# The removed GameBox 1 runtime remains retired. GameBox v2 is a new UI-only
+# module; launch/JIT/guest access still belongs entirely to LCAppListView.
 reserved = (VIEWS / "BloomBox/BloomBoxReservedSection.swift").read_text(encoding="utf-8")
 launcher = (VIEWS / "BloomBox/BloomBoxLauncherRoot.swift").read_text(encoding="utf-8")
 app_list = (VIEWS / "AppList/LCAppListView.swift").read_text(encoding="utf-8")
@@ -128,10 +130,17 @@ if "struct BloomBoxReservedSection: View" not in reserved:
 for code in (reserved, launcher, app_list):
     if "BloomBoxRequestGameMode" in code or "BloomBoxGameBoxScreen" in code:
         raise SystemExit("Retired console route returned")
-if "GameBox" in launcher or 'value: "reserved"' not in launcher:
-    raise SystemExit("Old launcher card returned")
+gamebox_v2 = (VIEWS / "BloomBox/BloomBoxGameBoxV2Screen.swift").read_text(encoding="utf-8")
+if 'value: "gamebox"' not in launcher or 'value: "ios"' not in launcher:
+    raise SystemExit("GameBox v2 and iOS Home launcher choices must both remain")
+if "BloomBoxGameBoxV2Screen(" not in app_list or 'liveBoardMode == "gamebox"' not in app_list:
+    raise SystemExit("Independent GameBox v2 route not wired into existing host")
+if "UISelectionFeedbackGenerator" not in gamebox_v2 or "LiveBoardIconImage(app: app" not in gamebox_v2:
+    raise SystemExit("GameBox v2 must have app icon cards and selection haptics")
+if "func launchFromLibrary" in gamebox_v2 or "func approveEmulatorLaunch" in gamebox_v2:
+    raise SystemExit("Guest/JIT machinery must not be copied into GameBox v2")
 icon_source = (VIEWS / "BloomBox/BloomBoxIconStore.swift").read_text(encoding="utf-8")
 if "LiveBoardByeTunes" in icon_source or "com.EduAlexxis.MusicManager" in icon_source:
     raise SystemExit("Legacy music artwork override returned")
 
-print(f"BloomBox code audit passed: {count} source files; GameBox retired, reserved slot active, credits preserved")
+print(f"BloomBox code audit passed: {count} source files; retired GameBox 1 absent, new v2 isolated, credits preserved")
