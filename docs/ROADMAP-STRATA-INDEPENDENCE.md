@@ -49,6 +49,16 @@ Esto **no** significa que toda la autoría esté resuelta ni que BloomBox ya est
 **Salida de esta etapa:** mapa de origen y deuda verificable; política para que los cambios nuevos no mezclen UI con runtime o signer; integración congelada por hash; ruta de sincronización de upstream. **La independencia física será trabajo de las fases 1–4, no de esta auditoría.**
 
 ### 1. Home / escritorio — P0
+
+**En progreso — primer corte funcional guardado en esta rama.**
+- [x] Crear `BloomBoxHomeAppPolicy.swift`: buscar entre invitados, favoritos y categorías usando solo identificadores y cadenas, preservando JSON y claves anteriores.
+- [x] Crear `BloomBoxHomeContextMenu.swift`: presentar acciones con estado y callbacks, sin tipos `LCAppModel` ni `SideStoreSupport`. El puente actual del Home conserva JIT, Dock, carpetas, tweaks, red, ajustes y desinstalación.
+- [x] Crear `BloomBoxHomeSearchPanel.swift`: buscador, resultados y sugerencias con iconos/launch mediante callbacks del host; etiquetas EN/ES.
+- [x] Añadir pruebas de política, contrato del menú/buscador y checks de regresión al workflow antes del archive.
+- [ ] Pasar el resto del Home a componentes de dominio independientes, sobre todo edición, renombrado, carpetas y transiciones.
+- [ ] Encapsular el acceso directo a `LCAppModel`, `LCUtils` y otros tipos del runtime dentro de `LiveContainerAdapter`; hoy el Home sigue siendo un adaptador temporal.
+- [ ] Confirmar la compilación del **último commit** y verificar el comportamiento de las nuevas pantallas en iOS 27.
+
 - [ ] Reimplementar lógica de menús contextuales, búsqueda, renombrado, favoritos, categorías y edición que coincida con la implementación original de Strata.
 - [ ] Auditar el coordinador del Home, navegación/páginas, gestos, transiciones, Dock y carpetas, además del archivo `BloomBoxHomeScreen.swift`.
 - [ ] Revisar código trasladado a `BloomBoxHomeChrome`, `BloomBoxLauncherInteractions`, `BloomBoxLauncherVisuals`, `BloomBoxFolderPanel` y `BloomBoxWidgetViews`.
@@ -126,7 +136,7 @@ Se permiten pruebas y mejoras de CI en paralelo, pero **no** se deben quitar los
 | Etapa | Estado al crear este roadmap | Bloqueante de cierre |
 |---|---|---|
 | 0. Inventario y fronteras | Base técnica lista; atribución final pendiente | Fases 1–4: investigar los E; fase 7: decidir créditos |
-| 1. Home | Pendiente | Sustituir y probar bloques coincidentes |
+| 1. Home | En curso: políticas, menú y buscador separados | Eliminar dependencias/otras coincidencias y validar en iPhone |
 | 2. GameBox | Pendiente | Sustituir y probar bloques coincidentes |
 | 3. Controles y apariencia | Pendiente | Sustituir y probar bloques coincidentes |
 | 4. Resto del repositorio | Pendiente | Auditoría completa |
