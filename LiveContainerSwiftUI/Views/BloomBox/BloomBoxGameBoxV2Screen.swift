@@ -5,6 +5,7 @@
 // orientation, signing, app settings and guest containers.
 import SwiftUI
 import UIKit
+import PhotosUI
 
 /// Portable UI item. Only the existing host adapts installed guest metadata.
 struct BloomBoxGameBoxEntry: Identifiable {
@@ -36,6 +37,12 @@ struct BloomBoxGameBoxV2Screen: View {
     @State private var upcomingFeature: String?
     @State private var constrained = false
     @State private var batteryPercent: Int?
+    @State private var photoPickerPresented = false
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var artworkTargetKey: String?
+    @State private var artworkTargetKind: BloomBoxArtworkLibrary.Kind = .cover
+    @State private var importingArtwork = false
+    @State private var artworkError: String?
 
     private var reduceMotion: Bool { systemReduceMotion || localReduceMotion || constrained }
     private var favorites: Set<String> {
@@ -114,6 +121,44 @@ struct BloomBoxGameBoxV2Screen: View {
         .background(BloomBoxOrientationLock(mask: .landscape).frame(width: 0, height: 0))
         .navigationBarHidden(true)
         .preferredColorScheme(.dark)
+        .photosPicker(isPresented: $photoPickerPresented, selection: $selectedPhoto, matching: .images)
+        .onChange(of: selectedPhoto) { photo in
+            guard let photo, let target = artworkTargetKey else { return }
+            let kind = artworkTargetKind
+            importingArtwork = true
+            Task { @MainActor in
+                defer {
+                    importingArtwork = false
+                    selectedPhoto = nil
+                    artworkTargetKey = nil
+                }
+                do {
+                    guard let data = try await photo.loadTransferable(type: Data.self),
+                          let image = UIImage(data: data) else {
+                        throw CocoaError(.fileReadCorruptFile)
+                    }
+                    try artwork.save(image, for: target, kind: kind)
+                } catch {
+                    artworkError = error.localizedDescription
+                }
+            }
+        }
+        .overlay {
+            if importingArtwork {
+                ProgressView("Importando imagen…")
+                    .padding(18)
+                    .background(.black.opacity(0.85),
+                                in: RoundedRectangle(cornerRadius: 16))
+            }
+        }
+        .alert("No se pudo importar la imagen", isPresented: Binding(
+            get: { artworkError != nil },
+            set: { if !$0 { artworkError = nil } }
+        )) {
+            Button("Entendido", role: .cancel) { artworkError = nil }
+        } message: {
+            Text(artworkError ?? "")
+        }
         .onAppear {
             if focusedKey == nil { focusedKey = visibleApps.first.map(key) }
             refreshSystemBudget()
@@ -402,6 +447,24 @@ struct BloomBoxGameBoxV2Screen: View {
                     Button(favorites.contains(key(app)) ? "Quitar de favoritos" : "Añadir a favoritos",
                            systemImage: "heart") { toggleFavorite(app) }
                     Button("Ajustes de esta app", systemImage: "gearshape") { manage(key(app)) }
+                    Divider()
+                    Button {
+                        chooseArtwork(for: app, kind: .cover)
+                    } label: {
+                        Label("Elegir carátula", systemImage: "photo")
+                    }
+                    Button {
+                        chooseArtwork(for: app, kind: .background)
+                    } label: {
+                        Label("Elegir fondo", systemImage: "photo.on.rectangle")
+                    }
+                    if cover(app) != nil {
+                        Button(role: .destructive) {
+                            artwork.remove(for: key(app), kind: .cover)
+                        } label: {
+                            Label("Quitar carátula", systemImage: "trash")
+                        }
+                    }
                 } label: {
                     footerCircle("ellipsis", label: "Más opciones")
                 }
@@ -466,6 +529,13 @@ struct BloomBoxGameBoxV2Screen: View {
     private func toggleFavorite(_ app: BloomBoxGameBoxEntry) {
         favoritesJSON = BloomBoxHomeAppPolicy.toggledFavorite(key(app), in: favoritesJSON)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func chooseArtwork(for app: BloomBoxGameBoxEntry,
+                               kind: BloomBoxArtworkLibrary.Kind) {
+        artworkTargetKey = key(app)
+        artworkTargetKind = kind
+        photoPickerPresented = true
     }
 
     private func selectionHaptic() {
