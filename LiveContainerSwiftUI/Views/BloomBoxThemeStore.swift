@@ -350,6 +350,48 @@ struct BloomBoxThemeStoreView: View {
                         .textFieldStyle(.roundedBorder)
 
                     VStack(alignment: .leading, spacing: 10) {
+                        Label(t("Included Themes", "Temas incluidos"), systemImage: "sparkles.rectangle.stack")
+                            .font(.headline)
+                        Text(t("Ready to use offline. Kirby Pink is the default for new installations.",
+                               "Listos para usar sin internet. Kirby Pink es el predeterminado en instalaciones nuevas."))
+                            .font(.caption).foregroundStyle(.secondary)
+                        ForEach(BloomBoxBundledThemes.presets.filter {
+                            search.isEmpty || $0.title.localizedCaseInsensitiveContains(search)
+                        }) { preset in
+                            HStack(spacing: 12) {
+                                if let url = BloomBoxBundledThemes.previewURL(for: preset.id),
+                                   let image = UIImage(contentsOfFile: url.path) {
+                                    Image(uiImage: image).resizable().scaledToFill()
+                                        .frame(width: 59, height: 59)
+                                        .clipShape(RoundedRectangle(cornerRadius: 15))
+                                } else {
+                                    themeArt
+                                }
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(preset.title).font(.subheadline.weight(.semibold))
+                                    Text(preset.isDefault
+                                         ? t("Default on first launch", "Predeterminado al iniciar por primera vez")
+                                         : t("Alternative starter theme", "Tema inicial alternativo"))
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: 5)
+                                Button(t("Apply", "Aplicar")) {
+                                    if let url = BloomBoxBundledThemes.url(for: preset.id) {
+                                        selected = url
+                                        confirming = true
+                                    } else {
+                                        message = t("This included theme is missing from the build.",
+                                                    "Falta este tema en la compilación.")
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent).controlSize(.small)
+                            }
+                            .padding(12)
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 17))
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
                         Label(t("My Themes", "Mis temas"), systemImage: "square.stack.3d.up")
                             .font(.headline)
                         if shownLibrary.isEmpty {
@@ -450,8 +492,15 @@ struct BloomBoxThemeStoreView: View {
             Button(t("Apply", "Aplicar"), role: .destructive) {
                 guard let selected else { return }
                 do {
-                    try onApply(BloomBoxThemeLibrary.readFile(selected))
-                    notice = "Theme applied! Your previous desktop was saved as a recovery copy."
+                    if let preset = BloomBoxBundledThemes.preset(matching: selected) {
+                        try onApply(BloomBoxBundledThemes.data(for: preset.id))
+                        LCUtils.appGroupUserDefault.set(preset.id,
+                                                        forKey: BloomBoxBundledThemes.chosenKey)
+                    } else {
+                        try onApply(BloomBoxThemeLibrary.readFile(selected))
+                    }
+                    notice = t("Theme applied! Your previous desktop was saved as a recovery copy.",
+                               "¡Tema aplicado! Tu escritorio anterior quedó guardado como respaldo.")
                 } catch { message = error.localizedDescription }
             }
             Button(t("Cancel", "Cancelar"), role: .cancel) {}
