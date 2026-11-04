@@ -78,7 +78,11 @@ struct BloomBoxWizardView: View {
         .sheet(isPresented: $showRAM, onDismiss: { ram.refresh() }) {
             NavigationView {
                 BloomBoxRAMPlusView(openSideStore: {
-                    if let url = URL(string: "sidestore://") {
+                    // Prefer the same bundled SideStore used by the existing RAM+
+                    // module; an external URL cannot open an in-app guest.
+                    if UserDefaults.sideStoreExist() {
+                        LCUtils.openSideStore()
+                    } else if let url = URL(string: "sidestore://") {
                         UIApplication.shared.open(url)
                     }
                 })
