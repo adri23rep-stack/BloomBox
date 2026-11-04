@@ -5,6 +5,7 @@ import PhotosUI
 
 /// Visual, resumable setup. No credential, certificate or pairing secret is copied
 /// into the Wizard; its two setup buttons open the real existing modules.
+@available(iOS 16.0, *)
 struct BloomBoxWizardView: View {
     let mode: BloomBoxWizardMode
     let onDone: () -> Void
@@ -637,6 +638,7 @@ struct BloomBoxWizardView: View {
 }
 
 /// Available from Settings even after onboarding is finished.
+@available(iOS 16.0, *)
 struct BloomBoxProfileSettingsView: View {
     @EnvironmentObject private var sharedModel: SharedModel
     @State private var selected = BloomBoxProfiles.active
