@@ -231,9 +231,11 @@ private struct LiveBoardGlassSurface: ViewModifier {
     let radius: CGFloat
     let interactive: Bool
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @ObservedObject private var performanceBudget = BloomBoxPerformanceBudget.shared
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        if reduceTransparency {
+        // Sacrifice glass compositing before sacrificing touch or scroll response.
+        if reduceTransparency || performanceBudget.constrained {
             content.background(Color(white: 0.16), in: shape)
                 .overlay(shape.strokeBorder(.white.opacity(0.18), lineWidth: 0.5))
         } else if #available(iOS 26.0, *) {
