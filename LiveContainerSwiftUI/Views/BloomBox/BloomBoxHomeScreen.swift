@@ -224,8 +224,12 @@ struct BloomBoxHomeScreen: View {
         GeometryReader { geometry in
             ZStack(alignment: .top) {
                 background
-                    // Avoid animated full-screen blurs during paging and thermal throttling.
-                    .blur(radius: (searching || page == libraryPageIndex) && !performanceBudget.constrained ? 6 : 0)
+                    // A cheap dimming layer avoids repeatedly blurring full-screen
+                    // video/GIF wallpaper whenever News, Home or Library changes.
+                    .overlay {
+                        Color.black.opacity(searching ? 0.25 : page == libraryPageIndex ? 0.16 : 0)
+                            .allowsHitTesting(false)
+                    }
                 // Render every page in the full GeometryReader. The old VStack
                 // permanently reserved ~140pt for a Dock that is hidden on
                 // Widgets and App Library, leaving a blank strip and clipping
