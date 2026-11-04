@@ -13,6 +13,7 @@ HOME = (VIEWS / "BloomBox/BloomBoxHomeScreen.swift").read_text(encoding="utf-8")
 GUEST = (VIEWS / "BloomBoxAdapters/LiveContainerHomeAdapter.swift").read_text(encoding="utf-8")
 PREFS = (VIEWS / "BloomBoxAdapters/LiveContainerPreferencesAdapter.swift").read_text(encoding="utf-8")
 CONTRACTS = (VIEWS / "BloomBox/BloomBoxIntegrationContracts.swift").read_text(encoding="utf-8")
+ACTIONS = (VIEWS / "BloomBoxAdapters/LiveContainerHomeActions.swift").read_text(encoding="utf-8")
 
 for symbol in (
     "LCUtils.appGroupUserDefault",
@@ -54,6 +55,23 @@ for interface in (
     "static func builtInSignerIcon(",
 ):
     assert interface in GUEST, f"Guest adapter missing method: {interface}"
+
+# Guests are selected by their legacy key while the host preserves the exact
+# selected model when duplicate installation IDs exist.
+assert "enum BloomBoxHomeGuestCommand" in CONTRACTS
+assert "private var hostActions: LiveContainerHomeActions" in HOME
+assert "hostActions.perform(command, selected: selected)" in HOME
+assert "selected: LCAppModel?" in HOME
+assert "func perform(_ command: BloomBoxHomeGuestCommand, selected: LCAppModel?" in ACTIONS
+assert "LiveContainerHomeAdapter.key(selected) == key" in ACTIONS
+for case in ("case let .open(key, jit):", "case let .manage(key):", "case let .uninstall(key):"):
+    assert case in ACTIONS, f"Missing host action: {case}"
+for token in ("launch(app)", "launchWithJIT(app)", "manage(app)", "uninstall(app)",
+              "LCParseMachO(", "LCPatchAddRPath(", "LCPath.tweakPath"):
+    assert token not in HOME, f"Host action leaked back into BloomBox Home: {token}"
+assert "LiveContainerHomeAdapter.installTweakFiles(" in HOME
+assert "static func installTweakFiles(" in GUEST
+assert "LCParseMachO(" in GUEST and "LCPatchAddRPath(" in GUEST
 
 # Persisted preference names stay unchanged despite the backend refactor.
 for key in (
