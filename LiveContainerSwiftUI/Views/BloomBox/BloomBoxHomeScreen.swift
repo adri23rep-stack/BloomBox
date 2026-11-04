@@ -359,6 +359,20 @@ struct BloomBoxHomeScreen: View {
             .onAppear {
                 ramPlus.refresh()
                 Task { await tweakCatalog.refreshIfNeeded() }
+                // Only a genuinely fresh Home receives the owner's Kirby preset.
+                // Existing desktop layouts and user wallpapers are never overwritten.
+                do {
+                    if let firstLayout = try BloomBoxBundledThemes.applyOnFreshInstall(
+                        defaults: LCUtils.appGroupUserDefault, appKeys: appKeys,
+                        favorites: favoriteKeys, wallpaperURL: wallpaperURL) {
+                        layout = firstLayout
+                        savedLayout = firstLayout.encoded
+                        syncImportedThemePreferences()
+                        builtInFolderMigrated = true
+                    }
+                } catch {
+                    NSLog("BloomBox: couldn't load the starter theme: %@", error.localizedDescription)
+                }
                 layout = BloomBoxHomeLayout.decode(savedLayout)
                 reconcile()
                 migrateLegacyPageWidgets()
@@ -1663,6 +1677,18 @@ struct BloomBoxHomeScreen: View {
         }
     }
 
+    private func syncImportedThemePreferences() {
+        // Read imported values synchronously before widget reflow/first render.
+        // @AppStorage also observes them on subsequent updates.
+        let defaults = LCUtils.appGroupUserDefault
+        placedWidgetsJSON = defaults.string(forKey: "BloomBoxPlacedWidgetsV2") ?? "{}"
+        livingWidgetSettingsJSON = defaults.string(forKey: "BloomBoxLivingWidgetSettings") ?? "{}"
+        widgetFallbacksJSON = defaults.string(forKey: "BloomBoxWidgetMissingAppFallbacks") ?? "{}"
+        hiddenPagesJSON = defaults.string(forKey: "LiveBoardHiddenPages") ?? "[]"
+        motionWallpaper = defaults.string(forKey: "ManzanaMotionWallpaper") ?? ""
+        wallpaperStyle = defaults.string(forKey: "LiveBoardWallpaperStyle") ?? "black"
+    }
+
     private func applyImportedTheme(_ data: Data) throws {
         // Validate and save a recovery copy before applying any new visual settings.
         _ = try BloomBoxThemePackage.read(data)
@@ -1674,7 +1700,7 @@ struct BloomBoxHomeScreen: View {
             wallpaperURL: wallpaperURL)
         layout = newLayout
         savedLayout = newLayout.encoded
-        // AppStorage and the Home model now observe the imported settings.
+        syncImportedThemePreferences()
         wallpaper = UIImage(contentsOfFile: wallpaperURL.path)
         page = 1
         selectedWidgetID = nil
