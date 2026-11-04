@@ -20,26 +20,23 @@ enum LiveContainerHomeAdapter {
     }
 
     static func visibleKeys(_ apps: [LCAppModel]) -> [String] {
-        eligibleGuests(apps).map { key($0) }
+        BloomBoxHomeGuestIndex.keys(
+            apps, key: { key($0) }, isEmbeddedSigner: { isEmbeddedSigner($0) }
+        )
     }
 
     static func modelsByKey(_ apps: [LCAppModel]) -> [String: LCAppModel] {
-        var result: [String: LCAppModel] = [:]
-        for guest in eligibleGuests(apps) {
-            let id = key(guest)
-            // A duplicate guest key keeps the first model, like the old Home.
-            if result[id] == nil { result[id] = guest }
-        }
-        return result
+        BloomBoxHomeGuestIndex.firstByKey(
+            apps, key: { key($0) }, isEmbeddedSigner: { isEmbeddedSigner($0) }
+        )
     }
 
     static func searchModelsByKey(_ apps: [LCAppModel]) -> [String: LCAppModel] {
-        var result: [String: LCAppModel] = [:]
-        for app in apps {
-            let id = key(app)
-            if result[id] == nil { result[id] = app }
-        }
-        return result
+        // Search intentionally mirrors the old Home and includes embedded
+        // shortcuts, while the actual desktop app map excludes the signer.
+        BloomBoxHomeGuestIndex.firstByKey(
+            apps, key: { key($0) }, isEmbeddedSigner: { _ in false }
+        )
     }
 
     static func isShared(_ app: LCAppModel) -> Bool {
