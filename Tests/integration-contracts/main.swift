@@ -22,4 +22,18 @@ let decodedRefresh = try JSONDecoder().decode(
     BloomBoxRefreshRequest.self, from: JSONEncoder().encode(refresh))
 precondition(decodedRefresh == refresh && decodedRefresh.preserveExtensions)
 precondition(BloomBoxIntegrationProtocol.majorVersion == 1)
+let homeGuest = BloomBoxHomeGuestSnapshot(
+    stableKey: guest.stableKey,
+    bundleIdentifier: guest.bundleIdentifier,
+    displayName: guest.displayName,
+    isShared: false, isRunning: false, isSigning: true,
+    isEmbeddedSigner: false, isNetworkBlocked: false
+)
+precondition(homeGuest.stableKey == guest.stableKey)
+precondition(homeGuest.isSigning && !homeGuest.isRunning)
+precondition(homeGuest != BloomBoxHomeGuestSnapshot(
+    stableKey: guest.stableKey, bundleIdentifier: guest.bundleIdentifier,
+    displayName: guest.displayName, isShared: false, isRunning: true,
+    isSigning: true, isEmbeddedSigner: false, isNetworkBlocked: false
+))
 print("BloomBox integration contracts are portable, Codable and host-independent.")
