@@ -6,6 +6,8 @@
 import SwiftUI
 import UIKit
 import PhotosUI
+import UniformTypeIdentifiers
+import ImageIO
 
 /// Portable UI item. Only the existing host adapts installed guest metadata.
 struct BloomBoxGameBoxEntry: Identifiable {
@@ -34,6 +36,13 @@ struct BloomBoxGameBoxV2Screen: View {
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @State private var focusedKey: String?
     @State private var lastSelectedKey: String?
+    // GameBox wallpaper is independent of the Home wallpaper and never modifies it.
+    @AppStorage("BloomBoxGameBoxV2WallpaperMode", store: LiveContainerPreferencesAdapter.defaults)
+    private var backgroundMode = "auto"
+    @AppStorage("BloomBoxGameBoxV2MotionWallpaper", store: LiveContainerPreferencesAdapter.defaults)
+    private var motionWallpaperName = ""
+    @State private var motionPhotosPresented = false
+    @State private var wallpaperFilesPresented = false
     @State private var alphabetical = false
     @State private var quickMenu = false
     @State private var upcomingFeature: String?
@@ -47,6 +56,7 @@ struct BloomBoxGameBoxV2Screen: View {
     @State private var artworkError: String?
 
     private var reduceMotion: Bool { systemReduceMotion || localReduceMotion || constrained }
+    private let sharedWallpaperKey = "gamebox:global:wallpaper"
     private var favorites: Set<String> {
         Set(BloomBoxHomeAppPolicy.favorites(from: favoritesJSON))
     }
@@ -141,14 +151,31 @@ struct BloomBoxGameBoxV2Screen: View {
                     artworkTargetKey = nil
                 }
                 do {
-                    guard let data = try await photo.loadTransferable(type: Data.self),
-                          let image = UIImage(data: data) else {
+                    guard let data = try await photo.loadTransferable(type: Data.self) else {
                         throw CocoaError(.fileReadCorruptFile)
                     }
-                    try artwork.save(image, for: target, kind: kind)
+                    try savePhoto(data, key: target, kind: kind)
+                    if target == sharedWallpaperKey { backgroundMode = "photo" }
                 } catch {
                     artworkError = error.localizedDescription
                 }
+            }
+        }
+        .sheet(isPresented: $motionPhotosPresented) {
+            BloomBoxMotionWallpaperPhotosPicker { result in
+                motionPhotosPresented = false
+                if case .success(let filename) = result {
+                    useMotionWallpaper(filename)
+                } else if case .failure(let error) = result {
+                    artworkError = error.localizedDescription
+                }
+            }
+        }
+        .fileImporter(isPresented: $wallpaperFilesPresented,
+                      allowedContentTypes: [.image, .gif, .movie]) { result in
+            switch result {
+            case .success(let file): importWallpaperFile(file)
+            case .failure(let error): artworkError = error.localizedDescription
             }
         }
         .overlay {
@@ -159,7 +186,7 @@ struct BloomBoxGameBoxV2Screen: View {
                                 in: RoundedRectangle(cornerRadius: 16))
             }
         }
-        .alert("No se pudo importar la imagen", isPresented: Binding(
+        .alert("No se pudo importar el fondo o la imagen", isPresented: Binding(
             get: { artworkError != nil },
             set: { if !$0 { artworkError = nil } }
         )) {
@@ -194,6 +221,18 @@ struct BloomBoxGameBoxV2Screen: View {
             refreshBattery()
         }
         .confirmationDialog("GameBox", isPresented: $quickMenu) {
+            Button("Fondo automático") { backgroundMode = "auto" }
+            Button("Elegir wallpaper foto") { chooseWallpaperPhoto() }
+            Button("Wallpaper GIF o video desde Fotos") { motionPhotosPresented = true }
+            Button("Wallpaper desde Archivos") { wallpaperFilesPresented = true }
+            Button("Quitar wallpaper personalizado", role: .destructive) {
+                backgroundMode = "auto"
+                artwork.remove(for: sharedWallpaperKey, kind: .background)
+                if !motionWallpaperName.isEmpty {
+                    BloomBoxMotionMedia.remove(motionWallpaperName)
+                    motionWallpaperName = ""
+                }
+            }
             Button("Administrar aplicaciones", action: openManagement)
             Button("Instalar IPA", action: openInstall)
             Button("Cambiar interfaz", action: openInterface)
@@ -212,30 +251,48 @@ struct BloomBoxGameBoxV2Screen: View {
 
     private var consoleBackground: some View {
         ZStack {
+            // Stable base layer: no parallax, scale/translate or sudden camera
+            // movement when a different game becomes selected.
             LinearGradient(
-                colors: [.black, focusedAccent.opacity(0.42), Color(red: 0.05, green: 0.07, blue: 0.15)],
+                colors: [Color(red: 0.025, green: 0.09, blue: 0.15),
+                         Color(red: 0.15, green: 0.10, blue: 0.27),
+                         Color(red: 0.04, green: 0.04, blue: 0.095)],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
-            if !constrained, let app = selectedApp, let image = backdrop(app) {
+            if backgroundMode == "motion", let url = BloomBoxMotionMedia.url(motionWallpaperName) {
+                BloomBoxAnimatedWallpaper(url: url, fit: false,
+                                         paused: constrained || reduceMotion)
+                    .opacity(0.84)
+            } else if backgroundMode == "photo",
+                      let image = artwork.image(for: sharedWallpaperKey, kind: .background) {
                 GeometryReader { geo in
                     Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
+                        .resizable().scaledToFill()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped().opacity(0.73)
+                }
+            } else if backgroundMode == "auto", !constrained,
+                      let app = selectedApp, let image = backdrop(app) {
+                GeometryReader { geo in
+                    Image(uiImage: image)
+                        .resizable().scaledToFill()
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
-                        .blur(radius: 32)
-                        .opacity(0.31)
+                        .blur(radius: 14)
+                        .opacity(0.26)
                 }
-                .allowsHitTesting(false)
+                .id(app.id)
+                .transition(.opacity)
             }
             LinearGradient(
-                colors: [.black.opacity(0.25), .clear, .black.opacity(0.66)],
+                colors: [.black.opacity(0.31), .clear, .black.opacity(0.72)],
                 startPoint: .top, endPoint: .bottom
             )
         }
+        .animation(reduceMotion || backgroundMode != "auto" ? nil :
+                   .easeInOut(duration: 0.60), value: focusedKey)
         .ignoresSafeArea()
-        // Never transform or pan the full screen when selecting another app.
-        .animation(nil, value: focusedKey)
+        .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 
@@ -557,6 +614,58 @@ struct BloomBoxGameBoxV2Screen: View {
     private func toggleFavorite(_ app: BloomBoxGameBoxEntry) {
         favoritesJSON = BloomBoxHomeAppPolicy.toggledFavorite(key(app), in: favoritesJSON)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func chooseWallpaperPhoto() {
+        artworkTargetKey = sharedWallpaperKey
+        artworkTargetKind = .background
+        photoPickerPresented = true
+    }
+
+    // Decode a bounded thumbnail instead of expanding a huge 4K photo in RAM.
+    private func savePhoto(_ data: Data, key: String,
+                           kind: BloomBoxArtworkLibrary.Kind) throws {
+        guard !data.isEmpty, data.count <= 30 * 1024 * 1024,
+              let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceThumbnailMaxPixelSize: 2048
+              ] as CFDictionary) else {
+            throw BloomBoxMotionMedia.failure("La foto no es compatible o supera 30 MB.")
+        }
+        try artwork.save(UIImage(cgImage: image), for: key, kind: kind)
+    }
+
+    private func useMotionWallpaper(_ filename: String) {
+        guard BloomBoxMotionMedia.url(filename) != nil else {
+            artworkError = "No se encontró el GIF o video importado."
+            return
+        }
+        let old = motionWallpaperName
+        motionWallpaperName = filename
+        backgroundMode = "motion"
+        if !old.isEmpty && old != filename { BloomBoxMotionMedia.remove(old) }
+    }
+
+    private func importWallpaperFile(_ url: URL) {
+        let extensionName = url.pathExtension.lowercased()
+        importingArtwork = true
+        defer { importingArtwork = false }
+        do {
+            if ["gif", "mp4", "mov", "m4v"].contains(extensionName) {
+                useMotionWallpaper(try BloomBoxMotionMedia.importFile(url))
+                return
+            }
+            let secured = url.startAccessingSecurityScopedResource()
+            defer { if secured { url.stopAccessingSecurityScopedResource() } }
+            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            guard size > 0 && size <= 30 * 1024 * 1024 else {
+                throw BloomBoxMotionMedia.failure("La foto debe pesar máximo 30 MB.")
+            }
+            try savePhoto(Data(contentsOf: url), key: sharedWallpaperKey, kind: .background)
+            backgroundMode = "photo"
+        } catch { artworkError = error.localizedDescription }
     }
 
     private func chooseArtwork(for app: BloomBoxGameBoxEntry,
