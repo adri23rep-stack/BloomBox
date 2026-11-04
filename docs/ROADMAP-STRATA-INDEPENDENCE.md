@@ -54,7 +54,10 @@ Esto **no** significa que toda la autoría esté resuelta ni que BloomBox ya est
 - [x] Crear `BloomBoxHomeAppPolicy.swift`: buscar entre invitados, favoritos y categorías usando solo identificadores y cadenas, preservando JSON y claves anteriores.
 - [x] Crear `BloomBoxHomeContextMenu.swift`: presentar acciones con estado y callbacks, sin tipos `LCAppModel` ni `SideStoreSupport`. El puente actual del Home conserva JIT, Dock, carpetas, tweaks, red, ajustes y desinstalación.
 - [x] Crear `BloomBoxHomeSearchPanel.swift`: buscador, resultados y sugerencias con iconos/launch mediante callbacks del host; etiquetas EN/ES.
-- [x] Añadir pruebas de política, contrato del menú/buscador y checks de regresión al workflow antes del archive.
+- [x] Crear `BloomBoxHomeNameDialogs.swift`: renombrar apps/carpetas y crear carpetas con callbacks independientes del runtime, preservando los identificadores existentes.
+- [x] Añadir pruebas de política, contrato del menú/buscador/diálogos y checks de regresión al workflow antes del archive.
+- [x] Comprobar que el mayor bloque consecutivo idéntico en `BloomBoxHomeScreen.swift` frente a `LiveBoardHomeScreen.swift` pasó de **32 a 13 líneas** (espacios normalizados, revisión Strata fijada; métrica de duplicación, no prueba legal).
+- [ ] Reemplazar el bloque restante `controlCard` y revisar la procedencia de los fragmentos de estado/compatibilidad.
 - [ ] Pasar el resto del Home a componentes de dominio independientes, sobre todo edición, renombrado, carpetas y transiciones.
 - [ ] Encapsular el acceso directo a `LCAppModel`, `LCUtils` y otros tipos del runtime dentro de `LiveContainerAdapter`; hoy el Home sigue siendo un adaptador temporal.
 - [ ] Confirmar la compilación del **último commit** y verificar el comportamiento de las nuevas pantallas en iOS 27.
