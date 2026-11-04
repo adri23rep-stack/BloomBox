@@ -88,7 +88,8 @@ struct BloomBoxHomeSearchPanel<Icon: View, Context: View>: View {
                     .focused($focused)
                     .accessibilityIdentifier("home.search.field")
                     .onSubmit {
-                        if let first = entries.first { open(first) }
+                        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                           let first = entries.first { open(first) }
                     }
                 if !query.isEmpty {
                     Button {
