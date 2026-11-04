@@ -2372,6 +2372,7 @@ struct BloomBoxHomeScreen: View {
             isRunning: app.isAppRunning,
             isSigning: app.isSigningInProgress,
             isSideStore: app.appInfo is BuiltInSideStoreAppInfo,
+            englishUI: englishUI,
             isFavorite: favoriteKeys.contains(key),
             isInDock: layout.dock.contains(key),
             dockHasSpace: layout.dock.count < BloomBoxHomeLayout.dockCapacity,
