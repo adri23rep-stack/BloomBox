@@ -62,6 +62,15 @@ assert 'backgroundMode = "photo"' in gamebox
 assert 'backgroundMode = "motion"' in gamebox
 assert "backgroundMode = \"auto\"" in gamebox
 assert "CGImageSourceCreateThumbnailAtIndex" in gamebox
+assert "let columns: CGFloat = viewportWidth >= 650 ? 5" in gamebox
+assert "let cardWidth = (viewportWidth - (columns - 1) * 17) / columns" in gamebox
+assert "viewportWidth: viewportWidth" in gamebox
+assert ".padding(.top, compact ? 23 : 29)" in gamebox
+assert "private enum ImportedWallpaperFile: Sendable" in gamebox
+assert "Task.detached(priority: .userInitiated)" in gamebox
+assert "let size = (try? url.resourceValues(forKeys:" in gamebox
+assert "BloomBoxMotionMedia.importFile(url)" in gamebox
+assert "BloomBoxMotionMedia.remove(motionWallpaperName)" in gamebox
 assert "let old = motionWallpaperName" in gamebox
 assert "if !old.isEmpty && old != filename { BloomBoxMotionMedia.remove(old) }" in gamebox
 assert "BloomBoxGameBoxV2Favorites" in gamebox
