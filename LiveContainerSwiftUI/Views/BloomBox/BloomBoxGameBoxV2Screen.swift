@@ -300,9 +300,9 @@ struct BloomBoxGameBoxV2Screen: View {
         HStack(spacing: compact ? 5 : 9) {
             HStack(spacing: 7) {
                 topButton("ellipsis", label: "Menú") { quickMenu = true }
-            topButton("person.2.fill", label: "Amigos") {
-                upcomingFeature = "La sección de amigos y Discord está reservada para una próxima versión."
-            }
+                topButton("person.2.fill", label: "Amigos") {
+                    upcomingFeature = "La sección de amigos y Discord está reservada para una próxima versión."
+                }
                 topButton("arrow.up.arrow.down", label: "Ordenar") {
                     alphabetical.toggle()
                     selectionHaptic()
@@ -340,12 +340,12 @@ struct BloomBoxGameBoxV2Screen: View {
             .overlay(Capsule().strokeBorder(.white.opacity(0.15)))
             HStack(spacing: 7) {
                 topButton("bell.fill", label: "Notificaciones") {
-                upcomingFeature = "Las notificaciones de GameBox se añadirán después."
-            }
-            topButton("music.note", label: "Música") {
-                upcomingFeature = "El reproductor y el ecualizador están preparados para una próxima actualización."
-            }
-            topButton("power", label: "Volver al escritorio", action: backToHome)
+                    upcomingFeature = "Las notificaciones de GameBox se añadirán después."
+                }
+                topButton("music.note", label: "Música") {
+                    upcomingFeature = "El reproductor y el ecualizador están preparados para una próxima actualización."
+                }
+                topButton("power", label: "Volver al escritorio", action: backToHome)
                 topButton("gearshape.fill", label: "Ajustes", action: openInterface)
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -648,24 +648,42 @@ struct BloomBoxGameBoxV2Screen: View {
         if !old.isEmpty && old != filename { BloomBoxMotionMedia.remove(old) }
     }
 
+    private enum ImportedWallpaperFile {
+        case motion(String)
+        case photo(Data)
+    }
+
     private func importWallpaperFile(_ url: URL) {
-        let extensionName = url.pathExtension.lowercased()
         importingArtwork = true
-        defer { importingArtwork = false }
-        do {
-            if ["gif", "mp4", "mov", "m4v"].contains(extensionName) {
-                useMotionWallpaper(try BloomBoxMotionMedia.importFile(url))
-                return
+        // File coordination, 200 MB videos and GIF verification never block
+        // the main-thread touch/scroll animation.
+        Task {
+            defer { importingArtwork = false }
+            do {
+                let imported = try await Task.detached(priority: .userInitiated) { () throws -> ImportedWallpaperFile in
+                    let extensionName = url.pathExtension.lowercased()
+                    if ["gif", "mp4", "mov", "m4v"].contains(extensionName) {
+                        return .motion(try BloomBoxMotionMedia.importFile(url))
+                    }
+                    let secured = url.startAccessingSecurityScopedResource()
+                    defer { if secured { url.stopAccessingSecurityScopedResource() } }
+                    let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+                    guard size > 0 && size <= 30 * 1024 * 1024 else {
+                        throw BloomBoxMotionMedia.failure("La foto debe pesar máximo 30 MB.")
+                    }
+                    return .photo(try Data(contentsOf: url))
+                }.value
+                switch imported {
+                case .motion(let filename):
+                    useMotionWallpaper(filename)
+                case .photo(let data):
+                    try savePhoto(data, key: sharedWallpaperKey, kind: .background)
+                    backgroundMode = "photo"
+                }
+            } catch {
+                artworkError = error.localizedDescription
             }
-            let secured = url.startAccessingSecurityScopedResource()
-            defer { if secured { url.stopAccessingSecurityScopedResource() } }
-            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-            guard size > 0 && size <= 30 * 1024 * 1024 else {
-                throw BloomBoxMotionMedia.failure("La foto debe pesar máximo 30 MB.")
-            }
-            try savePhoto(Data(contentsOf: url), key: sharedWallpaperKey, kind: .background)
-            backgroundMode = "photo"
-        } catch { artworkError = error.localizedDescription }
+        }
     }
 
     private func chooseArtwork(for app: BloomBoxGameBoxEntry,
