@@ -211,6 +211,23 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                                         launchWithJIT: { app in Task { await launchFromLiveBoard(app, forceJIT: true) } })
     }
 
+    // GameBox only owns presentation. Every action reuses the live host launch,
+    // preflight, compatibility, guest orientation and app-management paths.
+    private var gameBoxV2: some View {
+        BloomBoxGameBoxV2Screen(
+            apps: launcherApps,
+            launch: { app in Task { await launchFromLiveBoard(app) } },
+            launchWithJIT: { app in Task { await launchFromLiveBoard(app, forceJIT: true) } },
+            manage: manageLauncherApp,
+            backToHome: { liveBoardMode = "ios" },
+            openInterface: openInterface,
+            openManagement: { manageLibrary = true },
+            openInstall: {
+                if sharedModel.multiLCStatus == 2 { manageLibrary = true }
+                else { choosingIPA = true }
+            })
+    }
+
     private var reservedSection: some View {
         BloomBoxReservedSection(backToHome: { liveBoardMode = "ios" })
     }
@@ -219,7 +236,9 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         NavigationView {
             ZStack {
                 NavigationLink(destination: navigateTo, isActive: $isNavigationActive) { EmptyView() }.hidden()
-                if !manageLibrary && liveBoardMode == "reserved" {
+                if !manageLibrary && liveBoardMode == "gamebox" {
+                    gameBoxV2
+                } else if !manageLibrary && liveBoardMode == "reserved" {
                     reservedSection
                 } else if !manageLibrary {
                     iosLauncher
@@ -820,7 +839,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         // cleanup makes immediate retries possible without restarting BloomBox.
         do {
             if app.appInfo.is32bit { try await ensureBundled32BitRuntime(for: app) }
-            if liveBoardMode == "ios" {
+            if liveBoardMode == "ios" || liveBoardMode == "gamebox" {
                 // Run a private guest in its original host process, before
                 // any virtual-window-only iOS/Classic Mode restrictions.
                 if !app.uiIsShared &&
