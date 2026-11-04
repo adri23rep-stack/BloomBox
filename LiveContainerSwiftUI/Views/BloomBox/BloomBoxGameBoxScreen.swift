@@ -1131,53 +1131,22 @@ struct BloomBoxGameBoxScreen: View {
         .buttonStyle(.plain)
     }
 
-    /// Search every installed guest, including those hidden in the current GameBox mode.
-    /// Choosing a result unhides just that guest instead of resetting its categories.
-    private var matchingSearchApps: [LCAppModel] {
-        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !term.isEmpty else { return apps }
-        return apps.filter {
-            appCustomization.name($0).localizedStandardContains(term) ||
-            $0.bundleIdentifier.localizedStandardContains(term)
-        }
-    }
-
-    private func revealSearchResult(_ app: LCAppModel) {
-        let key = liveBoardAppKey(app)
-        favoritesOnly = false
-        activeCategory = nil
-        updateLibrary { $0.hidden.remove(key) }
-        navigation.selectedIndex = visibleApps.firstIndex(of: app) ?? 0
-        navigation.focus = .rail
-        searching = false
-    }
-
     private var searchSheet: some View {
-        NavigationStack {
-            List(matchingSearchApps, id: \.self) { app in
-                Button {
-                    revealSearchResult(app)
-                } label: {
-                    Label {
-                        Text(appCustomization.name(app))
-                            .foregroundStyle(.primary)
-                    } icon: {
-                        LiveBoardIconImage(app: app, dark: darkIcons)
-                            .frame(width: 44, height: 44)
-                            .clipShape(RoundedRectangle(cornerRadius: 11))
-                    }
+        NavigationView {
+            List {
+                ForEach(matchingApps, id: \.self) { app in
+                    searchResultRow(app)
                 }
-                .buttonStyle(.plain)
             }
             .searchable(text: $query, prompt: "Search library")
             .navigationTitle("Library")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { searching = false }
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 
     private func category(_ app: LCAppModel) -> String {
