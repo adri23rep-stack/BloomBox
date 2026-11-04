@@ -46,6 +46,16 @@ struct BloomBoxLaunchRequest: Codable, Hashable, Sendable {
     var requiresFreshAttach: Bool { jit == .requested }
 }
 
+
+ 
+/// Commands are expressed in saved BloomBox keys; the host maps them back to
+/// its own mutable application objects. No signing or auth data crosses here.
+enum BloomBoxHomeGuestCommand: Codable, Hashable, Sendable {
+    case open(key: String, jit: Bool)
+    case manage(key: String)
+    case uninstall(key: String)
+}
+
 enum BloomBoxRefreshState: String, Codable, Sendable {
     case unavailable
     case submitted
