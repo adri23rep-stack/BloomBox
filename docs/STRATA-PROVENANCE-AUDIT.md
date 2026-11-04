@@ -20,7 +20,7 @@ Los árboles de Git de los cuatro repositorios accesibles se consultaron complet
 
 ## 0A. Inventario de archivos de código
 
-Se contaron archivos con extensiones `.swift`, `.h`, `.m`, `.mm`, `.c`, `.cpp`, `.rs`, `.py`, `.sh`, `.js` y `.ts` en el commit de BloomBox fijado.
+El inventario se amplió luego a **435 archivos rastreados en Git**, descritos por grupo abajo. Se contaron archivos con extensiones `.swift`, `.h`, `.m`, `.mm`, `.c`, `.cpp`, `.rs`, `.py`, `.sh`, `.js` y `.ts` en el commit de BloomBox fijado.
 
 | Resultado | Cantidad | Clasificación preliminar |
 |---|---:|---|
@@ -91,6 +91,24 @@ Los **7** recursos con coincidencia exacta pendiente son **seis rutas del icono/
 Los temas **Kirby Pink** y **Yellow Bowser** proporcionados por el propietario se conservan; las obras y personajes que representen siguen sujetos a los derechos de sus respectivos titulares.
 
 También quedan pendientes de revisar rutas, nombres y licencias de: submódulos, fuentes de código de distribución, archivos de metadatos, ejecutables descargados en el build y recursos que no están en estas extensiones. **El recuento anterior no equivale al inventario completo de binarios.**
+
+## 0B-bis. Otros archivos rastreados por Git
+
+El inventario se amplió para cubrir los **435 archivos** que figuran como blobs en el árbol de Git del commit fijado, no solo código y multimedia. Además de los 263 archivos de código y 29 de multimedia, hay **143 archivos** de configuración, licencias, metadatos, traducciones y similares:
+
+| Coincidencia byte por byte | Otros archivos |
+|---|---:|
+| LiveContainer | 49 |
+| StikJIT | 4 |
+| Strata, sin coincidencia exacta con esos dos upstream | 46 |
+| Ninguno de esos upstream | 44 |
+| **Total** | **143** |
+
+**Hallazgo concreto de marca:** 39 archivos localizados `Resources/*.lproj/InfoPlist.strings`, todos con el mismo SHA `4348e566996021f3defe49951bc64bfb06083cb1`, son listas de propiedades binarias con `CFBundleName = Strata`. Están en el repositorio de BloomBox y coinciden con Strata; el nombre puede seguir apareciendo según el empaquetado y el idioma. Antes de la entrega final, sustituir el **valor de marca** por BloomBox en las traducciones pertinentes, verificando la IPA y sin tocar claves de almacenamiento o bundle IDs que protegen datos. **No se ha modificado este material en la etapa 0.**
+
+Otras coincidencias en esta categoría incluyen metadatos/licencias de LiveExec32 (upstream LiveContainer), `Vendor/StikJIT/UPSTREAM.txt`, licencias de idevice, una configuración de ShareExtension y un workflow de AltStore. No atribuir a Strata códigos o licencias de terceros por haberlos heredado de su repositorio.
+
+**Límite de esta cobertura:** 435 archivos **versionados en Git**, no submódulos completos, archivos binarios descargados durante CI ni todos los elementos contenidos en la IPA construida. Esos necesitan auditoría del artefacto final.
 
 ## 0C. Etiquetas de procedencia (A–E)
 
