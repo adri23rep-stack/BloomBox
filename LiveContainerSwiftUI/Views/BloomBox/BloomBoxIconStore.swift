@@ -15,20 +15,16 @@ import CoreImage
     }()
     private static let context = CIContext(options: [.cacheIntermediates: false])
     static func image(_ app: LCAppModel, dark: Bool) -> UIImage? {
-        if let custom = LiveBoardAppCustomization.shared.image(app) { return custom }
-        if app.bundleIdentifier.caseInsensitiveCompare("com.EduAlexxis.MusicManager") == .orderedSame,
-           let replacement = UIImage(named: "LiveBoardByeTunes", in: .main, compatibleWith: nil) {
-            return replacement
-        }
+        if let custom = BloomBoxAppCustomization.shared.image(app) { return custom }
         let key = (app.appInfo.bundlePath() + (dark ? ":dark" : ":light")) as NSString
         if let image = icons.object(forKey: key) { return image }
         guard let image = UIImage.generateIcon(forBundleURL: URL(fileURLWithPath: app.appInfo.bundlePath()), style: dark ? .Dark : .Light, hasBorder: false) else { return nil }
-        let cleaned = LiveBoardIconEdges.clean(image)
+        let cleaned = BloomBoxIconEdges.clean(image)
         icons.setObject(cleaned, forKey: key, cost: (cleaned.cgImage?.bytesPerRow ?? 0) * (cleaned.cgImage?.height ?? 0))
         return cleaned
     }
     static func background(_ app: LCAppModel, dark: Bool) -> UIImage? {
-        let key = (app.appInfo.bundlePath() + (dark ? ":dark" : ":light") + ":" + LiveBoardAppCustomization.shared.iconCacheIdentifier(app)) as NSString
+        let key = (app.appInfo.bundlePath() + (dark ? ":dark" : ":light") + ":" + BloomBoxAppCustomization.shared.iconCacheIdentifier(app)) as NSString
         if let image = backgrounds.object(forKey: key) { return image }
         guard let source = image(app, dark: dark) else { return nil }
         let format = UIGraphicsImageRendererFormat(); format.scale = 1

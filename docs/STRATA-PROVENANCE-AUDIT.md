@@ -200,3 +200,18 @@ La procedencia de sus diferencias queda abierta.
 La meta de la etapa 0 era poder empezar la reescritura con un mapa verificable
 y con fronteras nuevas; **esa base está lista**, pero no se debe confundir
 con la eliminación efectiva de todo código heredado de Strata.
+
+
+## Seguimiento posterior — limpieza de marca y recursos (4 nov 2026)
+
+Este apartado actualiza **el estado de la rama**, sin reescribir los resultados históricos del inventario congelado (3 de noviembre). El manifiesto original sigue siendo evidencia del punto de partida.
+
+- Los **39** `Resources/*.lproj/InfoPlist.strings` se sustituyeron por texto con `CFBundleName = BloomBox`. Se mantuvieron las claves persistidas de datos y los identificadores de firma.
+- Se retiraron del control de versiones las **seis PNG antiguas** que compartían el mismo blob; `Scripts/generate-bloombox-icon.swift` ahora genera las seis variantes de los catálogos al compilar. Falta comprobar las imágenes finales en el dispositivo.
+- Se eliminó el asset `LiveBoardByeTunes` y el caso especial del código que lo cargaba. El icono de esa app vuelve a seguir el flujo normal de lectura del bundle.
+- Se eliminó el texto promocional `STRATA / BIG PICTURE`. Se preservan `StrataConsoleLayouts`, `LiveBoardHomeLayout` y otras claves de preferencias **solo por compatibilidad**.
+- Se reescribió la prueba de persistencia de GameBox en `Tests/layout-tests/main.swift`, por lo que ya no es una copia byte a byte de la prueba localizada en Strata.
+- `LCAppBannerViewController.swift` permanece: ya hay evidencia de un antecedente en LiveContainer anterior a Strata, pero sus modificaciones específicas todavía requieren comparar historial.
+- Los 137 archivos modificados/no idénticos de la foto histórica no se declaran automáticamente originales de BloomBox. La auditoría de autoría y los avisos legalmente obligatorios siguen pendientes, aunque la UI ya no use el branding histórico.
+
+CI y pruebas en iPhone deben verificarse con el commit final de esta rama antes de fusionar. La separación física de LiveContainer/SideStore es un trabajo distinto, y la licencia AGPL-3.0 existente **no se sustituye** mediante esta limpieza.

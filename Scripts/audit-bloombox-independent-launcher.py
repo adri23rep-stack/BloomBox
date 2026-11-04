@@ -110,5 +110,8 @@ for catalog in ("AppIcon.appiconset", "AppIconGrey.appiconset"):
 game_box = (VIEWS / "BloomBox/BloomBoxGameBoxScreen.swift").read_text(encoding="utf-8")
 if "STRATA / BIG PICTURE" in game_box:
     raise SystemExit("Old visible console branding returned")
+icon_source = (VIEWS / "BloomBox/BloomBoxIconStore.swift").read_text(encoding="utf-8")
+if "LiveBoardByeTunes" in icon_source or "com.EduAlexxis.MusicManager" in icon_source:
+    raise SystemExit("Legacy music artwork override returned")
 
 print(f"BloomBox code audit passed: {count} source files; user saves and legal credits preserved")

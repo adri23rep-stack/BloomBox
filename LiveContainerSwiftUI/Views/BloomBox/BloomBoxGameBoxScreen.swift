@@ -41,16 +41,16 @@ struct BloomBoxGameBoxScreen: View {
     var openSideStore: (() -> Void)? = nil
     var openSources: (() -> Void)? = nil
     var openThemeStore: (() -> Void)? = nil
-    @ObservedObject private var appCustomization = LiveBoardAppCustomization.shared
-    @State private var appearanceApp: LiveBoardAppearanceSelection?
+    @ObservedObject private var appCustomization = BloomBoxAppCustomization.shared
+    @State private var appearanceApp: BloomBoxAppearanceSelection?
     @AppStorage("StrataConsoleLayouts", store: LCUtils.appGroupUserDefault) private var savedConsoleLayouts = "{}"
     @State private var layoutSettings = false
     @State private var movingLaunchButton = false
     @State private var dragOrigin: CGPoint?
-    private var consoleLayout: LiveBoardConsoleLayout { LiveBoardConsoleLayout.decode(savedConsoleLayouts, mode: mode) }
-    private func updateConsoleLayout(_ action: (inout LiveBoardConsoleLayout) -> Void) {
+    private var consoleLayout: BloomBoxGameBoxLayout { BloomBoxGameBoxLayout.decode(savedConsoleLayouts, mode: mode) }
+    private func updateConsoleLayout(_ action: (inout BloomBoxGameBoxLayout) -> Void) {
         var layout = consoleLayout; action(&layout)
-        savedConsoleLayouts = LiveBoardConsoleLayout.save(layout, mode: mode, in: savedConsoleLayouts)
+        savedConsoleLayouts = BloomBoxGameBoxLayout.save(layout, mode: mode, in: savedConsoleLayouts)
     }
     @State private var jitSetup = false
     @ObservedObject private var jitHistory = BloomBoxJITLogStore.shared
@@ -95,21 +95,21 @@ struct BloomBoxGameBoxScreen: View {
     @AppStorage("darkModeIcon", store: LCUtils.appGroupUserDefault) private var darkIcons = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @StateObject private var controller = LiveBoardControllerInput()
+    @StateObject private var controller = BloomBoxControllerInput()
     @StateObject private var artwork = BloomBoxArtworkLibrary()
     @AppStorage("LiveBoardModeLibraries", store: LCUtils.appGroupUserDefault) private var modeLibraries = "{}"
     @AppStorage("LiveBoardConsoleSounds", store: LCUtils.appGroupUserDefault) private var sounds = true
     @State private var activeCategory: String?
     @State private var managingCategories = false
     @State private var newCategory = ""
-    @StateObject private var audio = LiveBoardNavigationAudio()
-    private var libraries: [String: LiveBoardModeLibrary] { (try? JSONDecoder().decode([String: LiveBoardModeLibrary].self, from: Data(modeLibraries.utf8))) ?? [:] }
-    private var library: LiveBoardModeLibrary { libraries[mode] ?? LiveBoardModeLibrary() }
-    private func updateLibrary(_ action: (inout LiveBoardModeLibrary) -> Void) {
+    @StateObject private var audio = BloomBoxNavigationAudio()
+    private var libraries: [String: BloomBoxGameBoxLibrary] { (try? JSONDecoder().decode([String: BloomBoxGameBoxLibrary].self, from: Data(modeLibraries.utf8))) ?? [:] }
+    private var library: BloomBoxGameBoxLibrary { libraries[mode] ?? BloomBoxGameBoxLibrary() }
+    private func updateLibrary(_ action: (inout BloomBoxGameBoxLibrary) -> Void) {
         var all = libraries; var state = library; action(&state); all[mode] = state
         if let data = try? JSONEncoder().encode(all), let text = String(data: data, encoding: .utf8) { modeLibraries = text }
     }
-    @State private var navigation = LiveBoardConsoleNavigation()
+    @State private var navigation = BloomBoxGameBoxNavigation()
     @State private var favoritesOnly = false
     @State private var details = false
     @State private var detailsIndex = 0
@@ -238,11 +238,11 @@ struct BloomBoxGameBoxScreen: View {
                 .ignoresSafeArea()
                 .accessibilityIdentifier("console.backdrop")
         }
-        .background(LiveBoardLandscapeLock(enabled: mode == "cinematic" || (!launching && !launchReturned)))
+        .background(BloomBoxLandscapeLock(enabled: mode == "cinematic" || (!launching && !launchReturned)))
         .preferredColorScheme(.dark)
         .sheet(isPresented: $layoutSettings, onDismiss: bindController) { consoleLayoutSettings }
-        .sheet(item: $appearanceApp, onDismiss: bindController) { app in LiveBoardAppAppearance(app: app.app) }
-        .sheet(isPresented: $jitSetup, onDismiss: bindController) { LiveBoardJITSetup() }
+        .sheet(item: $appearanceApp, onDismiss: bindController) { app in BloomBoxAppAppearance(app: app.app) }
+        .sheet(isPresented: $jitSetup, onDismiss: bindController) { BloomBoxJITSetup() }
         .sheet(isPresented: $jitHistoryPresented, onDismiss: bindController) {
             NavigationView {
                 BloomBoxJITLogHistoryView(appName: latestLaunchAppName)
@@ -328,8 +328,8 @@ struct BloomBoxGameBoxScreen: View {
         .alert("Artwork", isPresented: Binding(get: { artworkError != nil }, set: { if !$0 { artworkError = nil; bindController() } })) {
             Button("OK") { artworkError = nil; bindController() }
         } message: { Text(artworkError ?? "") }
-        .onReceive(NotificationCenter.default.publisher(for: LiveBoardControllerInput.pauseNotification)) { _ in controller.stop() }
-        .onReceive(NotificationCenter.default.publisher(for: LiveBoardControllerInput.resumeNotification)) { _ in bindController() }
+        .onReceive(NotificationCenter.default.publisher(for: BloomBoxControllerInput.pauseNotification)) { _ in controller.stop() }
+        .onReceive(NotificationCenter.default.publisher(for: BloomBoxControllerInput.resumeNotification)) { _ in bindController() }
         .onAppear {
             migrateLibrariesIfNeeded()
             ramPlus.refresh()
@@ -345,7 +345,7 @@ struct BloomBoxGameBoxScreen: View {
                 bindController()
             } else { controller.stop() }
         }
-        .onChange(of: mode) { _ in activeCategory = nil; favoritesOnly = false; navigation = LiveBoardConsoleNavigation() }
+        .onChange(of: mode) { _ in activeCategory = nil; favoritesOnly = false; navigation = BloomBoxGameBoxNavigation() }
         .onChange(of: keys) { _ in navigation.selectedIndex = min(navigation.selectedIndex, max(0, visibleApps.count - 1)) }
     }
 
@@ -370,7 +370,7 @@ struct BloomBoxGameBoxScreen: View {
                 if let app = selected {
                     if let image = artwork.image(for: liveBoardAppKey(app), kind: .background, mode: mode) {
                         Image(uiImage: image).resizable().scaledToFill().frame(width: size.width, height: size.height).clipped()
-                    } else if let image = LiveBoardIconStore.background(app, dark: darkIcons) {
+                    } else if let image = BloomBoxIconStore.background(app, dark: darkIcons) {
                         Image(uiImage: image).resizable().scaledToFill()
                             .frame(width: size.width, height: size.height).clipped()
                     }
@@ -431,7 +431,7 @@ struct BloomBoxGameBoxScreen: View {
         let previous = (try? JSONDecoder().decode([String: String].self, from: Data(categories.utf8))) ?? [:]
         var changed = false
         for name in ["cinematic", "bigPicture"] where all[name] == nil {
-            var state = LiveBoardModeLibrary(); state.assignments = previous
+            var state = BloomBoxGameBoxLibrary(); state.assignments = previous
             for category in previous.values.sorted() where !state.categories.contains(category) { state.categories.append(category) }
             all[name] = state; changed = true
         }
@@ -915,7 +915,7 @@ struct BloomBoxGameBoxScreen: View {
                     }
                 }
                 Section {
-                    Button("Reset this mode’s layout") { savedConsoleLayouts = LiveBoardConsoleLayout.save(LiveBoardConsoleLayout(), mode: mode, in: savedConsoleLayouts) }
+                    Button("Reset this mode’s layout") { savedConsoleLayouts = BloomBoxGameBoxLayout.save(BloomBoxGameBoxLayout(), mode: mode, in: savedConsoleLayouts) }
                     Text("GameBox and legacy Big Picture keep separate layouts.").font(.footnote).foregroundStyle(.secondary)
                 }
             }.navigationTitle("Customize layout")
@@ -1005,7 +1005,7 @@ struct BloomBoxGameBoxScreen: View {
             details = false; controller.stop()
             picker = ArtworkRequest(key: liveBoardAppKey(app), kind: index == 2 ? .cover : (index == 6 ? .portrait : .background))
         case 8: details = false; activate(app, forceJIT: true)
-        case 9: details = false; controller.stop(); appearanceApp = LiveBoardAppearanceSelection(app: app)
+        case 9: details = false; controller.stop(); appearanceApp = BloomBoxAppearanceSelection(app: app)
         case 4: favorite(app)
         case 7: updateLibrary { $0.hidden.insert(liveBoardAppKey(app)) }; details = false
         case 5:
@@ -1020,7 +1020,7 @@ struct BloomBoxGameBoxScreen: View {
         let launcherWindow = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .flatMap { $0.windows }.first { $0.isKeyWindow }
         if mode != "cinematic" {
-            LiveBoardOrientation.setLandscape(false, window: launcherWindow)
+            BloomBoxOrientation.setLandscape(false, window: launcherWindow)
         }
         controller.stop(); audio.stop(); launching = true
         launchReturned = false
@@ -1049,7 +1049,7 @@ struct BloomBoxGameBoxScreen: View {
         controller.onCommand = { command in handle(command) }
         controller.start()
     }
-    private func handle(_ command: LiveBoardControllerInput.Command) {
+    private func handle(_ command: BloomBoxControllerInput.Command) {
         guard !launching, !movingLaunchButton else { return }
         if details {
             switch command {
