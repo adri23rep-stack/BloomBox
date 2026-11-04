@@ -346,11 +346,16 @@ struct BloomBoxGridWidgetView: View {
     var clockAccentColor: Color? = nil
     @AppStorage("ManzanaNote", store: LCUtils.appGroupUserDefault) private var note = ""
     @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject private var performanceBudget = BloomBoxPerformanceBudget.shared
 
     var body: some View {
         ZStack {
             if widget.glass {
-                RoundedRectangle(cornerRadius: 19).fill(.ultraThinMaterial)
+                if performanceBudget.constrained {
+                    RoundedRectangle(cornerRadius: 19).fill(Color(white: 0.16).opacity(0.92))
+                } else {
+                    RoundedRectangle(cornerRadius: 19).fill(.ultraThinMaterial)
+                }
             } else {
                 RoundedRectangle(cornerRadius: 19).fill(Color.clear)
             }
