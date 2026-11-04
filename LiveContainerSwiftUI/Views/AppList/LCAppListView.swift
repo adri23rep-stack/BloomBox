@@ -240,21 +240,28 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         for (index, app) in guests.enumerated() {
             guard !Task.isCancelled, liveBoardMode == "gamebox" else { return }
             let builtIn = app.appInfo is BuiltInSideStoreAppInfo
-            let appPath = app.appInfo.relativeBundlePath
-            let policy = BloomBoxJITGuestPolicy.mode(
-                for: appPath, defaults: defaults)
-            let version: String?
-            if !builtIn, let path = app.appInfo.bundlePath() {
-                version = Bundle(path: path)?
-                    .object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+            let jitEnabled: Bool
+            if gameBoxSafeMode {
+                // Deliberately avoid reading guest bundles and JIT policy
+                // during recovery. Launch/JIT buttons still use the host
+                // preflight when the user explicitly taps them.
+                jitEnabled = false
             } else {
-                version = nil
+                let policy = BloomBoxJITGuestPolicy.mode(
+                    for: app.appInfo.relativeBundlePath, defaults: defaults)
+                let version: String?
+                if !builtIn, let path = app.appInfo.bundlePath() {
+                    version = Bundle(path: path)?
+                        .object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+                } else {
+                    version = nil
+                }
+                let isMeloNX = !builtIn && BloomBoxMeloNXProfile.matches(
+                    bundleID: app.bundleIdentifier, version: version)
+                jitEnabled = !builtIn && BloomBoxJITGuestPolicy.wantsJIT(
+                    automatic: app.appInfo.isJITNeeded || app.appInfo.is32bit || isMeloNX,
+                    forced: nil, mode: policy)
             }
-            let isMeloNX = !builtIn && BloomBoxMeloNXProfile.matches(
-                bundleID: app.bundleIdentifier, version: version)
-            let jitEnabled = !builtIn && BloomBoxJITGuestPolicy.wantsJIT(
-                automatic: app.appInfo.isJITNeeded || app.appInfo.is32bit || isMeloNX,
-                forced: nil, mode: policy)
             prepared.append(BloomBoxGameBoxEntry(
                 id: liveBoardAppKey(app),
                 name: LiveBoardAppCustomization.shared.name(app),
