@@ -50,29 +50,20 @@ Esto **no** significa que toda la autoría esté resuelta ni que BloomBox ya est
 
 ### 1. Home / escritorio — P0
 
-**En progreso — primer corte funcional guardado en esta rama.**
-- [x] Crear `BloomBoxHomeAppPolicy.swift`: buscar entre invitados, favoritos y categorías usando solo identificadores y cadenas, preservando JSON y claves anteriores.
-- [x] Crear `BloomBoxHomeContextMenu.swift`: presentar acciones con estado y callbacks, sin tipos `LCAppModel` ni `SideStoreSupport`. El puente actual del Home conserva JIT, Dock, carpetas, tweaks, red, ajustes y desinstalación.
-- [x] Crear `BloomBoxHomeSearchPanel.swift`: buscador, resultados y sugerencias con iconos/launch mediante callbacks del host; etiquetas EN/ES.
-- [x] Crear `BloomBoxHomeNameDialogs.swift`: renombrar apps/carpetas y crear carpetas con callbacks independientes del runtime, preservando los identificadores existentes.
-- [x] Crear `BloomBoxHomeControlTile.swift`: reemplaza el bloque visual de controles derivado del diseño antiguo con un componente propio, sin tipos de LiveContainer.
-- [x] Añadir pruebas de política, contrato del menú/buscador/diálogos y checks de regresión al workflow antes del archive.
-- [x] Comprobar que el mayor bloque consecutivo idéntico en `BloomBoxHomeScreen.swift` frente a `LiveBoardHomeScreen.swift` pasó de **32 a 10 líneas** (espacios normalizados, revisión Strata fijada; métrica de duplicación, no prueba legal).
-- [ ] Revisar la procedencia de los fragmentos restantes de estado y compatibilidad; conservar identificadores de ajustes heredados aunque se reescriba la lógica.
-- [ ] Pasar el resto del Home a componentes de dominio independientes, sobre todo edición, renombrado, carpetas y transiciones.
-- [x] Incorporar `LiveContainerHomeAdapter` para la identidad de apps, listas, estados de apertura/firma, bloqueos de Internet, iconos de SideStore y edición de nombres; el archivo principal ya no referencia directamente las APIs de esas funciones.
-- [x] Incorporar `LiveContainerPreferencesAdapter`: sustituir **32 referencias** directas a `LCUtils.appGroupUserDefault` en Home conservando exactamente el mismo `UserDefaults` y las mismas claves.
-- [x] Añadir la estructura portable `BloomBoxHomeGuestSnapshot` y la verificación de los límites en `Tests/home-adapter-tests/test_adapter.py`.
-- [ ] Encapsular el resto de accesos directos del Home a `LCAppModel`, `SharedModel`, tabulación, gestión de tweaks y ejecución de apps en un `LiveContainerAdapter` completo; por ahora sigue existiendo un puente para no romper el lanzamiento.
-- [ ] Confirmar la compilación del **último commit** y verificar el comportamiento de las nuevas pantallas en iOS 27.
+**Extracción principal de código completada; validación final de dispositivo pendiente.**
+- [x] Sustituir el menú, búsqueda, favoritos, categorías, renombrado, creación de carpetas y controles por componentes de BloomBox sin tipos internos de LiveContainer: `BloomBoxHomeContextMenu`, `BloomBoxHomeSearchPanel`, `BloomBoxHomeAppPolicy`, `BloomBoxHomeNameDialogs`, `BloomBoxHomeControlTile`.
+- [x] Mantener los formatos guardados (`LiveBoardHomeLayout`, favoritos, categorías, widgets y wallpaper) y preservar los IDs históricos usados por carpetas y accesos directos.
+- [x] Centralizar identidad, estado de ejecución/firma, iconos internos, red, visibilidad de apps ocultas e importación de tweaks y operaciones Mach-O en `LiveContainerHomeAdapter`; sacar las 32 referencias de `LCUtils.appGroupUserDefault` del Home hacia `LiveContainerPreferencesAdapter`.
+- [x] Centralizar las acciones **abrir/JIT/gestionar/desinstalar** en `LiveContainerHomeActions`, mediante comandos portables `BloomBoxHomeGuestCommand` identificados por clave. Mantener la selección exacta de app si dos instalaciones tienen una clave heredada duplicada.
+- [x] Conservar el aviso del catálogo de compatibilidad antes de abrir una app, el flujo especial del signer integrado y la confirmación al desinstalar apps compartidas.
+- [x] Añadir checks de límites y de compatibilidad de datos, políticas de búsqueda y favoritos, indexación de apps, comandos del adaptador y pruebas integradas al workflow de GitHub.
+- [x] Reducir la mayor secuencia textual compartida con el Home de Strata fijado de **32 a 10 líneas**; esto mide duplicación visible y **no demuestra por sí solo autoría original o ausencia de licencia**.
+- [ ] Validar la **última** compilación Xcode, no una build de commits previos.
+- [ ] Verificar en iPhone iOS 27 las carpetas, Dock, widgets, fondos, menús, JIT, arranque en frío, apertura de apps y desinstalación sin pérdida de datos (fase 6).
+- [ ] Terminar la investigación de procedencia de bloques de estado/compatibilidad que aún coincidan con Strata y de otras vistas auxiliares del Home (fases 4 y 7).
+- [ ] **Separación física completa (siguiente fase):** `BloomBoxHomeScreen` todavía recibe `LCAppModel` del host para mostrar imágenes y gestionar partes de la pantalla. Extraerlo del target de LiveContainer requerirá otro contrato de modelos e integración de dependencias; la capa de acciones y preferencias ya permite hacerlo sin modificar sus comportamientos.
 
-- [ ] Reimplementar lógica de menús contextuales, búsqueda, renombrado, favoritos, categorías y edición que coincida con la implementación original de Strata.
-- [ ] Auditar el coordinador del Home, navegación/páginas, gestos, transiciones, Dock y carpetas, además del archivo `BloomBoxHomeScreen.swift`.
-- [ ] Revisar código trasladado a `BloomBoxHomeChrome`, `BloomBoxLauncherInteractions`, `BloomBoxLauncherVisuals`, `BloomBoxFolderPanel` y `BloomBoxWidgetViews`.
-- [ ] Conservar claves de preferencias heredadas como `LiveBoardHomeLayout` y los IDs de apps/carpetas: **son formatos de datos compatibles, no código que deba borrarse**.
-- [ ] Probar páginas ocultas, carpeta arrastrar/soltar, edición de widgets, gestos, dock, temas Kirby Pink/Yellow Bowser y migración de escritorios previos.
-
-**Salida:** Home sin bloques de implementación exclusiva de Strata no autorizados ni pendientes de auditoría; sin pérdida de datos.
+**Salida lograda:** lógica de Home propia y acciones de runtime concentradas en adaptadores, preparada para actualizar el núcleo LiveContainer por partes. **No se declara BloomBox completamente libre de código Strata ni de dependencias LiveContainer hasta completar las auditorías y las pruebas.**
 
 ### 2. GameBox y modos de juego — P0
 - [ ] Reimplementar bloques aún coincidentes de `BloomBoxGameBoxScreen.swift`, especialmente menús, portada, controles, selección, búsqueda y lanzamiento.
@@ -143,7 +134,7 @@ Se permiten pruebas y mejoras de CI en paralelo, pero **no** se deben quitar los
 | Etapa | Estado al crear este roadmap | Bloqueante de cierre |
 |---|---|---|
 | 0. Inventario y fronteras | Base técnica lista; atribución final pendiente | Fases 1–4: investigar los E; fase 7: decidir créditos |
-| 1. Home | En curso: políticas, menú y buscador separados | Eliminar dependencias/otras coincidencias y validar en iPhone |
+| 1. Home | Componentes y adaptadores principales listos; build/dispositivo pendientes | Verificar en iPhone, continuar aislamiento del target y atribución |
 | 2. GameBox | Pendiente | Sustituir y probar bloques coincidentes |
 | 3. Controles y apariencia | Pendiente | Sustituir y probar bloques coincidentes |
 | 4. Resto del repositorio | Pendiente | Auditoría completa |
