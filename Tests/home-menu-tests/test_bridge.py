@@ -8,8 +8,9 @@ ui = root / "LiveContainerSwiftUI/Views/BloomBox"
 home = (ui / "BloomBoxHomeScreen.swift").read_text()
 policy = (ui / "BloomBoxHomeAppPolicy.swift").read_text()
 menu = (ui / "BloomBoxHomeContextMenu.swift").read_text()
+search = (ui / "BloomBoxHomeSearchPanel.swift").read_text()
 
-for name, body in (("Home policy", policy), ("context-menu UI", menu)):
+for name, body in (("Home policy", policy), ("context-menu UI", menu), ("search overlay UI", search)):
     for token in ("LCAppModel", "LCUtils", "DataManager", "BuiltInSideStoreAppInfo", "runApp", "ShareExtension"):
         assert re.search(r"\b" + token + r"\b", body) is None, f"{name} imports host symbol {token}"
 
@@ -19,6 +20,14 @@ assert "BloomBoxHomeAppPolicy.toggledFavorite(key, in: favorites)" in home
 assert "BloomBoxHomeAppPolicy.assigningCategory(value, to: key, in: categories)" in home
 assert "BloomBoxHomeAppPolicy.addingCategory(value, to: homeCategories)" in home
 assert "BloomBoxHomeContextMenu(state: menuState, actions: actions)" in home
+assert "BloomBoxHomeSearchPanel(" in home
+assert "searchMenu(key, app: app)" in home
+assert "home.search.field" in search
+assert "home.search.done" in search
+assert "englishUI: englishUI" in home
+assert "let englishUI: Bool" in menu
+assert "let englishUI: Bool" in search
+assert 'TextField("Search Apps", text: $query)' not in home
 assert "private func appMenu(_ key: String, app: LCAppModel)" in home, "Existing host adapter went missing"
 
 # Require the same user-facing capabilities, with closures implemented by the host
