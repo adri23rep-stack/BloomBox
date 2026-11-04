@@ -2703,21 +2703,8 @@ struct BloomBoxHomeScreen: View {
         }
     }
     private func controlCard(_ title: String, detail: String, symbol: String, wide: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Image(systemName: symbol).font(.system(size: 24)).foregroundStyle(.white.opacity(0.95))
-            Spacer(minLength: 2)
-            Text(title).font(.system(size: 17, weight: .semibold)).lineLimit(1)
-            if !detail.isEmpty {
-                Text(detail).font(.system(size: 12)).foregroundStyle(.white.opacity(0.7)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: wide ? 124 : 128)
-        .liveBoardGlass(radius: 28, interactive: false)
-        .contentShape(RoundedRectangle(cornerRadius: 28))
+        BloomBoxHomeControlTile(title: title, detail: detail, symbol: symbol, wide: wide)
     }
-
     private var searchResults: [LCAppModel] {
         BloomBoxHomeAppPolicy.matching(
             apps, query: query,
