@@ -41,7 +41,9 @@ LiveContainer runtime          SideStore (embedded, luego opcional externo)
 - `BloomBoxRefreshRequest`, `BloomBoxRefreshState`, `BloomBoxSigningService`: la UI pide renovar y observa el resultado; SideStore gestiona sesión, firma y credenciales.
 - `BloomBoxIntegrationProtocol.majorVersion = 1`: punto de control para compatibilidad y futura negociación de capacidades.
 
-**Por ahora son contratos compilables, sin implementaciones ni conexión al lanzamiento real.** Es intencional: reemplazar directamente el flujo de firmado o de invitadas sin pruebas en iPhone 27 es peligroso.
+**Ya existe un primer adaptador funcional para Home:** `Views/BloomBoxAdapters/LiveContainerHomeAdapter.swift` transforma las apps instaladas a claves/estado de presentación, y encapsula catálogo, selección, bloqueos de Internet e icono de SideStore. `LiveContainerPreferencesAdapter.swift` mantiene las mismas preferencias de app group, con **32 usos** de `LCUtils.appGroupUserDefault` retirados del archivo principal del Home. Los contratos son portables, pero **el lanzamiento real y la firma todavía dependen del host**, no se han reemplazado por `BloomBoxGuestHost` ni `BloomBoxSigningService`.
+
+El motivo de mantener ese puente temporal es no arriesgar JIT, RAM+, firmas o datos guardados mientras se instala y prueba cada tramo en iOS 27.
 
 ### Separación física futura (siguiente fase, no etapa 0)
 
@@ -93,13 +95,13 @@ La fecha de una nightly **no equivale a versión estable**; el SHA identifica el
 - `Tests/upstream-boundaries-tests/test_boundaries.py` impide que **un archivo de UI nuevo** llame directamente tipos/herramientas internas de LiveContainer/SideStore; debe utilizar modelos del contrato y un adaptador.
 - El mismo control exige un SHA-256 explícito para cada binario listado, prohíbe descargas directas de SideStore/dylibify en el empaquetador, y verifica la presencia de contratos y restore verificado.
 - `Tests/integration-contracts/main.swift` comprueba que los mensajes de la frontera puedan codificarse/decodificarse sin LiveContainer ni SideStore.
-- Ambos controles corren en `.github/workflows/build.yml`, antes del archive.
+- Estos controles corren en `.github/workflows/build.yml`, antes del archive. `Tests/home-adapter-tests/test_adapter.py` añade una comprobación de que los accesos de host retirados no vuelvan al archivo principal del Home.
 
 **Límite del guard:** los 40 archivos heredados siguen pudiendo usar el runtime; esta lista no limpia su código. El objetivo es reducir gradualmente el listado hasta cero durante las fases 1–4 y mover llamadas host/signer a los adaptadores. Los archivos existentes no se declaran independientes solo por estar en el listado.
 
 ## Qué falta para conseguir separación real
 
-- Crear e integrar `LiveContainerAdapter` y `SideStoreAdapter` con implementaciones y pruebas reales, sin romper el lanzamiento.
+- Completar `LiveContainerHomeAdapter` con acciones de lanzamiento/gestión y conectar `BloomBoxGuestHost` al flujo real; agregar el adaptador de firmado `SideStoreAdapter` y sus pruebas. Los adaptadores actuales solo aíslan identidad, estado, bloqueo de red y preferencias del Home.
 - Migrar progresivamente todas las vistas BloomBox al contrato, reducir a cero las excepciones y separar el Xcode target.
 - Sincronizar por commit el código upstream de LiveContainer en una carpeta/fork mantenible (hoy hay una copia con modificaciones históricas).
 - Aislar el build del SideStore integrado, y después estudiar una app SideStore externa (si el sistema y la integración lo admiten).
