@@ -197,7 +197,7 @@ struct BloomBoxWizardView: View {
         .padding(.horizontal, 22)
         .padding(.top, 12)
         .padding(.bottom, 20)
-        .background(.ultraThinMaterial.opacity(0.32))
+        .background(.ultraThinMaterial)
     }
 
     private var welcomeScreen: some View {
@@ -447,7 +447,7 @@ struct BloomBoxWizardView: View {
                 miniApp("folder.fill", .yellow, "Archivos")
             }
             .padding(10)
-            .background(.ultraThinMaterial.opacity(0.8),
+            .background(.ultraThinMaterial,
                         in: RoundedRectangle(cornerRadius: 23))
         }
         .padding(20)
