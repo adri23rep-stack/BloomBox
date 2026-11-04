@@ -38,6 +38,10 @@ assert "LazyHStack" in gamebox and "ScrollViewReader" in gamebox
 assert "UISelectionFeedbackGenerator().selectionChanged()" in gamebox
 assert "TapGesture(count: 2)" in gamebox
 assert "BloomBoxGameBoxV2Favorites" in gamebox
+assert ".photosPicker(isPresented:" in gamebox
+assert "artwork.save(image, for: target, kind: kind)" in gamebox
+assert "artwork.remove(for: key(app), kind: .cover)" in gamebox
+assert '"Elegir carátula"' in gamebox and '"Elegir fondo"' in gamebox
 assert "confirmationDialog" in gamebox and "upcomingFeature" in gamebox
 assert "ProcessInfo.processInfo" in gamebox
 assert "func launchFromLibrary" not in gamebox
