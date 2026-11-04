@@ -25,7 +25,7 @@ struct BloomBoxHomeScreen: View {
     @State private var appStorePresented = false
     @State private var modulesPresented = false
     @State private var themesPresented = false
-    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
+    @AppStorage("BloomBoxPreferredLanguage", store: LiveContainerPreferencesAdapter.defaults)
     private var preferredLanguage = "system"
     private var englishUI: Bool {
         preferredLanguage == "en" ||
@@ -40,38 +40,38 @@ struct BloomBoxHomeScreen: View {
     @State private var pendingAlertJIT = false
     @State private var showTweakLevel3Alert = false
     @ObservedObject private var tweakCatalog = BloomBoxTweakCatalog.shared
-    @AppStorage("LiveBoardHomeCategories", store: LCUtils.appGroupUserDefault) private var homeCategories = "[\"Games\",\"Ports\",\"Tools\"]"
+    @AppStorage("LiveBoardHomeCategories", store: LiveContainerPreferencesAdapter.defaults) private var homeCategories = "[\"Games\",\"Ports\",\"Tools\"]"
     @State private var addingCategory = false
     @State private var categoryName = ""
     @State private var categoryApp: String?
 
-    @AppStorage("LiveBoardHomeLayout", store: LCUtils.appGroupUserDefault) private var savedLayout = ""
-    @AppStorage("LiveBoardFavorites", store: LCUtils.appGroupUserDefault) private var favorites = "[]"
-    @AppStorage("LiveBoardCategories", store: LCUtils.appGroupUserDefault) private var categories = "{}"
-    @AppStorage("LiveBoardLargeIcons", store: LCUtils.appGroupUserDefault) private var largeIcons = false
-    @AppStorage("darkModeIcon", store: LCUtils.appGroupUserDefault) private var darkIcons = false
-    @AppStorage("LiveBoardWallpaperStyle", store: LCUtils.appGroupUserDefault) private var wallpaperStyle = "black"
-    @AppStorage("LiveBoardWallpaperFit", store: LCUtils.appGroupUserDefault) private var wallpaperFit = false
-    @AppStorage("LiveBoardWallpaperDim", store: LCUtils.appGroupUserDefault) private var wallpaperDim = 0.1
+    @AppStorage("LiveBoardHomeLayout", store: LiveContainerPreferencesAdapter.defaults) private var savedLayout = ""
+    @AppStorage("LiveBoardFavorites", store: LiveContainerPreferencesAdapter.defaults) private var favorites = "[]"
+    @AppStorage("LiveBoardCategories", store: LiveContainerPreferencesAdapter.defaults) private var categories = "{}"
+    @AppStorage("LiveBoardLargeIcons", store: LiveContainerPreferencesAdapter.defaults) private var largeIcons = false
+    @AppStorage("darkModeIcon", store: LiveContainerPreferencesAdapter.defaults) private var darkIcons = false
+    @AppStorage("LiveBoardWallpaperStyle", store: LiveContainerPreferencesAdapter.defaults) private var wallpaperStyle = "black"
+    @AppStorage("LiveBoardWallpaperFit", store: LiveContainerPreferencesAdapter.defaults) private var wallpaperFit = false
+    @AppStorage("LiveBoardWallpaperDim", store: LiveContainerPreferencesAdapter.defaults) private var wallpaperDim = 0.1
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
-    @AppStorage("LiveBoardReduceMotion", store: LCUtils.appGroupUserDefault) private var customReduceMotion = false
-    @AppStorage("LiveBoardHiddenPages", store: LCUtils.appGroupUserDefault) private var hiddenPagesJSON = "[]"
+    @AppStorage("LiveBoardReduceMotion", store: LiveContainerPreferencesAdapter.defaults) private var customReduceMotion = false
+    @AppStorage("LiveBoardHiddenPages", store: LiveContainerPreferencesAdapter.defaults) private var hiddenPagesJSON = "[]"
     private var reduceMotion: Bool { systemReduceMotion || customReduceMotion }
-    @AppStorage("BloomBoxBuiltInFolderMigrated", store: LCUtils.appGroupUserDefault)
+    @AppStorage("BloomBoxBuiltInFolderMigrated", store: LiveContainerPreferencesAdapter.defaults)
     private var builtInFolderMigrated = false
-    @AppStorage("BloomBoxWidgetMissingAppFallbacks", store: LCUtils.appGroupUserDefault)
+    @AppStorage("BloomBoxWidgetMissingAppFallbacks", store: LiveContainerPreferencesAdapter.defaults)
     private var widgetFallbacksJSON = "{}"
-    @AppStorage("BloomBoxLivingWidgetSettings", store: LCUtils.appGroupUserDefault)
+    @AppStorage("BloomBoxLivingWidgetSettings", store: LiveContainerPreferencesAdapter.defaults)
     private var livingWidgetSettingsJSON = "{}"
     @State private var themeExportURL: URL?
     @State private var themeExportError: String?
     @State private var layout = BloomBoxHomeLayout()
     @State private var page = 1
     @State private var homeHasAppeared = false
-    @AppStorage("BloomBoxAliveEnabled", store: LCUtils.appGroupUserDefault)
+    @AppStorage("BloomBoxAliveEnabled", store: LiveContainerPreferencesAdapter.defaults)
     private var aliveEnabled = true
-    @AppStorage("BloomBoxAliveIdleEnabled", store: LCUtils.appGroupUserDefault)
+    @AppStorage("BloomBoxAliveIdleEnabled", store: LiveContainerPreferencesAdapter.defaults)
     private var aliveIdleEnabled = true
     @State private var aliveStartupPlayed = false
     @State private var aliveBooting = false
@@ -84,17 +84,17 @@ struct BloomBoxHomeScreen: View {
     @State private var alivePlayfulActive = false
     @State private var aliveLastInteraction = Date()
     @State private var aliveSplashLine = "El desmadre está por comenzar."
-    @AppStorage("BloomBoxAlivePreviousSplash", store: LCUtils.appGroupUserDefault)
+    @AppStorage("BloomBoxAlivePreviousSplash", store: LiveContainerPreferencesAdapter.defaults)
     private var alivePreviousSplash = ""
-    @AppStorage("ManzanaNote", store: LCUtils.appGroupUserDefault) private var miniatureNote = ""
+    @AppStorage("ManzanaNote", store: LiveContainerPreferencesAdapter.defaults) private var miniatureNote = ""
     @State private var miniatureWidgetPhoto: UIImage?
     @State private var desktopSettings = false
     @State private var editing = false
     @State private var showWidgetGallery = false
     @State private var selectedWidgetID: String?
-    @AppStorage("ManzanaPageWidgets", store: LCUtils.appGroupUserDefault) private var pageWidgetsJSON = "{}"
-    @AppStorage("BloomBoxPlacedWidgetsV2", store: LCUtils.appGroupUserDefault) private var placedWidgetsJSON = "{}"
-    @AppStorage("BloomBoxPlacedWidgetsMigrated", store: LCUtils.appGroupUserDefault) private var placedWidgetsMigrated = false
+    @AppStorage("ManzanaPageWidgets", store: LiveContainerPreferencesAdapter.defaults) private var pageWidgetsJSON = "{}"
+    @AppStorage("BloomBoxPlacedWidgetsV2", store: LiveContainerPreferencesAdapter.defaults) private var placedWidgetsJSON = "{}"
+    @AppStorage("BloomBoxPlacedWidgetsMigrated", store: LiveContainerPreferencesAdapter.defaults) private var placedWidgetsMigrated = false
     @State private var widgetMediaID: String?
     @State private var widgetMediaChoicePresented = false
     @State private var pendingWidgetMediaAfterGallery: String?
@@ -118,7 +118,7 @@ struct BloomBoxHomeScreen: View {
     @State private var searching = false
     @State private var query = ""
     @State private var libraryQuery = ""
-    @AppStorage("ManzanaLibraryRecents", store: LCUtils.appGroupUserDefault) private var libraryRecentsJSON = "[]"
+    @AppStorage("ManzanaLibraryRecents", store: LiveContainerPreferencesAdapter.defaults) private var libraryRecentsJSON = "[]"
     @FocusState private var librarySearchFocused: Bool
     @State private var expandedLibraryCategory: LibrarySection?
     @State private var customizing = false
@@ -127,8 +127,8 @@ struct BloomBoxHomeScreen: View {
     @State private var choosingMotionWallpaper = false
     @State private var choosingMotionWallpaperPhotos = false
     @State private var importingMotionWallpaper = false
-    @AppStorage("ManzanaMotionWallpaper", store: LCUtils.appGroupUserDefault) private var motionWallpaper = ""
-    @AppStorage("ManzanaPauseWallpaper", store: LCUtils.appGroupUserDefault) private var pauseWallpaper = false
+    @AppStorage("ManzanaMotionWallpaper", store: LiveContainerPreferencesAdapter.defaults) private var motionWallpaper = ""
+    @AppStorage("ManzanaPauseWallpaper", store: LiveContainerPreferencesAdapter.defaults) private var pauseWallpaper = false
     @State private var wallpaper: UIImage?
     @State private var openFolder: String?
     @State private var folderPage = 0
@@ -360,7 +360,7 @@ struct BloomBoxHomeScreen: View {
                 // Existing desktop layouts and user wallpapers are never overwritten.
                 do {
                     if let firstLayout = try BloomBoxBundledThemes.applyOnFreshInstall(
-                        defaults: LCUtils.appGroupUserDefault, appKeys: appKeys,
+                        defaults: LiveContainerPreferencesAdapter.defaults, appKeys: appKeys,
                         favorites: favoriteKeys, wallpaperURL: wallpaperURL) {
                         layout = firstLayout
                         savedLayout = firstLayout.encoded
@@ -386,8 +386,8 @@ struct BloomBoxHomeScreen: View {
                 }
                 page = navigation.safePage
                 startBloomBoxAlive()
-                if LCUtils.appGroupUserDefault.bool(forKey: "BloomBoxGameBoxOpenThemeStore") {
-                    LCUtils.appGroupUserDefault.set(false, forKey: "BloomBoxGameBoxOpenThemeStore")
+                if LiveContainerPreferencesAdapter.defaults.bool(forKey: "BloomBoxGameBoxOpenThemeStore") {
+                    LiveContainerPreferencesAdapter.defaults.set(false, forKey: "BloomBoxGameBoxOpenThemeStore")
                     DispatchQueue.main.async { themesPresented = true }
                 }
             }
@@ -476,7 +476,7 @@ struct BloomBoxHomeScreen: View {
             set: { if !$0 { pendingUninstall = nil } }
         ), titleVisibility: .visible) {
             if let app = pendingUninstall {
-                if app.uiIsShared {
+                if LiveContainerHomeAdapter.snapshot(app, displayName: "").isShared {
                     Button("Abrir ajustes para convertir a privada") {
                         pendingUninstall = nil
                         manage(app)
@@ -715,7 +715,7 @@ struct BloomBoxHomeScreen: View {
             })
         }
         .sheet(isPresented: $modulesPresented, onDismiss: performModuleAction) {
-            BloomBoxModulesPanel(apps: apps + (!LCUtils.appGroupUserDefault.bool(forKey: "LCStrictHiding") || sharedModel.isHiddenAppUnlocked ? sharedModel.hiddenApps : [])) { destination in
+            BloomBoxModulesPanel(apps: apps + (!LiveContainerPreferencesAdapter.defaults.bool(forKey: "LCStrictHiding") || sharedModel.isHiddenAppUnlocked ? sharedModel.hiddenApps : [])) { destination in
                 pendingModuleDestination = destination
                 modulesPresented = false
             }
@@ -1285,7 +1285,7 @@ struct BloomBoxHomeScreen: View {
                 }
                 .frame(width: size, height: size)
         } else if key == Self.sideStoreKey {
-            if let icon = BuiltInSideStoreAppInfo.shared.iconIsDarkIcon(darkIcons) {
+            if let icon = LiveContainerHomeAdapter.builtInSignerIcon(dark: darkIcons) {
                 Image(uiImage: icon).resizable().scaledToFill()
                     .frame(width: size, height: size)
                     .clipShape(RoundedRectangle(cornerRadius: size * 0.23))
@@ -1620,7 +1620,7 @@ struct BloomBoxHomeScreen: View {
 
     private func currentThemeData() throws -> Data {
         // Export only presentation settings, never installed app data, credentials or private files.
-        let defaults = LCUtils.appGroupUserDefault
+        let defaults = LiveContainerPreferencesAdapter.defaults
         let keys = ["LiveBoardHomeLayout", "LiveBoardHiddenPages", "BloomBoxPlacedWidgetsV2",
                     "ManzanaPageWidgets", "LiveBoardLargeIcons", "darkModeIcon",
                     "LiveBoardWallpaperStyle", "LiveBoardWallpaperFit", "LiveBoardWallpaperDim",
@@ -1667,7 +1667,7 @@ struct BloomBoxHomeScreen: View {
     private func syncImportedThemePreferences() {
         // Read imported values synchronously before widget reflow/first render.
         // @AppStorage also observes them on subsequent updates.
-        let defaults = LCUtils.appGroupUserDefault
+        let defaults = LiveContainerPreferencesAdapter.defaults
         placedWidgetsJSON = defaults.string(forKey: "BloomBoxPlacedWidgetsV2") ?? "{}"
         livingWidgetSettingsJSON = defaults.string(forKey: "BloomBoxLivingWidgetSettings") ?? "{}"
         widgetFallbacksJSON = defaults.string(forKey: "BloomBoxWidgetMissingAppFallbacks") ?? "{}"
@@ -1682,7 +1682,7 @@ struct BloomBoxHomeScreen: View {
         let old = try currentThemeData()
         _ = try BloomBoxThemeLibrary.save(old, named: "Recovery")
         let newLayout = try BloomBoxThemePackage.apply(
-            data, defaults: LCUtils.appGroupUserDefault,
+            data, defaults: LiveContainerPreferencesAdapter.defaults,
             currentLayout: layout, appKeys: appKeys, favorites: favoriteKeys,
             wallpaperURL: wallpaperURL)
         layout = newLayout
@@ -2290,7 +2290,7 @@ struct BloomBoxHomeScreen: View {
                                                : isTweakStore ? Color(red: 0.48, green: 0.32, blue: 0.76)
                                                : isAppStore ? Color(red: 0.20, green: 0.55, blue: 0.77)
                                                : Color(red: 0.12, green: 0.58, blue: 0.76))
-                        if isSideStore, let icon = BuiltInSideStoreAppInfo.shared.iconIsDarkIcon(darkIcons) {
+                        if isSideStore, let icon = LiveContainerHomeAdapter.builtInSignerIcon(dark: darkIcons) {
                             Image(uiImage: icon).resizable().scaledToFill()
                                 .clipShape(RoundedRectangle(cornerRadius: size * 0.23, style: .continuous))
                         } else {
@@ -2706,7 +2706,7 @@ struct BloomBoxHomeScreen: View {
     private var searchResults: [LCAppModel] {
         BloomBoxHomeAppPolicy.matching(
             apps, query: query,
-            title: { title(liveBoardAppKey($0)) },
+            title: { title(LiveContainerHomeAdapter.key($0)) },
             bundleID: { LiveContainerHomeAdapter.snapshot($0, displayName: "").bundleIdentifier }
         )
     }
@@ -2723,12 +2723,12 @@ struct BloomBoxHomeScreen: View {
         // The search view sees stable keys and names only. LiveContainer models
         // are used exclusively by this temporary adapter for icons and launch.
         let guests = Dictionary(
-            apps.map { (liveBoardAppKey($0), $0) },
+            apps.map { (LiveContainerHomeAdapter.key($0), $0) },
             uniquingKeysWith: { original, _ in original }
         )
         var used = Set<String>()
         let entries = searchResults.compactMap { app -> BloomBoxHomeSearchEntry? in
-            let key = liveBoardAppKey(app)
+            let key = LiveContainerHomeAdapter.key(app)
             guard used.insert(key).inserted else { return nil }
             return BloomBoxHomeSearchEntry(
                 key: key, title: title(key),
