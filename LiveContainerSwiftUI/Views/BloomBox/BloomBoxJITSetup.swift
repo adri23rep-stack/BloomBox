@@ -50,10 +50,10 @@ struct BloomBoxJITSetup: View {
     private var jitForm: some View {
         Form {
                 Section("JIT method") {
-                    Picker("Enable JIT using", selection: $provider) {
-                        ForEach(JITEnablerType.allCases) { Text($0.displayName).tag($0.rawValue) }
+                    providerChooser
+                    Button("Use built-in JIT") {
+                        provider = JITEnablerType.BuiltIn.rawValue
                     }
-                    Button("Use built-in JIT") { provider = JITEnablerType.BuiltIn.rawValue }
                 }
                 if provider == JITEnablerType.BuiltIn.rawValue {
                     if ManzanaOnDevicePairing.isSupported {
@@ -142,6 +142,14 @@ struct BloomBoxJITSetup: View {
                 }
                 if provider != JITEnablerType.BuiltIn.rawValue && !session.message.isEmpty { Section { Text(session.message) } }
                 Section { NavigationLink("JIT-less setup and diagnostics") { LCJITLessDiagnoseView() } }
+        }
+    }
+
+    private var providerChooser: some View {
+        Picker("Enable JIT using", selection: $provider) {
+            ForEach(JITEnablerType.allCases) { available in
+                Text(available.displayName).tag(available.rawValue)
+            }
         }
     }
 

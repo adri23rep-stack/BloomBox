@@ -146,9 +146,12 @@ enum BloomBoxBuiltInJIT {
                         return completed
                     }
                 }
-                if !receivedStatus && Date().timeIntervalSince(started) > 12 {
-                    report("The JIT helper did not start. Confirm this update was installed with all extensions kept, then retry. No device connection was attempted.")
-                    return false
+                if !receivedStatus {
+                    let elapsed = Date().timeIntervalSince(started)
+                    if elapsed > 12 {
+                        report("The JIT helper did not start. Confirm this update was installed with all extensions kept, then retry. No device connection was attempted.")
+                        return false
+                    }
                 }
                 try await Task.sleep(nanoseconds: 200_000_000)
             }

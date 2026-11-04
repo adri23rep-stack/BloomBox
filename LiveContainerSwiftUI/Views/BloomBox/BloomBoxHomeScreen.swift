@@ -130,13 +130,13 @@ struct BloomBoxHomeScreen: View {
     @AppStorage("ManzanaMotionWallpaper", store: LiveContainerPreferencesAdapter.defaults) private var motionWallpaper = ""
     @AppStorage("ManzanaPauseWallpaper", store: LiveContainerPreferencesAdapter.defaults) private var pauseWallpaper = false
     @State private var wallpaper: UIImage?
+    @State private var wallpaperError: String?
     @State private var openFolder: String?
     @State private var folderPage = 0
     @State private var renameKey: String?
     @State private var renameValue = ""
     @State private var newFolderApp: String?
     @State private var folderName = ""
-    @State private var wallpaperError: String?
 
     private struct LibrarySection: Identifiable {
         let title: String
