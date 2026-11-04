@@ -1,6 +1,7 @@
 import SwiftUI
 import AVFoundation
 import QuartzCore
+import ImageIO
 
 /// One BloomBox playback view for wallpapers, GIF widgets and news cards.
 /// Playback suspends in background and when Reduce Motion is requested.
@@ -12,13 +13,14 @@ struct BloomBoxAnimatedWallpaper: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var performanceBudget = BloomBoxPerformanceBudget.shared
     @State private var appeared = false
 
     var body: some View {
         BloomBoxMotionPlayer(
             url: url,
             fit: fit,
-            playing: appeared && scenePhase == .active && !paused && !reduceMotion,
+            playing: appeared && scenePhase == .active && !paused && !reduceMotion && !performanceBudget.constrained,
             transparentGIF: clearBackground
         )
         .onAppear { appeared = true }
@@ -57,6 +59,7 @@ private final class BloomBoxMotionSurface: UIView {
     private var currentURL: URL?
     private var generation = UUID()
     private var shouldPlay = false
+    private var preparingGIF = false
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -93,7 +96,12 @@ private final class BloomBoxMotionSurface: UIView {
             releasePlayback()
             currentURL = url
             shouldPlay = playing
-            if isGIF { prepareGIF(url) } else { prepareVideo(url) }
+            if isGIF {
+                // Do not decode an entire GIF for an offscreen tile or Low Power Mode.
+                if playing { prepareGIF(url) } else { prepareGIFPreview(url) }
+            } else { prepareVideo(url) }
+        } else if isGIF && playing && framesAnimation == nil && !preparingGIF {
+            prepareGIF(url)
         }
         updatePlayback()
     }
@@ -107,13 +115,30 @@ private final class BloomBoxMotionSurface: UIView {
         player = queue
     }
 
+    private func prepareGIFPreview(_ url: URL) {
+        let expectedGeneration = generation
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let source = CGImageSourceCreateWithURL(url as CFURL, nil)
+            let first = source.flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.generation == expectedGeneration,
+                      self.currentURL == url, self.framesAnimation == nil else { return }
+                self.gifLayer.contents = first
+            }
+        }
+    }
+
     private func prepareGIF(_ url: URL) {
+        guard !preparingGIF else { return }
+        preparingGIF = true
         let expectedGeneration = generation
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let frames = try? BloomBoxMotionMedia.gifFrames(url)
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.generation == expectedGeneration,
-                      self.currentURL == url, let frames else { return }
+                      self.currentURL == url else { return }
+                self.preparingGIF = false
+                guard let frames else { return }
                 self.gifLayer.contents = frames.0.first
                 let animation = CAKeyframeAnimation(keyPath: "contents")
                 animation.values = frames.0
@@ -149,6 +174,7 @@ private final class BloomBoxMotionSurface: UIView {
         gifLayer.removeAllAnimations()
         gifLayer.contents = nil
         framesAnimation = nil
+        preparingGIF = false
         currentURL = nil
     }
 
