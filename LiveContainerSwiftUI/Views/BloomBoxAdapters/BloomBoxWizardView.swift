@@ -104,9 +104,9 @@ struct BloomBoxWizardView: View {
             Text(errorMessage ?? "")
         }
         .onAppear {
-            guard mode == .firstRun else { return }
-            page = max(0, min(5, defaults.integer(forKey: BloomBoxWizardGate.stepKey)))
-            profileCount = defaults.integer(forKey: BloomBoxWizardGate.countKey) == 2 ? 2 : 1
+            guard mode != .update else { return }
+            page = mode == .replay ? 0 : max(0, min(5, defaults.integer(forKey: BloomBoxWizardGate.stepKey)))
+            profileCount = mode == .replay ? BloomBoxProfiles.count : (defaults.integer(forKey: BloomBoxWizardGate.countKey) == 2 ? 2 : 1)
             name1 = BloomBoxProfiles.name(1)
             name2 = BloomBoxProfiles.name(2)
             chosenTheme = defaults.string(forKey: BloomBoxBundledThemes.chosenKey) ?? "KirbyPink"
@@ -146,7 +146,7 @@ struct BloomBoxWizardView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.8))
             }
-            if mode == .firstRun {
+            if mode != .update {
                 HStack(spacing: 5) {
                     ForEach(0..<6, id: \.self) { index in
                         Capsule()
@@ -164,10 +164,10 @@ struct BloomBoxWizardView: View {
 
     private var footer: some View {
         HStack(spacing: 14) {
-            if mode == .firstRun && page > 0 {
+            if mode != .update && page > 0 {
                 Button {
                     withAnimation(.easeInOut(duration: 0.22)) { page -= 1 }
-                    defaults.set(page, forKey: BloomBoxWizardGate.stepKey)
+                    if mode == .firstRun { defaults.set(page, forKey: BloomBoxWizardGate.stepKey) }
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.headline.weight(.bold))
@@ -181,7 +181,7 @@ struct BloomBoxWizardView: View {
                     finish()
                 } else {
                     withAnimation(.easeInOut(duration: 0.22)) { page += 1 }
-                    defaults.set(page, forKey: BloomBoxWizardGate.stepKey)
+                    if mode == .firstRun { defaults.set(page, forKey: BloomBoxWizardGate.stepKey) }
                 }
             } label: {
                 HStack(spacing: 10) {
@@ -621,7 +621,7 @@ struct BloomBoxWizardView: View {
     }
 
     private func finish() {
-        if mode == .firstRun {
+        if mode != .update {
             BloomBoxProfiles.setName(name1, for: 1)
             if profileCount == 2 { BloomBoxProfiles.setName(name2, for: 2) }
             do {
