@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "description": "Byte-identical Git blob inventory: exact matches establish matching bytes, not authorship or legal conclusions. No match never proves original authorship. Retain historical copyright notices and third-party licenses.",
+  "description": "Byte-identical Git blob inventory: exact matches establish matching bytes, not authorship or legal conclusions. No match never proves original authorship. Retain historical copyright notices and third-party licenses. Includes non-source config, metadata, license and localization files; downloaded build-time artifacts are outside this Git tree.",
   "capturedDate": "2026-11-03",
   "revisions": {
     "bloombox": {
@@ -33,6 +33,13 @@
       "B_LIVECONTAINER_EXACT": 13,
       "E_STRATA_EXACT_ORIGIN_PENDING": 7,
       "E_MODIFIED_OR_NEW_UNCLASSIFIED": 9
+    },
+    "other": 143,
+    "otherClassification": {
+      "B_LIVECONTAINER_EXACT": 49,
+      "E_MODIFIED_OR_NEW_UNCLASSIFIED": 44,
+      "E_STRATA_EXACT_ORIGIN_PENDING": 46,
+      "B_STIKJIT_EXACT": 4
     }
   },
   "sourceFiles": [
@@ -2509,6 +2516,1259 @@
       "bytes": 318357,
       "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
       "matches": {}
+    }
+  ],
+  "otherFiles": [
+    {
+      "path": ".github/FUNDING.yml",
+      "sha": "20d84ac6736f86881a6d01cd455b8c373f580ef2",
+      "bytes": 830,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": ".github/FUNDING.yml",
+        "livecontainer": ".github/FUNDING.yml"
+      }
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/bug_report.yml",
+      "sha": "d46647541f32462be2619d13f1ed4e3f41cef082",
+      "bytes": 2383,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": ".github/ISSUE_TEMPLATE/bug_report.yml",
+        "livecontainer": ".github/ISSUE_TEMPLATE/bug_report.yml"
+      }
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/compatibility_issue.yml",
+      "sha": "60dfc542aa5fa20e2a7cb346969bc5baf590ea58",
+      "bytes": 2840,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": ".github/ISSUE_TEMPLATE/compatibility_issue.yml",
+        "livecontainer": ".github/ISSUE_TEMPLATE/compatibility_issue.yml"
+      }
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/sidestore_issue.yml",
+      "sha": "10fe3a1ad2d5a6fddb179726335d874f02129c04",
+      "bytes": 3359,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": ".github/ISSUE_TEMPLATE/sidestore_issue.yml",
+        "livecontainer": ".github/ISSUE_TEMPLATE/sidestore_issue.yml"
+      }
+    },
+    {
+      "path": ".github/apps.json",
+      "sha": "6fe9fb45891187aa8f000420b64418a9f9320b50",
+      "bytes": 45892,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": ".github/apps.json",
+        "livecontainer": ".github/apps.json"
+      }
+    },
+    {
+      "path": ".github/apps_nightly.json",
+      "sha": "3dac8ac120d3999d0e2e6b448c7b996de4f86d85",
+      "bytes": 6275,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": ".github/apps_nightly.json",
+        "livecontainer": ".github/apps_nightly.json"
+      }
+    },
+    {
+      "path": ".github/apps_ss_lc.json",
+      "sha": "94a4ce5df8d9fcb9a3373e29881aae9bb9fa42eb",
+      "bytes": 24565,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": ".github/apps_ss_lc.json",
+        "livecontainer": ".github/apps_ss_lc.json"
+      }
+    },
+    {
+      "path": ".github/sidelc/LCAppInfo.plist",
+      "sha": "32374a23e8e967b1524570d27052dc4756a4b1f5",
+      "bytes": 780,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": ".github/sidelc/LCAppInfo.plist",
+        "livecontainer": ".github/sidelc/LCAppInfo.plist"
+      }
+    },
+    {
+      "path": ".github/sidelc/LiveWidgetExtension_adhoc.xml",
+      "sha": "732c5f445ecb9915a3f53cddaac41299bdb14c3c",
+      "bytes": 515,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": ".github/sidelc/LiveWidgetExtension_adhoc.xml",
+        "livecontainer": ".github/sidelc/LiveWidgetExtension_adhoc.xml"
+      }
+    },
+    {
+      "path": ".github/workflows/build.yml",
+      "sha": "ed50857ecac7b13444e209ebb088d7fe98c8834a",
+      "bytes": 34269,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": ".github/workflows/first-release.yml",
+      "sha": "78f29c5c8e93196bb432f49ff8c44f3f7d9b9e53",
+      "bytes": 3587,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": ".github/workflows/release-1.1.yml",
+      "sha": "31e6ec1c5b514b871f41a047680a98bca00aa137",
+      "bytes": 4844,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": ".github/workflows/release-1.2.yml",
+      "sha": "ef21f21950ba2d10b692812c83bb8ba528e62276",
+      "bytes": 6145,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": ".github/workflows/release-1.4.1.yml",
+      "sha": "a27eeae52d2a385e3477e08d840d79e7c5e1be50",
+      "bytes": 6240,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": ".github/workflows/release-1.4.yml",
+      "sha": "38a37cdc1c23a9327168134f6a6fa9d94d79af57",
+      "bytes": 6612,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": ".github/workflows/update_source.yml",
+      "sha": "fee684adcd8126868c0b31ee7e0dcbebf89b8ec9",
+      "bytes": 2755,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": ".github/workflows/update_source.yml"
+      }
+    },
+    {
+      "path": ".gitignore",
+      "sha": "b618f8892c1fb90e1632233a9a6ba1305ca3f766",
+      "bytes": 538,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": ".gitmodules",
+      "sha": "1b8ff608b0fba36d0a53fc2c32390e4ce0009587",
+      "bytes": 264,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": ".gitmodules",
+        "livecontainer": ".gitmodules"
+      }
+    },
+    {
+      "path": "BLOOMBOX_MIGRATION.md",
+      "sha": "c1a779d6d3d9f7f80c1c598505cf09a2317298be",
+      "bytes": 21747,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "LICENSE",
+      "sha": "0ad25db4bd1d86c452db3f9602ccdbe172438f52",
+      "bytes": 34523,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "LICENSE",
+        "livecontainer": "LICENSE"
+      }
+    },
+    {
+      "path": "LaunchAppExtension/Info.plist",
+      "sha": "1536a52b9a7d2ebf276c271568e61933e223ac83",
+      "bytes": 585,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "LaunchAppExtension/Info.plist",
+        "livecontainer": "LaunchAppExtension/Info.plist"
+      }
+    },
+    {
+      "path": "LaunchAppExtension/LaunchAppExtension.entitlements",
+      "sha": "41a83f327ce1596bdfecbd6e3bc9286b8153da21",
+      "bytes": 340,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "ShareExtension/ShareExtension.entitlements",
+        "livecontainer": "ShareExtension/ShareExtension.entitlements"
+      }
+    },
+    {
+      "path": "LiveContainer.xcodeproj/project.pbxproj",
+      "sha": "6332d0c612a1cf054e6919a468485342f1927f01",
+      "bytes": 95654,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "LiveContainer.xcodeproj/project.xcworkspace/contents.xcworkspacedata",
+      "sha": "919434a6254f0e9651f402737811be6634a03e9c",
+      "bytes": 135,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "LiveContainer.xcodeproj/project.xcworkspace/contents.xcworkspacedata",
+        "livecontainer": "LiveContainer.xcodeproj/project.xcworkspace/contents.xcworkspacedata"
+      }
+    },
+    {
+      "path": "LiveContainer.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist",
+      "sha": "18d981003d68d0546c4804ac2ff47dd97c6e7921",
+      "bytes": 238,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "LiveContainer.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist",
+        "livecontainer": "LiveContainer.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist"
+      }
+    },
+    {
+      "path": "LiveContainer.xcodeproj/xcshareddata/xcschemes/LiveContainer.xcscheme",
+      "sha": "d84a138ea917e4dfb9fa7e1f2343d5c226efe49c",
+      "bytes": 3467,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "LiveContainer.xcodeproj/xcshareddata/xcschemes/LiveContainer.xcscheme",
+        "livecontainer": "LiveContainer.xcodeproj/xcshareddata/xcschemes/LiveContainer.xcscheme"
+      }
+    },
+    {
+      "path": "LiveContainer.xcodeproj/xcshareddata/xcschemes/LiveContainerSwiftUI.xcscheme",
+      "sha": "06d08f4565a948c37f2de2931213b12bd222811e",
+      "bytes": 2486,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "LiveContainer.xcodeproj/xcshareddata/xcschemes/LiveContainerSwiftUI.xcscheme",
+        "livecontainer": "LiveContainer.xcodeproj/xcshareddata/xcschemes/LiveContainerSwiftUI.xcscheme"
+      }
+    },
+    {
+      "path": "LiveContainer.xcodeproj/xcshareddata/xcschemes/LiveProcess.xcscheme",
+      "sha": "10478a00468b27a4cf13631553b4d807b4a42cbb",
+      "bytes": 3669,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "LiveContainer.xcodeproj/xcshareddata/xcschemes/LiveProcess.xcscheme",
+        "livecontainer": "LiveContainer.xcodeproj/xcshareddata/xcschemes/LiveProcess.xcscheme"
+      }
+    },
+    {
+      "path": "LiveContainer/Info.plist",
+      "sha": "f3b285def6cd2700c0e84e60aa1c9ad4ce417179",
+      "bytes": 11249,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "LiveContainerSwiftUI/ViewApp.intentdefinition",
+      "sha": "8d8b3a167893bf346ff7f1fd89112471c8c50cdf",
+      "bytes": 5026,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "LiveContainerSwiftUI/ViewApp.intentdefinition",
+        "livecontainer": "LiveContainerSwiftUI/ViewApp.intentdefinition"
+      }
+    },
+    {
+      "path": "LiveProcess/Info.plist",
+      "sha": "c55cf3cede7c246f6bc95c1980af722c95893d26",
+      "bytes": 4146,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "livecontainer": "LiveProcess/Info.plist"
+      }
+    },
+    {
+      "path": "LiveProcess/LiveProcess.entitlements",
+      "sha": "cb4f20cae45ff7711a98ba5d5de294ce43277131",
+      "bytes": 10085,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "LiveProcess/LiveProcess.entitlements",
+        "livecontainer": "LiveProcess/LiveProcess.entitlements"
+      }
+    },
+    {
+      "path": "ManzanaExpiryWidget/Info.plist",
+      "sha": "b9029ffb8de9d5dbad8aa54542627f5037775c87",
+      "bytes": 757,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "README.md",
+      "sha": "ff537186a74071ea1485473f5617c16b8ef307cc",
+      "bytes": 12931,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "Resources/Assets.xcassets/32BitBadgeColor.colorset/Contents.json",
+      "sha": "12ef47c020898b108a474b74115ad44e5e50bddd",
+      "bytes": 326,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Assets.xcassets/32BitBadgeColor.colorset/Contents.json",
+        "livecontainer": "Resources/Assets.xcassets/32BitBadgeColor.colorset/Contents.json"
+      }
+    },
+    {
+      "path": "Resources/Assets.xcassets/AccentColor.colorset/Contents.json",
+      "sha": "01c1a32f98b6f23c4e11614750d3e5c88db6b7db",
+      "bytes": 322,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Assets.xcassets/AccentColor.colorset/Contents.json",
+        "livecontainer": "Resources/Assets.xcassets/AccentColor.colorset/Contents.json"
+      }
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppBannerBG.colorset/Contents.json",
+      "sha": "cb12ea5a2eb83d95751ae6bd7816a094b3c0dba1",
+      "bytes": 689,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Assets.xcassets/AppBannerBG.colorset/Contents.json",
+        "livecontainer": "Resources/Assets.xcassets/AppBannerBG.colorset/Contents.json"
+      }
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIcon.appiconset/Contents.json",
+      "sha": "9b03a09bdafcd9b3fb50572ddc2c16d661a79609",
+      "bytes": 731,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Assets.xcassets/AppIcon.appiconset/Contents.json",
+        "livecontainer": "Resources/Assets.xcassets/AppIcon.appiconset/Contents.json"
+      }
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconGrey.appiconset/Contents.json",
+      "sha": "8a72cb0752cdf2b47cf36c396f2dff06390c357e",
+      "bytes": 743,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Assets.xcassets/AppIconGrey.appiconset/Contents.json",
+        "livecontainer": "Resources/Assets.xcassets/AppIconGrey.appiconset/Contents.json"
+      }
+    },
+    {
+      "path": "Resources/Assets.xcassets/BadgeColor.colorset/Contents.json",
+      "sha": "5b2f605c0a74215c70e34aad9a391b7b1dc31978",
+      "bytes": 322,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Assets.xcassets/BadgeColor.colorset/Contents.json",
+        "livecontainer": "Resources/Assets.xcassets/BadgeColor.colorset/Contents.json"
+      }
+    },
+    {
+      "path": "Resources/Assets.xcassets/Contents.json",
+      "sha": "73c00596a7fca3f3d4bdd64053b69d86745f9e10",
+      "bytes": 63,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Assets.xcassets/Contents.json",
+        "livecontainer": "Resources/Assets.xcassets/Contents.json"
+      }
+    },
+    {
+      "path": "Resources/Assets.xcassets/DefaultIcon.imageset/Contents.json",
+      "sha": "3a64daf46d3ab74a2078d5af73ae0f165cf4658a",
+      "bytes": 309,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Assets.xcassets/DefaultIcon.imageset/Contents.json",
+        "livecontainer": "Resources/Assets.xcassets/DefaultIcon.imageset/Contents.json"
+      }
+    },
+    {
+      "path": "Resources/Assets.xcassets/FontColor.colorset/Contents.json",
+      "sha": "096145147ef257d6f1928762dcce132514a50b6b",
+      "bytes": 326,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Assets.xcassets/FontColor.colorset/Contents.json",
+        "livecontainer": "Resources/Assets.xcassets/FontColor.colorset/Contents.json"
+      }
+    },
+    {
+      "path": "Resources/Assets.xcassets/GitHub.imageset/Contents.json",
+      "sha": "79ee99ebca67c663677461b76a4700f8e13baa21",
+      "bytes": 343,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Assets.xcassets/GitHub.imageset/Contents.json",
+        "livecontainer": "Resources/Assets.xcassets/GitHub.imageset/Contents.json"
+      }
+    },
+    {
+      "path": "Resources/Assets.xcassets/JITBadgeColor.colorset/Contents.json",
+      "sha": "cae52b1c62b17dcb07a48e94c2400b2e1e2922f9",
+      "bytes": 322,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Assets.xcassets/JITBadgeColor.colorset/Contents.json",
+        "livecontainer": "Resources/Assets.xcassets/JITBadgeColor.colorset/Contents.json"
+      }
+    },
+    {
+      "path": "Resources/Assets.xcassets/LiveBoardByeTunes.imageset/Contents.json",
+      "sha": "eb1ea3ee7200540ab9427e3eb0afcfb17fea9e43",
+      "bytes": 154,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/Assets.xcassets/LiveBoardByeTunes.imageset/Contents.json"
+      }
+    },
+    {
+      "path": "Resources/Assets.xcassets/Twitter.imageset/Contents.json",
+      "sha": "65a02fafc1fb50ae2a8c396895eca8bd9d8576f2",
+      "bytes": 345,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Assets.xcassets/Twitter.imageset/Contents.json",
+        "livecontainer": "Resources/Assets.xcassets/Twitter.imageset/Contents.json"
+      }
+    },
+    {
+      "path": "Resources/BundledRuntime/LiveExec32-LICENSE",
+      "sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+      "bytes": 11357,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Vendor/DependencyNotices/swift-srp/LICENSE"
+      }
+    },
+    {
+      "path": "Resources/BundledRuntime/LiveExec32-source.json",
+      "sha": "e92444862508a02fbcaf70671a0f802df0c9dd2d",
+      "bytes": 2932,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/BundledRuntime/LiveExec32-source.json"
+      }
+    },
+    {
+      "path": "Resources/Frameworks/CydiaSubstrate.framework/CydiaSubstrate",
+      "sha": "8deb4185968db5df964ed76c113bf58c4b31eee9",
+      "bytes": 379968,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Frameworks/CydiaSubstrate.framework/CydiaSubstrate",
+        "livecontainer": "Resources/Frameworks/CydiaSubstrate.framework/CydiaSubstrate"
+      }
+    },
+    {
+      "path": "Resources/Frameworks/CydiaSubstrate.framework/Info.plist",
+      "sha": "621e78a404c28c843581671f516dbe5dee781501",
+      "bytes": 569,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Frameworks/CydiaSubstrate.framework/Info.plist",
+        "livecontainer": "Resources/Frameworks/CydiaSubstrate.framework/Info.plist"
+      }
+    },
+    {
+      "path": "Resources/Frameworks/CydiaSubstrate.framework/LICENSE",
+      "sha": "83ac4b77e0748e63899deb4581cefde15376a546",
+      "bytes": 1466,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Frameworks/CydiaSubstrate.framework/LICENSE",
+        "livecontainer": "Resources/Frameworks/CydiaSubstrate.framework/LICENSE"
+      }
+    },
+    {
+      "path": "Resources/Localizable.xcstrings",
+      "sha": "6ff728f49e9ae77efd0a96da0ed2730a385d766b",
+      "bytes": 1064728,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "Resources/Settings.bundle/Root.plist",
+      "sha": "7e594bbe3a9b3667fbf2047bc01befad1c006a2e",
+      "bytes": 657,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "Resources/Settings.bundle/Root.plist",
+        "livecontainer": "Resources/Settings.bundle/Root.plist"
+      }
+    },
+    {
+      "path": "Resources/ar.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/ca.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/cs.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/da.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/de.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/el.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/en.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/en_AU.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/en_GB.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/es.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/es_419.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/fi.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/fr.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/fr_CA.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/he.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/hi.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/hr.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/hu.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/id.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/it.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/ja.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/ko.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/ms.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/nl.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/no.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/pl.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/pt_BR.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/pt_PT.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/ro.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/ru.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/sk.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/sv.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/th.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/tr.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/uk.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/vi.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/zh_CN.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/zh_HK.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Resources/zh_TW.lproj/InfoPlist.strings",
+      "sha": "4348e566996021f3defe49951bc64bfb06083cb1",
+      "bytes": 66,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Resources/zh_TW.lproj/InfoPlist.strings"
+      }
+    },
+    {
+      "path": "Scripts/bundled-dependencies.json",
+      "sha": "de6af4c37e95c5035e48ddf2cd14c82598b07eea",
+      "bytes": 569,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "ShareExtension/Info.plist",
+      "sha": "e787919ffa879caac8ea8d66ceeeb4fa70be109d",
+      "bytes": 1238,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "ShareExtension/Info.plist",
+        "livecontainer": "ShareExtension/Info.plist"
+      }
+    },
+    {
+      "path": "ShareExtension/ShareExtension.entitlements",
+      "sha": "41a83f327ce1596bdfecbd6e3bc9286b8153da21",
+      "bytes": 340,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "ShareExtension/ShareExtension.entitlements",
+        "livecontainer": "ShareExtension/ShareExtension.entitlements"
+      }
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "sha": "b98af6fd324ede2ccf3bb556e0886d9eeb6a6a50",
+      "bytes": 3477,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "ThemeSources/YellowBowser.part01",
+      "sha": "9f77c32fda7fb03dfbbb6dc79c9eeaa15c8d741c",
+      "bytes": 690000,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "ThemeSources/YellowBowser.part02",
+      "sha": "5ff17e4d0a8ba67e98fe5bc74bb5f319e73f22b6",
+      "bytes": 690000,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "ThemeSources/YellowBowser.part03",
+      "sha": "3272542249665bcb3cb2dc4b408234601187936e",
+      "bytes": 690000,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "ThemeSources/YellowBowser.part04",
+      "sha": "60ed00b97b194d5c8f286233f1e2bef25b279efe",
+      "bytes": 690000,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "ThemeSources/YellowBowser.part05",
+      "sha": "5ca18e6371533ede629fb00315e400fca1fd6ae2",
+      "bytes": 690000,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "ThemeSources/YellowBowser.part06",
+      "sha": "8323a70c0d8e1052b310034c0da8d24af9bf6421",
+      "bytes": 690000,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "ThemeSources/YellowBowser.part07",
+      "sha": "5767981126de4690364414cdf4aba8b9110a3e7f",
+      "bytes": 690000,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "ThemeSources/YellowBowser.part08",
+      "sha": "16a08010d29de99679f05827f3925ed62a3f33ee",
+      "bytes": 690000,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "ThemeSources/YellowBowser.part09",
+      "sha": "98b14b70170c72672ba09b863bc3b4c3df8d8af7",
+      "bytes": 302,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "Vendor/HuskRPPairing/Cargo.lock",
+      "sha": "9d0ef95482da12e041a26ba5175cc62eca0423c4",
+      "bytes": 36353,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "Vendor/HuskRPPairing/Cargo.toml",
+      "sha": "47dc13423bb7818d62611d9bbee3535c0474f315",
+      "bytes": 425,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "Vendor/StikJIT/INTEGRATION.md",
+      "sha": "c91efc5dc283908c93e0caf93fa70b7343181ef3",
+      "bytes": 21184,
+      "classification": "B_STIKJIT_EXACT",
+      "matches": {
+        "strata": "Vendor/StikJIT/INTEGRATION.md",
+        "stikjit": "INTEGRATION.md"
+      }
+    },
+    {
+      "path": "Vendor/StikJIT/LICENSE",
+      "sha": "a612ad9813b006ce81d1ee438dd784da99a54007",
+      "bytes": 16725,
+      "classification": "B_STIKJIT_EXACT",
+      "matches": {
+        "strata": "Vendor/StikJIT/LICENSE",
+        "stikjit": "LICENSE"
+      }
+    },
+    {
+      "path": "Vendor/StikJIT/UPSTREAM.txt",
+      "sha": "7d01c700e42c2f6929c79de608a5ebdd853d756a",
+      "bytes": 78,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Vendor/StikJIT/UPSTREAM.txt"
+      }
+    },
+    {
+      "path": "Vendor/StikJIT/idevice/LICENSE.txt",
+      "sha": "bae7492bb13eb7f6dca5da07ccd86ef306bb4db9",
+      "bytes": 1062,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "Vendor/StikJIT/idevice/LICENSE.txt"
+      }
+    },
+    {
+      "path": "Vendor/StikJIT/idevice/module.modulemap",
+      "sha": "ce711ac9f1d5f09fd71a61a7340efd55c95488ed",
+      "bytes": 60,
+      "classification": "B_STIKJIT_EXACT",
+      "matches": {
+        "strata": "Vendor/StikJIT/idevice/module.modulemap",
+        "stikjit": "idevice/module.modulemap"
+      }
+    },
+    {
+      "path": "Vendor/StikJIT/iokit/module.modulemap",
+      "sha": "3a9ebb4791244a1a753b040fad4ff34a98230c8e",
+      "bytes": 70,
+      "classification": "B_STIKJIT_EXACT",
+      "matches": {
+        "strata": "Vendor/StikJIT/iokit/module.modulemap",
+        "stikjit": "iokit/module.modulemap"
+      }
+    },
+    {
+      "path": "ZSign/Utils.hpp",
+      "sha": "d45163499a9904e286553e20f1bd1e6d4a3a742b",
+      "bytes": 333,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "ZSign/Utils.hpp",
+        "livecontainer": "ZSign/Utils.hpp"
+      }
+    },
+    {
+      "path": "ZSign/zsign.hpp",
+      "sha": "c9df4599032731156af068e973e6c4c0fa91acb7",
+      "bytes": 606,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "ZSign/zsign.hpp",
+        "livecontainer": "ZSign/zsign.hpp"
+      }
+    },
+    {
+      "path": "docs/ANIMATED-WALLPAPERS.md",
+      "sha": "8eec23600058d5834394cf45513c3840a2ba4653",
+      "bytes": 1093,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "docs/APP_DATA_BACKUPS.md",
+      "sha": "9ea5ca8dc05589081b07bc128c3045fac4b0ff4e",
+      "bytes": 2726,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "docs/BLOOMBOX-SOURCE-AUDIT.md",
+      "sha": "319598d09420e02f4950cfc6f6eda23a99f206d1",
+      "bytes": 902,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "docs/BLOOMBOX_2_UI_PLAN.md",
+      "sha": "a44c925b3a8c6e25a50a2847ebe6a46122fe3b11",
+      "bytes": 4145,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "docs/BloomBox-RAMPlus.md",
+      "sha": "f8487b1fc31b88dc163e5dd12dfaa0ebdf408ff3",
+      "bytes": 13839,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "docs/LiveContainer-Upstream.md",
+      "sha": "4103524a67ad0a032f7cecf71f93ce1f3f4ceba7",
+      "bytes": 11751,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "docs/LiveContainer-Upstream.md",
+        "livecontainer": "README.md"
+      }
+    },
+    {
+      "path": "docs/MANZANA-FILES.md",
+      "sha": "8a6e1204509fbcf3f9033310f7bc89b7f46ea591",
+      "bytes": 2117,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "docs/MANZANA-HOME-2-ROADMAP.md",
+      "sha": "d74c8bba563f77830fdee83c6391a7ce0a45dac8",
+      "bytes": 7430,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "docs/Manzana-OnDevice-JIT.md",
+      "sha": "18b111d1ba714c94c0f55f410bcc7df95b0aa820",
+      "bytes": 3848,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "docs/Manzana-SideStore-8h-LiveActivity.md",
+      "sha": "1b8b68f19d8c06c9050a190b6647e8778cb591d6",
+      "bytes": 2597,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "docs/MeloNX-2.6-JIT.md",
+      "sha": "5894b360a132c6dfc2f743f3ea09677c31d9a1ea",
+      "bytes": 6382,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "docs/RELEASE-v0.1.0.md",
+      "sha": "4c2b57a3cad7af863a749e2bfbf38d57988969e8",
+      "bytes": 2932,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "docs/RELEASE-v0.1.1-alpha.md",
+      "sha": "9750ec2eaee9800aa8d3b4c6883328bf013dc58f",
+      "bytes": 1880,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "docs/ROADMAP-STRATA-INDEPENDENCE.md",
+      "sha": "75d2b976a83f34b6adde52c87a544f56c9a7c6f8",
+      "bytes": 10351,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "docs/SESSION-NAVIGATION.md",
+      "sha": "ebb7864f6e89cd9b72d7ddcc7fe868b0aa84960e",
+      "bytes": 2986,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "docs/WIDGETS-PAGES-ICON-STYLES.md",
+      "sha": "f5b4a3ab0f7dfe43dae714709ac01d8ec9aec99f",
+      "bytes": 1606,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "entitlements.catalyst.xml",
+      "sha": "f4738d031f849702958520f71348c4e98a145485",
+      "bytes": 9133,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "entitlements.catalyst.xml",
+        "livecontainer": "entitlements.catalyst.xml"
+      }
+    },
+    {
+      "path": "entitlements.xml",
+      "sha": "bf0beb94f3b7f3e69c770d4d2167f37151c7dddc",
+      "bytes": 10273,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "entitlements.xml",
+        "livecontainer": "entitlements.xml"
+      }
+    },
+    {
+      "path": "remote/README.md",
+      "sha": "1f0b31b39f4714e873d787696d1f0f0072bfd13b",
+      "bytes": 2235,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "remote/news.json",
+      "sha": "690ed281ae4c54649ca3b3ce49492b69f092d140",
+      "bytes": 598,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "screenshots/emptyfile",
+      "sha": "8b137891791fe96927ad78e64b0aad7bded08bdc",
+      "bytes": 1,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "screenshots/emptyfile",
+        "livecontainer": "screenshots/emptyfile"
+      }
+    },
+    {
+      "path": "screenshots/showcase/README.md",
+      "sha": "aaf466d68caedf1aa904fd60ea0c62419140a7da",
+      "bytes": 1236,
+      "classification": "E_MODIFIED_OR_NEW_UNCLASSIFIED",
+      "matches": {}
+    },
+    {
+      "path": "xcconfigs/Global.xcconfig",
+      "sha": "98e35ff285d26a853dfd0a390bd31a47d8f8494a",
+      "bytes": 519,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "xcconfigs/Global.xcconfig",
+        "livecontainer": "xcconfigs/Global.xcconfig"
+      }
+    },
+    {
+      "path": "xcconfigs/LaunchAppExtension.xcconfig",
+      "sha": "5ee08dceb044e829410a42712bfa8fccf7072afb",
+      "bytes": 197,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "xcconfigs/LaunchAppExtension.xcconfig",
+        "livecontainer": "xcconfigs/LaunchAppExtension.xcconfig"
+      }
+    },
+    {
+      "path": "xcconfigs/LiveContainer.xcconfig",
+      "sha": "f7da0b96aa3e692feb921e7d00067a0c7deee646",
+      "bytes": 185,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "xcconfigs/LiveContainer.xcconfig",
+        "livecontainer": "xcconfigs/LiveContainer.xcconfig"
+      }
+    },
+    {
+      "path": "xcconfigs/LiveProcess.xcconfig",
+      "sha": "1cb72de26469b2b7ad047b2f8472441e095c440d",
+      "bytes": 190,
+      "classification": "B_LIVECONTAINER_EXACT",
+      "matches": {
+        "strata": "xcconfigs/LiveProcess.xcconfig",
+        "livecontainer": "xcconfigs/LiveProcess.xcconfig"
+      }
+    },
+    {
+      "path": "xcconfigs/ShareExtension.xcconfig",
+      "sha": "3d473c453cfda13fb06c28d9d296477ad93f2547",
+      "bytes": 654,
+      "classification": "E_STRATA_EXACT_ORIGIN_PENDING",
+      "matches": {
+        "strata": "xcconfigs/ShareExtension.xcconfig"
+      }
     }
   ]
 }
