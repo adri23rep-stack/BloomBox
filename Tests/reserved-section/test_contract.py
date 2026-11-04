@@ -40,9 +40,33 @@ assert "BloomBoxArtworkLibrary" in gamebox
 assert "LazyHStack" in gamebox and "ScrollViewReader" in gamebox
 assert "UISelectionFeedbackGenerator().selectionChanged()" in gamebox
 assert "TapGesture(count: 2)" in gamebox
+# JIT badges use the effective policy, not a static isJITNeeded flag.
+assert "BloomBoxJITGuestPolicy.wantsJIT(" in host
+assert "requiresJIT: jitEnabled" in host
+assert '"bolt.fill"' in gamebox
+# Native iOS 17 snapping owns the gesture; the old competing swipe hook is gone.
+assert ".scrollTargetBehavior(.viewAligned)" in gamebox
+assert ".scrollPosition(id: $focusedKey, anchor: .center)" in gamebox
+assert ".simultaneousGesture(DragGesture" not in gamebox
+# Cover images and default app icons fit, instead of cropping tall cards.
+assert "if let customCover = cover(app)" in gamebox
+assert "Image(uiImage: customCover).resizable().scaledToFit()" in gamebox
+assert "Image(uiImage: image).resizable().scaledToFit()" in gamebox
+# GameBox owns an independent, persistent wallpaper mode with all three media.
+assert '"BloomBoxGameBoxV2WallpaperMode"' in gamebox
+assert '"BloomBoxGameBoxV2MotionWallpaper"' in gamebox
+assert "BloomBoxAnimatedWallpaper(url: url" in gamebox
+assert "BloomBoxMotionWallpaperPhotosPicker" in gamebox
+assert ".fileImporter(isPresented: $wallpaperFilesPresented" in gamebox
+assert 'backgroundMode = "photo"' in gamebox
+assert 'backgroundMode = "motion"' in gamebox
+assert "backgroundMode = \"auto\"" in gamebox
+assert "CGImageSourceCreateThumbnailAtIndex" in gamebox
+assert "let old = motionWallpaperName" in gamebox
+assert "if !old.isEmpty && old != filename { BloomBoxMotionMedia.remove(old) }" in gamebox
 assert "BloomBoxGameBoxV2Favorites" in gamebox
 assert ".photosPicker(isPresented:" in gamebox
-assert "artwork.save(image, for: target, kind: kind)" in gamebox
+assert "try artwork.save(UIImage(cgImage: image), for: key, kind: kind)" in gamebox
 assert "artwork.remove(for: key(app), kind: .cover)" in gamebox
 assert '"Elegir carátula"' in gamebox and '"Elegir fondo"' in gamebox
 assert "confirmationDialog" in gamebox and "upcomingFeature" in gamebox
