@@ -251,14 +251,19 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             // Keep one bounded icon per guest rather than decoding the full
             // image again whenever favorites, clock or scrolling state changes.
             var icon = LiveBoardIconStore.image(app, dark: darkModeIcon)
-            if let source = icon, max(source.size.width, source.size.height) > 256 {
-                let scale = 256.0 / max(source.size.width, source.size.height)
-                let size = CGSize(width: source.size.width * scale,
-                                  height: source.size.height * scale)
-                let format = UIGraphicsImageRendererFormat()
-                format.scale = 1
-                icon = UIGraphicsImageRenderer(size: size, format: format).image { _ in
-                    source.draw(in: CGRect(origin: .zero, size: size))
+            if let source = icon {
+                let width = source.size.width
+                let height = source.size.height
+                if !width.isFinite || !height.isFinite || width <= 0 || height <= 0 {
+                    icon = nil
+                } else if max(width, height) > 256 {
+                    let scale = 256.0 / max(width, height)
+                    let size = CGSize(width: width * scale, height: height * scale)
+                    let format = UIGraphicsImageRendererFormat()
+                    format.scale = 1
+                    icon = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+                        source.draw(in: CGRect(origin: .zero, size: size))
+                    }
                 }
             }
             prepared.append(BloomBoxGameBoxEntry(
