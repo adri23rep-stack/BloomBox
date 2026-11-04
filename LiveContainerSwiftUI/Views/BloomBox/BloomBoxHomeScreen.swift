@@ -835,30 +835,23 @@ struct BloomBoxHomeScreen: View {
             }
         }
         .sheet(item: $appearanceApp) { app in LiveBoardAppAppearance(app: app.app) }
-        .alert("Rename", isPresented: Binding(get: { renameKey != nil }, set: { if !$0 { renameKey = nil } })) {
-            TextField("Name", text: $renameValue)
-            Button("Cancel", role: .cancel) { renameKey = nil }
-            Button("Save") {
-                if let key = renameKey {
-                    let name = renameValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if let index = layout.folders.firstIndex(where: { $0.id == key }) {
-                        if !name.isEmpty { layout.folders[index].name = name }
-                    } else if let app = appMap[key] { appCustomization.rename(app, to: name); layout.aliases[key] = nil }
+        .modifier(BloomBoxHomeNameDialogs(
+            renameKey: $renameKey, renameValue: $renameValue,
+            newFolderKey: $newFolderApp, folderName: $folderName,
+            englishUI: englishUI,
+            onRename: { key, name in
+                if let index = layout.folders.firstIndex(where: { $0.id == key }) {
+                    if !name.isEmpty { layout.folders[index].name = name }
+                } else if let app = appMap[key] {
+                    appCustomization.rename(app, to: name)
+                    layout.aliases[key] = nil
                 }
-                renameKey = nil
+            },
+            onCreateFolder: { key, name in
+                layout.createFolder(name: name, app: key)
+                reconcile()
             }
-        }
-        .alert("New Folder", isPresented: Binding(get: { newFolderApp != nil }, set: { if !$0 { newFolderApp = nil } })) {
-            TextField("Folder name", text: $folderName)
-            Button("Cancel", role: .cancel) { newFolderApp = nil }
-            Button("Create") {
-                if let key = newFolderApp {
-                    layout.createFolder(name: folderName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Apps" : folderName, app: key)
-                    reconcile()
-                }
-                newFolderApp = nil
-            }
-        }
+        ))
         .alert("Wallpaper", isPresented: Binding(get: { wallpaperError != nil }, set: { if !$0 { wallpaperError = nil } })) {
             Button("OK") { wallpaperError = nil }
         } message: { Text(wallpaperError ?? "") }
