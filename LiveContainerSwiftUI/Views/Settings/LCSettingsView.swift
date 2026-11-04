@@ -84,14 +84,16 @@ struct LCSettingsView: View {
     var body: some View {
         NavigationView {
             Form {
-                Section {
-                    NavigationLink {
-                        BloomBoxProfileSettingsView()
-                    } label: {
-                        Label("Perfiles de BloomBox", systemImage: "person.2.crop.square.stack")
+                if #available(iOS 16.0, *) {
+                    Section {
+                        NavigationLink {
+                            BloomBoxProfileSettingsView()
+                        } label: {
+                            Label("Perfiles de BloomBox", systemImage: "person.2.crop.square.stack")
+                        }
+                    } header: {
+                        Text("BloomBox")
                     }
-                } header: {
-                    Text("BloomBox")
                 }
                 if sharedModel.multiLCStatus != 2 {
                     Section{
