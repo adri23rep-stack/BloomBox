@@ -24,6 +24,19 @@ struct BloomBoxGuestDescriptor: Codable, Hashable, Sendable {
     let isShared: Bool
 }
 
+/// Snapshot for Home presentation only: never carries the host's mutable model.
+/// A new LiveContainer version only needs to update its mapping to these fields.
+struct BloomBoxHomeGuestSnapshot: Equatable, Sendable {
+    let stableKey: String
+    let bundleIdentifier: String
+    let displayName: String
+    let isShared: Bool
+    let isRunning: Bool
+    let isSigning: Bool
+    let isEmbeddedSigner: Bool
+    let isNetworkBlocked: Bool
+}
+
 struct BloomBoxLaunchRequest: Codable, Hashable, Sendable {
     let guestKey: String
     let mode: BloomBoxLaunchMode
