@@ -77,7 +77,7 @@ struct BloomBoxModulesPanel: View {
     @AppStorage("BloomBoxJITUseLegacyLaunchUI", store: LCUtils.appGroupUserDefault)
     private var legacyJITUI = false
 
-    enum Destination { case jit, desktop, interface, wallpaper, apps, settings, tweaks, sidestore }
+    enum Destination { case jit, desktop, interface, wallpaper, apps, settings, tweaks, sidestore, wizard }
     enum Module: String, CaseIterable, Identifiable {
         case ram, jit, desktop, connectivity, privacy, experimental
         var id: String { rawValue }
@@ -344,6 +344,19 @@ struct BloomBoxModulesPanel: View {
                     Text("Elige el idioma de BloomBox y sus noticias. Automático usa el idioma del iPhone; no modifica el idioma del sistema.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    Divider()
+                    if #available(iOS 16.0, *) {
+                        Button {
+                            onSelect(.wizard)
+                        } label: {
+                            Label("Reiniciar Wizard de bienvenida", systemImage: "arrow.counterclockwise.circle.fill")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .accessibilityIdentifier("bloombox.experiments.wizard.restart")
+                        Text("Vuelve a recorrer las seis pantallas desde el principio. Conserva tus apps, perfiles, JIT, RAM+ y ajustes existentes.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     Divider()
                     NavigationLink {
                         LCStorageManagementView()
