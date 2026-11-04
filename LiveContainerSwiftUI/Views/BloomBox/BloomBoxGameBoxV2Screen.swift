@@ -109,15 +109,19 @@ struct BloomBoxGameBoxV2Screen: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let compact = geometry.size.height < 370
-            // 3 or 5 whole cells fill the REAL visible viewport exactly.
-            // A selected app sits in the middle without splitting neighbors
-            // at either edge, unlike the previous free-width card carousel.
-            let viewportWidth = max(250, geometry.size.width - (compact ? 46.0 : 60.0))
+            // During iOS landscape geometry updates, transient nonfinite/zero
+            // measurements must never reach SwiftUI frame widths or Int indices.
+            let safeWidth: CGFloat = geometry.size.width.isFinite && geometry.size.width > 0
+                ? geometry.size.width : 844
+            let safeHeight: CGFloat = geometry.size.height.isFinite && geometry.size.height > 0
+                ? geometry.size.height : 390
+            let compact = safeHeight < 370
+            // Keep 3/5 complete app cells without forcing a camera transform.
+            let viewportWidth = max(250, safeWidth - (compact ? 46.0 : 60.0))
             let columns: CGFloat = viewportWidth >= 650 ? 5 : viewportWidth >= 380 ? 3 : 1
             let cardWidth = (viewportWidth - (columns - 1) * 17) / columns
             let iconSide = min(cardWidth - 16, compact ? 136 : 164,
-                               geometry.size.height * (compact ? 0.37 : 0.39))
+                               safeHeight * (compact ? 0.37 : 0.39))
             let cardHeight = max(118, iconSide + 36)
             ZStack {
                 consoleBackground
@@ -140,7 +144,7 @@ struct BloomBoxGameBoxV2Screen: View {
                 .padding(.top, compact ? 23 : 29)
                 .padding(.bottom, compact ? 8 : 14)
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
+            .frame(width: safeWidth, height: safeHeight)
         }
         .background(Color.black.ignoresSafeArea())
         .background(BloomBoxOrientationLock(mask: .landscape).frame(width: 0, height: 0))
@@ -407,8 +411,14 @@ struct BloomBoxGameBoxV2Screen: View {
                 .scrollTargetBehavior(.viewAligned)
                 .onScrollGeometryChange(for: Int.self, of: { geometry in
                     let step = max(1, cardWidth + 17)
-                    let index = Int((geometry.contentOffset.x / step).rounded())
-                    return min(max(0, index), max(0, visibleApps.count - 1))
+                    let offset = geometry.contentOffset.x
+                    guard step.isFinite, offset.isFinite else { return 0 }
+                    let rawIndex = (offset / step).rounded()
+                    guard rawIndex.isFinite else { return 0 }
+                    // Clamp in CGFloat space BEFORE converting to Int: an
+                    // orientation pass can temporarily report extreme offsets.
+                    let upper = CGFloat(max(0, visibleApps.count - 1))
+                    return Int(min(max(0, rawIndex), upper))
                 }, action: { _, index in
                     pendingSwipeIndex = index
                 })
