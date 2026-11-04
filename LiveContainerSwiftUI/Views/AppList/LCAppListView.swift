@@ -72,23 +72,11 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     @State private var emulatorMissing = BloomBoxEmulatorPreflight.Missing.ramPlus
     @State private var emulatorRAMSetup = false
     @State private var emulatorJITSetup = false
-    @State private var gameGatePrompt = false
-    @State private var gameRoutePrompt = false
-    @State private var gameRouteApp: LCAppModel?
     @ObservedObject private var remoteGameProfiles = BloomBoxRemoteGameProfiles.shared
     @State private var compatibilityPrompt = false
     @State private var compatibilityApp: LCAppModel?
     @State private var compatibilityProfile: BloomBoxGameProfile?
     @State private var compatibilityForceJIT = false
-    @State private var compatibilityFromGame = false
-    // Single in-flight Game launch survives the second LiveContainer callback
-    // without showing a new route prompt over the landscape Game UI.
-    @State private var gameLaunchInProgressKeys = Set<String>()
-    @State private var gameGateMissing: BloomBoxGameModeGate.Missing = .ramPlus
-    @State private var gameLastPrompted: BloomBoxGameModeGate.Missing?
-    @AppStorage("BloomBoxGamePendingApp", store: LCUtils.appGroupUserDefault) private var gamePendingAppKey = ""
-    @AppStorage("BloomBoxGamePendingEntry", store: LCUtils.appGroupUserDefault) private var gamePendingEntry = false
-    @Environment(\.scenePhase) private var gameScenePhase
     
     @StateObject private var runWhenMultitaskAlert = YesNoHelper()
     
@@ -197,9 +185,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     }
     
 
-    // Split the original root ViewBuilder into smaller expressions. This
-    // keeps GameBox utility callbacks from making LCAppListView too complex
-    // for the Swift type checker, without changing its view hierarchy.
+    // BloomBox Home is the only installed launcher; reserved is reusable.
     private var iosLauncher: some View {
         LiveBoardHomeScreen(apps: launcherApps,
                                         launch: { app in Task { await launchFromLiveBoard(app) } },
@@ -225,64 +211,19 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                                         launchWithJIT: { app in Task { await launchFromLiveBoard(app, forceJIT: true) } })
     }
 
-    private var gameBoxLauncher: some View {
-        LiveBoardConsoleScreen(
-            apps: launcherApps, mode: liveBoardMode,
-            launch: { app, fromGame in
-                await launchFromLiveBoard(app, originatingFromGame: fromGame)
-            },
-            manage: manageLauncherApp,
-            openInterface: openInterface,
-            openManagement: { manageLibrary = true },
-            launchWithJIT: { app, fromGame in
-                await launchFromLiveBoard(app, forceJIT: true, originatingFromGame: fromGame)
-            },
-            openModuleDestination: openGameBoxModuleDestination,
-            openInstall: openGameBoxInstall,
-            openSideStore: openGameBoxSideStore,
-            openSources: { sharedModel.selectedTab = .sources },
-            openThemeStore: openGameBoxThemes
-        )
-    }
-
-    private func openGameBoxInstall() {
-        if sharedModel.multiLCStatus == 2 { manageLibrary = true }
-        else { choosingIPA = true }
-    }
-
-    private func openGameBoxSideStore() {
-        if UserDefaults.sideStoreExist() { LCUtils.openSideStore(delegate: self) }
-        else {
-            errorInfo = "SideStore no está disponible en esta instalación."
-            errorShow = true
-        }
-    }
-
-    private func openGameBoxThemes() {
-        // Theme export/import uses iOS Home's real theme editor.
-        LCUtils.appGroupUserDefault.set(true, forKey: "BloomBoxGameBoxOpenThemeStore")
-        liveBoardMode = "ios"
-    }
-
-    private func openGameBoxModuleDestination(_ destination: BloomBoxModulesPanel.Destination) {
-        switch destination {
-        case .settings: sharedModel.selectedTab = .settings
-        case .tweaks: sharedModel.selectedTab = .tweaks
-        case .sidestore: openGameBoxSideStore()
-        case .apps: manageLibrary = true
-        case .interface, .desktop, .wallpaper: openInterface()
-        case .jit: emulatorJITSetup = true
-        }
+    private var reservedSection: some View {
+        BloomBoxReservedSection(backToHome: { liveBoardMode = "ios" })
     }
 
     var body: some View {
         NavigationView {
             ZStack {
                 NavigationLink(destination: navigateTo, isActive: $isNavigationActive) { EmptyView() }.hidden()
-                if liveBoardMode == "ios" && !manageLibrary {
-                    iosLauncher
+                if !manageLibrary && liveBoardMode == "reserved" {
+                    reservedSection
                 } else if !manageLibrary {
-                    gameBoxLauncher                } else {
+                    iosLauncher
+                } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     Button(manageLibrary ? "Back to launcher" : "Manage apps") {
@@ -551,14 +492,11 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 if let app = compatibilityApp, let profile = compatibilityProfile {
                     remoteGameProfiles.applyApprovedProfile(profile, to: app)
                     let jit = compatibilityForceJIT
-                    let fromGame = compatibilityFromGame
                     compatibilityApp = nil
                     compatibilityProfile = nil
-                    compatibilityFromGame = false
                     Task { @MainActor in
                         try? await Task.sleep(nanoseconds: 250_000_000)
-                        await launchFromLiveBoard(app, forceJIT: jit, compatibilityReviewed: true,
-                                                  originatingFromGame: fromGame)
+                        await launchFromLiveBoard(app, forceJIT: jit, compatibilityReviewed: true)
                     }
                 }
             }
@@ -566,59 +504,22 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 if let app = compatibilityApp {
                     if let profile = compatibilityProfile { remoteGameProfiles.decline(profile) }
                     let jit = compatibilityForceJIT
-                    let fromGame = compatibilityFromGame
                     compatibilityApp = nil
                     compatibilityProfile = nil
-                    compatibilityFromGame = false
                     Task { @MainActor in
                         try? await Task.sleep(nanoseconds: 250_000_000)
-                        await launchFromLiveBoard(app, forceJIT: jit, compatibilityReviewed: true,
-                                                  originatingFromGame: fromGame)
+                        await launchFromLiveBoard(app, forceJIT: jit, compatibilityReviewed: true)
                     }
                 }
             }
             Button("Cancelar", role: .cancel) {
                 compatibilityApp = nil
                 compatibilityProfile = nil
-                compatibilityFromGame = false
             }
         } message: {
             Text("BloomBox-Catalog recomienda estos ajustes para \(compatibilityApp?.displayName ?? "la app"): \(compatibilitySummary).\n\nSe aplican solo a esta app. Se hará una vez; tus cambios manuales posteriores se respetarán. Ningún permiso global ni firma se modifica.")
         }
-        .alert("Esta app debe iniciarse en GameBox", isPresented: $gameRoutePrompt) {
-            Button("Entrar a Game") {
-                let app = gameRouteApp
-                gameRouteApp = nil
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 250_000_000)
-                    if let app { beginGameMode(for: app) }
-                }
-            }
-            Button("Cancelar", role: .cancel) { gameRouteApp = nil }
-        } message: {
-            Text("Esta app necesita una pantalla horizontal. El escritorio iOS es vertical y podría deformar la imagen. ¿Cambiar a GameBox?")
-        }
-        .alert("GameBox · " + (gameGateMissing == .ramPlus ? "RAM+" : "JIT"), isPresented: $gameGatePrompt) {
-            Button("Sí, habilitar") {
-                if gameGateMissing == .ramPlus { emulatorRAMSetup = true }
-                else {
-                    // Configure the debugger only. Never change the per-app
-                    // JIT switch as a side effect of entering Game Mode.
-                    emulatorJITSetup = true
-                }
-            }
-            Button("No", role: .cancel) {
-                clearPendingGame()
-                liveBoardMode = "ios"
-            }
-        } message: {
-            if gameGateMissing == .ramPlus {
-                Text("GameBox necesita RAM+ activado y verificado en BloomBox y LiveProcess. ¿Quieres iniciar el proceso para habilitarlo? No se abrirá la app hasta confirmarlo.")
-            } else {
-                Text("Esta app tiene JIT activado, pero falta configurarlo. ¿Abrir los ajustes de JIT? Las apps con JIT apagado pueden entrar a GameBox sin activarlo.")
-            }
-        }
-        .sheet(isPresented: $emulatorRAMSetup, onDismiss: { if gamePendingEntry { evaluatePendingGame(offerPrompt: true) } }) {
+        .sheet(isPresented: $emulatorRAMSetup) {
             NavigationView {
                 BloomBoxRAMPlusView(openSideStore: { LCUtils.openSideStore(delegate: self) })
                     .navigationTitle("Activar RAM+")
@@ -627,9 +528,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                     }}
             }.navigationViewStyle(.stack)
         }
-        .sheet(isPresented: $emulatorJITSetup, onDismiss: {
-            if gamePendingEntry { evaluatePendingGame(offerPrompt: true) }
-        }) { LiveBoardJITSetup() }
+        .sheet(isPresented: $emulatorJITSetup) { LiveBoardJITSetup() }
         .sheet(isPresented: $jitAlert.show, onDismiss: {
             jitAlert.close(result: false)
         }) {
@@ -671,24 +570,6 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                     handleURL(url: link)
                 }
                 isViewAppeared = true
-            }
-            // A RAM+ self-reinstall can restart BloomBox. Preserve the pending
-            // request and continue with the next missing prerequisite.
-            if liveBoardMode == "cinematic" && !gamePendingEntry {
-                if gameMissing() != nil {
-                    liveBoardMode = "ios"
-                    beginGameMode(for: nil)
-                }
-            } else if gamePendingEntry {
-                evaluatePendingGame(offerPrompt: true)
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BloomBoxRequestGameMode"))) { _ in
-            beginGameMode(for: nil)
-        }
-        .onChange(of: gameScenePhase) { phase in
-            if phase == .active && gamePendingEntry {
-                evaluatePendingGame(offerPrompt: true)
             }
         }
         .task {
@@ -827,125 +708,13 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     }
 
     @MainActor
-    private func gameMissing(for app: LCAppModel? = nil,
-                             forcedJIT: Bool? = nil) -> BloomBoxGameModeGate.Missing? {
-        BloomBoxRAMPlus.shared.refresh()
-        let ram = BloomBoxRAMPlus.shared
-        let defaults = LCUtils.appGroupUserDefault
-
-        // Game Mode itself never turns on JIT. Read the same per-app setting
-        // LCAppModel uses to decide whether to start the JIT debugger.
-        var jitRequired = false
-        if let app {
-            let guest = Bundle(path: app.appInfo.bundlePath())
-            let melonNX26 = BloomBoxMeloNXProfile.matches(
-                bundleID: app.appInfo.bundleIdentifier(),
-                version: guest?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
-            let policy = BloomBoxJITGuestPolicy.mode(
-                for: app.appInfo.relativeBundlePath, defaults: defaults)
-            jitRequired = BloomBoxJITGuestPolicy.wantsJIT(
-                automatic: app.appInfo.isJITNeeded || app.appInfo.is32bit || melonNX26,
-                forced: forcedJIT, mode: policy)
-        }
-        if let missing = BloomBoxGameModeGate.firstMissing(
-            ramConfirmed: ram.validation.confirmed,
-            liveProcessSigned: ram.extensionSigned == true,
-            builtInJITSelected: defaults.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue,
-            debuggingAvailable: jitRequired ? LCUtils.bloomBoxCanDebug() : false,
-            pairingPresent: jitRequired && FileManager.default.fileExists(
-                atPath: LiveBoardBuiltInJIT.pairingURL.path),
-            jitRequired: jitRequired) {
-            return missing
-        }
-        if jitRequired, let app, !app.uiIsShared &&
-            !UserDefaults.standard.bool(forKey: "LCSharePrivateDataWithLiveProcess") {
-            return .jit
-        }
-        return nil
-    }
-
-    @MainActor
-    private func clearPendingGame() {
-        gamePendingAppKey = ""
-        gamePendingEntry = false
-        gameLastPrompted = nil
-    }
-
-    @MainActor
-    private func beginGameMode(for app: LCAppModel?) {
-        // The Home→Game alert is a one-time transition, not a launch action.
-        gameRoutePrompt = false
-        gameRouteApp = nil
-        gamePendingAppKey = app?.appInfo.relativeBundlePath ?? ""
-        gamePendingEntry = true
-        gameLastPrompted = nil
-        evaluatePendingGame(offerPrompt: true)
-    }
-
-    @MainActor
-    private func evaluatePendingGame(offerPrompt: Bool) {
-        guard gamePendingEntry, !gameGatePrompt, !emulatorRAMSetup, !emulatorJITSetup else { return }
-        let pendingApp = (sharedModel.apps + sharedModel.hiddenApps).first {
-            $0.appInfo.relativeBundlePath == gamePendingAppKey
-        }
-        if let missing = gameMissing(for: pendingApp) {
-            // Do not repeatedly prompt for the same missing entitlement when
-            // the user returns without completing setup.
-            if offerPrompt && gameLastPrompted != missing {
-                gameGateMissing = missing
-                gameLastPrompted = missing
-                gameGatePrompt = true
-            }
-            return
-        }
-
-        let appKey = gamePendingAppKey
-        let app = (sharedModel.apps + sharedModel.hiddenApps)
-            .first { $0.appInfo.relativeBundlePath == appKey }
-        clearPendingGame()
-        liveBoardMode = "cinematic"
-        // Give the landscape scene time to appear before attaching JIT to a
-        // fresh LiveProcess guest. Do not launch if the app disappeared.
-        if let app {
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 350_000_000)
-                await launchFromLiveBoard(app, originatingFromGame: true)
-            }
-        }
-    }
-
-    @MainActor
     func approveEmulatorLaunch(app: LCAppModel, forceJIT: Bool?) async -> Bool {
-        // LCAppModel.runApp delegates back after Game has approved the launch.
-        // Suppress the duplicate Game alert but revalidate RAM+/JIT.
-        let appKey = app.appInfo.relativeBundlePath ?? ""
-        if gameLaunchInProgressKeys.contains(appKey) {
-            return gameMissing(for: app, forcedJIT: forceJIT) == nil
-        }
-        // Apply the same first-run review when launching from the legacy
-        // LiveContainer library, not only from the BloomBox Home icons.
         if let profile = remoteGameProfiles.profile(for: app.appInfo.bundleIdentifier()),
            remoteGameProfiles.needsApproval(profile) {
             compatibilityApp = app
             compatibilityProfile = profile
             compatibilityForceJIT = forceJIT == true
-            compatibilityFromGame = liveBoardMode == "cinematic"
             compatibilityPrompt = true
-            return false
-        }
-        // Game Mode needs RAM+; JIT is checked only for guests requesting JIT.
-        // Never offer the old optional/suppressible emulator warning here.
-        if liveBoardMode == "cinematic" {
-            return gameMissing(for: app, forcedJIT: forceJIT) == nil
-        }
-        let requiresGame = remoteRequiresGame(app) || BloomBoxGameModeGate.requiresGameMode(
-            bundleID: app.appInfo.bundleIdentifier(), name: app.displayName,
-            landscapeLocked: app.uiOrientationLock == .Landscape)
-        if BloomBoxGameModeGate.shouldOfferGameSwitch(
-            requiresGame: requiresGame, fromGameLauncher: false,
-            persistedMode: liveBoardMode) {
-            gameRouteApp = app
-            gameRoutePrompt = true
             return false
         }
         let bundle = Bundle(path: app.appInfo.bundlePath())
@@ -994,8 +763,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
 
     @MainActor
     func launchFromLiveBoard(_ app: LCAppModel, forceJIT: Bool = false,
-                             compatibilityReviewed: Bool = false,
-                             originatingFromGame: Bool = false) async {
+                             compatibilityReviewed: Bool = false) async {
         // Suggest per-app LiveContainer settings exactly once per catalog
         // revision, then never overwrite later manual changes. No network wait.
         if !compatibilityReviewed,
@@ -1004,7 +772,6 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             compatibilityApp = app
             compatibilityProfile = profile
             compatibilityForceJIT = forceJIT
-            compatibilityFromGame = originatingFromGame || liveBoardMode == "cinematic"
             compatibilityPrompt = true
             return
         }
@@ -1013,27 +780,11 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             LCUtils.openSideStore(delegate: self)
             return
         }
-        let requiresGame = remoteRequiresGame(app) ||
-            BloomBoxGameModeGate.requiresGameMode(
-                bundleID: app.appInfo.bundleIdentifier(), name: app.displayName,
-                landscapeLocked: app.uiOrientationLock == .Landscape)
-        // The rendered Game console is authoritative while SwiftUI rotates;
-        // @AppStorage can briefly lag behind what is actually on screen.
-        let fromGame = originatingFromGame || liveBoardMode == "cinematic"
-        let jitOverride = BloomBoxGameModeGate.jitOverride(explicitlyRequested: forceJIT)
-        if BloomBoxGameModeGate.shouldOfferGameSwitch(
-            requiresGame: requiresGame, fromGameLauncher: fromGame,
-            persistedMode: liveBoardMode) {
-            gameRouteApp = app
-            gameRoutePrompt = true
-            return
-        }
-        if fromGame {
-            if gameMissing(for: app, forcedJIT: jitOverride) != nil {
-                beginGameMode(for: app)
-                return
-            }
-        }
+        // Landscape game guests retain orientation without an extra launcher.
+        let landscapeGuest = remoteRequiresGame(app) ||
+            app.uiOrientationLock == .Landscape ||
+            (app.appInfo.bundleIdentifier()?.lowercased().contains("husk") == true)
+        let jitOverride: Bool? = forceJIT ? true : nil
         let appKey = app.appInfo.relativeBundlePath ?? ""
         let policy = BloomBoxJITGuestPolicy.mode(for: appKey, defaults: LCUtils.appGroupUserDefault)
         let guestBundle = Bundle(path: app.appInfo.bundlePath())
@@ -1048,13 +799,13 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         // Honor the existing per-app orientation picker when running through
         // LiveProcess. Legacy launches already manage their own orientation.
         // The host Home is portrait-locked and otherwise overrides the guest.
-        if builtInJIT || fromGame {
-            // Landscape Game Mode must not depend on enabling JIT.
+        if builtInJIT || landscapeGuest {
+            // Landscape guest orientation does not depend on enabling JIT.
             // Do not inherit Home's portrait-only lock in Auto mode.
             let guestMask: UIInterfaceOrientationMask
             switch app.uiOrientationLock {
             case .Landscape: guestMask = .landscape
-            case .Disabled where fromGame: guestMask = .landscape
+            case .Disabled where landscapeGuest: guestMask = .landscape
             case .Portrait: guestMask = .portrait
             default: guestMask = .allButUpsideDown
             }
@@ -1067,11 +818,9 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         // The LCAppModel delegate is invoked by this launch, too. Keep the
         // approval associated with the app until launch returns or throws;
         // cleanup makes immediate retries possible without restarting BloomBox.
-        if fromGame { gameLaunchInProgressKeys.insert(appKey) }
-        defer { gameLaunchInProgressKeys.remove(appKey) }
         do {
             if app.appInfo.is32bit { try await ensureBundled32BitRuntime(for: app) }
-            if !fromGame && liveBoardMode == "ios" {
+            if liveBoardMode == "ios" {
                 // Run a private guest in its original host process, before
                 // any virtual-window-only iOS/Classic Mode restrictions.
                 if !app.uiIsShared &&
