@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Validate the BloomBox+SideStore IPA, including the ActivityKit extension."""
+import hashlib
 import plistlib
 import sys
 import zipfile
@@ -21,6 +22,20 @@ with zipfile.ZipFile(ipa) as archive:
             raise SystemExit(f"Missing essential IPA component: {relative}")
     if not any("/SideStoreApp.framework/" in name for name in entries):
         raise SystemExit("Embedded SideStore app is missing")
+    # Verify the exact owner-supplied starter theme bytes, not just filenames.
+    for theme, sha256 in {
+        "KirbyPink": "307754522eedd7d152d9a74e4eb4b881ec0f466c3cdf962834601942ebacfa78",
+        "YellowBowser": "fa20237daf39266247eb9a5fc8d003da4bde87c235e0affef287d0f8d6e0a82a",
+    }.items():
+        bundled = app + "StarterThemes/" + theme + ".bbtheme"
+        preview = app + "StarterThemes/" + theme + ".jpg"
+        if bundled not in entries or preview not in entries:
+            raise SystemExit("Missing packaged BloomBox starter theme or preview: " + theme)
+        if hashlib.sha256(archive.read(bundled)).hexdigest() != sha256:
+            raise SystemExit("BloomBox starter theme bytes changed: " + theme)
+        if not archive.read(preview).startswith(bytes.fromhex("ffd8ff")):
+            raise SystemExit("BloomBox starter theme preview is not JPEG: " + theme)
+
     host = plistlib.loads(archive.read(app + "Info.plist"))
     ext = plistlib.loads(archive.read(widget + "Info.plist"))
     if host.get("CFBundleName") != "BloomBox" or host.get("CFBundleDisplayName") != "BloomBox":
