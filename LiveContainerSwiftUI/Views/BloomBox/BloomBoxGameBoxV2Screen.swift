@@ -36,6 +36,9 @@ struct BloomBoxGameBoxV2Screen: View {
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @State private var focusedKey: String?
     @State private var lastSelectedKey: String?
+    @State private var requestedScrollKey: String?
+    @State private var pendingSwipeIndex = 0
+    @State private var artworkIsActive = false
     // GameBox wallpaper is independent of the Home wallpaper and never modifies it.
     @AppStorage("BloomBoxGameBoxV2WallpaperMode", store: LiveContainerPreferencesAdapter.defaults)
     private var backgroundMode = "auto"
@@ -95,12 +98,13 @@ struct BloomBoxGameBoxV2Screen: View {
         return colors[seed % colors.count]
     }
     private func cover(_ app: BloomBoxGameBoxEntry) -> UIImage? {
-        artwork.image(for: key(app), kind: .cover)
+        guard artworkIsActive else { return nil }
+        return artwork.image(for: key(app), kind: .cover)
     }
     private func backdrop(_ app: BloomBoxGameBoxEntry) -> UIImage? {
-        artwork.image(for: key(app), kind: .background) ??
-        artwork.image(for: key(app), kind: .cover) ??
-        app.icon
+        guard artworkIsActive else { return nil }
+        return artwork.image(for: key(app), kind: .background) ??
+            artwork.image(for: key(app), kind: .cover) ?? app.icon
     }
 
     var body: some View {
@@ -203,6 +207,19 @@ struct BloomBoxGameBoxV2Screen: View {
             refreshSystemBudget()
             UIDevice.current.isBatteryMonitoringEnabled = true
             refreshBattery()
+            LiveContainerPreferencesAdapter.defaults.set(
+                "visible", forKey: "BloomBoxGameBoxV2OpenStage")
+            NSLog("[BloomBox GameBox] Screen visible")
+            // Let the NavigationView finish its first orientation/layout pass
+            // before decoding custom artwork or starting GIF/video playback.
+            DispatchQueue.main.async {
+                artworkIsActive = true
+                LiveContainerPreferencesAdapter.defaults.set(
+                    "artwork-ready", forKey: "BloomBoxGameBoxV2OpenStage")
+            }
+        }
+        .onDisappear {
+            artworkIsActive = false
         }
         .onChange(of: focusedKey) { key in
             guard let key, key != lastSelectedKey else { return }
@@ -262,11 +279,11 @@ struct BloomBoxGameBoxV2Screen: View {
                          Color(red: 0.04, green: 0.04, blue: 0.095)],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
-            if backgroundMode == "motion", let url = BloomBoxMotionMedia.url(motionWallpaperName) {
+            if artworkIsActive && backgroundMode == "motion", let url = BloomBoxMotionMedia.url(motionWallpaperName) {
                 BloomBoxAnimatedWallpaper(url: url, fit: false,
                                          paused: constrained || reduceMotion)
                     .opacity(0.84)
-            } else if backgroundMode == "photo",
+            } else if artworkIsActive && backgroundMode == "photo",
                       let image = artwork.image(for: sharedWallpaperKey, kind: .background) {
                 GeometryReader { geo in
                     Image(uiImage: image)
@@ -371,39 +388,65 @@ struct BloomBoxGameBoxV2Screen: View {
     @ViewBuilder
     private func carousel(cardWidth: CGFloat, height: CGFloat,
                           viewportWidth: CGFloat) -> some View {
-        if #available(iOS 17.0, *) {
-            // One native scroll system owns both finger tracking and snapping.
-            // Do NOT add a competing DragGesture or second scrollTo on drag end.
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(alignment: .center, spacing: 17) {
-                    ForEach(visibleApps, id: \.id) { app in
-                        gameCard(app, width: cardWidth, height: height)
-                            .id(app.id)
-                    }
-                }
-                .scrollTargetLayout()
-                .padding(.horizontal, max(0, (viewportWidth - cardWidth) / 2))
-                .padding(.vertical, 4)
-            }
-            .scrollTargetBehavior(.viewAligned)
-            .scrollPosition(id: $focusedKey, anchor: .center)
-        } else {
-            // iOS 16 fallback. Only the native pan handles swipes; scrolling
-            // programmatically is reserved for deliberate taps.
+        // The previous scrollPosition(id:) binding was tied to focusedKey and
+        // attempted to reposition its LazyHStack while the host rotated from
+        // portrait to landscape. Use a ScrollViewReader only for deliberate taps
+        // and let native momentum/snap control the user's gesture.
+        if #available(iOS 18.0, *) {
             ScrollViewReader { scroll in
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(alignment: .center, spacing: 17) {
                         ForEach(visibleApps, id: \.id) { app in
-                            gameCard(app, width: cardWidth, height: height)
-                                .id(app.id)
+                            gameCard(app, width: cardWidth, height: height).id(app.id)
+                        }
+                    }
+                    .scrollTargetLayout()
+                    .padding(.horizontal, max(0, (viewportWidth - cardWidth) / 2))
+                    .padding(.vertical, 4)
+                }
+                .scrollTargetBehavior(.viewAligned)
+                .onScrollGeometryChange(for: Int.self, of: { geometry in
+                    let step = max(1, cardWidth + 17)
+                    let index = Int((geometry.contentOffset.x / step).rounded())
+                    return min(max(0, index), max(0, visibleApps.count - 1))
+                }, action: { _, index in
+                    pendingSwipeIndex = index
+                })
+                .onScrollPhaseChange { _, phase in
+                    guard phase == .idle, visibleApps.indices.contains(pendingSwipeIndex) else { return }
+                    let key = visibleApps[pendingSwipeIndex].id
+                    guard focusedKey != key else { return }
+                    // A completed swipe updates metadata but NEVER scrolls a
+                    // second time or moves the background camera.
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) { focusedKey = key }
+                }
+                .onChange(of: requestedScrollKey) { key in
+                    guard let key else { return }
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.40)) {
+                        scroll.scrollTo(key, anchor: .center)
+                    }
+                }
+                .onAppear {
+                    if let focusedKey { scroll.scrollTo(focusedKey, anchor: .center) }
+                }
+            }
+        } else {
+            // Safe iOS 16/17 fallback: no synchronized scroll-position binding.
+            ScrollViewReader { scroll in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .center, spacing: 17) {
+                        ForEach(visibleApps, id: \.id) { app in
+                            gameCard(app, width: cardWidth, height: height).id(app.id)
                         }
                     }
                     .padding(.horizontal, max(0, (viewportWidth - cardWidth) / 2))
                     .padding(.vertical, 4)
                 }
-                .onChange(of: focusedKey) { key in
+                .onChange(of: requestedScrollKey) { key in
                     guard let key else { return }
-                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.42)) {
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.40)) {
                         scroll.scrollTo(key, anchor: .center)
                     }
                 }
@@ -602,9 +645,10 @@ struct BloomBoxGameBoxV2Screen: View {
     private func select(_ app: BloomBoxGameBoxEntry) {
         let next = key(app)
         guard focusedKey != next else { return }
-        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.42)) {
-            focusedKey = next
-        }
+        focusedKey = next
+        // Only deliberate taps request a camera/scroll movement; swipe-derived
+        // selection never writes a scroll command back into the scroll view.
+        requestedScrollKey = next
     }
 
     private func moveSelection(_ delta: Int) {
