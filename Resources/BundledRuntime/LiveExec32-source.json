@@ -1,0 +1,59 @@
+{
+  "name": "LiveExec32 (nightly)",
+  "identifier": "com.kdt.LiveExec32.source.nightly",
+  "website": "https://github.com/LiveContainer/LiveExec32",
+  "iconURL": "https://github.com/LiveContainer.png",
+  "apps": [
+    {
+      "name": "LiveExec32 (nightly)",
+      "bundleIdentifier": "com.kdt.LiveExec32",
+      "developerName": "LiveContainer Team",
+      "localizedDescription": "Run 32-bit iOS applications on 64-bit devices.",
+      "iconURL": "https://github.com/LiveContainer.png",
+      "category": "utilities",
+      "appPermissions": {
+        "entitlements": [
+          "jb.pmap_cs.custom_trust",
+          "get-task-allow",
+          "com.apple.developer.kernel.extended-virtual-addressing",
+          "com.apple.developer.kernel.increased-memory-limit"
+        ],
+        "privacy": {}
+      },
+      "versions": [
+        {
+          "version": "0.0.1",
+          "buildVersion": "2",
+          "date": "2026-10-18T14:36:21Z",
+          "localizedDescription": "Nightly build from [c94c040](https://github.com/LiveContainer/LiveExec32/commit/c94c040018bab39aaceee71786c5b452f3e9f5b6): Preserve native-only selectors behind guest response overrides\n\nThis is a nightly release [created automatically with GitHub Actions workflow](https://github.com/LiveContainer/LiveExec32/actions/runs/39136219696/attempts/1).",
+          "downloadURL": "https://github.com/LiveContainer/LiveExec32/releases/download/nightly/com.kdt.liveexec32_0.0.1.ipa",
+          "size": 14516308,
+          "minOSVersion": "15.0",
+          "commit": "c94c040",
+          "headline": "Preserve native-only selectors behind guest response overrides"
+        }
+      ],
+      "version": "0.0.1",
+      "buildVersion": "2",
+      "versionDate": "2026-10-18T14:36:21Z",
+      "versionDescription": "Nightly build from [c94c040](https://github.com/LiveContainer/LiveExec32/commit/c94c040018bab39aaceee71786c5b452f3e9f5b6): Preserve native-only selectors behind guest response overrides\n\nThis is a nightly release [created automatically with GitHub Actions workflow](https://github.com/LiveContainer/LiveExec32/actions/runs/39136219696/attempts/1).",
+      "downloadURL": "https://github.com/LiveContainer/LiveExec32/releases/download/nightly/com.kdt.liveexec32_0.0.1.ipa",
+      "size": 14516308,
+      "minOSVersion": "15.0",
+      "commit": "c94c040",
+      "headline": "Preserve native-only selectors behind guest response overrides",
+      "marketplaceID": "LiveContainer"
+    }
+  ],
+  "news": [
+    {
+      "title": "LiveExec32",
+      "identifier": "NeedLC",
+      "tintColor": "FF0F0F",
+      "caption": "Cannot use it here! This LiveExec32 repo is only meant to be installed in LiveContainer. Tap here to add it to LiveContainer.",
+      "url": "https://altdirect.app/?url=https://github.com/LiveContainer/LiveExec32/releases/download/nightly/source.json&r=livecontainer",
+      "date": "2026-10-04T00:00",
+      "notify": false
+    }
+  ]
+}

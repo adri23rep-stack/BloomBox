@@ -1,0 +1,131 @@
+name: BloomBox - Official Release 1.4.1
+
+on:
+  workflow_run:
+    workflows: ["BloomBox - Build"]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: bloombox-release-v1.4.1
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish BloomBox v1.4.1
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm this build matches current main
+        id: head
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILT_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA=$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')
+          if [[ "$CURRENT_SHA" == "$BUILT_SHA" ]]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping outdated build $BUILT_SHA (main is $CURRENT_SHA)"
+          fi
+
+      - name: Check whether v1.4.1 exists already
+        id: existing
+        if: steps.head.outputs.current == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view v1.4.1 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Get IPA from successful build
+        if: steps.head.outputs.current == 'true' && steps.existing.outputs.exists == 'false'
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: BloomBox-SideStore-unsigned.ipa
+          path: release-assets
+
+      - name: Verify IPA integrity and key components
+        if: steps.head.outputs.current == 'true' && steps.existing.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import plistlib
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          ipa = Path("release-assets/BloomBox-SideStore-unsigned.ipa")
+          assert ipa.is_file() and ipa.stat().st_size > 5_000_000, "IPA missing or too small"
+          with ZipFile(ipa) as archive:
+              assert archive.testzip() is None, "Corrupt ZIP"
+              root = "Payload/LiveContainer.app/"
+              names = set(archive.namelist())
+              for required in (
+                  root + "Info.plist",
+                  root + "Frameworks/LiveContainerSwiftUI.framework/LiveContainerSwiftUI",
+                  root + "Frameworks/SideStoreApp.framework/SideStore",
+                  root + "PlugIns/LiveProcess.appex/LiveProcess",
+                  root + "PlugIns/JITHelper.appex/ShareExtension",
+                  root + "PlugIns/ManzanaExpiryWidget.appex/ManzanaExpiryWidget",
+              ):
+                  assert required in names, "Missing component: " + required
+              info = plistlib.loads(archive.read(root + "Info.plist"))
+              assert info.get("CFBundleDisplayName") == "BloomBox", "Wrong app identity"
+          with ipa.open("rb") as handle:
+              digest = hashlib.file_digest(handle, "sha256").hexdigest()
+          print("Verified BloomBox v1.4.1 IPA SHA256:", digest)
+          PY
+
+      - name: Publish BloomBox 1.4.1
+        if: steps.head.outputs.current == 'true' && steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<'NOTES'
+          # BloomBox v1.4.1 — Storage Diagnostics & Manual Sources
+
+          This maintenance update brings previously tested storage and installation improvements into the main release.
+
+          ## What's new
+          - **Storage breakdown:** Show the installed BloomBox package, guest applications, their containers, tweaks, app group data and temporary files.
+          - **SideStore storage:** Account for the built-in SideStore's persistent data instead of showing an empty guest entry or double-counting it.
+          - **Temporary files:** Inspect the 20 largest measured temporary entries, with the scan timestamp and a refresh control.
+          - **Safer cache management:** Open the existing confirmation-based data manager; opening it does not delete files.
+          - **Installation cleanup:** Use isolated extraction folders and delete staged IPA downloads after successful installs, failures, checksum errors or cancellation.
+          - **My Sources:** Add user-selected Internet Archive item URLs and compatible AltStore JSON catalogs without mirroring IPA files in BloomBox's repository.
+
+          ## Important notes
+          - **Back up your data and install over your existing BloomBox. Do not uninstall it first.**
+          - The IPA is unsigned; use SideStore to sign it.
+          - Updating/re-signing can remove an existing RAM+ entitlement depending on your signing setup. Confirm your entitlement and provisioning profile before updating.
+          - iOS sandbox storage reporting only covers accessible data, not all system storage. The reported temporary-file total may differ from what is immediately removable.
+          - GitHub Actions compilation and package checks passed; final iPhone/iOS 27 behavior must still be validated on a real device.
+          - The experimental DEB importer and animated desktop work are **not** included.
+
+          **Build source:** See the exact commit linked from this release.
+          NOTES
+          gh release create v1.4.1 \
+            "release-assets/BloomBox-SideStore-unsigned.ipa" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_SHA" \
+            --title "BloomBox 1.4.1 — Storage Diagnostics & Manual Sources" \
+            --notes-file release-notes.md \
+            --latest

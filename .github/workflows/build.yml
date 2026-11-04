@@ -1,0 +1,629 @@
+name: BloomBox - Build
+
+on:
+  push:
+    branches:
+      - main
+      - fix/jit-guest-orientation-ios27
+      - feature/cinematic-game-mode-ram-jit-gate
+      - refactor/remove-gamebox-reserve-slot-20261104
+      - feature/remote-game-compat-profiles
+      - fix/game-mode-launch-loop-ios27
+      - fix/finish-astra-home-20261101
+      - feature/living-widgets-1-20261101
+      - feature/english-localization-20261101
+      - feature/theme-store-folders-20261101
+      - experimental/melonx-26-jit
+      - fix/jit-dynamic-rsd-port-ios27
+      - experimental/melonx-script-other-guests
+      - experimental/jit-per-app-controls
+      - experimental/jit-ramplus-unified-ios27
+      - migration/import-full-source
+      - feature/modules-liquidglass-ram-placeholder
+  pull_request:
+    branches:
+      - main
+      - refactor/bloombox-independent-core
+  workflow_dispatch:
+    inputs: 
+      release__nightly:
+        description: Create a nightly release
+        type: boolean
+        required: false
+
+jobs:
+  build:
+    name: Build using xcodebuild command
+    runs-on: macos-latest
+    env:
+      scheme: LiveContainer
+      archive_path: archive
+    outputs:
+      scheme: ${{ steps.scheme.outputs.scheme }}
+      archive_path: ${{ env.archive_path }}
+      artifact: ${{ env.scheme }}.ipa
+      artifact2: ${{ env.scheme }}+SideStore.ipa
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.2'
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Reject stale launcher media types
+        run: |
+          if grep -REn '(ManzanaWallpaperMedia|ManzanaAnimatedWallpaper)' LiveContainerSwiftUI --include='*.swift'; then
+            echo "::error::Obsolete wallpaper references remain in compiled Swift code"
+            exit 1
+          fi
+      - name: Test independent BloomBox Files engine and legacy data
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxFileStore.swift Tests/manzana-files/main.swift -o "$RUNNER_TEMP/bloombox-files-tests"
+          "$RUNNER_TEMP/bloombox-files-tests"
+      - name: Test backup archive roundtrip and unsafe inputs
+        run: |
+          clang -fobjc-arc -framework Foundation -larchive -I LiveContainerSwiftUI/Utilities Tests/backup-tests/main.m LiveContainerSwiftUI/Utilities/BloomBoxArchive.m -o "$RUNNER_TEMP/bloombox-backup-tests"
+          "$RUNNER_TEMP/bloombox-backup-tests"
+      - name: Test RAM+ validation
+        run: |
+          swiftc LiveContainerSwiftUI/Utilities/BloomBoxRAMValidation.swift Tests/ram-validation/main.swift -o "$RUNNER_TEMP/ram-validation-tests"
+          "$RUNNER_TEMP/ram-validation-tests"
+      - name: Test BloomBox widget picker persisted ordering
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetGalleryPolicy.swift Tests/widget-gallery/main.swift -o "$RUNNER_TEMP/bloombox-widget-gallery-tests"
+          "$RUNNER_TEMP/bloombox-widget-gallery-tests"
+      - name: Verify BloomBox JIT bridge across Objective-C and Swift
+        run: python3 Tests/jit-bridge-tests/test_bridge.py
+      - name: Audit retired Strata modules and preserve upstream notices
+        run: python3 Scripts/audit-bloombox-independent-launcher.py
+      - name: Test localized InfoPlist.strings conversion and branding
+        run: python3 Tests/branding-tests/test_localized_names.py
+      - name: Validate pinned upstream provenance inventory
+        run: python3 Tests/provenance-tests/test_manifest.py
+      - name: Guard new BloomBox code from direct LiveContainer / SideStore coupling
+        run: python3 Tests/upstream-boundaries-tests/test_boundaries.py
+      - name: Test portable host and signer bridge contracts
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxIntegrationContracts.swift Tests/integration-contracts/main.swift -o "$RUNNER_TEMP/bloombox-integration-tests"
+          "$RUNNER_TEMP/bloombox-integration-tests"
+      - name: Test BloomBox Home app-policy persistence and localized search
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeAppPolicy.swift Tests/home-app-policy/main.swift -o "$RUNNER_TEMP/bloombox-home-app-policy-tests"
+          "$RUNNER_TEMP/bloombox-home-app-policy-tests"
+      - name: Guard extracted Home app-menu boundary and saved-state keys
+        run: python3 Tests/home-menu-tests/test_bridge.py
+      - name: Guard Home guest and preferences adapter boundary
+        run: python3 Tests/home-adapter-tests/test_adapter.py
+      - name: Test host-independent guest key indexing and duplicate handling
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeGuestIndex.swift Tests/home-guest-index/main.swift -o "$RUNNER_TEMP/bloombox-home-guest-index-tests"
+          "$RUNNER_TEMP/bloombox-home-guest-index-tests"
+      - name: Verify BloomBox expiry reminder module migration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path("LiveContainerSwiftUI/Views")
+          center=(root/"BloomBox/BloomBoxExpiryReminderCenter.swift").read_text()
+          settings=(root/"BloomBox/BloomBoxExpiryReminderSettings.swift").read_text()
+          assert "final class BloomBoxExpiryReminderCenter" in center
+          assert "struct BloomBoxExpiryReminderSettings" in settings
+          assert "typealias ManzanaExpiryReminderCenter" in center
+          assert "typealias ManzanaExpiryReminderSettings" in settings
+          assert "ManzanaSideStoreExpiryRemindersEnabled" in center
+          assert "manzana.expiry." in center
+          assert not (root/"ManzanaExpiryReminderCenter.swift").exists()
+          assert not (root/"ManzanaExpiryReminderSettings.swift").exists()
+          print("BloomBox SideStore expiry UI preserves existing notification and Live Activity data")
+          PY
+      - name: Verify BloomBox Home host and future feature reservation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("LiveContainerSwiftUI/Views")
+          host = (root / "BloomBox/BloomBoxLauncherRoot.swift").read_text()
+          assert "struct BloomBoxLauncherRootView: View" in host
+          assert "typealias LiveBoardRootView = BloomBoxLauncherRootView" in host
+          for term in ("LCAppListView(openInterface:", "BloomBoxLaunchPreferences.resetForNewProcess",
+                       'value: "reserved"', "Espacio reservado"):
+              assert term in host, term
+          assert not (root / "LiveBoard.swift").exists()
+          print("Native Home host and empty future-destination slot preserved")
+          PY
+      - name: Reject removed stock ribbon wallpapers from the active launcher
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          home = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
+          visuals = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherVisuals.swift").read_text()
+          assert 'wallpaperStyle = "black"' in home
+          assert 'LiveBoardRibbonWallpaper' not in home + visuals
+          assert 'Text("Red ribbons")' not in home
+          assert 'Text("Blue ribbons")' not in home
+          assert '@AppStorage("LiveBoardWallpaperStyle"' in home
+          assert 'BloomBoxAnimatedWallpaper' in home
+          print("No bundled stock ribbons; user wallpapers and persisted keys retained.")
+          PY
+      - name: Verify BloomBox native Home entry and visual controls
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("LiveContainerSwiftUI/Views")
+          home = (root / "BloomBox/BloomBoxHomeScreen.swift").read_text()
+          chrome = (root / "BloomBox/BloomBoxHomeChrome.swift").read_text()
+          assert "struct BloomBoxHomeScreen: View" in home
+          assert "typealias LiveBoardHomeScreen = BloomBoxHomeScreen" in home
+          assert not (root / "LiveBoardHomeScreen.swift").exists()
+          for name in ("BloomBoxHomeInstallationNotice", "BloomBoxHomeWelcome",
+                       "BloomBoxHomeEditorToolbar"):
+              assert "struct " + name in chrome, name
+              assert name + "(" in home, name
+          assert "accessibilityValue" in chrome and "minHeight: 44" in chrome
+          print("BloomBox native Home, installation and toolbar controls are isolated")
+          PY
+      - name: Check independent BloomBox folder UI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          home = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
+          panel = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxFolderPanel.swift").read_text()
+          assert "BloomBoxFolderPanel(" in home
+          assert "struct BloomBoxFolderPanel<Icon: View>: View" in panel
+          assert "folder.apps.indices.contains(position)" in panel
+          assert "home.folder.close" in panel
+          print("Folder UI is hosted in its own BloomBox component")
+          PY
+      - name: Verify extracted launcher interaction components
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          home = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
+          effects = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherInteractions.swift").read_text()
+          for name in ("BloomBoxAliveIconFrames", "BloomBoxAliveEntrance",
+                       "BloomBoxWidgetMediaPresentation", "BloomBoxWidgetInteraction",
+                       "BloomBoxLivingMotion", "BloomBoxThemeShareSheet"):
+              assert "struct " + name in effects, name
+              assert "struct " + name not in home, name
+          assert "func liveBoardAppKey(" in effects
+          assert "struct BloomBoxHomeScreen: View" in home
+          print("BloomBox interaction effects are isolated from Home")
+          PY
+      - name: Verify shared launcher visual surfaces
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          home = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
+          visual = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherVisuals.swift").read_text()
+          for required in ("struct LiveBoardHomeIcon: View", "struct LiveBoardIconImage: View",
+                           "struct LiveBoardMoveDropDelegate: DropDelegate",
+                           "func liveBoardGlass("):
+              assert required in visual, required
+          assert "struct LiveBoardHomeIcon: View" not in home
+          assert "struct LiveBoardMoveDropDelegate: DropDelegate" not in home
+          print("BloomBox launcher visual surfaces loaded from one module")
+          PY
+      - name: Verify independent BloomBox JIT coordinator and pairing source
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path("LiveContainerSwiftUI/Views")
+          for legacy,modern,old,new in (
+              ("LiveBoardBuiltInJIT.swift","BloomBox/BloomBoxJITCoordinator.swift","LiveBoardBuiltInJIT","BloomBoxBuiltInJIT"),
+              ("LiveBoardJITSetup.swift","BloomBox/BloomBoxJITSetup.swift","LiveBoardJITSetup","BloomBoxJITSetup"),
+              ("ManzanaOnDevicePairing.swift","BloomBox/BloomBoxOnDevicePairing.swift","ManzanaOnDevicePairing","BloomBoxOnDevicePairing")):
+              assert not (root/legacy).exists(), legacy
+              code=(root/modern).read_text()
+              assert new in code and ("typealias "+old+" = "+new) in code, modern
+          assert "StrataJIT/jit-history.json" in (root/"BloomBox/BloomBoxJITCoordinator.swift").read_text()
+          print("BloomBox JIT and pairing components migrated with saved JIT history support")
+          PY
+      - name: Check isolated BloomBox Modules and JIT UI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          home = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
+          ui = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxModulesAndJIT.swift").read_text()
+          for name in ("BloomBoxModulesPanel", "BloomBoxJITGuestControlsView", "BloomBoxConnectivityModule"):
+              assert name in ui, name
+          assert "struct BloomBoxModulesPanel: View" not in home
+          assert "struct BloomBoxModulesPanel: View" in ui
+          print("BloomBox Modules and JIT UI are separate from Home")
+          PY
+      - name: Check launcher remote-store module boundaries
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          home = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
+          stores = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxRemoteStores.swift").read_text()
+          assert "struct BloomBoxHomeScreen: View" in home
+          assert "struct BloomBoxTweakStore: View" in stores
+          assert "struct BloomBoxAppStore: View" in stores
+          assert "final class BloomBoxTweakCatalog: ObservableObject" in stores
+          assert "private final class BloomBoxTweakCatalog" not in stores
+          assert "struct BloomBoxTweakStore: View" not in home
+          assert "struct BloomBoxAppStore: View" not in home
+          print("BloomBox remote stores are separate from Home")
+          PY
+      - name: Test independent BloomBox App Library policy
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxAppLibraryPolicy.swift Tests/app-library/main.swift -o "$RUNNER_TEMP/bloombox-library-tests"
+          "$RUNNER_TEMP/bloombox-library-tests"
+      - name: Test BloomBox widget placement and existing saved layouts
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetLayout.swift Tests/home-widget-layout/main.swift -o "$RUNNER_TEMP/bloombox-widget-layout-tests"
+          "$RUNNER_TEMP/bloombox-widget-layout-tests"
+      - name: Test BloomBox News media cache budget and source policy
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxNewsCachePolicy.swift Tests/news-cache/main.swift -o "$RUNNER_TEMP/bloombox-news-cache-tests"
+          "$RUNNER_TEMP/bloombox-news-cache-tests"
+      - name: Check native News and widget module separation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          home = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
+          news = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxNewsPage.swift").read_text()
+          widgets = Path("LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetViews.swift").read_text()
+          assert "BloomBoxNewsPage(openSettings:" in home
+          assert "struct BloomBoxNewsPage: View" in news
+          assert "private struct BloomBoxRemoteNewsSection: View" in news
+          assert "struct BloomBoxGridWidgetView: View" in widgets
+          assert not Path("LiveContainerSwiftUI/Views/Manzana/ManzanaDesktopView.swift").exists()
+          print("News page and widget rendering no longer use the inherited Manzana source file")
+          PY
+      - name: Test BloomBox native icon placement around widgets
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeLayout.swift LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetLayout.swift LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeIconReflow.swift Tests/home-icon-reflow/main.swift -o "$RUNNER_TEMP/bloombox-home-icon-reflow-tests"
+          "$RUNNER_TEMP/bloombox-home-icon-reflow-tests"
+      - name: Test BloomBox Home page navigation and widget retention
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeNavigation.swift Tests/home-navigation/main.swift -o "$RUNNER_TEMP/bloombox-home-navigation-tests"
+          "$RUNNER_TEMP/bloombox-home-navigation-tests"
+      - name: Test BloomBox native Home layout and legacy data
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeLayout.swift Tests/home-layout/main.swift -o "$RUNNER_TEMP/bloombox-home-layout-tests"
+          "$RUNNER_TEMP/bloombox-home-layout-tests"
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeLayout.swift Tests/home-native-layout/main.swift -o "$RUNNER_TEMP/bloombox-home-native-tests"
+          "$RUNNER_TEMP/bloombox-home-native-tests"
+      - name: Test BloomBox animated media imports and legacy wallpapers
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxMotionMedia.swift Tests/wallpaper/main.swift -o "$RUNNER_TEMP/bloombox-wallpaper-tests"
+          "$RUNNER_TEMP/bloombox-wallpaper-tests"
+      - name: Test app appearance storage and legacy icon migration
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBoxAppAppearanceStorage.swift Tests/app-appearance/main.swift -o "$RUNNER_TEMP/bloombox-app-appearance-tests"
+          "$RUNNER_TEMP/bloombox-app-appearance-tests"
+      - name: Test built-in app folder moves and persistence
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeLayout.swift Tests/home-builtins-folders/main.swift -o "$RUNNER_TEMP/home-folder-tests"
+          "$RUNNER_TEMP/home-folder-tests"
+      - name: Test RAM+ Apple request planning
+        run: |
+          swiftc SideStoreSupport/BloomBoxRAMPortal.swift Tests/ram-portal/main.swift -o "$RUNNER_TEMP/ram-portal-tests"
+          "$RUNNER_TEMP/ram-portal-tests"
+      - name: Test latest BloomBox release discovery and installer safety
+        run: |
+          swiftc LiveContainerSwiftUI/Utilities/BloomBoxRAMRelease.swift Tests/ram-release/main.swift -o "$RUNNER_TEMP/ram-release-tests"
+          "$RUNNER_TEMP/ram-release-tests"
+      - name: Test direct-upstream dependency validation (offline)
+        run: python3 -m unittest discover -s Tests/dependency-source-tests -p 'test_*.py' -v
+      - name: Restore pinned StikJIT and runtime dependencies
+        run: python3 Scripts/fetch-bundled-dependencies.py
+      - name: Test JIT debugger protocol and MeloNX 2.6 profile
+        run: |
+          swiftc ShareExtension/BloomBoxJITScriptSafety.swift LiveContainerSwiftUI/Utilities/BloomBoxMeloNXProfile.swift Tests/jit-script-tests/main.swift -o "$RUNNER_TEMP/jit-script-tests"
+          "$RUNNER_TEMP/jit-script-tests"
+          "$RUNNER_TEMP/jit-script-tests" melonx
+      - name: Check BloomBox JIT helper entry point
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          worker = Path("ShareExtension/BloomBoxJITWorker.swift").read_text()
+          packager = Path("Scripts/embed-jit-helper.py").read_text()
+          assert "@objc(BloomBoxJITRequestHandler)" in worker
+          assert "'NSExtensionPrincipalClass': 'BloomBoxJITRequestHandler'" in packager
+          assert "'CFBundleDisplayName'] = 'BloomBox JIT Helper'" in packager
+          assert "StrataJITRequestHandler" not in packager
+          print("PASS: packaged JIT extension points at BloomBox's worker")
+          PY
+      - name: Test BloomBox remote pairing validation and migration
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBoxRemotePairingRecord.swift Tests/jit-tests/main.swift -o "$RUNNER_TEMP/bloombox-pairing-tests"
+          "$RUNNER_TEMP/bloombox-pairing-tests"
+      - name: Test remote Game compatibility profiles
+        run: |
+          swiftc LiveContainerSwiftUI/Utilities/BloomBoxGameProfileSchema.swift Tests/remote-game-profiles/main.swift -o "$RUNNER_TEMP/game-profiles-tests"
+          "$RUNNER_TEMP/game-profiles-tests"
+
+      - name: Verify retired GameBox is absent and a reserved slot remains
+        run: python3 Tests/reserved-section/test_contract.py
+      - name: Test BloomBox launcher startup fallback
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherPreferences.swift Tests/launcher-preferences/main.swift -o "$RUNNER_TEMP/bloombox-launcher-preferences-tests"
+          "$RUNNER_TEMP/bloombox-launcher-preferences-tests"
+      - name: Verify reusable native BloomBox UI modules
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("LiveContainerSwiftUI/Views")
+          mapping = {
+              "LiveBoardAppCustomization.swift": "BloomBox/BloomBoxAppCustomization.swift",
+              "LiveBoardIconEdges.swift": "BloomBox/BloomBoxIconEdges.swift",
+              "LiveBoardIconStore.swift": "BloomBox/BloomBoxIconStore.swift",
+              "LiveBoardOrientation.swift": "BloomBox/BloomBoxOrientation.swift",
+              "LiveBoardLaunchAction.swift": "BloomBox/BloomBoxLaunchAction.swift",
+          }
+          for old, new in mapping.items():
+              assert not (root / old).exists(), old
+              assert (root / new).is_file(), new
+          assert (root / "BloomBox/BloomBoxReservedSection.swift").is_file()
+          print("Original BloomBox Home, icons and guest orientation retained")
+          PY
+      - name: Test guest scene orientation and viewport sizing
+        run: |
+          swiftc LiveContainerSwiftUI/Utilities/BloomBoxGuestSceneGeometry.swift Tests/orientation-tests/main.swift -o "$RUNNER_TEMP/bloombox-orientation-tests"
+          "$RUNNER_TEMP/bloombox-orientation-tests"
+      - name: Install Rust toolchain for on-device pairing
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+      - name: Compile BloomBox on-device pairing library
+        run: bash Scripts/build-ondevice-pairing.sh
+      - name: Render BloomBox icon before compiling
+        run: swift Scripts/generate-bloombox-icon.swift
+      - name: Set Scheme
+        id: scheme
+        run: |
+          if [ $scheme = default ]
+          then
+            scheme_list=$(xcodebuild -list -json | tr -d "\n")
+            scheme=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
+            echo Using default scheme: $scheme
+          else
+            echo Using configured scheme: $scheme
+          fi
+          echo "scheme=$scheme" >> $GITHUB_OUTPUT
+      - name: Set filetype_parameter
+        id: filetype_parameter
+        run: |
+          filetype_parameter=`ls -A | grep -i \\.xcworkspace\$ && echo workspace || echo project`
+          echo "filetype_parameter=$filetype_parameter" >> $GITHUB_OUTPUT
+      - name: Set file_to_build
+        id: file_to_build
+        run: |
+          file_to_build=`ls -A | grep -i \\.xcworkspace\$ || ls -A | grep -i \\.xcodeproj\$`
+          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
+          echo "file_to_build=$file_to_build" >> $GITHUB_OUTPUT
+      - name: Archive
+        env:
+          scheme: ${{ steps.scheme.outputs.scheme }}
+          filetype_parameter: ${{ steps.filetype_parameter.outputs.filetype_parameter }}
+          file_to_build: ${{ steps.file_to_build.outputs.file_to_build }}
+        run: |
+          # Capture all compiler diagnostics: xcpretty used to hide the useful
+          # Swift error when the archive step failed.
+          archive_log="$RUNNER_TEMP/bloombox-archive.log"
+          if xcodebuild archive -archivePath "$archive_path" -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -sdk iphoneos -arch arm64 -configuration Release > "$archive_log" 2>&1; then
+            echo "Archive succeeded"
+            tail -n 15 "$archive_log"
+          else
+            echo "::error::BloomBox archive failed; diagnostic lines follow."
+            grep -nE 'error:|fatal error|BUILD FAILED|CompileSwift|SwiftCompile|Undefined symbols|Killed:|signal 9' "$archive_log" | tail -n 75 || true
+            echo "--- Last 140 lines of complete xcodebuild output ---"
+            tail -n 140 "$archive_log"
+            exit 1
+          fi
+      - name: Tar Build Artifact
+        run: tar -cvf "$archive_path.xcarchive.tar" "$archive_path.xcarchive"
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.archive_path }}.xcarchive.tar
+          path: ${{ env.archive_path }}.xcarchive.tar
+      - name: Create IPA
+        run: |
+          sh .github/build_github.sh
+
+      - name: Preserve BloomBox branding in freshly compiled IPA
+        run: |
+          python3 Scripts/brand-bloombox-final-ipa.py "LiveContainer+SideStore.ipa"
+          python3 Scripts/brand-bloombox-final-ipa.py "LiveContainer.ipa"
+      - name: Verify Dynamic Island + SideStore IPA contents
+        run: python3 Scripts/verify-bloombox-ipa.py "LiveContainer+SideStore.ipa"
+
+      - name: Verify RAM+ requested by packaged executables
+        run: |
+          python3 Scripts/verify-ramplus-ipa.py "LiveContainer+SideStore.ipa"
+          python3 Scripts/verify-ramplus-ipa.py "LiveContainer.ipa"
+
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.scheme }}.ipa
+          path: ${{ env.scheme }}.ipa
+      
+      - name: Prepare BloomBox installer artifact
+        run: cp LiveContainer+SideStore.ipa BloomBox-SideStore-unsigned.ipa
+      - name: Upload BloomBox IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: BloomBox-SideStore-unsigned.ipa
+          path: BloomBox-SideStore-unsigned.ipa
+      - name: Upload LiveContainer+SideStore
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.scheme }}+SideStore.ipa
+          path: ${{ env.scheme }}+SideStore.ipa
+
+  release__nightly:
+    name: Nightly Release
+    permissions:
+      contents: write
+    if: inputs.release__nightly
+    runs-on: ubuntu-latest
+    needs: [build]
+    concurrency:
+      group: release__nightly
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Download a Build Artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build.outputs.artifact }}
+      - name: Download a Build Artifact2
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build.outputs.artifact2 }}
+      - name: Get Commit Info
+        id: commit_info
+        run: |
+          COMMIT_SHA=$(git rev-parse HEAD)
+          COMMIT_MSG=$(git log -1 --pretty=%s)
+          echo "COMMIT_SHA=$COMMIT_SHA" >> $GITHUB_ENV
+          echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_ENV
+      - name: Update AltStore source
+        id: update_source
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NIGHTLY_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
+          commit_sha: ${{ env.COMMIT_SHA }}
+          commit_msg: ${{ env.COMMIT_MSG }}
+        run: |
+          python .github/update_json.py
+      - name: Nightly Release
+        uses: andelf/nightly-release@5834076edc55cc05975561c9722043f072ac5c26
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with: 
+          body: |
+            **Commit:** [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+            **Message:** ${{ github.event.head_commit.message }}
+            
+            This is a nightly release [created automatically with GitHub Actions workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}).
+          files: |
+            ${{ needs.build.outputs.artifact }}
+            ${{ needs.build.outputs.artifact2 }}
+            .github/apps_nightly.json
+      - name: Update apps.json in Release 1.0
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: "1.0"
+          files: |
+            .github/apps_ss_lc.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release__v130:
+    name: Publish BloomBox v1.3.0
+    if: >-
+      ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release: BloomBox v1.3.0') }}
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download tested unsigned SideStore IPA
+        uses: actions/download-artifact@v8
+        with:
+          name: BloomBox-SideStore-unsigned.ipa
+          path: release
+      - name: Confirm release asset
+        run: |
+          test -s release/BloomBox-SideStore-unsigned.ipa
+          unzip -t release/BloomBox-SideStore-unsigned.ipa | tail -1
+          sha256sum release/BloomBox-SideStore-unsigned.ipa
+      - name: Publish versioned GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v1.3.0
+          name: "BloomBox 1.3 — Modules, RAM+ and Connectivity"
+          target_commitish: ${{ github.sha }}
+          draft: false
+          prerelease: false
+          make_latest: true
+          generate_release_notes: false
+          fail_on_unmatched_files: true
+          files: release/BloomBox-SideStore-unsigned.ipa
+          body: |
+            ## BloomBox 1.3 — Modules, RAM+ and Connectivity
+
+            This update introduces a refreshed Modules hub, more direct access to existing features, and experimental tools for controlling guest app connectivity and checking RAM+.
+
+            ### What's new
+            - **Redesigned Modules:** A dark translucent interface without Liquid Glass blur, with quick access to RAM+, JIT, Desktop, Connectivity, Privacy, and Experimental settings.
+            - **JIT in one place:** Open the full existing JIT setup and provider controls directly inside the JIT module, without an extra setup button.
+            - **Desktop shortcuts:** Open Interface, Wallpaper, and Apps management from the Desktop module.
+            - **Per-app connectivity:** Find installed guest apps and allow or block Internet access using individual switches. The existing crossed-out Wi-Fi badge remains visible for blocked apps.
+            - **RAM+ support:** Request and inspect Increased Memory Limit approval, verify the installed entitlement and extensions, and access cautious reinstall controls from Experimental settings.
+            - **Reinstall safeguards:** Local IPA validation checks the app identifier, version, build, extensions and App Groups before manual reuse. Experimental reinstall controls do not request Apple approval again when RAM+ is already active.
+
+            ### Important notes
+            - **Connectivity is experimental.** Fully close and reopen BloomBox after changing an app's Internet switch. Some connections, including iCloud-related services, may continue.
+            - **RAM+ is not extra physical RAM.** Apple authorization and the entitlement in the installed signature are separate checks.
+            - **Keep your signing identity and extensions.** Re-signing or replacing BloomBox may remove RAM+ if SideStore does not preserve its entitlement. Back up your data and avoid uninstalling the existing app.
+            - **JIT compatibility depends on your iOS version, provider, and signed permissions.** No universal JIT compatibility is claimed.
+            - The published IPA is **unsigned** and is intended to be signed and installed with SideStore.
+
+            **Build:** ${{ github.sha }}
+
+  release__v200:
+    name: Publish BloomBox v2.0.0
+    if: >-
+      ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release: BloomBox v2.0.0') }}
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download compiled and validated SideStore IPA
+        uses: actions/download-artifact@v8
+        with:
+          name: BloomBox-SideStore-unsigned.ipa
+          path: release
+      - name: Verify IPA and generate SHA-256 checksum
+        run: |
+          test -s release/BloomBox-SideStore-unsigned.ipa
+          unzip -t release/BloomBox-SideStore-unsigned.ipa | tail -n 1
+          cd release
+          sha256sum BloomBox-SideStore-unsigned.ipa > SHA256SUMS.txt
+      - name: Publish BloomBox 2.0 release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v2.0.0
+          name: "BloomBox 2.0 — Alive Home, Living Widgets & Theme Store"
+          target_commitish: ${{ github.sha }}
+          draft: false
+          prerelease: false
+          make_latest: true
+          generate_release_notes: false
+          fail_on_unmatched_files: true
+          files: |
+            release/BloomBox-SideStore-unsigned.ipa
+            release/SHA256SUMS.txt
+          body: |
+            ## BloomBox 2.0
+            A major Home screen update with a more animated desktop and greater customization.
+
+            ### What's new
+            - BloomBox Alive: playful startup wave, rotating splash messages, and occasional icon movement.
+            - Living Widgets: floating, horizontal and wandering motion with individual settings, pause rules and theme persistence.
+            - Four native clocks: Minimal, Flip Retro, Analog and Pixel, with customizable tint and time format.
+            - Home widgets: grid layout, resizing, photo/GIF selection and more reliable dragging and tap targets.
+            - Animated wallpapers imported from Photos or Files, including GIF and video.
+            - More iOS-like BloomBox folder, movable built-in shortcuts and Dock haptics.
+            - Theme Store: local .bbtheme library and official remote catalog with integrity-checked downloads.
+            - Expanded English/Spanish localization, remote news, and Modules UI improvements.
+
+            ### Install
+            Download **BloomBox-SideStore-unsigned.ipa**. This IPA is unsigned and must be signed with SideStore or a compatible signing method.
+            **Install over your existing BloomBox rather than uninstalling it** if you want to preserve data. Keep the same bundle identifier and signing setup.
+
+            ### Compatibility and cautions
+            - RAM+ depends on Apple's approval and the entitlements present in the final signed app; signing again can remove them.
+            - JIT depends on the device, iOS version, pairing and provider.
+            - Automated iOS build and IPA validation passed for the release pipeline; some animations, haptics and themes still require physical-device feedback.
+            - Unofficial fan-made themes are not affiliated with their referenced game creators.
+
+            **Commit:** ${{ github.sha }}

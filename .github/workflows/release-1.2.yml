@@ -1,0 +1,109 @@
+name: BloomBox - Official Release 1.2
+
+on:
+  workflow_run:
+    workflows: ["BloomBox - Build"]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: bloombox-release-v1.2.0
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish BloomBox v1.2.0
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check whether release already exists
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "v1.2.0" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download IPA from successful main build
+        if: steps.release.outputs.exists == 'false'
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: BloomBox-SideStore-unsigned.ipa
+          path: release-assets
+
+      - name: Validate release IPA and preserved components
+        if: steps.release.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import plistlib, zipfile, hashlib
+          path = Path("release-assets/BloomBox-SideStore-unsigned.ipa")
+          assert path.is_file() and path.stat().st_size > 5_000_000, "IPA missing or too small"
+          with zipfile.ZipFile(path) as archive:
+              assert archive.testzip() is None, "Corrupt IPA"
+              root = "Payload/LiveContainer.app/"
+              files = set(archive.namelist())
+              for required in (
+                  root + "Info.plist",
+                  root + "Frameworks/LiveContainerSwiftUI.framework/LiveContainerSwiftUI",
+                  root + "PlugIns/LiveProcess.appex/LiveProcess",
+                  root + "PlugIns/ManzanaExpiryWidget.appex/ManzanaExpiryWidget",
+                  root + "PlugIns/JITHelper.appex/ShareExtension",
+              ):
+                  assert required in files, "Missing component: " + required
+              assert any("/SideStoreApp.framework/" in item for item in files), "Missing SideStore component"
+              info = plistlib.loads(archive.read(root + "Info.plist"))
+              assert info.get("CFBundleDisplayName") == "BloomBox", "Unexpected display name"
+          digest = hashlib.file_digest(open(path,"rb"),"sha256").hexdigest()
+          print(f"BloomBox SideStore IPA verified, size={path.stat().st_size}, sha256={digest}")
+          PY
+
+      - name: Publish verified BloomBox v1.2.0
+        if: steps.release.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/bloombox-1.2-notes.md <<'NOTES'
+          # BloomBox v1.2.0 — Tiendas comunitarias y ports
+
+          Esta versión integra las funciones experimentales aprobadas en la rama principal.
+
+          ## Novedades
+          - **Tweak Store** con las pestañas Mis apps y Explorar, catálogo dinámico desde GitHub, créditos y enlaces a los autores originales, iconos y alertas por nivel. **SambaFix v3** conserva su aviso de compatibilidad de nivel 3.
+          - **Tweaks comunitarios:** MarketplaceAdBlock (instalación experimental con confirmación y hash SHA-256), Isaac External Item Descriptions, AIUpscaleTweak, InstaPlus y iOS-App-Dylib-Patches (estos últimos se muestran solo como consulta si faltan requisitos).
+          - **App Store comunitaria** independiente de la tienda oficial de Apple. Muestra apps, autores, releases y búsqueda; puede transferir IPAs verificadas al instalador integrado, con consentimiento explícito y SHA-256 comprobado antes de instalar.
+          - **Catálogo de apps inicial:** MeloCafe, MeloNX, Delta, UTM SE, StikDebug y Madeira. Las aplicaciones que necesitan firma o capacidades propias de iOS son enlaces externos, no instalaciones automáticas como invitadas.
+          - **Sección Ports:** 18 proyectos de la comunidad GalaxyPad/PadMint, incluyendo GalaxyPad, KartPad, BlueWake, SunPad y MeleePad, con enlaces al autor y su compilador. El catálogo **no incluye ROM, ISO ni archivos de juegos**, y las IPAs de construcción parcial no se anuncian como juegos listos.
+          - **Sincronización mejorada:** actualización sin caché obsoleta, última sincronización visible y copia local cuando no hay conexión.
+          - Conserva mejoras anteriores: escritorio y widgets Liquid Glass, redes desactivables por app, respaldos, archivos y multitarea.
+
+          ## Instalación
+          1. Realiza un respaldo de los datos que necesites conservar.
+          2. Descarga `BloomBox-SideStore-unsigned.ipa` e instálala mediante SideStore, firmándola como habitualmente.
+          3. Abre BloomBox → App Store o Tweak Store → Actualizar para sincronizar catálogos externos.
+
+          **Advertencias:** instalar o inyectar software de terceros implica riesgos; no todos los tweaks ni las apps se han probado en BloomBox con iOS 27. JIT, Memory+ y permisos de iCloud, firma y extensiones dependen de iOS y del instalador, y no pueden concederse desde BloomBox. Los listados comunitarios alojan referencias a sus autores; las descargas provienen del origen indicado. La compilación ha sido verificada por GitHub Actions, pero requiere pruebas en dispositivo.
+          NOTES
+          gh release create "v1.2.0" \
+            release-assets/BloomBox-SideStore-unsigned.ipa \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_SHA" \
+            --title "BloomBox 1.2 — Tweak Store, App Store y Ports" \
+            --notes-file /tmp/bloombox-1.2-notes.md \
+            --latest

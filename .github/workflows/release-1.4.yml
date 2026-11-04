@@ -1,0 +1,126 @@
+name: BloomBox - Official Release 1.4
+
+on:
+  workflow_run:
+    workflows: ["BloomBox - Build"]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: bloombox-release-v1.4.0
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish BloomBox v1.4.0
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify that the successful build is the current main commit
+        id: head
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILT_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA=$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')
+          echo "Current main: $CURRENT_SHA"
+          echo "Built commit: $BUILT_SHA"
+          if [[ "$CURRENT_SHA" == "$BUILT_SHA" ]]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check whether v1.4.0 is already published
+        id: existing
+        if: steps.head.outputs.current == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "v1.4.0" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download the IPA from the successful main build
+        if: steps.head.outputs.current == 'true' && steps.existing.outputs.exists == 'false'
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: BloomBox-SideStore-unsigned.ipa
+          path: release-assets
+
+      - name: Verify the release IPA and bundled components
+        if: steps.head.outputs.current == 'true' && steps.existing.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import plistlib
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          ipa = Path("release-assets/BloomBox-SideStore-unsigned.ipa")
+          assert ipa.is_file() and ipa.stat().st_size > 5_000_000, "IPA missing or too small"
+          with ZipFile(ipa) as archive:
+              assert archive.testzip() is None, "Corrupt ZIP entry"
+              root = "Payload/LiveContainer.app/"
+              names = set(archive.namelist())
+              for required in (
+                  root + "Info.plist",
+                  root + "Frameworks/LiveContainerSwiftUI.framework/LiveContainerSwiftUI",
+                  root + "Frameworks/SideStoreApp.framework/SideStore",
+                  root + "PlugIns/LiveProcess.appex/LiveProcess",
+                  root + "PlugIns/JITHelper.appex/ShareExtension",
+                  root + "PlugIns/ManzanaExpiryWidget.appex/ManzanaExpiryWidget",
+              ):
+                  assert required in names, "Missing: " + required
+              info = plistlib.loads(archive.read(root + "Info.plist"))
+              assert info.get("CFBundleDisplayName") == "BloomBox", "Unexpected app name"
+          with ipa.open("rb") as handle:
+              digest = hashlib.file_digest(handle, "sha256").hexdigest()
+          print(f"Verified BloomBox v1.4.0 IPA: {ipa.stat().st_size} bytes; SHA-256={digest}")
+          PY
+
+      - name: Publish BloomBox v1.4.0 with English notes
+        if: steps.head.outputs.current == 'true' && steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/bloombox-v1.4-notes.md <<'NOTES'
+          # BloomBox v1.4.0 — Universal JIT and Launch Stability
+
+          This release consolidates the experimental JIT and RAM+ improvements into BloomBox's main branch.
+
+          ## Highlights
+          - **Universal JIT routing:** The built-in Universal JIT script is the default for supported guest apps when JIT is requested. MeloNX 2.6 keeps its dedicated JIT script.
+          - **Per-app JIT controls:** A redesigned Modules → JIT page provides pairing/setup access, independent JIT switches for installed apps, and long-press actions to import or restore custom JavaScript JIT scripts.
+          - **Safer experiments:** The experimental option for using MeloNX's script with other guests remains available, disabled by default.
+          - **SideStore launch crash fix:** Avoids reading a missing guest-app JIT key from the bundled SideStore entry; launch errors are now surfaced to the user.
+          - **RAM+ and JIT warnings:** Prelaunch checks for selected emulators and independent "Don't ask again" preferences for each warning.
+          - **JIT script consistency:** The host and JIT extension now use consistent Universal JIT logging behavior, with automated regression checks.
+          - **More reliable builds:** Additional tests cover script routing, warning behavior, and installed package contents.
+
+          ## Installation and important notes
+          - Download **BloomBox-SideStore-unsigned.ipa**, sign it with SideStore, and install it over the existing BloomBox app if possible.
+          - **Back up your app data first. Do not delete your existing installation** unless you have a verified backup.
+          - **RAM+ is not extra physical RAM.** Its availability depends on Apple's authorization and the entitlements present in the installed signature. Updating or re-signing may remove an existing RAM+ entitlement.
+          - JIT compatibility depends on iOS, pairing, LocalDevVPN, the selected provider, and each guest app. Not every app supports Universal JIT.
+          - This IPA passed GitHub Actions checks; final SideStore, RAM+ and JIT behavior still needs validation on a real iOS 27 device.
+
+          **Source commit:** see this release's target commit.
+          NOTES
+          gh release create "v1.4.0"             "release-assets/BloomBox-SideStore-unsigned.ipa"             --repo "$GITHUB_REPOSITORY"             --target "$RELEASE_SHA"             --title "BloomBox 1.4 — Universal JIT and Launch Stability"             --notes-file /tmp/bloombox-v1.4-notes.md             --latest
