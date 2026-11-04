@@ -73,6 +73,12 @@ enum LiveContainerHomeAdapter {
     static func builtInSignerIcon(dark: Bool) -> UIImage? {
         BuiltInSideStoreAppInfo.shared.iconIsDarkIcon(dark)
     }
+
+    static func moduleGuests(_ apps: [LCAppModel], sharedModel: SharedModel) -> [LCAppModel] {
+        let showHidden = !LiveContainerPreferencesAdapter.defaults.bool(forKey: "LCStrictHiding")
+            || sharedModel.isHiddenAppUnlocked
+        return apps + (showHidden ? sharedModel.hiddenApps : [])
+    }
     /// Import selected dylibs into this app's assigned tweak folder.
     /// Existing associations stay unchanged, and Files originals remain intact.
     static func installTweakFiles(_ urls: [URL], for app: LCAppModel,
