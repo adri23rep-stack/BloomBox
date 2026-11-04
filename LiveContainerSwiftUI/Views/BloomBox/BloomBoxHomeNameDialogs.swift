@@ -42,7 +42,7 @@ struct BloomBoxHomeNameDialogs: ViewModifier {
                 Button(englishUI ? "Create" : "Crear") {
                     if let key = newFolderKey {
                         let name = folderName.trimmingCharacters(in: .whitespacesAndNewlines)
-                        onCreateFolder(key, name.isEmpty ? (englishUI ? "Apps" : "Apps") : name)
+                        onCreateFolder(key, name.isEmpty ? "Apps" : name)
                     }
                     newFolderKey = nil
                 }
