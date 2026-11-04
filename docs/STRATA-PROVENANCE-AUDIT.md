@@ -215,3 +215,17 @@ Este apartado actualiza **el estado de la rama**, sin reescribir los resultados 
 - Los 137 archivos modificados/no idénticos de la foto histórica no se declaran automáticamente originales de BloomBox. La auditoría de autoría y los avisos legalmente obligatorios siguen pendientes, aunque la UI ya no use el branding histórico.
 
 CI y pruebas en iPhone deben verificarse con el commit final de esta rama antes de fusionar. La separación física de LiveContainer/SideStore es un trabajo distinto, y la licencia AGPL-3.0 existente **no se sustituye** mediante esta limpieza.
+
+
+## Cierre técnico de la limpieza — 4 nov 2026
+
+La auditoría **del código fuente y la marca actual** quedó registrada en
+[STRATA-TECHNICAL-CLOSURE.md](STRATA-TECHNICAL-CLOSURE.md).
+El inventario de este documento es una **foto histórica**, no una afirmación
+de que sus archivos de GameBox siguen presentes. La antigua pantalla GameBox
+se eliminó; la entrada de interfaz es ahora «Espacio reservado» y el usuario
+confirmó en iPhone que las apps que antes requerían GameBox abren normalmente.
+Los **cuatro blobs exactos que aún coinciden exclusivamente con el snapshot de
+Strata** son licencias y metadatos de LiveExec32/StikJIT/idevice; no deben
+eliminarse. La independencia de copyright en sentido legal no se deduce de
+la comparación por SHA y sigue sujeta a obligaciones de procedencia.

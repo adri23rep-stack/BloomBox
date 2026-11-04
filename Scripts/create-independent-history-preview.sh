@@ -4,11 +4,11 @@
 set -euo pipefail
 
 SOURCE_COMMIT="${GITHUB_SHA:-$(git rev-parse HEAD)}"
-PREVIEW_BRANCH="preview/bloombox-independent-history-20261104"
+PREVIEW_BRANCH="preview/bloombox-audited-history-20261104"
 
 test -f LICENSE
 test -f THIRD_PARTY_NOTICES.md
-test -f docs/STRATA-PROVENANCE-AUDIT.md
+test -f docs/STRATA-TECHNICAL-CLOSURE.md
 test -f Scripts/audit-bloombox-independent-launcher.py
 
 # This tool can be executed only on the designated refactor branch.
@@ -35,7 +35,7 @@ chore: review-only BloomBox independent-history snapshot
 Source snapshot of $SOURCE_COMMIT on $SOURCE_REF.
 This is a packaging history reset for contributor display, NOT a claim that
 all bundled sources are authored by BloomBox or free of original licenses.
-See LICENSE, THIRD_PARTY_NOTICES.md and docs/STRATA-PROVENANCE-AUDIT.md.
+See LICENSE, THIRD_PARTY_NOTICES.md and docs/STRATA-TECHNICAL-CLOSURE.md.
 The original ancestry remains preserved in main and existing Git tags.
 EOF
 )"

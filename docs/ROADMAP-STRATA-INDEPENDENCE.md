@@ -143,3 +143,17 @@ Se permiten pruebas y mejoras de CI en paralelo, pero **no** se deben quitar los
 | 7. Créditos | Bloqueado | Auditoría de autoría/licencias cerrada |
 
 > Este es un plan técnico, no una conclusión legal. Las obligaciones exactas de avisos y licencias dependen del código efectivamente distribuido y de su procedencia.
+
+
+## Actualización de cierre — 4 de noviembre de 2026
+
+**Cerradas la retirada de GameBox, el cambio de marca y la comparación técnica
+con Strata**: ver [cierre técnico](STRATA-TECHNICAL-CLOSURE.md) y
+[PR #35](https://github.com/adri23rep-stack/BloomBox/pull/35).
+Las casillas anteriores describen el **plan original** y no deben leerse como
+el estado actual. Home, widgets, apps, el nuevo espacio reservado y la apertura
+sin GameBox fueron probados por el propietario en iOS 27. LiveContainer,
+SideStore y las licencias de otras herramientas quedan fuera del alcance.
+Aún queda que el último commit compile, revisar la autoría/derechos de
+cualquier bloque derivado y aprobar por separado la migración de la rama
+predeterminada de GitHub; `main` no se ha reemplazado.

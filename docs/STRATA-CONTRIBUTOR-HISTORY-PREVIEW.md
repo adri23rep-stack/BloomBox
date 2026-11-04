@@ -17,7 +17,7 @@ copyright/licensing obligations.
 
 ## Safe and unsafe operations
 
-- Safe automatic action: create `preview/bloombox-independent-history-20261104`
+- Safe automatic action: create `preview/bloombox-audited-history-20261104`
   with a single root commit, after validating the source audit and locale names.
   That new branch has **no shared commit ancestry** with `main`.
 - Never automatically change `main`, default-branch settings, release tags,
@@ -36,8 +36,9 @@ copyright/licensing obligations.
 1. Confirm latest refactor source passed Xcode archive, IPA validation and tests.
 2. Inspect the preview's tree against the refactor source commit: same tree SHA.
 3. Confirm preview has one commit, zero parents, and original licenses in tree.
-4. Confirm running the IPA as an update preserves saved apps, widgets, themes,
-   signing, RAM+, JIT and GameBox layout on iOS 27.
+4. Confirm the current source passes the new build and that an IPA update preserves
+   Home layouts, installed apps, widgets, themes, signing, RAM+ and JIT. The owner
+   already tested removal of GameBox in a prior successful build.
 5. Confirm the audit no longer finds Strata-only implementation requiring credit;
    if required notices remain, **keep them**.
 6. Only with the owner's specific approval, decide whether to migrate default
@@ -46,3 +47,15 @@ copyright/licensing obligations.
 There is no promise that GitHub's Contributors cache refreshes immediately after
 an eventual approved default-branch migration. Contributor graph recalculation
 and other GitHub profile features may be delayed or behave differently.
+
+
+### Final replacement preview
+
+Use `preview/bloombox-audited-history-20261104` for the **post-GameBox**
+source, instead of the older `preview/bloombox-independent-history-20261104`
+trial. The historical audit remains available under
+[STRATA-TECHNICAL-CLOSURE.md](STRATA-TECHNICAL-CLOSURE.md).
+
+Never make the new root look like it was authored by upstream developers or by
+someone who did not actually create the snapshot. The new root is attributed
+to automation and retains its original source-provenance documentation.

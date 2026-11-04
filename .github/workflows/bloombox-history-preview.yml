@@ -1,4 +1,4 @@
-name: BloomBox - Strata contributor-history preview
+name: BloomBox - independent contributor-history preview
 
 # One-time, review-only isolated history preview. This does not rewrite main.
 on:
@@ -6,7 +6,8 @@ on:
     branches:
       - refactor/bloombox-independent-core
     paths:
-      - '.github/workflows/strata-history-preview.yml'
+      - '.github/workflows/bloombox-history-preview.yml'
+      - 'Scripts/create-independent-history-preview.sh'
   workflow_dispatch:
 
 permissions:
@@ -28,4 +29,4 @@ jobs:
           python3 Tests/branding-tests/test_localized_names.py
 
       - name: Create new-root review branch (never rewrite main)
-        run: bash Scripts/create-strata-independent-history-preview.sh
+        run: bash Scripts/create-independent-history-preview.sh

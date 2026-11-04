@@ -135,13 +135,17 @@ struct BloomBoxJITSetup: View {
                         Text("Touch and hold an app, or open its console options, and choose Launch with JIT. BloomBox prepares the device and connects its helper automatically. Errors appear in the launch window.")
                     }
                 } else {
-                    Section("External provider") {
-                        Text("Configure pairing and the required connection in your selected provider, then choose Launch with JIT on an app.")
-                        NavigationLink("Provider settings") { LCSettingsView() }
-                    }
+                    externalProviderHelp
                 }
                 if provider != JITEnablerType.BuiltIn.rawValue && !session.message.isEmpty { Section { Text(session.message) } }
                 Section { NavigationLink("JIT-less setup and diagnostics") { LCJITLessDiagnoseView() } }
+        }
+    }
+
+    private var externalProviderHelp: some View {
+        Section("External provider") {
+            Text("Configure pairing and the required connection in your selected provider, then choose Launch with JIT on an app.")
+            NavigationLink("Provider settings") { LCSettingsView() }
         }
     }
 

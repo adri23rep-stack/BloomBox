@@ -91,6 +91,12 @@ for project in ("LiveContainer", "SideStore", "StikJIT"):
         raise SystemExit("Third-party attribution missing: " + project)
 if "docs/STRATA-PROVENANCE-AUDIT.md" not in credits:
     raise SystemExit("The historical provenance record was disconnected")
+if "Strata" in (ROOT / "README.md").read_text(encoding="utf-8"):
+    raise SystemExit("Retired promotional donor branding appeared in README")
+if "Strata icon:" in credits or "a derivative of Manzana, Strata" in credits:
+    raise SystemExit("An obsolete donor-art credit or promotional statement returned")
+if not (ROOT / "docs/STRATA-TECHNICAL-CLOSURE.md").is_file():
+    raise SystemExit("Missing completed technical closure summary")
 
 # Distribution branding must not reintroduce Strata's localized app name or
 # store legacy icon binaries in the repository. Build scripts regenerate icons.
