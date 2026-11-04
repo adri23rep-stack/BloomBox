@@ -78,20 +78,25 @@ def main() -> int:
         if not isinstance(info, dict) or not HEX40.fullmatch(info.get("commit", "")):
             raise ValueError(f"missing immutable upstream commit: {name}")
     counts = manifest["counts"]
-    sources, assets = manifest["sourceFiles"], manifest["mediaAssets"]
-    if len(sources) != counts["sources"] or len(assets) != counts["assets"]:
+    sources = manifest["sourceFiles"]
+    assets = manifest["mediaAssets"]
+    others = manifest["otherFiles"]
+    if (len(sources) != counts["sources"]
+            or len(assets) != counts["assets"]
+            or len(others) != counts["other"]):
         raise ValueError("file count changed without updating manifest totals")
     verify(sources, counts["sourceClassification"], "source")
     verify(assets, counts["assetClassification"], "media")
-    if set(item["path"] for item in sources).intersection(
-        item["path"] for item in assets
-    ):
-        raise ValueError("source/media path conflict")
+    verify(others, counts["otherClassification"], "other")
+    all_paths = [item["path"] for item in sources + assets + others]
+    if len(all_paths) != len(set(all_paths)):
+        raise ValueError("paths are duplicated across source/media/other groups")
     print(f"Provenance baseline validated: {len(sources)} source files, "
-          f"{len(assets)} media assets; no license conclusions implied.")
+          f"{len(assets)} media assets and {len(others)} other tracked files; "
+          "no license conclusions implied.")
     if options.drift:
         changed = []
-        for item in sources + assets:
+        for item in sources + assets + others:
             path = ROOT / item["path"]
             if not path.is_file() or git_blob_sha(path) != item["sha"]:
                 changed.append(item["path"])
