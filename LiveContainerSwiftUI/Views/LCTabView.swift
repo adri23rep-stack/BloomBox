@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 
 struct LCTabView: View {
+    @State private var onboardingMode: BloomBoxWizardMode? = BloomBoxWizardGate.pending()
     @State var errorShow = false
     @State var crashReportShow = false
     @State var errorInfo = ""
@@ -22,7 +23,13 @@ struct LCTabView: View {
     let pub = NotificationCenter.default.publisher(for: UIScene.didDisconnectNotification)
     
     var body: some View {
-        LiveBoardRootView()
+        Group {
+            if let onboardingMode {
+                BloomBoxWizardView(mode: onboardingMode) { self.onboardingMode = nil }
+            } else {
+                LiveBoardRootView()
+            }
+        }
         .downloadAlert(helper: downloadHelper)
         .environmentObject(downloadHelper)
         .alert("lc.common.error".loc, isPresented: $errorShow){
