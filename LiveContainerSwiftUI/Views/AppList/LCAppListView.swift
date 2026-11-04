@@ -9,6 +9,7 @@ import Combine
 import CryptoKit
 import SwiftUI
 import UniformTypeIdentifiers
+import UIKit
 
 class SearchContext: ObservableObject {
     @Published var query: String = ""
