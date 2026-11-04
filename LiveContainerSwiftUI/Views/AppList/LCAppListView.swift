@@ -46,6 +46,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     // risks large memory spikes and repeated work on each SwiftUI recomposition.
     @State private var gameBoxDisplayEntries: [BloomBoxGameBoxEntry] = []
     @State private var gameBoxReady = false
+    @AppStorage(BloomBoxGameBoxRecoveryPolicy.safeModeKey, store: LCUtils.appGroupUserDefault)
+    private var gameBoxSafeMode = false
     private var builtInSideStore: LCAppModel? { LiveBoardBundledApps.sideStore }
     @State var didAppear = false
     // ipa choosing stuff
@@ -224,19 +226,23 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     private func prepareGameBox() async {
         gameBoxReady = false
         gameBoxDisplayEntries = []
-        LCUtils.appGroupUserDefault.set("preparing", forKey: "BloomBoxGameBoxV2OpenStage")
-        NSLog("[BloomBox GameBox] Preparing game list")
+        let defaults = LCUtils.appGroupUserDefault
+        BloomBoxGameBoxRecoveryPolicy.checkpoint("preparing", defaults: defaults)
+        NSLog("[BloomBox GameBox] Preparing lightweight guest metadata")
         await Task.yield()
         guard !Task.isCancelled, liveBoardMode == "gamebox" else { return }
         let guests = launcherApps
         var prepared: [BloomBoxGameBoxEntry] = []
         prepared.reserveCapacity(guests.count)
+        // Initial UI is assembled WITHOUT decoding a single bitmap. Each
+        // installed guest gets a lightweight identity and its existing JIT
+        // policy; built-in SideStore must never undergo app bundle probing.
         for (index, app) in guests.enumerated() {
             guard !Task.isCancelled, liveBoardMode == "gamebox" else { return }
             let builtIn = app.appInfo is BuiltInSideStoreAppInfo
+            let appPath = app.appInfo.relativeBundlePath
             let policy = BloomBoxJITGuestPolicy.mode(
-                for: app.appInfo.relativeBundlePath,
-                defaults: LCUtils.appGroupUserDefault)
+                for: appPath, defaults: defaults)
             let version: String?
             if !builtIn, let path = app.appInfo.bundlePath() {
                 version = Bundle(path: path)?
@@ -249,8 +255,38 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             let jitEnabled = !builtIn && BloomBoxJITGuestPolicy.wantsJIT(
                 automatic: app.appInfo.isJITNeeded || app.appInfo.is32bit || isMeloNX,
                 forced: nil, mode: policy)
-            // Keep one bounded icon per guest rather than decoding the full
-            // image again whenever favorites, clock or scrolling state changes.
+            prepared.append(BloomBoxGameBoxEntry(
+                id: liveBoardAppKey(app),
+                name: LiveBoardAppCustomization.shared.name(app),
+                icon: nil,
+                requiresJIT: jitEnabled))
+            if index % 8 == 7 { await Task.yield() }
+        }
+        guard !Task.isCancelled, liveBoardMode == "gamebox" else { return }
+        gameBoxDisplayEntries = prepared
+        gameBoxReady = true
+        BloomBoxGameBoxRecoveryPolicy.checkpoint(
+            gameBoxSafeMode ? "safe-ready" : "metadata-ready", defaults: defaults)
+        NSLog("[BloomBox GameBox] Lightweight library ready: %ld entries", prepared.count)
+
+        // Safe mode never loads artwork. It is deliberately usable even if
+        // an individual guest's icon resource crashes the presentation path.
+        guard !gameBoxSafeMode else { return }
+        // Give SwiftUI and landscape geometry a complete display pass first.
+        try? await Task.sleep(nanoseconds: 150_000_000)
+        for (index, app) in guests.enumerated() {
+            guard !Task.isCancelled, !gameBoxSafeMode,
+                  liveBoardMode == "gamebox",
+                  gameBoxDisplayEntries.indices.contains(index) else { return }
+            let id = prepared[index].id
+            if BloomBoxGameBoxRecoveryPolicy.shouldSkipIcon(id, defaults: defaults) {
+                NSLog("[BloomBox GameBox] Skipping quarantined icon at index %ld", index)
+                continue
+            }
+            BloomBoxGameBoxRecoveryPolicy.noteIcon(id, defaults: defaults)
+            // The source icon and renderer only execute for one guest at a
+            // time. If iOS kills this process during image generation, its
+            // key is quarantined on the next launch for safe recovery.
             var icon = LiveBoardIconStore.image(app, dark: darkModeIcon)
             if let source = icon {
                 let width = source.size.width
@@ -267,18 +303,15 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                     }
                 }
             }
-            prepared.append(BloomBoxGameBoxEntry(
-                id: liveBoardAppKey(app),
-                name: LiveBoardAppCustomization.shared.name(app),
-                icon: icon,
-                requiresJIT: jitEnabled))
-            if index % 8 == 7 { await Task.yield() }
+            var entry = prepared[index]
+            entry = BloomBoxGameBoxEntry(id: entry.id, name: entry.name,
+                                         icon: icon, requiresJIT: entry.requiresJIT)
+            gameBoxDisplayEntries[index] = entry
+            if index % 2 == 1 { try? await Task.sleep(nanoseconds: 25_000_000) }
+            else { await Task.yield() }
         }
-        guard !Task.isCancelled, liveBoardMode == "gamebox" else { return }
-        gameBoxDisplayEntries = prepared
-        LCUtils.appGroupUserDefault.set("prepared", forKey: "BloomBoxGameBoxV2OpenStage")
-        gameBoxReady = true
-        NSLog("[BloomBox GameBox] Prepared %ld apps", prepared.count)
+        BloomBoxGameBoxRecoveryPolicy.checkpoint("ready", defaults: defaults)
+        NSLog("[BloomBox GameBox] Incremental icon load complete")
     }
 
     @available(iOS 16.0, *)
@@ -304,6 +337,33 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             openInstall: {
                 if sharedModel.multiLCStatus == 2 { manageLibrary = true }
                 else { choosingIPA = true }
+            })
+    }
+
+    @available(iOS 16.0, *)
+    private var gameBoxSafeScreen: some View {
+        let guests = launcherApps
+        return BloomBoxGameBoxSafeScreen(
+            entries: gameBoxDisplayEntries,
+            launch: { key in
+                guard let app = guests.first(where: { liveBoardAppKey($0) == key }) else { return }
+                Task { await launchFromLiveBoard(app) }
+            },
+            launchWithJIT: { key in
+                guard let app = guests.first(where: { liveBoardAppKey($0) == key }) else { return }
+                Task { await launchFromLiveBoard(app, forceJIT: true) }
+            },
+            manage: { key in
+                guard let app = guests.first(where: { liveBoardAppKey($0) == key }) else { return }
+                manageLauncherApp(app)
+            },
+            exit: { liveBoardMode = "ios" },
+            retryFull: {
+                BloomBoxGameBoxRecoveryPolicy.useFullUI(
+                    defaults: LCUtils.appGroupUserDefault)
+                gameBoxSafeMode = false
+                gameBoxReady = false
+                gameBoxDisplayEntries = []
             })
     }
 
@@ -333,7 +393,11 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 NavigationLink(destination: navigateTo, isActive: $isNavigationActive) { EmptyView() }.hidden()
                 if !manageLibrary && liveBoardMode == "gamebox" {
                     if #available(iOS 16.0, *), gameBoxReady {
-                        gameBoxV2
+                        if gameBoxSafeMode {
+                            gameBoxSafeScreen
+                        } else {
+                            gameBoxV2
+                        }
                     } else if #available(iOS 16.0, *) {
                         gameBoxPreparingView
                     } else {
@@ -509,12 +573,14 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
-        .task(id: liveBoardMode) {
+        .task(id: liveBoardMode + (gameBoxSafeMode ? "-safe" : "-full")) {
             if liveBoardMode == "gamebox" {
                 await prepareGameBox()
             } else {
                 gameBoxReady = false
                 gameBoxDisplayEntries = []
+                BloomBoxGameBoxRecoveryPolicy.close(
+                    defaults: LCUtils.appGroupUserDefault)
             }
         }
         .alert("lc.common.error".loc, isPresented: $errorShow){
