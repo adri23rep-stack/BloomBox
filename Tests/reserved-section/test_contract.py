@@ -81,6 +81,11 @@ assert "guard artworkIsActive else { return nil }" in gamebox
 assert '"BloomBoxGameBoxV2OpenStage"' in gamebox
 assert '"BloomBoxGameBoxV2OpenStage"' in host
 assert "let columns: CGFloat = viewportWidth >= 650 ? 5" in gamebox
+assert "geometry.size.width.isFinite && geometry.size.width > 0" in gamebox
+assert "geometry.size.height.isFinite && geometry.size.height > 0" in gamebox
+assert "guard step.isFinite, offset.isFinite else { return 0 }" in gamebox
+assert "guard rawIndex.isFinite else { return 0 }" in gamebox
+assert "return Int(min(max(0, rawIndex), upper))" in gamebox
 assert "let cardWidth = (viewportWidth - (columns - 1) * 17) / columns" in gamebox
 assert "viewportWidth: viewportWidth" in gamebox
 assert ".padding(.top, compact ? 23 : 29)" in gamebox
