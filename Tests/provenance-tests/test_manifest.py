@@ -61,7 +61,7 @@ def verify(rows: list[dict], expected: dict[str, int], label: str) -> None:
 
 def git_blob_sha(path: Path) -> str:
     raw = path.read_bytes()
-    return hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") + b"\\0" + raw).hexdigest()
+    return hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") + bytes([0]) + raw).hexdigest()
 
 
 def main() -> int:
