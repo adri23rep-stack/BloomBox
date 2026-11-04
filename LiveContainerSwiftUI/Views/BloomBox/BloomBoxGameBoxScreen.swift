@@ -580,10 +580,21 @@ struct BloomBoxGameBoxScreen: View {
         }
     }
     private func changeSection(_ delta: Int) {
-        let sections = ["Library", "Favorites"] + library.categories
-        let current = activeCategory.flatMap { sections.firstIndex(of: $0) } ?? (favoritesOnly ? 1 : 0)
-        let index = (current + delta + sections.count) % sections.count
-        favoritesOnly = index == 1; activeCategory = index >= 2 ? sections[index] : nil; navigation.selectedIndex = 0
+        let orderedSections = ["Library", "Favorites"] + library.categories
+        guard !orderedSections.isEmpty else { return }
+
+        let startingIndex: Int
+        if let selectedCategory = activeCategory,
+           let found = orderedSections.firstIndex(of: selectedCategory) {
+            startingIndex = found
+        } else {
+            startingIndex = favoritesOnly ? 1 : 0
+        }
+
+        let nextIndex = (startingIndex + delta + orderedSections.count) % orderedSections.count
+        favoritesOnly = nextIndex == 1
+        activeCategory = nextIndex >= 2 ? orderedSections[nextIndex] : nil
+        navigation.selectedIndex = 0
     }
     private func carousel(landscape: Bool, scale: CGFloat) -> some View {
         ScrollViewReader { proxy in
@@ -1087,26 +1098,51 @@ struct BloomBoxGameBoxScreen: View {
         }
         .accessibilityAddTraits(.isModal)
     }
+    private var matchingApps: [LCAppModel] {
+        let searchText = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !searchText.isEmpty else { return apps }
+        return apps.filter { app in
+            appCustomization.name(app).localizedCaseInsensitiveContains(searchText) ||
+            app.bundleIdentifier.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    private func revealSearchResult(_ app: LCAppModel) {
+        favoritesOnly = false
+        activeCategory = nil
+        updateLibrary { $0.hidden.remove(liveBoardAppKey(app)) }
+        navigation.selectedIndex = visibleApps.firstIndex(of: app) ?? 0
+        navigation.focus = .rail
+        searching = false
+    }
+
+    private func searchResultRow(_ app: LCAppModel) -> some View {
+        Button {
+            revealSearchResult(app)
+        } label: {
+            HStack(spacing: 12) {
+                LiveBoardIconImage(app: app, dark: darkIcons)
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 11))
+                Text(appCustomization.name(app))
+                    .foregroundStyle(.primary)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
     private var searchSheet: some View {
         NavigationView {
-            List {
-                ForEach(apps.filter { query.isEmpty || appCustomization.name($0).localizedCaseInsensitiveContains(query) || $0.bundleIdentifier.localizedCaseInsensitiveContains(query) }, id: \.self) { app in
-                    Button {
-                        favoritesOnly = false; activeCategory = nil
-                        updateLibrary { $0.hidden.remove(liveBoardAppKey(app)) }
-                        navigation.selectedIndex = visibleApps.firstIndex(of: app) ?? 0
-                        navigation.focus = .rail; searching = false
-                    } label: {
-                        HStack(spacing: 12) {
-                            LiveBoardIconImage(app: app, dark: darkIcons).frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 11))
-                            Text(appCustomization.name(app)).foregroundStyle(.primary)
-                        }
-                    }.buttonStyle(.plain)
+            List(matchingApps, id: \.self, rowContent: searchResultRow)
+                .searchable(text: $query, prompt: "Search library")
+                .navigationTitle("Library")
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { searching = false }
+                    }
                 }
-            }.searchable(text: $query, prompt: "Search library")
-                .navigationTitle("Library").navigationBarHidden(false)
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { searching = false } } }
-        }.navigationViewStyle(.stack)
+        }
+        .navigationViewStyle(.stack)
     }
     private func category(_ app: LCAppModel) -> String {
         return library.assignments[liveBoardAppKey(app)] ?? "App"
