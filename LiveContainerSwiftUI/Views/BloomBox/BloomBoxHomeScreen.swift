@@ -2808,6 +2808,8 @@ struct BloomBoxHomeScreen: View {
         case .wallpaper: customizing = true
         case .apps: openManagement()
         case .settings: openTab(.settings)
+        case .wizard:
+            NotificationCenter.default.post(name: BloomBoxWizardGate.replayRequested, object: nil)
         case .sidestore: openSideStore()
         case .tweaks: storeFocusedApp = nil; tweakStorePresented = true
         }
