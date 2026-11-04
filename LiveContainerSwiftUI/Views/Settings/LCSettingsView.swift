@@ -84,6 +84,15 @@ struct LCSettingsView: View {
     var body: some View {
         NavigationView {
             Form {
+                Section {
+                    NavigationLink {
+                        BloomBoxProfileSettingsView()
+                    } label: {
+                        Label("Perfiles de BloomBox", systemImage: "person.2.crop.square.stack")
+                    }
+                } header: {
+                    Text("BloomBox")
+                }
                 if sharedModel.multiLCStatus != 2 {
                     Section{
                         if !certificateDataFound {
