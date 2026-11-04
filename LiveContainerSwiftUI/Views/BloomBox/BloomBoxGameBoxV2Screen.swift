@@ -239,7 +239,7 @@ struct BloomBoxGameBoxV2Screen: View {
         ScrollViewReader { scroll in
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .center, spacing: 14) {
-                    ForEach(visibleApps, id: \.self) { app in
+                    ForEach(visibleApps, id: \.id) { app in
                         gameCard(app, width: cardWidth, height: height)
                             .id(key(app))
                     }
