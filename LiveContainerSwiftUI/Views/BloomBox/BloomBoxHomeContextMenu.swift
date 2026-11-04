@@ -12,6 +12,7 @@ struct BloomBoxHomeContextMenu: View {
         let isRunning: Bool
         let isSigning: Bool
         let isSideStore: Bool
+        let englishUI: Bool
         let isFavorite: Bool
         let isInDock: Bool
         let dockHasSpace: Bool
@@ -57,66 +58,66 @@ struct BloomBoxHomeContextMenu: View {
     }
 
     @ViewBuilder private var launchActions: some View {
-        Button("Abrir", systemImage: "play.fill", action: actions.launch)
+        Button(state.englishUI ? "Launch" : "Abrir", systemImage: "play.fill", action: actions.launch)
             .disabled(state.isRunning || state.isSigning)
         if let jit = actions.launchJIT {
-            Button("Abrir con JIT", systemImage: "bolt.fill", action: jit)
+            Button(state.englishUI ? "Launch with JIT" : "Abrir con JIT", systemImage: "bolt.fill", action: jit)
                 .disabled(state.isSideStore)
         }
-        Button("Editar escritorio", systemImage: "square.grid.3x3",
+        Button(state.englishUI ? "Edit Home Screen" : "Editar escritorio", systemImage: "square.grid.3x3",
                action: actions.editHome)
-        Button("Renombrar", systemImage: "pencil", action: actions.rename)
-        Button("Cambiar icono", systemImage: "photo", action: actions.changeIcon)
-        Button(state.isFavorite ? "Quitar favorito" : "Favorito", systemImage: "star",
+        Button(state.englishUI ? "Rename" : "Renombrar", systemImage: "pencil", action: actions.rename)
+        Button(state.englishUI ? "Change app icon" : "Cambiar icono", systemImage: "photo", action: actions.changeIcon)
+        Button(state.isFavorite ? (state.englishUI ? "Unfavorite" : "Quitar favorito") : (state.englishUI ? "Favorite" : "Favorito"), systemImage: "star",
                action: actions.toggleFavorite)
     }
 
     @ViewBuilder private var organizationActions: some View {
         if state.isInDock {
-            Button("Sacar del Dock", systemImage: "rectangle.bottomthird.inset.filled",
+            Button(state.englishUI ? "Remove from Dock" : "Sacar del Dock", systemImage: "rectangle.bottomthird.inset.filled",
                    action: actions.moveToHome)
         } else if state.dockHasSpace {
-            Button("Añadir al Dock", systemImage: "rectangle.bottomthird.inset.filled",
+            Button(state.englishUI ? "Add to Dock" : "Añadir al Dock", systemImage: "rectangle.bottomthird.inset.filled",
                    action: actions.moveToDock)
         }
-        Menu("Mover a página", systemImage: "rectangle.on.rectangle") {
+        Menu(state.englishUI ? "Move to Page" : "Mover a página", systemImage: "rectangle.on.rectangle") {
             ForEach(state.pageIndices, id: \.self) { index in
-                Button("Página \(index + 1)") { actions.moveToPage(index) }
+                Button("\(state.englishUI ? "Page" : "Página") \(index + 1)") { actions.moveToPage(index) }
             }
-            Button("Nueva página", action: actions.newPage)
+            Button(state.englishUI ? "New Page" : "Nueva página", action: actions.newPage)
         }
-        Menu("Carpeta", systemImage: "folder") {
-            Button("Nueva carpeta", action: actions.newFolder)
+        Menu(state.englishUI ? "Folder" : "Carpeta", systemImage: "folder") {
+            Button(state.englishUI ? "New Folder" : "Nueva carpeta", action: actions.newFolder)
             ForEach(state.folders) { folder in
                 Button(folder.name) { actions.moveToFolder(folder.id) }
             }
             if state.isInFolder {
-                Button("Sacar de carpeta", action: actions.removeFromFolder)
+                Button(state.englishUI ? "Move out of Folder" : "Sacar de carpeta", action: actions.removeFromFolder)
             }
         }
-        Menu("Categoría", systemImage: "tag") {
+        Menu(state.englishUI ? "Category" : "Categoría", systemImage: "tag") {
             ForEach(state.categories, id: \.self) { name in
                 Button(name) { actions.setCategory(name) }
             }
-            Button("Nueva categoría…", action: actions.newCategory)
-            Button("Sin categoría") { actions.setCategory(nil) }
+            Button(state.englishUI ? "New Category…" : "Nueva categoría…", action: actions.newCategory)
+            Button(state.englishUI ? "Uncategorized" : "Sin categoría") { actions.setCategory(nil) }
         }
     }
 
     @ViewBuilder private var guestActions: some View {
-        Button(state.networkBlocked ? "Permitir Internet" : "Bloquear Internet (experimental)",
+        Button(state.networkBlocked ? (state.englishUI ? "Allow Internet" : "Permitir Internet") : (state.englishUI ? "Block Internet (experimental)" : "Bloquear Internet (experimental)"),
                systemImage: state.networkBlocked ? "wifi" : "wifi.slash",
                action: actions.toggleNetwork)
             .disabled(state.isRunning)
-        Button("Añadir Tweak", systemImage: "square.and.arrow.down.on.square",
+        Button(state.englishUI ? "Add Tweak" : "Añadir Tweak", systemImage: "square.and.arrow.down.on.square",
                action: actions.addTweak)
             .disabled(state.isSigning)
-        Button("Ajustes de LiveContainer", systemImage: "gearshape",
+        Button(state.englishUI ? "LiveContainer Settings" : "Ajustes de LiveContainer", systemImage: "gearshape",
                action: actions.settings)
-        Button("Desinstalar app", systemImage: "trash", role: .destructive,
+        Button(state.englishUI ? "Uninstall app" : "Desinstalar app", systemImage: "trash", role: .destructive,
                action: actions.uninstall)
             .disabled(state.isRunning || state.isSigning)
-        Button("Quitar del escritorio", systemImage: "minus.circle", role: .destructive,
+        Button(state.englishUI ? "Remove from Home Screen" : "Quitar del escritorio", systemImage: "minus.circle", role: .destructive,
                action: actions.removeFromHome)
     }
 }
