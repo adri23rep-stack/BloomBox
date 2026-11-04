@@ -24,7 +24,7 @@ struct LCTabView: View {
     
     var body: some View {
         Group {
-            if let onboardingMode {
+            if #available(iOS 16.0, *), let onboardingMode {
                 BloomBoxWizardView(mode: onboardingMode) { self.onboardingMode = nil }
             } else {
                 LiveBoardRootView()
