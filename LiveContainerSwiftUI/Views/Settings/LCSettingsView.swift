@@ -84,6 +84,13 @@ struct LCSettingsView: View {
     var body: some View {
         NavigationView {
             Form {
+                if #available(iOS 16.0, *) {
+                    Section {
+                        BloomBoxProfileSettingsNavigationLink()
+                    } header: {
+                        Text("BloomBox")
+                    }
+                }
                 if sharedModel.multiLCStatus != 2 {
                     Section{
                         if !certificateDataFound {
@@ -723,6 +730,19 @@ struct LCSettingsView: View {
                 onSideStoreCertificateCallback(certificateData: certData, password: password)
                 
             }
+        }
+    }
+}
+
+
+/// Keep the iOS 16+ photo-profile UI inside an availability-scoped type.
+@available(iOS 16.0, *)
+private struct BloomBoxProfileSettingsNavigationLink: View {
+    var body: some View {
+        NavigationLink {
+            BloomBoxProfileSettingsView()
+        } label: {
+            Label("Perfiles de BloomBox", systemImage: "person.2.crop.square.stack")
         }
     }
 }

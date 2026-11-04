@@ -248,6 +248,11 @@ class LCAppModel: ObservableObject, Hashable {
             appInfo.dataUUID = newName
             uiDefaultDataFolder = newName
         }
+        // BloomBox profiles use LiveContainer's native per-guest containers.
+        // Respect an explicitly requested container from the host UI.
+        if containerFolderName == nil {
+            try BloomBoxProfiles.selectForLaunch(self)
+        }
         if let containerFolderName {
             uiSelectedContainer = uiContainers.first { $0.folderName == containerFolderName } ?? uiSelectedContainer
         }

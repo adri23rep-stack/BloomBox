@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 
 struct LCTabView: View {
+    @State private var onboardingMode: BloomBoxWizardMode? = BloomBoxWizardGate.pending()
     @State var errorShow = false
     @State var crashReportShow = false
     @State var errorInfo = ""
@@ -22,7 +23,13 @@ struct LCTabView: View {
     let pub = NotificationCenter.default.publisher(for: UIScene.didDisconnectNotification)
     
     var body: some View {
-        LiveBoardRootView()
+        Group {
+            if #available(iOS 16.0, *), let onboardingMode {
+                BloomBoxWizardView(mode: onboardingMode) { self.onboardingMode = nil }
+            } else {
+                LiveBoardRootView()
+            }
+        }
         .downloadAlert(helper: downloadHelper)
         .environmentObject(downloadHelper)
         .alert("lc.common.error".loc, isPresented: $errorShow){
@@ -81,6 +88,11 @@ struct LCTabView: View {
             checkAndSaveBundleId()
             checkGetTaskAllow()
             checkPrivateContainerBookmark()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: BloomBoxWizardGate.replayRequested)) { _ in
+            if #available(iOS 16.0, *) {
+                onboardingMode = .replay
+            }
         }
         .onReceive(pub) { out in
             if let scene1 = sceneDelegate.window?.windowScene, let scene2 = out.object as? UIWindowScene, scene1 == scene2 {
