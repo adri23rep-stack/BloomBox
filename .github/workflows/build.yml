@@ -7,6 +7,7 @@ on:
       - fix/jit-guest-orientation-ios27
       - feature/cinematic-game-mode-ram-jit-gate
       - refactor/remove-gamebox-reserve-slot-20261104
+      - feature/gamebox-v2-console-carousel-20261104
       - feature/remote-game-compat-profiles
       - fix/game-mode-launch-loop-ios27
       - fix/finish-astra-home-20261101
@@ -336,7 +337,7 @@ jobs:
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxGameProfileSchema.swift Tests/remote-game-profiles/main.swift -o "$RUNNER_TEMP/game-profiles-tests"
           "$RUNNER_TEMP/game-profiles-tests"
 
-      - name: Verify retired GameBox is absent and a reserved slot remains
+      - name: Verify independent GameBox v2 console contracts
         run: python3 Tests/reserved-section/test_contract.py
       - name: Test BloomBox launcher startup fallback
         run: |
@@ -358,6 +359,7 @@ jobs:
               assert not (root / old).exists(), old
               assert (root / new).is_file(), new
           assert (root / "BloomBox/BloomBoxReservedSection.swift").is_file()
+          assert (root / "BloomBox/BloomBoxGameBoxV2Screen.swift").is_file()
           print("Original BloomBox Home, icons and guest orientation retained")
           PY
       - name: Test guest scene orientation and viewport sizing
