@@ -1,5 +1,6 @@
-# copy lc
-wget https://github.com/LiveContainer/dylibify/releases/download/1.0/dylibify
+# Restore binaries first with: python3 Scripts/fetch-bundled-dependencies.py
+# Never download a mutable SideStore nightly or build tool without checksum validation.
+test -s dylibify || { echo 'Missing pinned dylibify; run Scripts/fetch-bundled-dependencies.py' >&2; exit 1; }
 chmod +x dylibify
 brew install ldid
 
@@ -11,7 +12,7 @@ if [ -n "${GITHUB_SHA:-}" ]; then
 fi
 
 # temporarily move sidestore support framrwork to tmp before zip
-mkdir tmp
+mkdir -p tmp
 mv Payload/LiveContainer.app/Frameworks/SideStoreSupport.framework ./tmp
 
 zip -r "$scheme.ipa" "Payload" -x "._*" -x ".DS_Store" -x "__MACOSX"
@@ -45,7 +46,7 @@ mv ./tmp/SideStoreSupport.framework Payload/LiveContainer.app/Frameworks
 
 # download SideStore
 cd tmp
-wget https://github.com/LiveContainer/SideStore/releases/download/nightly/SideStore.ipa
+test -s SideStore.ipa || { echo 'Missing pinned SideStore; run Scripts/fetch-bundled-dependencies.py' >&2; exit 1; }
 unzip SideStore.ipa
 cd ..
 
