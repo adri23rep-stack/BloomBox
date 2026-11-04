@@ -15,3 +15,6 @@ Resources/BundledRuntime/LiveExec32.ipa
 # iOS 27 on-device pairing Rust build artifacts
 Vendor/HuskRPPairing/target/
 Vendor/HuskRPPairing/libhusk_rppairing.a
+
+# Reassembled from original checked-in ThemeSources chunks before iOS archive
+Resources/StarterThemes/YellowBowser.bbtheme
