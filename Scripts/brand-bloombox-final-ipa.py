@@ -18,7 +18,17 @@ ICON_FILES = ("AppIcon60x60@2x.png", "AppIcon76x76@2x~ipad.png")
 
 def translated_name(data: bytes) -> bytes:
     binary = data.startswith(b"bplist00")
-    values = plistlib.loads(data)
+    try:
+        values = plistlib.loads(data)
+    except plistlib.InvalidFileException:
+        # Xcode may copy .strings files as UTF-8 instead of compiling them.
+        # Only accept our exact controlled source format; reject unexpected
+        # strings syntax rather than silently dropping localized information.
+        expected = '"CFBundleName" = "BloomBox";'
+        if data.decode("utf-8-sig").strip() != expected:
+            raise ValueError("Unexpected uncompiled InfoPlist.strings format")
+        values = {"CFBundleName": "BloomBox"}
+        binary = True
     values["CFBundleName"] = "BloomBox"
     values["CFBundleDisplayName"] = "BloomBox"
     return plistlib.dumps(values, fmt=plistlib.FMT_BINARY if binary else plistlib.FMT_XML)
