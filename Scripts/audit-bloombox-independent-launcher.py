@@ -135,7 +135,7 @@ if 'value: "gamebox"' not in launcher or 'value: "ios"' not in launcher:
     raise SystemExit("GameBox v2 and iOS Home launcher choices must both remain")
 if "BloomBoxGameBoxV2Screen(" not in app_list or 'liveBoardMode == "gamebox"' not in app_list:
     raise SystemExit("Independent GameBox v2 route not wired into existing host")
-if "UISelectionFeedbackGenerator" not in gamebox_v2 or "LiveBoardIconImage(app: app" not in gamebox_v2:
+if "UISelectionFeedbackGenerator" not in gamebox_v2 or "gameIcon(app, size:" not in gamebox_v2:
     raise SystemExit("GameBox v2 must have app icon cards and selection haptics")
 if "func launchFromLibrary" in gamebox_v2 or "func approveEmulatorLaunch" in gamebox_v2:
     raise SystemExit("Guest/JIT machinery must not be copied into GameBox v2")
