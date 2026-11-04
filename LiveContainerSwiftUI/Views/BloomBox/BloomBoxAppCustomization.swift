@@ -105,29 +105,79 @@ struct BloomBoxAppAppearance: View {
     @State private var name = ""
     @State private var choosingIcon = false
     @State private var error: String?
+
+    private func saveName() {
+        customization.rename(app, to: name)
+        name = customization.name(app)
+    }
+
+    private var nameEditor: some View {
+        Section {
+            TextField("Name", text: $name)
+                .accessibilityIdentifier("appearance.name")
+                .submitLabel(.done)
+                .onSubmit {
+                    saveName()
+                    UIApplication.shared.sendAction(
+                        #selector(UIResponder.resignFirstResponder),
+                        to: nil, from: nil, for: nil
+                    )
+                }
+            Button("Save name", action: saveName)
+                .accessibilityIdentifier("appearance.saveName")
+            Button("Restore original name") {
+                customization.rename(app, to: "")
+                name = customization.name(app)
+            }
+        } header: {
+            Text("App name")
+        }
+    }
+
+    private var iconEditor: some View {
+        Section {
+            LiveBoardIconImage(app: app, dark: false)
+                .frame(width: 72, height: 72)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            Button("Choose image from Photos") {
+                choosingIcon = true
+            }
+            .accessibilityIdentifier("appearance.chooseIcon")
+            Button("Restore original icon") {
+                customization.resetIcon(app)
+            }
+            Text("Names and icons appear in all three interfaces. Console cover artwork stays separate.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("App icon")
+        }
+    }
+
     var body: some View {
         NavigationView {
             Form {
-                Section("App name") {
-                    TextField("Name", text: $name).accessibilityIdentifier("appearance.name")
-                        .submitLabel(.done).onSubmit { customization.rename(app, to: name); UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
-                    Button("Save name") { customization.rename(app, to: name); name = customization.name(app) }.accessibilityIdentifier("appearance.saveName")
-                    Button("Restore original name") { customization.rename(app, to: ""); name = customization.name(app) }
+                nameEditor
+                iconEditor
+                if let error {
+                    Section { Text(error).foregroundStyle(.red) }
                 }
-                Section("App icon") {
-                    LiveBoardIconImage(app: app, dark: false).frame(width: 72, height: 72).clipShape(RoundedRectangle(cornerRadius: 16))
-                    Button("Choose image from Photos") { choosingIcon = true }.accessibilityIdentifier("appearance.chooseIcon")
-                    Button("Restore original icon") { customization.resetIcon(app) }
-                    Text("Names and icons appear in all three interfaces. Console cover artwork stays separate.").font(.footnote).foregroundStyle(.secondary)
+            }
+            .navigationTitle("App appearance")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
                 }
-                if let error { Section { Text(error).foregroundStyle(.red) } }
-            }.navigationTitle("App appearance")
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-        }.navigationViewStyle(.stack)
+            }
+        }
+        .navigationViewStyle(.stack)
         .onAppear { name = customization.name(app) }
         .sheet(isPresented: $choosingIcon) {
             LiveBoardWallpaperPicker { image in
-                if let image { do { try customization.saveIcon(image, app: app) } catch { self.error = error.localizedDescription } }
+                if let image {
+                    do { try customization.saveIcon(image, app: app) }
+                    catch { self.error = error.localizedDescription }
+                }
                 choosingIcon = false
             }
         }

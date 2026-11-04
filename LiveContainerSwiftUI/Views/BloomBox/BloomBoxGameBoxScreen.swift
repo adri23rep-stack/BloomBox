@@ -498,27 +498,86 @@ struct BloomBoxGameBoxScreen: View {
     private var categoryManager: some View {
         NavigationView {
             Form {
-                Section("Categories for this mode") {
-                    HStack { TextField("New category", text: $newCategory).accessibilityIdentifier("console.category.name"); Button("Add") { updateLibrary { _ = $0.addCategory(newCategory) }; newCategory = "" }.accessibilityIdentifier("console.category.add").disabled(newCategory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
-                    ForEach(library.categories, id: \.self) { name in
-                        HStack { Text(name); Spacer(); Button(role: .destructive) { updateLibrary { $0.removeCategory(name) }; if activeCategory == name { activeCategory = nil } } label: { Image(systemName: "trash") } }
-                    }
-                }
-                Section("Apps in this mode") {
-                    ForEach(apps, id: \.self) { app in
-                        VStack(alignment: .leading) {
-                            Toggle(appCustomization.name(app), isOn: Binding(get: { !library.hidden.contains(liveBoardAppKey(app)) }, set: { show in updateLibrary { if show { $0.hidden.remove(liveBoardAppKey(app)) } else { $0.hidden.insert(liveBoardAppKey(app)) } } }))
-                            Picker("Category", selection: Binding(get: { library.assignments[liveBoardAppKey(app)] ?? "" }, set: { name in updateLibrary { $0.assignments[liveBoardAppKey(app)] = name.isEmpty ? nil : name } })) {
-                                Text("Uncategorized").tag("")
-                                ForEach(library.categories, id: \.self) { Text($0).tag($0) }
-                            }
-                        }
-                    }
-                }
+                categoryEditor
+                appVisibilityEditor
                 Section { Toggle("Navigation sounds", isOn: $sounds) }
-            }.navigationTitle("Categories & visibility")
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { managingCategories = false } } }
-        }.navigationViewStyle(.stack)
+            }
+            .navigationTitle("Categories & visibility")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { managingCategories = false }
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+    }
+
+    private var categoryEditor: some View {
+        Section {
+            HStack {
+                TextField("New category", text: $newCategory)
+                    .accessibilityIdentifier("console.category.name")
+                Button("Add") {
+                    updateLibrary { _ = $0.addCategory(newCategory) }
+                    newCategory = ""
+                }
+                .disabled(newCategory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .accessibilityIdentifier("console.category.add")
+            }
+
+            ForEach(library.categories, id: \.self) { categoryName in
+                HStack {
+                    Text(categoryName)
+                    Spacer()
+                    Button(role: .destructive) {
+                        updateLibrary { $0.removeCategory(categoryName) }
+                        if activeCategory == categoryName { activeCategory = nil }
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                }
+            }
+        } header: {
+            Text("Categories for this mode")
+        }
+    }
+
+    private var appVisibilityEditor: some View {
+        Section {
+            ForEach(apps, id: \.self) { app in
+                visibilityRow(for: app)
+            }
+        } header: {
+            Text("Apps in this mode")
+        }
+    }
+
+    private func visibilityRow(for app: LCAppModel) -> some View {
+        let identifier = liveBoardAppKey(app)
+        return VStack(alignment: .leading) {
+            Toggle(appCustomization.name(app), isOn: Binding(
+                get: { !library.hidden.contains(identifier) },
+                set: { shown in
+                    updateLibrary { state in
+                        if shown { state.hidden.remove(identifier) }
+                        else { state.hidden.insert(identifier) }
+                    }
+                }
+            ))
+            Picker("Category", selection: Binding(
+                get: { library.assignments[identifier] ?? "" },
+                set: { selected in
+                    updateLibrary { state in
+                        state.assignments[identifier] = selected.isEmpty ? nil : selected
+                    }
+                }
+            )) {
+                Text("Uncategorized").tag("")
+                ForEach(library.categories, id: \.self) { categoryName in
+                    Text(categoryName).tag(categoryName)
+                }
+            }
+        }
     }
     private func changeSection(_ delta: Int) {
         let sections = ["Library", "Favorites"] + library.categories
