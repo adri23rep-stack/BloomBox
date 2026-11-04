@@ -22,9 +22,11 @@ occurs until the macOS build and on-device tests pass.
 - Existing JIT history and developer disk image caches are migrated when possible.
 - Upstream LiveContainer, SideStore, StikJIT and other bundled dependencies retain
   their licenses and author notices.
-- **Not yet independent:** the original Strata-derived iOS Home and some LiveBoard
-  implementation are still present. They must be replaced and tested separately,
-  preserving users' folders, widgets, installed guests and settings.
+- **Historical checkpoint:** at this early phase, the original iOS Home and
+  some LiveBoard implementation still existed. Later phases below moved the
+  retired launcher modules into BloomBox-owned source paths. The latest branch
+  requires device validation and remains historically derivative; code moves
+  do not by themselves establish clean-room authorship.
 - Git history and required copyright credits must remain intact even once the
   corresponding source has been fully replaced.
 
@@ -230,3 +232,26 @@ occurs until the macOS build and on-device tests pass.
 - Relocated the reminder center and settings UI to BloomBox-owned source files while keeping compatibility aliases for existing host/WidgetKit callers.
 - The ManzanaExpiryAttributes Live Activity schema, executable bundle name, existing notification identifiers and ManzanaSideStoreExpiryRemindersEnabled preference remain intentionally unchanged to avoid breaking reminders already scheduled on installed devices.
 - No changes were made to RAM+, SideStore signing, JIT or user's installed apps.
+
+
+## Current review status — November 3, 2026
+
+- PR #34 (refactor/bloombox-independent-core) has a successful Xcode archive,
+  source audit, JIT bridge verification, RAM+ entitlement verification,
+  widget/layout tests and IPA packaging at commit
+  `e3f3e8d88f19a7e91b3029c171a6ac6ce01fd358` (Actions run #370).
+- The old executable launcher and visual module paths listed in
+  `Scripts/audit-bloombox-independent-launcher.py` are absent in this branch.
+  Legacy setting keys, bridge aliases and user-owned files remain to prevent
+  loss of previously saved layouts, guest apps, wallpapers and pairing.
+- The default wallpaper is neutral black. A replacement starter `.bbtheme`
+  must come from the owner; no theme has been invented or installed.
+- **Still unverified on-device (iOS 27):** first start and Home migration,
+  existing folders/pages, widget editing and GIF/video playback, theme import,
+  GameBox/game launch (including Husk), JIT with LocalDevVPN, RAM+ reinstall,
+  SideStore signing, expiry notifications and retained app containers.
+- **Provenance:** preserved Git history, the AGPL-3.0 license and required
+  third-party notices remain. Do not claim all historically derived code has
+  been independently rewritten merely because old module filenames are gone.
+- Do not merge this draft PR into `main` or publish a release before the owner
+  verifies the on-device behavior and explicitly approves.
