@@ -25,7 +25,9 @@ for symbol in (
     "app.isSigningInProgress",
 ):
     assert symbol not in HOME, f"Guest host detail leaked into Home: {symbol}"
-assert HOME.count("LiveContainerPreferencesAdapter.defaults") >= 30
+# The legacy GameBox handoff preferences were removed with the console.
+assert HOME.count("LiveContainerPreferencesAdapter.defaults") >= 29
+assert "BloomBoxGameBoxOpenThemeStore" not in HOME
 assert "LCUtils.appGroupUserDefault" in PREFS
 assert "static var defaults: UserDefaults" in PREFS
 
