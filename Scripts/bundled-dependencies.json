@@ -8,5 +8,15 @@
     "url": "https://github.com/LiveContainer/LiveExec32/releases/download/nightly/com.kdt.liveexec32_0.0.1.ipa",
     "sha256": "e690c6fdc97c249cb8b67f27cea753e7bb98ea7c874f8160844e58fe92e87dba",
     "max_bytes": 30000000
+  },
+  "tmp/SideStore.ipa": {
+    "url": "https://github.com/LiveContainer/SideStore/releases/download/nightly/SideStore.ipa",
+    "sha256": "f9d2d9af51285dcbdece08c51aadc02e8a2d756da6ca8dfca16724c801ae2fcd",
+    "max_bytes": 50000000
+  },
+  "dylibify": {
+    "url": "https://github.com/LiveContainer/dylibify/releases/download/1.0/dylibify",
+    "sha256": "6d23f6a2fc4d8442f87caa1161aebe6ecaafd0e8c41ce205da007efb04fc82c7",
+    "max_bytes": 200000
   }
 }
