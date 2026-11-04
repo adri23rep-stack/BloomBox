@@ -91,6 +91,10 @@ jobs:
         run: python3 Tests/home-menu-tests/test_bridge.py
       - name: Guard Home guest and preferences adapter boundary
         run: python3 Tests/home-adapter-tests/test_adapter.py
+      - name: Test host-independent guest key indexing and duplicate handling
+        run: |
+          swiftc LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeGuestIndex.swift Tests/home-guest-index/main.swift -o "$RUNNER_TEMP/bloombox-home-guest-index-tests"
+          "$RUNNER_TEMP/bloombox-home-guest-index-tests"
       - name: Verify BloomBox expiry reminder module migration
         run: |
           python3 - <<'PY'
