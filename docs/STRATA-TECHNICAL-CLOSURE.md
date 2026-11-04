@@ -2,7 +2,7 @@
 
 **Technical status: CLOSED for the source-and-brand cleanup reviewed here.**
 **Legal author-rights status: NOT a clean-room certification or independent legal opinion.**
-**Repository integration: isolated in `refactor/bloombox-independent-core`; `main` and releases untouched.**
+**Repository status as of 4 November 2026: audited source adopted as the new `main` history; existing releases/tags were not modified.**
 
 ## Scope and evidence
 
@@ -63,18 +63,31 @@ erase mandatory copyright notices or claim the entire product was developed
 from scratch. Legal attribution obligations need a separate rights review if
 a definitive zero-derivation claim is desired.
 
-## Contributor-history migration prepared, not applied
+## GitHub contributor-history migration — applied on 4 November 2026
 
-The historical Git default branch contains three commits authored by the
-Strata creator. GitHub derives its Contributors graph from the default branch
-history. An unrelated-root **preview** is prepared by
-`Scripts/create-independent-history-preview.sh`; that branch contains the
-same final audited tree but not the old commit ancestry.
+Following explicit owner approval, the reviewed tree was installed as the
+**single-root history of `main`**, using a force-with-lease ref update.
+The new initial commit is `b2398735bccc99dbde22042dfdf945cd30c47fb4`
+with **no parents** and tree `18a22cddcc0d43259f7e1918b6df69494f0c4f9c`.
+That tree exactly matches the completed source-audit commit
+`347257d0a84a1c4293e76c55742742ce1bd4c896`, which passed the full
+[Xcode + IPA build and tests](https://github.com/adri23rep-stack/BloomBox/actions/runs/41800425509).
 
-The project owner must approve a separate default-branch migration. Before
-switching the default branch: retain backups of `main` and release tags;
-review existing PRs, branches, external links and Actions; and validate that
-new development targets the new independent root. Switching default history
-is not the same as removing legally required code attribution. GitHub's graph
-may take approximately a day to update; linked old commits can still exist
-under backups/tags and must not be mislabeled as the new author's work.
+The old default-branch commit `c6b08c309769b04bb00f19fba1bc2d65e02227b1`
+is retained at
+[`archive/bloombox-main-before-history-migration-20261104`](https://github.com/adri23rep-stack/BloomBox/tree/archive/bloombox-main-before-history-migration-20261104).
+Past Git authors and their contributions remain accessible there. No tag,
+release artifact, outside dependency or third-party copyright attribution was
+removed or reassigned.
+
+GitHub automatically closed draft PRs
+[#34](https://github.com/adri23rep-stack/BloomBox/pull/34) and
+[#16](https://github.com/adri23rep-stack/BloomBox/pull/16) without merging them
+into the new root. Their source branches were retained; for new work they must
+be reapplied deliberately to the new `main`, not merged across unrelated Git
+histories. The original closed PR discussion remains accessible.
+
+Contributors is a derived GitHub UI view and can stay cached for some time.
+Moving `main` to an independent root changes commit reachability in its
+default history but is **not** a legal declaration of independent authorship.
+Preserve the historical audit and legally required upstream notices.
