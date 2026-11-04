@@ -22,6 +22,18 @@ let decodedRefresh = try JSONDecoder().decode(
     BloomBoxRefreshRequest.self, from: JSONEncoder().encode(refresh))
 precondition(decodedRefresh == refresh && decodedRefresh.preserveExtensions)
 precondition(BloomBoxIntegrationProtocol.majorVersion == 1)
+let commands: [BloomBoxHomeGuestCommand] = [
+    .open(key: guest.stableKey, jit: false),
+    .open(key: guest.stableKey, jit: true),
+    .manage(key: guest.stableKey),
+    .uninstall(key: guest.stableKey)
+]
+for command in commands {
+    let encoded = try JSONEncoder().encode(command)
+    let decoded = try JSONDecoder().decode(BloomBoxHomeGuestCommand.self, from: encoded)
+    precondition(decoded == command, "Home action commands must survive a host boundary")
+}
+precondition(Set(commands).count == 4, "Action cases must remain distinct")
 let homeGuest = BloomBoxHomeGuestSnapshot(
     stableKey: guest.stableKey,
     bundleIdentifier: guest.bundleIdentifier,
