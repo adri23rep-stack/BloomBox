@@ -15,6 +15,7 @@ struct BloomBoxGameBoxEntry: Identifiable {
     let requiresJIT: Bool
 }
 
+@available(iOS 16.0, *)
 struct BloomBoxGameBoxV2Screen: View {
     let entries: [BloomBoxGameBoxEntry]
     let launch: (String) -> Void
