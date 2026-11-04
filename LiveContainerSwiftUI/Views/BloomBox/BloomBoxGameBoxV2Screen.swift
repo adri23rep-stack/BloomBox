@@ -164,10 +164,10 @@ struct BloomBoxGameBoxV2Screen: View {
         .sheet(isPresented: $motionPhotosPresented) {
             BloomBoxMotionWallpaperPhotosPicker { result in
                 motionPhotosPresented = false
-                if case .success(let filename) = result {
-                    useMotionWallpaper(filename)
-                } else if case .failure(let error) = result {
-                    artworkError = error.localizedDescription
+                guard let result else { return }
+                switch result {
+                case .success(let filename): useMotionWallpaper(filename)
+                case .failure(let error): artworkError = error.localizedDescription
                 }
             }
         }
