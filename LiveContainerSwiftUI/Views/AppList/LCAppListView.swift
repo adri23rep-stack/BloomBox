@@ -213,6 +213,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
 
     // GameBox only owns presentation. Every action reuses the live host launch,
     // preflight, compatibility, guest orientation and app-management paths.
+    @available(iOS 16.0, *)
     private var gameBoxV2: some View {
         let guests = launcherApps
         // Adapt host guest models to a portable, display-only BloomBox contract.
@@ -255,7 +256,11 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             ZStack {
                 NavigationLink(destination: navigateTo, isActive: $isNavigationActive) { EmptyView() }.hidden()
                 if !manageLibrary && liveBoardMode == "gamebox" {
-                    gameBoxV2
+                    if #available(iOS 16.0, *) {
+                        gameBoxV2
+                    } else {
+                        reservedSection
+                    }
                 } else if !manageLibrary && liveBoardMode == "reserved" {
                     reservedSection
                 } else if !manageLibrary {
