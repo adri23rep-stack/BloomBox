@@ -69,6 +69,13 @@ Comparación directa de 17 pares de archivos correspondientes de Strata → Bloo
 - [Home de Strata (líneas 359–390)](https://github.com/huzaifahshahid71-ops/Strata/blob/9b9c86324395e484c4078e1d2883cc49b4a17dad/LiveContainerSwiftUI/Views/LiveBoardHomeScreen.swift#L359-L390) ↔ [Home de BloomBox (2376–2407)](https://github.com/adri23rep-stack/BloomBox/blob/1bb6c8434507f23398ade875d05c27dac92f022f/LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift#L2376-L2407).
 - [GameBox precedente (Strata, 439–489)](https://github.com/huzaifahshahid71-ops/Strata/blob/9b9c86324395e484c4078e1d2883cc49b4a17dad/LiveContainerSwiftUI/Views/LiveBoardConsoleScreen.swift#L439-L489) ↔ [BloomBox GameBox (957–1007)](https://github.com/adri23rep-stack/BloomBox/blob/1bb6c8434507f23398ade875d05c27dac92f022f/LiveContainerSwiftUI/Views/BloomBox/BloomBoxGameBoxScreen.swift#L957-L1007).
 
+### Seguimiento: LCAppBanner tiene antecedente upstream en LiveContainer
+
+- La coincidencia exacta BloomBox ↔ Strata de `LiveContainerSwiftUI/Views/AppList/LCAppBanner/LCAppBannerViewController.swift` **no implica autoría original de Strata**. El [historial de LiveContainer](https://github.com/LiveContainer/LiveContainer/commits/main/LiveContainerSwiftUI/Views/AppList/LCAppBanner/LCAppBannerViewController.swift) registra una reescritura previa el **1 de agosto de 2026** ([commit `3a9d2186`](https://github.com/LiveContainer/LiveContainer/commit/3a9d2186a09e9bb4315b2de295073ef3806d8ac4)).
+- Al comparar el archivo completo de Strata 2.0 (361 líneas) contra esa versión de LiveContainer (382 líneas), apareció un bloque de **251 líneas consecutivas idénticas**, tras normalizar espacios. **Es evidencia fuerte de procedencia LiveContainer**, pero hay diferencias fuera del bloque y aún faltan las decisiones A/B/C/D/E sobre esas diferencias.
+- Se mantiene su clase de inventario `E_STRATA_EXACT_ORIGIN_PENDING` porque el manifiesto mide coincidencia **byte por byte con las revisiones fijadas**, no conclusiones de autoría. No cambiar la clase para aparentar una coincidencia exacta con la base LiveContainer que no existe.
+- Siguiente verificación: revisar en Git las diferencias de 2026-08-01 a 2026-10-22; aislar cualquier implementación realmente exclusiva de Strata, sin quitar la atribución a LiveContainer.
+
 ## 0B. Multimedia, iconos y otros recursos
 
 Se inventariaron **29** archivos de extensiones de imagen, animación, audio, vídeo, tipografías y `.bbtheme`:
