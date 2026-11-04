@@ -56,4 +56,14 @@ assert "CGImageSourceGetCount(source) > 0" in news
 assert "prepareGIFPreview(url)" in wallpaper
 assert "else if isGIF && playing && framesAnimation == nil && !preparingGIF" in wallpaper
 
+# Thermal pressure also cuts expensive glass compositing, per-widget glows,
+# and 30fps timelines that would otherwise redraw offscreen tiles.
+widgets = (VIEW / "BloomBoxWidgetViews.swift").read_text()
+interactions = (VIEW / "BloomBoxLauncherInteractions.swift").read_text()
+assert "if reduceTransparency || performanceBudget.constrained" in visuals
+assert "if performanceBudget.constrained" in widgets
+assert "(living.glow ?? false) && !editing && !performanceBudget.constrained" in home
+assert "if enabled && mode != \"none\"" in interactions
+assert "TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused:" not in interactions
+
 print("Dock stays persistent; Home caches data and adapts to thermal/power pressure.")
