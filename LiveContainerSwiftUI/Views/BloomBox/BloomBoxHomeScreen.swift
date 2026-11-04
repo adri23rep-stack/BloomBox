@@ -265,6 +265,8 @@ struct BloomBoxHomeScreen: View {
                             .padding(.horizontal, 12)
                             .padding(.bottom, -22)
                             .blur(radius: openFolder == nil || performanceBudget.constrained ? 0 : 8)
+                            // The keyboard owns the bottom area while searching Library.
+                            .opacity(librarySearchFocused ? 0 : 1)
                             .allowsHitTesting(!librarySearchFocused && !searching)
                             .accessibilityHidden(librarySearchFocused)
                     }
@@ -2234,7 +2236,7 @@ struct BloomBoxHomeScreen: View {
                                         GeometryReader { iconGeometry in
                                             Color.clear.preference(
                                                 key: BloomBoxAliveIconFrames.self,
-                                                value: page == index + 1
+                                                value: page == index + 1 && aliveEnabled && aliveIdleEnabled && !decorativeMotionDisabled && !editing
                                                     ? [key: iconGeometry.frame(in: .named("bloombox.alive.viewport"))]
                                                     : [:])
                                         }
@@ -2505,7 +2507,7 @@ struct BloomBoxHomeScreen: View {
                 .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
                     acceptDrop(providers) { key in
                         withAnimation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.84)) {
-                            _ = layout.moveToDock(key, at: slot, fallbackPage: max(0, page - 1))
+                            _ = layout.moveToDock(key, at: slot, fallbackPage: min(max(0, page - 1), layout.pages.count - 1))
                             reconcile()
                         }
                     }
