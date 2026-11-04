@@ -2366,71 +2366,66 @@ struct BloomBoxHomeScreen: View {
         .accessibilityLabel(isThemes ? "Temas" : title(key))
     }
 
-    @ViewBuilder private func appMenu(_ key: String, app: LCAppModel) -> some View {
-        Button("Launch", systemImage: "play.fill") { requestLaunch(app) }.disabled(app.isAppRunning || app.isSigningInProgress)
-        if let launchWithJIT { Button("Launch with JIT", systemImage: "bolt.fill") { requestLaunch(app, jit: true) }.disabled(app.appInfo is BuiltInSideStoreAppInfo) }
-        Button("Edit Home Screen", systemImage: "square.grid.3x3") { enterEditMode() }
-        Button("Rename", systemImage: "pencil") { renameValue = title(key); renameKey = key }
-        Button("Change app icon", systemImage: "photo") { appearanceApp = LiveBoardAppearanceSelection(app: app) }
-        Button(favoriteKeys.contains(key) ? "Unfavorite" : "Favorite", systemImage: "star") {
-            favorites = BloomBoxHomeAppPolicy.toggledFavorite(key, in: favorites)
-        }
-        if layout.dock.contains(key) {
-            Button("Remove from Dock", systemImage: "rectangle.bottomthird.inset.filled") { layout.place(key, on: max(0, page - 1)); reconcile() }
-        } else if layout.dock.count < 4 {
-            Button("Add to Dock", systemImage: "rectangle.bottomthird.inset.filled") { layout.putInDock(key); reconcile() }
-        }
-        Menu("Move to Page", systemImage: "rectangle.on.rectangle") {
-            ForEach(layout.pages.indices, id: \.self) { index in
-                Button("Page \(index + 1)") { layout.place(key, on: index); reconcile() }
-            }
-            Button("New Page") { let target = layout.pages.count; layout.place(key, on: target); page = target + 1; reconcile() }
-        }
-        Menu("Folder", systemImage: "folder") {
-            Button("New Folder") { newFolderApp = key; folderName = "Apps" }
-            ForEach(layout.folders) { folder in
-                Button(folder.name) { layout.put(key, in: folder.id); reconcile() }
-            }
-            if layout.folders.contains(where: { $0.apps.contains(key) }) {
-                Button("Move out of Folder") { layout.place(key, on: max(0, page - 1)); reconcile() }
-            }
-        }
-        Menu("Category", systemImage: "tag") {
-            ForEach(BloomBoxHomeAppPolicy.categoryNames(from: homeCategories), id: \.self) { value in Button(value) { setCategory(value, key: key) } }
-            Button("New Category…") { categoryApp = key; categoryName = ""; addingCategory = true }
-            Button("Uncategorized") { setCategory(nil, key: key) }
-        }
-        Button(app.uiNetworkBlocked ? "Permitir Internet" : "Bloquear Internet (experimental)",
-               systemImage: app.uiNetworkBlocked ? "wifi" : "wifi.slash") {
-            app.uiNetworkBlocked.toggle()
-            let blocked = app.uiNetworkBlocked
-            let name = title(key)
-            // A context menu must dismiss before its in-app notice can be shown.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                showNetworkNotice(blocked
-                    ? "«\(name)» ya no contará con acceso a Internet."
-                    : "«\(name)» volverá a tener acceso a Internet.")
-            }
-        }
-        .disabled(app.isAppRunning)
-        Button("Añadir Tweak", systemImage: "square.and.arrow.down.on.square") {
-            pendingTweakApp = app
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                if pendingTweakApp === app { choosingAppTweak = true }
-            }
-        }
-        .disabled(app.isSigningInProgress)
-        Button("Ajustes de LiveContainer", systemImage: "gearshape") {
-            searching = false
-            manage(app)
-        }
-        Button("Desinstalar app", systemImage: "trash", role: .destructive) {
-            pendingUninstall = app
-        }
-        .disabled(app.isAppRunning || app.isSigningInProgress)
-        Button("Quitar del escritorio", systemImage: "minus.circle", role: .destructive) {
-            removeFromHome(key)
-        }
+    private func appMenu(_ key: String, app: LCAppModel) -> some View {
+        // The presentation reads only stable menu state. Host-specific calls
+        // remain here until a LiveContainer adapter replaces this bridge.
+        let menuState = BloomBoxHomeContextMenu.State(
+            isRunning: app.isAppRunning,
+            isSigning: app.isSigningInProgress,
+            isSideStore: app.appInfo is BuiltInSideStoreAppInfo,
+            isFavorite: favoriteKeys.contains(key),
+            isInDock: layout.dock.contains(key),
+            dockHasSpace: layout.dock.count < BloomBoxHomeLayout.dockCapacity,
+            isInFolder: layout.folders.contains { $0.apps.contains(key) },
+            networkBlocked: app.uiNetworkBlocked,
+            pageIndices: Array(layout.pages.indices),
+            folders: layout.folders.map { .init(id: $0.id, name: $0.name) },
+            categories: BloomBoxHomeAppPolicy.categoryNames(from: homeCategories)
+        )
+        let actions = BloomBoxHomeContextMenu.Actions(
+            launch: { requestLaunch(app) },
+            launchJIT: launchWithJIT == nil ? nil : { requestLaunch(app, jit: true) },
+            editHome: { enterEditMode() },
+            rename: { renameValue = title(key); renameKey = key },
+            changeIcon: { appearanceApp = LiveBoardAppearanceSelection(app: app) },
+            toggleFavorite: {
+                favorites = BloomBoxHomeAppPolicy.toggledFavorite(key, in: favorites)
+            },
+            moveToHome: { layout.place(key, on: max(0, page - 1)); reconcile() },
+            moveToDock: { layout.putInDock(key); reconcile() },
+            moveToPage: { index in layout.place(key, on: index); reconcile() },
+            newPage: {
+                let target = layout.pages.count
+                layout.place(key, on: target)
+                page = target + 1
+                reconcile()
+            },
+            newFolder: { newFolderApp = key; folderName = "Apps" },
+            moveToFolder: { folder in layout.put(key, in: folder); reconcile() },
+            removeFromFolder: { layout.place(key, on: max(0, page - 1)); reconcile() },
+            setCategory: { value in setCategory(value, key: key) },
+            newCategory: { categoryApp = key; categoryName = ""; addingCategory = true },
+            toggleNetwork: {
+                app.uiNetworkBlocked.toggle()
+                let blocked = app.uiNetworkBlocked
+                let name = title(key)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    showNetworkNotice(blocked
+                        ? "«\(name)» ya no contará con acceso a Internet."
+                        : "«\(name)» volverá a tener acceso a Internet.")
+                }
+            },
+            addTweak: {
+                pendingTweakApp = app
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    if pendingTweakApp === app { choosingAppTweak = true }
+                }
+            },
+            settings: { searching = false; manage(app) },
+            uninstall: { pendingUninstall = app },
+            removeFromHome: { removeFromHome(key) }
+        )
+        return BloomBoxHomeContextMenu(state: menuState, actions: actions)
     }
 
     private func showNetworkNotice(_ message: String) {
