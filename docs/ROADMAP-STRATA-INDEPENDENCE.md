@@ -25,23 +25,28 @@ Se encontraron secuencias **exactamente iguales** al comparar archivos de Strata
 
 ## Etapas
 
-### 0. Inventario y atribución de procedencia — P0
+### 0. Inventario, procedencia y fronteras de integración — P0
 
-**En curso:** evidencia de esta etapa en [auditoría](STRATA-PROVENANCE-AUDIT.md) y
-[manifiesto SHA por archivo](STRATA-PROVENANCE-MANIFEST.json).
-Ya se fijaron cuatro revisiones, se clasificaron coincidencias exactas de
-263 fuentes, 29 recursos multimedia y 143 archivos de metadatos/configuración (435 archivos Git en total), se compararon 17 pares de módulos modificados y
-se añadió una comprobación de integridad del manifiesto a CI.
-**No está terminada:** faltan análisis del historial, autoría de bloques
-modificados, otros tipos de recursos/binarios y pruebas de referencia en dispositivo.
-- [x] Congelar un punto de referencia: SHA de BloomBox, SHA de Strata y SHA de LiveContainer y conservarlos en la auditoría.
-- [ ] Inventariar archivos ejecutables, recursos, bibliotecas, scripts de compilación, extensiones, documentación y material gráfico.
-- [ ] Comparar por **bloques funcionales**, no solo por nombre de archivo: Strata ↔ BloomBox ↔ LiveContainer; incluir origen de Strata que a su vez copie componentes upstream.
-- [ ] Clasificar cada coincidencia como: (A) original de Strata, (B) upstream de LiveContainer/terceros, (C) interfaz/API/datos inevitables, (D) original de BloomBox, o (E) pendiente.
-- [ ] Preparar una matriz `componente → origen → licencia → plan → prueba → estado`, con enlaces a líneas/commits.
-- [ ] Crear pruebas de regresión **antes** de sustituir módulos. Mantener licencias/avisos sin cambios por ahora.
+**Inventario técnico y diseño de fronteras: completados.** Evidencia y límites:
+[auditoría](STRATA-PROVENANCE-AUDIT.md),
+[manifiesto de 435 archivos](STRATA-PROVENANCE-MANIFEST.json),
+[arquitectura para actualizar LiveContainer/SideStore](UPSTREAM-SEPARATION-ARCHITECTURE.md) y
+[contratos independientes](../LiveContainerSwiftUI/Views/BloomBox/BloomBoxIntegrationContracts.swift).
+Esto **no** significa que toda la autoría esté resuelta ni que BloomBox ya esté aislado en módulos: es la base técnica para ejecutar las fases siguientes.
 
-**Salida:** inventario revisable y lista concreta de bloques A/E que necesitan reemplazo o examen.
+- [x] Fijar SHA de referencia de BloomBox, Strata, LiveContainer y StikJIT.
+- [x] Inventariar los 435 archivos de Git del snapshot: 263 fuentes, 29 recursos y 143 otros.
+- [x] Registrar por separado la descarga directa de dependencias del build; identificar el acoplamiento embebido de LiveContainer/SideStore y las herramientas aún sin pin.
+- [x] Comparar exactitud de archivos contra upstream y bloques de 17 pares de archivos modificados; documentar el antecedente LiveContainer de `LCAppBanner`.
+- [x] Etiquetar evidencia B/E (confirmada por bytes vs pendiente); **no inventar** categoría de autoría D ni A en los elementos que no se pueden demostrar.
+- [x] Dejar matriz de prioridades por componente con acciones, pruebas y links en la auditoría; identificar seis iconos idénticos a Strata, AppleMusic y 39 traducciones con nombre Strata.
+- [x] Crear contratos host/signer sin dependencias, un listado de deuda de 40 archivos Swift y un guard para no añadir nuevo acoplamiento directo.
+- [x] Fijar SHA-256 del IPA SideStore embebido y de dylibify; dejar las restauraciones seguras en `Scripts/bundled-dependencies.json`.
+- [x] Agregar controles de frontera y pruebas de contratos al workflow de compilación.
+- [ ] **Puerta de créditos/legalidad, no de inventario:** resolver la procedencia y derechos de todas las piezas **E** mediante comparación con historial y terceros; se revisa durante fases 1–4 y 7. No quitar créditos aún.
+- [ ] **Puerta de release:** aprobar pruebas completas de CI y en iPhone iOS 27 de la build que vaya a fusionarse; fase 6.
+
+**Salida de esta etapa:** mapa de origen y deuda verificable; política para que los cambios nuevos no mezclen UI con runtime o signer; integración congelada por hash; ruta de sincronización de upstream. **La independencia física será trabajo de las fases 1–4, no de esta auditoría.**
 
 ### 1. Home / escritorio — P0
 - [ ] Reimplementar lógica de menús contextuales, búsqueda, renombrado, favoritos, categorías y edición que coincida con la implementación original de Strata.
@@ -120,7 +125,7 @@ Se permiten pruebas y mejoras de CI en paralelo, pero **no** se deben quitar los
 
 | Etapa | Estado al crear este roadmap | Bloqueante de cierre |
 |---|---|---|
-| 0. Procedencia | En curso (inventario inicial listo) | Verificar procedencia de bloques y completar clasificación A/E |
+| 0. Inventario y fronteras | Base técnica lista; atribución final pendiente | Fases 1–4: investigar los E; fase 7: decidir créditos |
 | 1. Home | Pendiente | Sustituir y probar bloques coincidentes |
 | 2. GameBox | Pendiente | Sustituir y probar bloques coincidentes |
 | 3. Controles y apariencia | Pendiente | Sustituir y probar bloques coincidentes |
