@@ -17,7 +17,7 @@ enum BloomBoxJITPreference: String, Codable, Sendable {
 }
 
 struct BloomBoxGuestDescriptor: Codable, Hashable, Sendable {
-    /// Persistent launcher key; the host adapter owns translation to LCAppModel.
+    /// Persistent launcher key; the host adapter translates it to its internal app model.
     let stableKey: String
     let bundleIdentifier: String
     let displayName: String
