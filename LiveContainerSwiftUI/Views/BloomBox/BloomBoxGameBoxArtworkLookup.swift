@@ -180,7 +180,10 @@ enum BloomBoxGameBoxArtworkLookup {
             ($0.type == nil || $0.type == "app") &&
             normalize($0.name) == normalize(title)
         }
-        guard let match = exact else { return nil }
+        guard let match = exact else {
+            BloomBoxCrashJournal.shared.record("gamebox.wallpaper.steam.no_exact_title")
+            return nil
+        }
         let sourceURL = URL(string: "https://store.steampowered.com/app/\(match.id)")!
 
         // Prefer a widescreen hero; a missing hero is normal for older games.
@@ -239,6 +242,7 @@ enum BloomBoxGameBoxArtworkLookup {
                 return Result(image: rendered, sourceURL: source, provider: "Wikimedia")
             }
         }
+        BloomBoxCrashJournal.shared.record("gamebox.wallpaper.wikipedia.no_free_thumbnail")
         // PageImages with pilicense=free may have no thumbnail even for a
         // valid console article. Search Commons File namespace for the
         // *curated* console name, never an arbitrary installed app name.
@@ -300,11 +304,18 @@ enum BloomBoxGameBoxArtworkLookup {
         request.setValue("BloomBox-GameBox/2.0 (https://github.com/adri23rep-stack/BloomBox)", forHTTPHeaderField: "User-Agent")
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard !Task.isCancelled, let http = response as? HTTPURLResponse,
+            guard !Task.isCancelled else { return nil }
+            guard let http = response as? HTTPURLResponse,
                   (200..<300).contains(http.statusCode), http.url?.host == host,
-                  data.count > 0, data.count <= 500_000 else { return nil }
+                  data.count > 0, data.count <= 500_000 else {
+                let service = host == "store.steampowered.com" ? "steam" :
+                    (host == "en.wikipedia.org" ? "wikipedia" : "commons")
+                BloomBoxCrashJournal.shared.record("gamebox.wallpaper." + service + ".http_failed")
+                return nil
+            }
             return data
         } catch {
+            BloomBoxCrashJournal.shared.record("gamebox.wallpaper.metadata.network_error")
             return nil
         }
     }
