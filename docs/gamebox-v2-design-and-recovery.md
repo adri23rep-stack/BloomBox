@@ -4,13 +4,15 @@ GameBox v2 is implemented as a standalone BloomBox SwiftUI view, mounted by the 
 
 ## Visual reference
 
-Reference: [HomeNX / CardsNX](https://github.com/ad3333m/homenx), especially the `projects/cards` presentation and publicly shown screenshots. The interface follows the same layout language: a horizontal poster carousel, blurred selected-game background, round translucent toolbar icons, a compact status capsule, and a glass bottom panel with Play and game-specific options.
+Reference: [HomeNX / CardsNX](https://github.com/ad3333m/homenx), especially the `projects/cards` presentation and publicly shown screenshots. The interface follows the same layout language: a horizontal row of large app icons, a blurred background for the **selected** game, round translucent toolbar icons, a compact status capsule, and a glass bottom panel with Play and game-specific options.
 
 This branch uses original SwiftUI presentation code. No CardsNX binaries, source files, logos, screenshots or bundled game artwork are imported. The developer permission letter can be published separately when supplied.
 
 ## What ships on this branch
 
-- Landscape carousel with safe centering at both ends and a highlighted selected card.
+- Full-width **free-scrolling icon row** (no poster cards or names over the icons), with a subtle highlight on the selected icon. Scrolling is independent of selection: **only tapping an icon** changes the active game in the bottom panel.
+- No snap-to-center, ScrollViewReader, or scroll-position binding. Smooth momentum is provided by the system scroll view; an additional light haptic fires once per drag, and a short selection click plays when the user actually chooses a different app.
+- Double-tap an icon to toggle favorite; JIT is a small badge on the app icon. The bottom panel alone displays the selected app name and launch details.
 - Per-game cover and background selection from Photos **or Files**, stored outside guest app bundles.
 - Bounded image decoding and 40 MB in-memory art-cache target to avoid abrupt memory growth.
 - Battery/time/free-space status, favorites, launch with host JIT, and the host's existing app-management routes.
@@ -33,5 +35,5 @@ The app marks GameBox visible on entering it and clears that marker on returning
 
 - Run `Tests/reserved-section/test_contract.py` to guard the bridge, recovery and UI layout anchors.
 - Confirm GitHub Actions produces an archive.
-- On-device iOS 27: test normal launch/return, JIT-required guest, import of 20 MB and oversized artwork, rapid card switching, background/foreground, and simulated termination (user force quit) to verify conservative recovery.
+- On-device iOS 27: test normal launch/return, JIT-required guest, import of 20 MB and oversized artwork, fast free swiping without changing selection until tap, background/foreground, and simulated termination (user force quit) to verify conservative recovery.
 - Do not merge PR until a stable device build has been exercised with real apps.
