@@ -6,6 +6,9 @@
 //
 
 #import <dlfcn.h>
+#import <fcntl.h>
+#import <unistd.h>
+#import <sys/stat.h>
 #import <Security/Security.h>
 #import "../LiveContainer/LCSharedUtils.h"
 #import "../LiveContainer/FoundationPrivate.h"
@@ -61,26 +64,51 @@ static void BloomBoxReportJITPermissions(void) {
     [data writeToURL:file options:NSDataWritingAtomic error:nil];
 }
 
+// Cross-process breadcrumbs written in the shared container. This is not a
+// signal handler: it records safe lifecycle milestones *before* a possible
+// exception, without attempting unsafe crash-time Objective-C work.
+static void BloomBoxRecordLiveProcessPhase(NSString *phase) {
+    NSURL *root = [LCSharedUtils appGroupPath];
+    if (!root || !phase) return;
+    NSURL *folder = [root URLByAppendingPathComponent:@"Library/BloomBoxDiagnostics" isDirectory:YES];
+    if (![NSFileManager.defaultManager createDirectoryAtURL:folder
+                                withIntermediateDirectories:YES attributes:nil error:nil]) return;
+    NSURL *file = [folder URLByAppendingPathComponent:@"liveprocess.log"];
+    int fd = open(file.fileSystemRepresentation, O_WRONLY | O_CREAT | O_APPEND, 0600);
+    if (fd < 0) return;
+    // Never include bundle identifiers, guest paths, bookmarks or custom payloads.
+    NSString *line = [NSString stringWithFormat:@"%.3f pid=%d %@\\n",
+                      [NSDate date].timeIntervalSince1970, getpid(), phase];
+    NSData *bytes = [line dataUsingEncoding:NSUTF8StringEncoding];
+    if (bytes.length) (void)write(fd, bytes.bytes, bytes.length);
+    close(fd);
+}
+
 extern int LiveContainerMain(int argc, char *argv[]);
 static char **_envp, **_apple = NULL;
 int LiveProcessMain(int argc, char *argv[]) {
+    BloomBoxRecordLiveProcessPhase(@"liveprocess.started");
     // Let NSExtensionContext initialize, once it's done it will call CFRunLoopStop
     CFRunLoopRun();
     // Ensure app info is delivered
     NSDictionary *appInfo = LiveProcessHandler.retrievedAppInfo;
     NSCAssert(appInfo, @"Failed to retrieve app info");
+    BloomBoxRecordLiveProcessPhase(@"liveprocess.request.received");
     BloomBoxReportJITPermissions();
     
     // Check if we received a request to execute a custom payload
     NSString *customPayloadDylib = appInfo[@"customPayloadDylib"];
     if(customPayloadDylib) {
+        BloomBoxRecordLiveProcessPhase(@"liveprocess.custom_payload.requested");
         void *handle = dlopen(customPayloadDylib.fileSystemRepresentation, RTLD_LAZY);
         NSCAssert(appInfo, @"Failed to load custom payload dylib at path: %@", customPayloadDylib);
         
         NSString *customPayloadEntry = appInfo[@"customPayloadEntry"];
         NSCAssert(customPayloadEntry, @"Missing customPayloadEntry");
         int (*payloadEntry)(int, char **, char **, char **) = dlsym(handle, customPayloadEntry.UTF8String);
-        return payloadEntry(argc, argv, _envp, _apple);
+        int status = payloadEntry(argc, argv, _envp, _apple);
+        BloomBoxRecordLiveProcessPhase(@"liveprocess.custom_payload.returned");
+        return status;
     }
     
     NSLog(@"Retrieved app info: %@", appInfo);
@@ -109,6 +137,7 @@ int LiveProcessMain(int argc, char *argv[]) {
             NSString *description = [NSString stringWithFormat:
                 @"LiveProcess no pudo resolver el acceso privado (%@). Puedes probar 'Allow Private Data access from LiveProcess' en Ajustes de desarrollador de BloomBox.",
                 error.localizedDescription ?: @"bookmark inválido"];
+            BloomBoxRecordLiveProcessPhase(@"liveprocess.private_bookmark.invalid");
             NSLog(@"[BloomBox] %@", description);
             NSError *launchError = [NSError errorWithDomain:@"BloomBox.LiveProcess"
                 code:103 userInfo:@{NSLocalizedDescriptionKey:description}];
@@ -128,6 +157,7 @@ int LiveProcessMain(int argc, char *argv[]) {
             NSString *description = [NSString stringWithFormat:
                 @"LiveProcess no tiene permiso para acceder a %@. Prueba la opción de acceso a datos privados en Ajustes de desarrollador de BloomBox.",
                 scopedURL.lastPathComponent];
+            BloomBoxRecordLiveProcessPhase(@"liveprocess.private_access.denied");
             NSLog(@"[BloomBox] %@", description);
             NSError *launchError = [NSError errorWithDomain:@"BloomBox.LiveProcess"
                 code:104 userInfo:@{NSLocalizedDescriptionKey:description}];
@@ -165,7 +195,10 @@ int LiveProcessMain(int argc, char *argv[]) {
     }
 
     
-    return LiveContainerMain(argc, argv);
+    BloomBoxRecordLiveProcessPhase(@"liveprocess.guest_boot.started");
+    int exitCode = LiveContainerMain(argc, argv);
+    BloomBoxRecordLiveProcessPhase(@"liveprocess.guest_boot.returned");
+    return exitCode;
 }
 
 // this is our fake UIApplicationMain called from _xpc_objc_uimain (xpc_main)
