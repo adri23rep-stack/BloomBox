@@ -61,6 +61,14 @@ struct BloomBoxGameBoxV2Screen: View {
     private var autoBackgrounds = true
     @State private var fetchingAutoBackground: String?
     private let autoBackgroundMode = "autoGameBox"
+    @AppStorage("BloomBoxGameBoxArtworkIntroEnabled", store: LiveContainerPreferencesAdapter.defaults)
+    private var artworkIntroEnabled = true
+    @State private var artworkIntroVisible = false
+    @State private var artworkIntroDidRun = false
+    @State private var artworkIntroStartedAt: Date?
+    @State private var artworkIntroAppKey: String?
+    @State private var wallpaperCatalogReady = false
+    @State private var showSafeGraphicsAlert = false
     @AppStorage("BloomBoxGameBoxV2Favorites", store: LiveContainerPreferencesAdapter.defaults)
     private var favoritesJSON = "[]"
     @AppStorage("LiveBoardReduceMotion", store: LiveContainerPreferencesAdapter.defaults)
@@ -93,7 +101,7 @@ struct BloomBoxGameBoxV2Screen: View {
     private var autoBackgroundTaskID: String {
         (focusedKey ?? "") + ":" + String(autoBackgrounds) + ":" +
         String(safeGraphics) + ":" + String(constrained) + ":" +
-        String(wallpaperRules.revision)
+        String(wallpaperRules.revision) + ":" + String(wallpaperCatalogReady)
     }
     private var favorites: Set<String> {
         Set(BloomBoxHomeAppPolicy.favorites(from: favoritesJSON))
@@ -178,6 +186,20 @@ struct BloomBoxGameBoxV2Screen: View {
                         .padding(.horizontal, compact ? 12 : 25)
                 }
                 .padding(.vertical, compact ? 3 : 12)
+                if artworkIntroVisible {
+                    BloomBoxGameBoxArtworkIntro(
+                        icons: Array(visibleApps.prefix(5).compactMap(\.icon)),
+                        reduceMotion: reduceMotion,
+                        safeMode: safeGraphics,
+                        onSkip: { dismissArtworkIntro() },
+                        onEnableGraphics: {
+                            safeGraphics = false
+                            dismissArtworkIntro()
+                        }
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                    .zIndex(10)
+                }
             }
             .frame(width: safeWidth, height: safeHeight)
         }
@@ -242,15 +264,38 @@ struct BloomBoxGameBoxV2Screen: View {
             refreshStorage()
             UIDevice.current.isBatteryMonitoringEnabled = true
             refreshBattery()
+            beginArtworkIntroIfNeeded()
         }
-        .onDisappear { BloomBoxCrashJournal.shared.leaveGameBox() }
-        // Catalog refresh lives independently of icon selection. Rapidly
-        // choosing another app must never cancel the one pending rules request.
+        .onDisappear {
+            BloomBoxCrashJournal.shared.leaveGameBox()
+            artworkIntroVisible = false
+            artworkIntroDidRun = false
+            wallpaperCatalogReady = false
+        }
+        // The catalog refresh is independent of icon swiping. Resolve the
+        // selected game's wallpaper only after we have validated the rules
+        // (or retained the verified offline cache).
         .task {
             await wallpaperRules.refreshIfNeeded()
+            guard !Task.isCancelled else { return }
+            wallpaperCatalogReady = true
         }
         .task(id: autoBackgroundTaskID) {
+            guard wallpaperCatalogReady else { return }
             await resolveAutomaticBackground()
+            if key(selectedApp ?? visibleApps.first ?? BloomBoxGameBoxEntry(
+                id: "", bundleID: nil, name: "", icon: nil, requiresJIT: false)) == artworkIntroAppKey {
+                await finishArtworkIntroAfterLookup()
+            }
+        }
+        .task(id: artworkIntroVisible) {
+            guard artworkIntroVisible else { return }
+            // The internet can be down; never keep the GameBox UI covered
+            // indefinitely. The normal lookup continues behind this view.
+            do { try await Task.sleep(nanoseconds: 6_000_000_000) }
+            catch { return }
+            guard !Task.isCancelled else { return }
+            dismissArtworkIntro()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             BloomBoxCrashJournal.shared.returnedToForeground(gameBoxVisible: true)
@@ -299,6 +344,7 @@ struct BloomBoxGameBoxV2Screen: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
             BloomBoxCrashJournal.shared.record("gamebox.memory_warning.graphics_safed")
             safeGraphics = true
+            dismissArtworkIntro()
             artwork.clearDecodedCache()
         }
         .onReceive(NotificationCenter.default.publisher(for: ProcessInfo.thermalStateDidChangeNotification)) { _ in
@@ -311,11 +357,29 @@ struct BloomBoxGameBoxV2Screen: View {
             refreshBattery()
         }
         .confirmationDialog("GameBox", isPresented: $quickMenu) {
+            if safeGraphics {
+                Button("Reactivar fondos de GameBox", systemImage: "photo") {
+                    showSafeGraphicsAlert = true
+                }
+            }
+            Button(artworkIntroEnabled ? "Desactivar animación de carga" : "Activar animación de carga",
+                   systemImage: "waveform") {
+                artworkIntroEnabled.toggle()
+            }
             Button("Diagnósticos y recuperación") { showDiagnostics = true }
             Button("Administrar aplicaciones", action: openManagement)
             Button("Instalar IPA", action: openInstall)
             Button("Cambiar interfaz", action: openInterface)
             Button("Volver al escritorio", action: backToHome)
+        }
+        .alert("Fondos desactivados por seguridad", isPresented: $showSafeGraphicsAlert) {
+            Button("Activar fondos") {
+                safeGraphics = false
+                dismissArtworkIntro()
+            }
+            Button("Mantener modo seguro", role: .cancel) {}
+        } message: {
+            Text("GameBox activó SAFE tras una sesión interrumpida o una alerta de memoria. Puedes reactivar los fondos; si vuelve a cerrarse, revisa Diagnósticos.")
         }
         .alert("Función futura", isPresented: Binding(
             get: { upcomingFeature != nil },
@@ -374,9 +438,16 @@ struct BloomBoxGameBoxV2Screen: View {
                     .font(.system(size: compact ? 13 : 17, weight: .semibold))
                 Text("GAMEBOX").font(.system(size: compact ? 12 : 15, weight: .black, design: .rounded))
                     .tracking(1.3)
-                Text(safeGraphics ? "SAFE" : "V2").font(.system(size: 10, weight: .heavy, design: .rounded))
-                    .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(focusedAccent.opacity(0.35), in: Capsule())
+                Button {
+                    if safeGraphics { showSafeGraphicsAlert = true }
+                } label: {
+                    Text(safeGraphics ? "SAFE" : "V2")
+                        .font(.system(size: 10, weight: .heavy, design: .rounded))
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(focusedAccent.opacity(0.35), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(safeGraphics ? "Modo seguro; toca para activar fondos" : "Versión 2")
                 TimelineView(.periodic(from: .now, by: 60)) { time in
                     Text(time.date, format: .dateTime.hour().minute())
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
@@ -785,6 +856,42 @@ struct BloomBoxGameBoxV2Screen: View {
         } catch {
             BloomBoxCrashJournal.shared.record("gamebox.online_wallpaper.save_failed")
         }
+    }
+
+    private func beginArtworkIntroIfNeeded() {
+        guard !artworkIntroDidRun else { return }
+        artworkIntroDidRun = true
+        guard artworkIntroEnabled, autoBackgrounds, !visibleApps.isEmpty else { return }
+        artworkIntroAppKey = selectedApp.map(key)
+        artworkIntroStartedAt = Date()
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
+            artworkIntroVisible = true
+        }
+    }
+
+    private func dismissArtworkIntro() {
+        guard artworkIntroVisible else { return }
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) {
+            artworkIntroVisible = false
+        }
+        artworkIntroStartedAt = nil
+        artworkIntroAppKey = nil
+    }
+
+    @MainActor
+    private func finishArtworkIntroAfterLookup() async {
+        guard artworkIntroVisible, !safeGraphics,
+              let started = artworkIntroStartedAt else { return }
+        // Let the BloomBox Alive-style icon wave finish at least once. Cache
+        // hits can return instantly; we still give a short visible transition.
+        let elapsed = Date().timeIntervalSince(started)
+        if elapsed < 1.15 {
+            do {
+                try await Task.sleep(nanoseconds: UInt64((1.15 - elapsed) * 1_000_000_000))
+            } catch { return }
+        }
+        guard !Task.isCancelled else { return }
+        dismissArtworkIntro()
     }
 
     private func requestLaunch(_ app: BloomBoxGameBoxEntry, forceJIT: Bool) {
