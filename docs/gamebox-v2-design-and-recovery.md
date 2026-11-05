@@ -19,6 +19,40 @@ This branch uses original SwiftUI presentation code. No CardsNX binaries, source
 - Two **visual-only** controller icons (`BloomBoxNikaidoControllerSlot`), deliberately not interactive. Future controller logic should live behind a Nikaido bridge, not be embedded in this view.
 - Full Home mode remains the boot default.
 
+## Automatic backgrounds: selected games and emulator platforms
+
+GameBox can now look up the **selected** app's background automatically, with a
+brief debounce so scrolling over dozens of icons does not trigger dozens of
+network requests. Users can disable automatic backgrounds from an app's option
+menu, search again, remove only downloaded art, or open the original source.
+
+Priority (highest first):
+
+1. Manually chosen background from Photos or Files.
+2. Manually chosen cover image.
+3. Cached automatic background in separate `autoGameBox` mode.
+4. Existing app icon against GameBox's gradient if there is no confident result.
+
+For games, the no-API-key Steam Store search is used only when an **exact game
+title** matches (a few known port aliases are explicit). A wider Steam library
+hero is preferred; the Steam detail header is a fallback. For known emulators
+(DolphiniOS, MeloNX, MeloCafe, PPSSPP, etc.) a Wikimedia PageImages query for
+the **emulated console's article** requests only freely licensed images. This
+does **not** imply the emulator itself ships a specific game. Its source/link to
+the image license is retained for users to open.
+
+Privacy and safety: no app bundle ID, JIT credentials, installed-game list,
+guest path, signing material or private data is sent in network requests.
+Only a recognized selected title or a generic console topic is queried. URL
+hosts and redirects are validated, downloaded images have a 12 MB limit, and
+decoded images are downsampled. Missing/ambiguous results are cached as an
+attempt for 24 hours; the app never chooses a merely similar game at random.
+A manual background is never overwritten. No external copyrighted image is
+bundled into a release.
+
+Remote services are online dependencies and may stop responding or change
+their public interfaces. The original local fallback always remains usable.
+
 ## Crash recovery and diagnostics
 
 The local, opt-in-to-export journal lives in the app-group folder `Library/BloomBoxDiagnostics/`:
