@@ -36,6 +36,17 @@ assert(index.rule(bundleID: nil, name: "Delta Force") == nil)
 assert(index.rule(bundleID: nil, name: "A Future Emulator")?.query == "Nintendo 64")
 assert(index.rule(bundleID: nil, name: "RDR - IOSVIZOR.COM")?.query == "Red Dead Redemption")
 assert(index.rule(bundleID: "com.unknown.app", name: "Unknown") == nil)
+var withCurated = valid
+var pinnedRules = withCurated["rules"] as! [[String: Any]]
+pinnedRules[0]["imageURL"] = "https://upload.wikimedia.org/wikipedia/commons/5/5b/Nintendo-Switch-Console-Flat-Top.jpg"
+pinnedRules[0]["sourceURL"] = "https://commons.wikimedia.org/wiki/File:Nintendo-Switch-Console-Flat-Top.jpg"
+pinnedRules[0]["imageLicense"] = "Public domain"
+withCurated["rules"] = pinnedRules
+let curated = BloomBoxWallpaperRuleIndex.validated(from: encode(withCurated))
+assert(curated?.rule(bundleID: nil, name: "MelonNX")?.vettedArtworkURL?.host ==
+       "upload.wikimedia.org")
+assert(curated?.rule(bundleID: nil, name: "MelonNX")?.imageLicense == "Public domain")
+
 func expectReject(_ mutate: (inout [String: Any]) -> Void) {
     var bad = valid
     mutate(&bad)
@@ -69,4 +80,32 @@ expectReject { root in
     list[0]["bundleIDs"] = ["me.oatmealdome.DolphiniOS-njb-patreon-beta"]
     root["rules"] = list
 }
-print("PASS: wallpaper rule schema, exact bundle > alias, unrelated title rejection, forbidden fields and duplicate safeguards")
+
+expectReject { root in
+    var list = root["rules"] as! [[String: Any]]
+    list[0]["imageURL"] = "https://evil.example/wallpaper.jpg"
+    list[0]["sourceURL"] = "https://commons.wikimedia.org/wiki/File:Nintendo-Switch-Console-Flat-Top.jpg"
+    list[0]["imageLicense"] = "Public domain"
+    root["rules"] = list
+}
+expectReject { root in
+    var list = root["rules"] as! [[String: Any]]
+    list[0]["imageURL"] = "https://upload.wikimedia.org/wikipedia/commons/5/5b/Nintendo-Switch-Console-Flat-Top.jpg"
+    list[0]["sourceURL"] = "https://commons.wikimedia.org/wiki/File:Other-Console.jpg"
+    list[0]["imageLicense"] = "Public domain"
+    root["rules"] = list
+}
+expectReject { root in
+    var list = root["rules"] as! [[String: Any]]
+    list[0]["imageURL"] = "https://upload.wikimedia.org/wikipedia/commons/5/5b/Nintendo-Switch-Console-Flat-Top.jpg"
+    list[0]["sourceURL"] = "https://commons.wikimedia.org/wiki/File:Nintendo-Switch-Console-Flat-Top.jpg"
+    list[0]["imageLicense"] = "Unverified"
+    root["rules"] = list
+}
+expectReject { root in
+    var list = root["rules"] as! [[String: Any]]
+    list[0]["imageURL"] = "https://upload.wikimedia.org/wikipedia/commons/5/5b/Nintendo-Switch-Console-Flat-Top.jpg"
+    list[0]["sourceURL"] = "https://commons.wikimedia.org/wiki/File:Nintendo-Switch-Console-Flat-Top.jpg"
+    root["rules"] = list
+}
+print("PASS: curated direct images, matching file credits, unsafe hosts rejected, bundle and alias safeguards")
