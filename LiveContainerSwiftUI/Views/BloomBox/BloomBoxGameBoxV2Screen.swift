@@ -366,6 +366,12 @@ struct BloomBoxGameBoxV2Screen: View {
                    systemImage: "waveform") {
                 artworkIntroEnabled.toggle()
             }
+            Button("Actualizar catálogo de fondos", systemImage: "arrow.clockwise") {
+                Task {
+                    await wallpaperRules.refreshIfNeeded(force: true)
+                    await resolveAutomaticBackground(force: true)
+                }
+            }
             Button("Diagnósticos y recuperación") { showDiagnostics = true }
             Button("Administrar aplicaciones", action: openManagement)
             Button("Instalar IPA", action: openInstall)
@@ -669,7 +675,10 @@ struct BloomBoxGameBoxV2Screen: View {
                         }
                         Button(fetchingAutoBackground == key(app) ? "Buscando fondo…" : "Buscar fondo en Internet",
                                systemImage: "magnifyingglass") {
-                            Task { await resolveAutomaticBackground(force: true) }
+                            Task {
+                                await wallpaperRules.refreshIfNeeded(force: true)
+                                await resolveAutomaticBackground(force: true)
+                            }
                         }
                         .disabled(fetchingAutoBackground == key(app) || !autoBackgrounds)
                         if artwork.image(for: key(app), kind: .background,
@@ -811,7 +820,12 @@ struct BloomBoxGameBoxV2Screen: View {
             return "Fondo listo"
         }
         if fetchingAutoBackground == id { return "Buscando fondo…" }
-        return wallpaperLookupStatus[id] ?? "Fondo: pendiente"
+        if let current = wallpaperLookupStatus[id] { return current }
+        if wallpaperRules.lastError != nil &&
+            wallpaperRules.rule(bundleID: app.bundleID, name: app.name) == nil {
+            return "Catálogo de fondos sin conexión"
+        }
+        return "Fondo: pendiente"
     }
 
     @MainActor
