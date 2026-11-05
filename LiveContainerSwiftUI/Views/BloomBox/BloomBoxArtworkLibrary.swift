@@ -1,4 +1,5 @@
 import SwiftUI
+import ImageIO
 
 /// User-selected console artwork lives separately from emulated app bundles.
 /// Previous LiveBoard files remain readable, and preference migration is safe to retry.
@@ -64,6 +65,23 @@ import SwiftUI
         return FileManager.default.fileExists(atPath: former.path) ? former : nil
     }
 
+    // Decode only at display size. Full-size game artwork previously decoded
+    // several 2400px images simultaneously while SwiftUI blurred the backdrop.
+    private func downsampled(_ url: URL, maxPixels: Int) -> UIImage? {
+        let options: [CFString: Any] = [kCGImageSourceShouldCache: false]
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, options as CFDictionary) else { return nil }
+        let thumb: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixels,
+            kCGImageSourceShouldCacheImmediately: true
+        ]
+        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, thumb as CFDictionary) else {
+            return nil
+        }
+        return UIImage(cgImage: image)
+    }
+
     private func cacheCost(_ image: UIImage) -> Int {
         guard let cg = image.cgImage else {
             return Int(max(1, image.size.width * image.scale) *
@@ -81,7 +99,7 @@ import SwiftUI
         if let cached = cache.object(forKey: id as NSString) { return cached }
         let filename = mappings[id] ?? (mode == "bigPicture" ? mappings[kind.rawValue + ":" + key] : nil)
         guard let filename, let path = fileURL(filename),
-              let image = UIImage(contentsOfFile: path.path) else { return nil }
+              let image = downsampled(path, maxPixels: kind == .background ? 1440 : 720) else { return nil }
         cache.setObject(image, forKey: id as NSString, cost: cacheCost(image))
         return image
     }
@@ -91,7 +109,7 @@ import SwiftUI
               image.size.width > 0, image.size.height > 0 else {
             throw CocoaError(.fileReadCorruptFile)
         }
-        let scale = min(1, 2400 / max(image.size.width, image.size.height))
+        let scale = min(1, 1800 / max(image.size.width, image.size.height))
         let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
         let renderer = UIGraphicsImageRendererFormat()
         renderer.scale = 1
@@ -114,7 +132,10 @@ import SwiftUI
         }
         defaults.set(updated, forKey: namesKey)
         for previousFile in Set(previous) { deleteUnused(previousFile, map: updated) }
-        cache.setObject(thumbnail, forKey: id as NSString, cost: cacheCost(thumbnail))
+        if let fitted = downsampled(directory.appendingPathComponent(filename),
+                                   maxPixels: kind == .background ? 1440 : 720) {
+            cache.setObject(fitted, forKey: id as NSString, cost: cacheCost(fitted))
+        }
         revision += 1
     }
 
