@@ -149,8 +149,8 @@ struct BloomBoxLauncherRootView: View {
             HStack(spacing: 16) {
                 Image(systemName: icon).font(.title).frame(width: 48)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(title).font(.headline)
-                    Text(detail).font(.subheadline).foregroundStyle(.secondary)
+                    Text(BloomBoxGameBoxL10n.t(title)).font(.headline)
+                    Text(BloomBoxGameBoxL10n.t(detail)).font(.subheadline).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
                 Image(systemName: mode == value ? "checkmark.circle.fill" : "circle")
