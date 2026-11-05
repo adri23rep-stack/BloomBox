@@ -70,6 +70,9 @@ assert "SteamSearch" in lookup and "WikipediaResponse" in lookup
 assert "store.steampowered.com/api/storesearch/" in lookup
 assert "pilicense" in lookup and 'value: "free"' in lookup
 assert "normalize($0.name) == normalize(title)" in lookup
+assert 'if term.count >= 6 && name.hasPrefix(term + " ")' in lookup
+assert '("melonnx", "Nintendo Switch")' in lookup
+assert '("delta", "Nintendo DS")' in lookup
 assert "download(for: request)" in lookup
 assert "permittedHosts.contains(finalHost)" in lookup
 assert '["image/jpeg", "image/png", "image/webp"]' in lookup
