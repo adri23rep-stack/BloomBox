@@ -1,8 +1,9 @@
 import Foundation
 
 /// Read-only metadata from BloomBox-Catalog. It may only choose a search
-/// provider and an exact console/game topic; it cannot supply executable
-/// code, image URLs, files, permissions, or launch/JIT configuration.
+/// provider and an exact console/game topic. Curated, allowlisted
+/// public-domain images are supported; the feed cannot supply executable
+/// code, arbitrary web hosts, permissions or launch/JIT configuration.
 struct BloomBoxWallpaperRuleIndex: Codable {
     let schemaVersion: Int
     let catalogID: String
@@ -16,8 +17,13 @@ struct BloomBoxWallpaperRuleIndex: Codable {
               let raw = root["rules"] as? [[String: Any]],
               !raw.isEmpty, raw.count <= 80 else { return nil }
 
-        let allowed = Set(["id", "bundleIDs", "keywords", "provider", "query", "note"])
-        for rule in raw where Set(rule.keys) != allowed { return nil }
+        let required = Set(["id", "bundleIDs", "keywords", "provider", "query", "note"])
+        let optional = Set(["imageURL", "sourceURL", "imageLicense"])
+        for rule in raw {
+            let fields = Set(rule.keys)
+            guard required.isSubset(of: fields),
+                  fields.isSubset(of: required.union(optional)) else { return nil }
+        }
 
         guard let index = try? JSONDecoder().decode(BloomBoxWallpaperRuleIndex.self, from: data),
               index.schemaVersion == 1,
@@ -87,6 +93,33 @@ struct BloomBoxWallpaperRule: Codable {
     let provider: String
     let query: String
     let note: String
+    let imageURL: String?
+    let sourceURL: String?
+    let imageLicense: String?
+
+    /// This is deliberately not an arbitrary image URL facility. The
+    /// catalog may only reference a known Commons file that has its matching
+    /// attribution/license page. Future custom assets need a separately
+    /// reviewed host allowlist.
+    var vettedArtworkURL: URL? {
+        guard provider == "wikipedia",
+              imageLicense == "Public domain",
+              let imageURL, let sourceURL,
+              let image = URL(string: imageURL), let origin = URL(string: sourceURL),
+              image.scheme == "https", image.host == "upload.wikimedia.org",
+              image.user == nil, image.password == nil, image.port == nil,
+              image.query == nil, image.fragment == nil,
+              origin.scheme == "https", origin.host == "commons.wikimedia.org",
+              origin.user == nil, origin.password == nil, origin.port == nil,
+              origin.query == nil, origin.fragment == nil,
+              image.path.hasPrefix("/wikipedia/commons/"),
+              origin.path.hasPrefix("/wiki/File:"),
+              image.lastPathComponent == String(origin.lastPathComponent.dropFirst(5)),
+              ["jpg", "jpeg", "png", "webp"].contains(image.pathExtension.lowercased()),
+              image.absoluteString.count <= 350,
+              origin.absoluteString.count <= 350 else { return nil }
+        return image
+    }
 
     var isValid: Bool {
         let safeID = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-")
@@ -111,10 +144,15 @@ struct BloomBoxWallpaperRule: Codable {
               query.unicodeScalars.allSatisfy({ safeText.contains($0) })
         else { return false }
 
-        switch provider {
-        case "wikipedia": return query.count <= 70
-        case "steam": return query.count <= 70
-        default: return false
+        let providerIsKnown = (provider == "wikipedia" || provider == "steam") &&
+            query.count <= 70
+        guard providerIsKnown else { return false }
+
+        // All-or-nothing attribution; one malformed image cannot invalidate
+        // or redirect the app to an untrusted website.
+        if imageURL != nil || sourceURL != nil || imageLicense != nil {
+            return vettedArtworkURL != nil
         }
+        return true
     }
 }
