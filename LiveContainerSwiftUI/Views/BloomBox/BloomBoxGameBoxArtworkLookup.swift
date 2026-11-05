@@ -73,8 +73,11 @@ enum BloomBoxGameBoxArtworkLookup {
             ("mgba", "Game Boy Advance"),
             ("provenance emulator", "Video game console")
         ]
-        for (term, article) in terms where name == term || name.hasPrefix(term + " ") {
-            return article
+        for (term, article) in terms {
+            if name == term { return article }
+            // Short names such as "Delta" also name unrelated PC games.
+            // Do not accidentally assign a Nintendo DS wallpaper to Delta Force.
+            if term.count >= 6 && name.hasPrefix(term + " ") { return article }
         }
         return nil
     }
