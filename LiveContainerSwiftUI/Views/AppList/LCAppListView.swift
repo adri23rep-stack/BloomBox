@@ -222,6 +222,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             entries: guests.map { app in
                 BloomBoxGameBoxEntry(
                     id: liveBoardAppKey(app),
+                    bundleID: app.bundleIdentifier,
                     name: LiveBoardAppCustomization.shared.name(app),
                     icon: LiveBoardIconStore.image(app, dark: darkModeIcon),
                     requiresJIT: app.appInfo.isJITNeeded)
