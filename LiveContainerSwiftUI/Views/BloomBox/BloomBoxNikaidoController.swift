@@ -6,26 +6,77 @@ import SwiftUI
 import GameController
 
 private enum NikaidoLightStyle: String, CaseIterable, Codable {
-    case fixed, breathe, rainbow
+    case fixed, breathe, rainbow, pulse, heartbeat, wave, comet, aurora, fire, police, sparkle, sunset
 
     var title: String {
         switch self {
-        case .fixed: return "Fijo"
+        case .fixed: return "Color fijo"
         case .breathe: return "Respiración"
         case .rainbow: return "Arcoíris"
+        case .pulse: return "Pulso suave"
+        case .heartbeat: return "Latido"
+        case .wave: return "Ola neón"
+        case .comet: return "Cometa"
+        case .aurora: return "Aurora"
+        case .fire: return "Fuego"
+        case .police: return "Sirena"
+        case .sparkle: return "Destellos"
+        case .sunset: return "Atardecer"
         }
     }
+
+    var symbol: String {
+        switch self {
+        case .fixed: return "paintpalette.fill"
+        case .breathe: return "wind"
+        case .rainbow: return "rainbow"
+        case .pulse: return "circle.dotted.circle"
+        case .heartbeat: return "heart.fill"
+        case .wave: return "water.waves"
+        case .comet: return "sparkle"
+        case .aurora: return "moon.stars.fill"
+        case .fire: return "flame.fill"
+        case .police: return "light.beacon.max.fill"
+        case .sparkle: return "sparkles"
+        case .sunset: return "sun.horizon.fill"
+        }
+    }
+
+    var animated: Bool { self != .fixed }
 }
 
 private enum NikaidoTriggerStyle: String, CaseIterable, Codable {
-    case off, resistance, weapon, vibration
+    case off, resistance, weapon, vibration, soft, heavy, sniper, bow, recoil, rapid, ramp
 
     var title: String {
         switch self {
-        case .off: return "Desactivado"
+        case .off: return "Apagado"
         case .resistance: return "Resistencia"
-        case .weapon: return "Arma"
+        case .weapon: return "Gatillo de arma"
         case .vibration: return "Pulso"
+        case .soft: return "Suave"
+        case .heavy: return "Pesado"
+        case .sniper: return "Francotirador"
+        case .bow: return "Arco"
+        case .recoil: return "Retroceso"
+        case .rapid: return "Ráfaga"
+        case .ramp: return "Progresivo"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .off: return "Sin resistencia"
+        case .resistance: return "Punto de presión configurable"
+        case .weapon: return "Disparo con recorrido"
+        case .vibration: return "Vibración al presionar"
+        case .soft: return "Recorrido ligero"
+        case .heavy: return "Presión intensa"
+        case .sniper: return "Disparo de precisión"
+        case .bow: return "Fuerza creciente"
+        case .recoil: return "Golpe en el gatillo"
+        case .rapid: return "Vibración rápida"
+        case .ramp: return "Rampa de resistencia"
         }
     }
 }
@@ -38,10 +89,21 @@ private struct NikaidoGameProfile: Codable, Equatable {
     var green: Double = 0.57
     var blue: Double = 1.0
     var lightStyle: NikaidoLightStyle = .fixed
+    var secondaryRed: Double = 0.98
+    var secondaryGreen: Double = 0.29
+    var secondaryBlue: Double = 0.65
+    var lightBrightness: Double = 0.8
+    var lightSpeed: Double = 1.0
     var leftTriggerStyle: NikaidoTriggerStyle = .off
     var rightTriggerStyle: NikaidoTriggerStyle = .off
     var leftStrength: Double = 0.45
     var rightStrength: Double = 0.45
+    var leftStart: Double = 0.25
+    var rightStart: Double = 0.25
+    var leftDriftX: Double = 0
+    var leftDriftY: Double = 0
+    var rightDriftX: Double = 0
+    var rightDriftY: Double = 0
     var leftDeadzone: Double = 0.08
     var rightDeadzone: Double = 0.08
     var leftSensitivity: Double = 1.0
@@ -54,7 +116,16 @@ private struct NikaidoGameProfile: Codable, Equatable {
     static func load(for key: String) -> NikaidoGameProfile {
         guard let data = LiveContainerPreferencesAdapter.defaults.data(forKey: "BloomBoxNikaido:" + key),
               data.count < 16_384,
-              let decoded = try? JSONDecoder().decode(Self.self, from: data) else {
+              let original = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let fallbackData = try? JSONEncoder().encode(Self()),
+              var merged = (try? JSONSerialization.jsonObject(with: fallbackData)) as? [String: Any] else {
+            return Self()
+        }
+        // Merge new defaults with legacy profiles so adding a field never erases
+        // previously saved RGB, triggers, stick settings, or remaps.
+        merged.merge(original) { _, old in old }
+        guard let compatible = try? JSONSerialization.data(withJSONObject: merged),
+              let decoded = try? JSONDecoder().decode(Self.self, from: compatible) else {
             return Self()
         }
         // Clamp corrupt/stale values before they reach the physical controller.
@@ -62,6 +133,17 @@ private struct NikaidoGameProfile: Codable, Equatable {
         safe.red = safe.red.isFinite ? min(max(safe.red, 0), 1) : 0.25
         safe.green = safe.green.isFinite ? min(max(safe.green, 0), 1) : 0.57
         safe.blue = safe.blue.isFinite ? min(max(safe.blue, 0), 1) : 1
+        safe.secondaryRed = safe.secondaryRed.isFinite ? min(max(safe.secondaryRed, 0), 1) : 1
+        safe.secondaryGreen = safe.secondaryGreen.isFinite ? min(max(safe.secondaryGreen, 0), 1) : 0.29
+        safe.secondaryBlue = safe.secondaryBlue.isFinite ? min(max(safe.secondaryBlue, 0), 1) : 0.65
+        safe.lightBrightness = safe.lightBrightness.isFinite ? min(max(safe.lightBrightness, 0), 1) : 0.8
+        safe.lightSpeed = safe.lightSpeed.isFinite ? min(max(safe.lightSpeed, 0.25), 3) : 1.0
+        safe.leftStart = safe.leftStart.isFinite ? min(max(safe.leftStart, 0.05), 0.65) : 0.25
+        safe.rightStart = safe.rightStart.isFinite ? min(max(safe.rightStart, 0.05), 0.65) : 0.25
+        safe.leftDriftX = safe.leftDriftX.isFinite ? min(max(safe.leftDriftX, -0.2), 0.2) : 0
+        safe.leftDriftY = safe.leftDriftY.isFinite ? min(max(safe.leftDriftY, -0.2), 0.2) : 0
+        safe.rightDriftX = safe.rightDriftX.isFinite ? min(max(safe.rightDriftX, -0.2), 0.2) : 0
+        safe.rightDriftY = safe.rightDriftY.isFinite ? min(max(safe.rightDriftY, -0.2), 0.2) : 0
         safe.leftStrength = safe.leftStrength.isFinite ? min(max(safe.leftStrength, 0), 1) : 0
         safe.rightStrength = safe.rightStrength.isFinite ? min(max(safe.rightStrength, 0), 1) : 0
         safe.leftDeadzone = safe.leftDeadzone.isFinite ? min(max(safe.leftDeadzone, 0), 0.5) : 0.08
@@ -78,13 +160,16 @@ private struct NikaidoGameProfile: Codable, Equatable {
         LiveContainerPreferencesAdapter.defaults.set(data, forKey: "BloomBoxNikaido:" + key)
     }
 
-    static func shaped(x: Float, y: Float, deadzone: Double, sensitivity: Double, invertY: Bool) -> (Float, Float) {
-        let distance = min(1, hypot(Double(x), Double(y)))
+    static func shaped(x: Float, y: Float, deadzone: Double, sensitivity: Double,
+                       invertY: Bool, offsetX: Double = 0, offsetY: Double = 0) -> (Float, Float) {
+        let cx = max(-1, min(1, Double(x) - offsetX))
+        let cy = max(-1, min(1, Double(y) - offsetY))
+        let distance = min(1, hypot(cx, cy))
         let zone = min(max(deadzone, 0), 0.5)
         if distance <= zone || distance == 0 { return (0, 0) }
         let magnitude = min(1, ((distance - zone) / (1 - zone)) * min(max(sensitivity, 0.5), 2))
         let scale = Float(magnitude / distance)
-        return (x * scale, y * scale * (invertY ? -1 : 1))
+        return (Float(cx) * scale, Float(cy) * scale * (invertY ? -1 : 1))
     }
 }
 
