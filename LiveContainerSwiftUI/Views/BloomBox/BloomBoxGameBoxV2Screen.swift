@@ -834,7 +834,10 @@ struct BloomBoxGameBoxV2Screen: View {
         // Rules can change without reinstalling the app. A newly published
         // mapping should be applied even when a fallback image is cached.
         let ruleToken = rule.map {
-            "remote:" + $0.id + ":" + $0.provider + ":" + $0.query
+            // The URL is part of cache identity: a newly curated image
+            // replaces an older guessed auto-wallpaper without a reinstall.
+            "remote:" + $0.id + ":" + $0.provider + ":" + $0.query +
+                ":" + ($0.imageURL ?? "")
         } ?? "built-in:" + app.name
 
         // Manual image/cover always wins. Remote metadata never overwrites it.
