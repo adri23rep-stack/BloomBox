@@ -519,7 +519,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 installUrlInput.close(result: nil)
             }
         )
-        .alert("Permisos para " + emulatorPromptName, isPresented: $emulatorPrompt.show) {
+        .alert(BloomBoxGameBoxL10n.t("Permisos para ") + emulatorPromptName, isPresented: $emulatorPrompt.show) {
             Button("Sí, configurar") { emulatorPrompt.close(result: .setup) }
             Button("No") { emulatorPrompt.close(result: .skip) }
             Button("No volver a preguntar") { emulatorPrompt.close(result: .suppress) }
@@ -560,7 +560,10 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 compatibilityProfile = nil
             }
         } message: {
-            Text("BloomBox-Catalog recomienda estos ajustes para \(compatibilityApp?.displayName ?? "la app"): \(compatibilitySummary).\n\nSe aplican solo a esta app. Se hará una vez; tus cambios manuales posteriores se respetarán. Ningún permiso global ni firma se modifica.")
+            Text(BloomBoxGameBoxL10n.t("BloomBox-Catalog recomienda estos ajustes para ") +
+                 (compatibilityApp?.displayName ?? BloomBoxGameBoxL10n.t("la app")) + ": " +
+                 compatibilitySummary + ".\n\n" +
+                 BloomBoxGameBoxL10n.t("Se aplican solo a esta app. Se hará una vez; tus cambios manuales posteriores se respetarán. Ningún permiso global ni firma se modifica."))
         }
         .sheet(isPresented: $emulatorRAMSetup) {
             NavigationView {
