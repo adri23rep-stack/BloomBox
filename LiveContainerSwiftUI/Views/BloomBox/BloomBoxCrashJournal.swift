@@ -25,8 +25,7 @@ final class BloomBoxCrashJournal: ObservableObject {
     private init() {}
 
     private var folder: URL? {
-        LCSharedUtils.appGroupPath()?
-            .appendingPathComponent("Library/BloomBoxDiagnostics", isDirectory: true)
+        LiveContainerDiagnosticsAdapter.sharedDirectory
     }
 
     private func ensureFolder() -> URL? {
