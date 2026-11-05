@@ -60,6 +60,7 @@ struct BloomBoxGameBoxV2Screen: View {
     @State private var alphabetical = false
     @State private var quickMenu = false
     @State private var showDiagnostics = false
+    @State private var showExpiryReminders = false
     @State private var freeStorage: String?
     @AppStorage("BloomBoxGameBoxSafeGraphics", store: LiveContainerPreferencesAdapter.defaults)
     private var safeGraphics = false
@@ -228,6 +229,27 @@ struct BloomBoxGameBoxV2Screen: View {
             refreshBattery()
             refreshStorage()
         }
+        .sheet(isPresented: $showExpiryReminders) {
+            NavigationView {
+                if #available(iOS 16.2, *) {
+                    BloomBoxExpiryReminderSettings()
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Listo") { showExpiryReminders = false }
+                            }
+                        }
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "bell.slash").font(.largeTitle)
+                        Text("Los avisos de caducidad requieren iOS 16.2 o posterior.")
+                            .multilineTextAlignment(.center)
+                        Button("Cerrar") { showExpiryReminders = false }
+                    }
+                    .padding()
+                }
+            }
+            .navigationViewStyle(.stack)
+        }
         .sheet(isPresented: $showDiagnostics) {
             NavigationView {
                 BloomBoxDiagnosticsView()
@@ -262,7 +284,7 @@ struct BloomBoxGameBoxV2Screen: View {
             Button("Cambiar interfaz", action: openInterface)
             Button("Volver al escritorio", action: backToHome)
         }
-        .alert("Función preparada", isPresented: Binding(
+        .alert("Función futura", isPresented: Binding(
             get: { upcomingFeature != nil },
             set: { if !$0 { upcomingFeature = nil } }
         )) {
@@ -350,11 +372,11 @@ struct BloomBoxGameBoxV2Screen: View {
             .background(.black.opacity(0.23), in: Capsule())
             .overlay(Capsule().strokeBorder(.white.opacity(0.15)))
             Spacer(minLength: 4)
-            topButton("bell.fill", label: "Notificaciones") {
-                upcomingFeature = "Las notificaciones de GameBox se añadirán después."
+            topButton("bell.fill", label: "Avisos de caducidad") {
+                showExpiryReminders = true
             }
             topButton("music.note", label: "Música") {
-                upcomingFeature = "El reproductor y el ecualizador están preparados para una próxima actualización."
+                upcomingFeature = "El reproductor de música y ecualizador aún no están disponibles en GameBox. Se integrarán sin interferir con la apertura de juegos."
             }
             topButton("power", label: "Volver al escritorio", action: backToHome)
             topButton("gearshape.fill", label: "Ajustes", action: openInterface)
