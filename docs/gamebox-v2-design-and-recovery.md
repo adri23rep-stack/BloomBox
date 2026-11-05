@@ -95,6 +95,26 @@ Once the user opts in, the wave panel transitions from the SAFE message into
 normal wallpaper lookup with a renewed six-second limit. Neither the intro
 nor the remote catalog silently disables crash protection.
 
+### Fix: wallpaper not appearing even with SAFE off
+
+Earlier builds also hid the wallpaper whenever iOS **Low Power Mode**
+was enabled (the `constrained` display flag), independently of SAFE.
+That was unintended. Low Power Mode now reduces blur and animations only;
+the selected background image stays visible. A previous in-flight image
+request can no longer block the next selected icon's lookup.
+
+The first automatic retry after this fix ignores the old 24-hour failed
+lookup lockout. GameBox now displays a short status under the selected
+app: **Buscando fondo**, **Fondo listo**, **Sin resultado · reintentar**,
+or **Sin fondo identificado**. The per-app menu can manually retry.
+
+If Wikipedia's free-license PageImages endpoint lacks a thumbnail for a
+curated emulator platform, GameBox now tries a bounded Wikimedia Commons
+file search for that *specific console* (not arbitrary game art), validates
+the candidate's file name, image type and dimensions, and keeps the Commons
+file-description link for credit and licensing. Sources can still be
+unavailable offline or rate-limited; the gradient/app-icon fallback remains.
+
 ## Crash recovery and diagnostics
 
 The local, opt-in-to-export journal lives in the app-group folder `Library/BloomBoxDiagnostics/`:
