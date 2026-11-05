@@ -263,9 +263,13 @@ struct BloomBoxDiagnosticsView: View {
                     }
                 }
                 HStack {
-                    if let exportURL {
+                    if #available(iOS 16.0, *), let exportURL {
                         ShareLink(item: exportURL) {
                             Label("Compartir registro", systemImage: "square.and.arrow.up")
+                        }
+                    } else {
+                        Button("Copiar registro") {
+                            UIPasteboard.general.string = journal.summary()
                         }
                     }
                     Spacer()
