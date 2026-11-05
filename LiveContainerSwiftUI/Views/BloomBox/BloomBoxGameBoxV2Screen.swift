@@ -64,7 +64,7 @@ private struct BloomBoxNikaidoControllerSlot: View {
             }
         }
         .accessibilityLabel(BloomBoxGameBoxL10n.t("Nikaido · Ajustes del control") +
-                            (batteryPercent.map { ", batería \($0)%" } ?? ""))
+                            (batteryPercent.map { BloomBoxGameBoxL10n.t(", batería ") + String($0) + "%" } ?? ""))
         .accessibilityHint("Luces, gatillos adaptativos y perfiles por juego")
     }
 }
@@ -626,7 +626,7 @@ struct BloomBoxGameBoxV2Screen: View {
             handleIconTap(app)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(title(app) + (favorites.contains(key(app)) ? ", favorito" : ""))
+        .accessibilityLabel(title(app) + (favorites.contains(key(app)) ? BloomBoxGameBoxL10n.t(", favorito") : ""))
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityHint("Toca para seleccionar, dos veces para alternar favorito. Usa Play para abrir.")
         .accessibilityAction(named: Text("Alternar favorito")) { toggleFavorite(app) }
