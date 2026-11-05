@@ -228,8 +228,6 @@ struct BloomBoxNikaidoControllerView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var host = NikaidoGameControllerHost()
 
-    private var connected: Bool { host.isDualSense || host.supportsLight || host.batteryText != "No disponible" }
-
     var body: some View {
         NavigationStack {
             Form {
@@ -353,7 +351,7 @@ struct BloomBoxNikaidoControllerView: View {
     private func availability(_ title: String, _ available: Bool) -> some View {
         HStack(spacing: 4) {
             Image(systemName: available ? "checkmark.circle.fill" : "minus.circle")
-                .foregroundStyle(available ? .green : .secondary)
+                .foregroundStyle(available ? Color.green : Color.secondary)
             Text(title).font(.caption)
         }
     }
