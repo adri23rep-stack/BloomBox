@@ -341,11 +341,19 @@ private final class NikaidoGameControllerHost: ObservableObject {
         case .sniper:
             trigger.setModeWeaponWithStartPosition(0.58, endPosition: 0.92, resistiveStrength: force)
         case .bow:
-            trigger.setModeSlopeFeedback(startPosition: startPosition, endPosition: 0.96,
-                                         startStrength: force * 0.2, endStrength: force)
+            if #available(iOS 15.4, *) {
+                trigger.setModeSlopeFeedback(startPosition: startPosition, endPosition: 0.96,
+                                             startStrength: force * 0.2, endStrength: force)
+            } else {
+                trigger.setModeFeedbackWithStartPosition(startPosition, resistiveStrength: force)
+            }
         case .ramp:
-            trigger.setModeSlopeFeedback(startPosition: startPosition, endPosition: 0.9,
-                                         startStrength: 0, endStrength: force)
+            if #available(iOS 15.4, *) {
+                trigger.setModeSlopeFeedback(startPosition: startPosition, endPosition: 0.9,
+                                             startStrength: 0, endStrength: force)
+            } else {
+                trigger.setModeFeedbackWithStartPosition(startPosition, resistiveStrength: force)
+            }
         case .vibration:
             trigger.setModeVibrationWithStartPosition(startPosition, amplitude: force, frequency: 0.22)
         case .recoil:
