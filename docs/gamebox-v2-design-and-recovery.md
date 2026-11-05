@@ -73,6 +73,26 @@ While both PRs are drafts, the client points to the catalog **preview branch**.
 After merging the catalog PR, update the source URL to `/main/` and run the
 iPhone device QA before releasing BloomBox.
 
+### Startup mini loader (default on)
+
+When opening GameBox, a small frosted-glass panel displays a five-icon
+**BloomBox Alive-inspired wave**. This is functional wait time for the first
+selected app's validated wallpaper lookup, **not** a fake loading percentage.
+The remote rules refresh happens independently of the free-scrolling icon
+selection, and the first automatic image lookup begins only after the rules
+refresh completes. The mini loader closes after that first lookup (minimum
+1.15 seconds to show the wave), or automatically after **six seconds** if the
+network is slow. The artwork download can continue after the panel closes.
+Users may tap **Saltar** immediately, and can disable or re-enable the intro
+from GameBox's top menu. The intro is enabled by default on new installs and
+respects Reduce Motion.
+
+**SAFE warning:** if an earlier interrupted foreground session or memory
+pressure triggered safe graphics, the same intro clearly says that background
+downloads are paused. It offers **Activar fondos** as an explicit opt-in;
+the SAFE badge in the header also opens a confirmation to reactivate images.
+Neither the intro nor the remote catalog silently disables crash protection.
+
 ## Crash recovery and diagnostics
 
 The local, opt-in-to-export journal lives in the app-group folder `Library/BloomBoxDiagnostics/`:
