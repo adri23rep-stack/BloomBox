@@ -56,7 +56,26 @@ struct BloomBoxWallpaperRuleIndex: Codable {
         let normalized = Self.normalize(name)
         guard !normalized.isEmpty else { return nil }
         return rules.first { rule in
-            rule.keywords.contains { Self.normalize($0) == normalized }
+            rule.keywords.contains { Self.matchesAlias($0, normalizedName: normalized) }
+        }
+    }
+
+    private static func matchesAlias(_ alias: String, normalizedName: String) -> Bool {
+        let word = normalize(alias)
+        if normalizedName == word { return true }
+        // Allow only an explicit alias followed by benign version/UI labels.
+        // Never use plain contains/hasPrefix for partial app-name guessing.
+        guard word.count >= 5, normalizedName.hasPrefix(word + " ") else { return false }
+        let tail = normalizedName.dropFirst(word.count + 1)
+        let allowedSuffixes = Set(["ios", "beta", "public", "emulator", "port", "version", "release"])
+        let parts = tail.split(separator: " ")
+        guard !parts.isEmpty, parts.count <= 4 else { return false }
+        return parts.allSatisfy { part in
+            let token = String(part)
+            return allowedSuffixes.contains(token) ||
+                (token.count <= 5 && token.allSatisfy({ $0.isNumber })) ||
+                (token.count > 1 && token.count <= 6 &&
+                 token.hasPrefix("v") && token.dropFirst().allSatisfy({ $0.isNumber }))
         }
     }
 }
