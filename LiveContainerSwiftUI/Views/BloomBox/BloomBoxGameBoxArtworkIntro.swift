@@ -70,7 +70,7 @@ struct BloomBoxGameBoxArtworkIntro: View {
                 .frame(height: 60)
                 .accessibilityHidden(true)
 
-                Text(safeMode ? "Modo seguro: fondos pausados" : "Preparando fondos de los juegos…")
+                Text(BloomBoxGameBoxL10n.t(safeMode ? "Modo seguro: fondos pausados" : "Preparando fondos de los juegos…"))
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(.white.opacity(0.85))
                     .lineLimit(1)
