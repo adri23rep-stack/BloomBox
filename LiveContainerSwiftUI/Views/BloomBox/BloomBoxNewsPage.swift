@@ -1,10 +1,13 @@
 import SwiftUI
 import CryptoKit
+import ImageIO
+import UniformTypeIdentifiers
 
 /// BloomBox's native News desktop. No guest execution or installer state lives
 /// on this page. The old Manzana widget-page entry point is retained as an alias.
 struct BloomBoxNewsPage: View {
     let openSettings: () -> Void
+    var active = true
     var singleWidget: String? = nil
 
     @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
@@ -59,7 +62,7 @@ struct BloomBoxNewsPage: View {
                     .liveBoardGlass(radius: 24)
                 }
                 .accessibilityIdentifier("bloombox.news.clock")
-                BloomBoxRemoteNewsSection()
+                BloomBoxRemoteNewsSection(active: active)
             }
             .padding(.horizontal, 22)
             .padding(.top, 12)
@@ -83,6 +86,7 @@ private struct BloomBoxNewsPost: Decodable, Identifiable {
 }
 
 private struct BloomBoxRemoteNewsSection: View {
+    let active: Bool
     @AppStorage("BloomBoxNewsFeedURL", store: LCUtils.appGroupUserDefault)
     private var feedAddress = ""
     @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
@@ -104,6 +108,8 @@ private struct BloomBoxRemoteNewsSection: View {
     @State private var error: String?
     @State private var editingFeed = false
     @State private var feedDraft = ""
+    @State private var lastRefresh: Date?
+    @State private var lastRefreshFeed = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
@@ -122,13 +128,14 @@ private struct BloomBoxRemoteNewsSection: View {
             if let error, posts.isEmpty {
                 Text(error).font(.caption).foregroundStyle(.secondary)
             }
-            ForEach(Array(posts.prefix(12))) { post in
+            LazyVStack(alignment: .leading, spacing: 13) {
+                ForEach(Array(posts.prefix(12))) { post in
                 VStack(alignment: .leading, spacing: 11) {
                     Text(post.title).font(.headline)
                     Text(post.text).font(.subheadline).fixedSize(horizontal: false, vertical: true)
                     if let media = post.media, let url = URL(string: media),
                        url.scheme?.lowercased() == "https" {
-                        BloomBoxRemoteNewsImage(url: url)
+                        BloomBoxRemoteNewsImage(url: url, active: active)
                             .frame(height: 210)
                             .frame(maxWidth: .infinity)
                             .clipShape(RoundedRectangle(cornerRadius: 15))
@@ -138,9 +145,16 @@ private struct BloomBoxRemoteNewsSection: View {
                 .padding(17)
                 .background(.ultraThinMaterial,
                             in: RoundedRectangle(cornerRadius: 22))
+                }
             }
         }
-        .task(id: activeFeed) { await refresh() }
+        .task(id: active ? activeFeed : "") {
+            guard active else { return }
+            if lastRefreshFeed != activeFeed ||
+               lastRefresh.map({ Date().timeIntervalSince($0) < 600 }) != true {
+                await refresh()
+            }
+        }
         .alert("Fuente de novedades", isPresented: $editingFeed) {
             TextField("Enlace HTTPS a JSON", text: $feedDraft)
                 .textInputAutocapitalization(.never)
@@ -176,6 +190,8 @@ private struct BloomBoxRemoteNewsSection: View {
                   data.count <= 256_000 else { throw BloomBoxMotionMedia.failure("La lista de noticias no está disponible.") }
             let decoded = try JSONDecoder().decode(BloomBoxNewsFeed.self, from: data)
             posts = Array(decoded.posts.prefix(12))
+            lastRefresh = Date()
+            lastRefreshFeed = activeFeed
             error = nil
         } catch {
             self.error = english ? "Could not load news. Tap refresh to try again." : "No se pudieron cargar las noticias. Desliza o toca actualizar para intentar otra vez."
@@ -185,6 +201,7 @@ private struct BloomBoxRemoteNewsSection: View {
 
 private struct BloomBoxRemoteNewsImage: View {
     let url: URL
+    let active: Bool
     @State private var gifFile: URL?
     @Environment(\.scenePhase) private var scenePhase
     var body: some View {
@@ -192,7 +209,7 @@ private struct BloomBoxRemoteNewsImage: View {
             if url.pathExtension.lowercased() == "gif" {
                 if let gifFile {
                     BloomBoxAnimatedWallpaper(url: gifFile, fit: false,
-                                             paused: scenePhase != .active,
+                                             paused: scenePhase != .active || !active,
                                              clearBackground: true)
                 } else {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -205,7 +222,8 @@ private struct BloomBoxRemoteNewsImage: View {
                 }
             }
         }
-        .task(id: url) {
+        .task(id: active ? url.absoluteString : "") {
+            guard active else { return }
             gifFile = nil
             guard url.pathExtension.lowercased() == "gif",
                   BloomBoxNewsCachePolicy.isHTTPS(url) else { return }
@@ -218,8 +236,12 @@ private struct BloomBoxRemoteNewsImage: View {
             do {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 if FileManager.default.fileExists(atPath: target.path) {
-                    if (try? BloomBoxMotionMedia.gifFrames(target)) != nil {
+                    if validGIF(target) {
                         gifFile = target
+                        // Use a recent disk cache without decoding every frame or
+                        // downloading all news media again on each page swipe.
+                        let modified = (try? target.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+                        if modified.map({ Date().timeIntervalSince($0) < 3600 }) == true { return }
                     } else {
                         try? FileManager.default.removeItem(at: target)
                     }
@@ -231,7 +253,7 @@ private struct BloomBoxRemoteNewsImage: View {
                 let temp = directory.appendingPathComponent(UUID().uuidString + ".gif")
                 staging = temp
                 try data.write(to: temp, options: .atomic)
-                _ = try BloomBoxMotionMedia.gifFrames(temp)
+                guard validGIF(temp) else { throw BloomBoxMotionMedia.failure("GIF inválido.") }
                 guard !Task.isCancelled else { try? FileManager.default.removeItem(at: temp); return }
                 if FileManager.default.fileExists(atPath: target.path) {
                     try FileManager.default.removeItem(at: target)
@@ -246,5 +268,13 @@ private struct BloomBoxRemoteNewsImage: View {
             }
         }
     }
+
+    private func validGIF(_ url: URL) -> Bool {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let kind = CGImageSourceGetType(source) as String?,
+              kind == UTType.gif.identifier else { return false }
+        return CGImageSourceGetCount(source) > 0
+    }
 }
+
 

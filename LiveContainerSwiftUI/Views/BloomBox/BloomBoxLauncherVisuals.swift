@@ -3,6 +3,44 @@ import PhotosUI
 import UniformTypeIdentifiers
 import CryptoKit
 
+
+/// Device pressure is a *visual* quality budget, not an input/frame-rate cap.
+/// Leave dragging, scrolling, Dock taps and native page transitions responsive.
+final class BloomBoxPerformanceBudget: ObservableObject {
+    static let shared = BloomBoxPerformanceBudget()
+
+    @Published private(set) var constrained: Bool
+    private var observers: [NSObjectProtocol] = []
+
+    private init() {
+        let info = ProcessInfo.processInfo
+        constrained = info.isLowPowerModeEnabled ||
+            info.thermalState == .serious || info.thermalState == .critical
+
+        let notifications: [Notification.Name] = [
+            Notification.Name.NSProcessInfoPowerStateDidChange,
+            ProcessInfo.thermalStateDidChangeNotification,
+            UIApplication.didBecomeActiveNotification
+        ]
+        observers = notifications.map { name in
+            NotificationCenter.default.addObserver(
+                forName: name, object: nil, queue: .main
+            ) { [weak self] _ in self?.refresh() }
+        }
+    }
+
+    func refresh() {
+        let info = ProcessInfo.processInfo
+        let limited = info.isLowPowerModeEnabled ||
+            info.thermalState == .serious || info.thermalState == .critical
+        if constrained != limited { constrained = limited }
+    }
+
+    deinit {
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
+    }
+}
+
 // Reusable BloomBox launcher tiles, drag feedback, wallpaper pickers and glass.
 // Nothing below launches guests or changes persisted layout identifiers.
 
@@ -36,18 +74,33 @@ struct LiveBoardHomeIcon: View {
 
     }
 }
+/// Core Animation can interpolate the edit wobble without rebuilding the whole
+/// icon tree 30 times per second (one TimelineView per icon was expensive).
 struct LiveBoardEditWobble: ViewModifier {
     let active: Bool
     var phase: Double = 0
     var speed: Double = 22
     var amplitude: Double = 1.5
+    @State private var forward = false
+
     @ViewBuilder func body(content: Content) -> some View {
         if active {
-            TimelineView(.animation(minimumInterval: 1.0 / 30)) { time in
-                content.rotationEffect(.degrees(sin(time.date.timeIntervalSinceReferenceDate * speed + phase) * amplitude))
-            }
+            content
+                .rotationEffect(.degrees(forward ? amplitude : -amplitude))
+                .animation(
+                    .easeInOut(duration: max(0.12, .pi / max(1, speed)))
+                        .repeatForever(autoreverses: true)
+                        .delay(abs(phase) / max(1, speed)),
+                    value: forward
+                )
+                .onAppear {
+                    forward = false
+                    DispatchQueue.main.async { forward = true }
+                }
+                .onDisappear { forward = false }
         } else {
-            content.rotationEffect(.zero).transaction { $0.animation = nil; $0.disablesAnimations = true }
+            content.rotationEffect(.zero)
+                .transaction { $0.animation = nil; $0.disablesAnimations = true }
         }
     }
 }
@@ -178,9 +231,11 @@ private struct LiveBoardGlassSurface: ViewModifier {
     let radius: CGFloat
     let interactive: Bool
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @ObservedObject private var performanceBudget = BloomBoxPerformanceBudget.shared
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        if reduceTransparency {
+        // Sacrifice glass compositing before sacrificing touch or scroll response.
+        if reduceTransparency || performanceBudget.constrained {
             content.background(Color(white: 0.16), in: shape)
                 .overlay(shape.strokeBorder(.white.opacity(0.18), lineWidth: 0.5))
         } else if #available(iOS 26.0, *) {

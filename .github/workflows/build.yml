@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/dock-fluidity-adaptive-home-20261104
       - fix/jit-guest-orientation-ios27
       - feature/cinematic-game-mode-ram-jit-gate
       - refactor/remove-gamebox-reserve-slot-20261104
@@ -190,6 +191,8 @@ jobs:
           assert "struct BloomBoxHomeScreen: View" in home
           print("BloomBox interaction effects are isolated from Home")
           PY
+      - name: Guard fluid Dock and thermal-aware Home rendering
+        run: python3 Tests/home-performance-tests/test_performance.py
       - name: Verify shared launcher visual surfaces
         run: |
           python3 - <<'PY'

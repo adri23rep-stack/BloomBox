@@ -54,16 +54,21 @@ struct BloomBoxHomeScreen: View {
     @AppStorage("LiveBoardWallpaperFit", store: LiveContainerPreferencesAdapter.defaults) private var wallpaperFit = false
     @AppStorage("LiveBoardWallpaperDim", store: LiveContainerPreferencesAdapter.defaults) private var wallpaperDim = 0.1
     @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject private var performanceBudget = BloomBoxPerformanceBudget.shared
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @AppStorage("LiveBoardReduceMotion", store: LiveContainerPreferencesAdapter.defaults) private var customReduceMotion = false
     @AppStorage("LiveBoardHiddenPages", store: LiveContainerPreferencesAdapter.defaults) private var hiddenPagesJSON = "[]"
     private var reduceMotion: Bool { systemReduceMotion || customReduceMotion }
+    // Keep gestures and page swipes native; shed only decorative work under pressure.
+    private var decorativeMotionDisabled: Bool { reduceMotion || performanceBudget.constrained }
     @AppStorage("BloomBoxBuiltInFolderMigrated", store: LiveContainerPreferencesAdapter.defaults)
     private var builtInFolderMigrated = false
     @AppStorage("BloomBoxWidgetMissingAppFallbacks", store: LiveContainerPreferencesAdapter.defaults)
     private var widgetFallbacksJSON = "{}"
     @AppStorage("BloomBoxLivingWidgetSettings", store: LiveContainerPreferencesAdapter.defaults)
     private var livingWidgetSettingsJSON = "{}"
+    @State private var livingSettingsCacheSource = ""
+    @State private var livingSettingsCache: [String: LivingSettings] = [:]
     @State private var themeExportURL: URL?
     @State private var themeExportError: String?
     @State private var layout = BloomBoxHomeLayout()
@@ -95,6 +100,8 @@ struct BloomBoxHomeScreen: View {
     @AppStorage("ManzanaPageWidgets", store: LiveContainerPreferencesAdapter.defaults) private var pageWidgetsJSON = "{}"
     @AppStorage("BloomBoxPlacedWidgetsV2", store: LiveContainerPreferencesAdapter.defaults) private var placedWidgetsJSON = "{}"
     @AppStorage("BloomBoxPlacedWidgetsMigrated", store: LiveContainerPreferencesAdapter.defaults) private var placedWidgetsMigrated = false
+    @State private var placedWidgetsCacheSource = ""
+    @State private var placedWidgetsCache: [Int: [BloomBoxPlacedWidget]] = [:]
     @State private var widgetMediaID: String?
     @State private var widgetMediaChoicePresented = false
     @State private var pendingWidgetMediaAfterGallery: String?
@@ -217,57 +224,44 @@ struct BloomBoxHomeScreen: View {
         GeometryReader { geometry in
             ZStack(alignment: .top) {
                 background
-                    .blur(radius: (searching || page == libraryPageIndex) ? 14 : 0)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.38), value: page == libraryPageIndex)
-                // Render every page in the full GeometryReader. The old VStack
-                // permanently reserved ~140pt for a Dock that is hidden on
-                // Widgets and App Library, leaving a blank strip and clipping
-                // the bottom rows of the library.
-                ZStack(alignment: .bottom) {
-                    TabView(selection: $page) {
-                        BloomBoxNewsPage(openSettings: { desktopSettings = true })
-                            .tag(0)
-                        ForEach(visiblePageIndices, id: \.self) { index in
+                    // A cheap dimming layer avoids repeatedly blurring full-screen
+                    // video/GIF wallpaper whenever News, Home or Library changes.
+                    .overlay {
+                        Color.black.opacity(searching ? 0.25 : page == libraryPageIndex ? 0.16 : 0)
+                            .allowsHitTesting(false)
+                    }
+                // The Dock belongs to each Home page's physical pager surface.
+                // Native TabView swipes move it together with the Home canvas;
+                // News and App Library NEVER render a Dock or fade it away.
+                TabView(selection: $page) {
+                    BloomBoxNewsPage(openSettings: { desktopSettings = true }, active: page == 0)
+                        .tag(0)
+                    ForEach(visiblePageIndices, id: \.self) { index in
+                        ZStack(alignment: .bottom) {
                             homePage(index,
                                      width: geometry.size.width,
                                      height: max(400, geometry.size.height - 146))
-                                // Home pages still reserve space for their Dock;
-                                // Widgets and App Library use the full viewport.
                                 .padding(.bottom, 146)
-                                .tag(index + 1)
+                            VStack(spacing: 0) {
+                                pageControl
+                                    .padding(.bottom, 18)
+                                dock(width: geometry.size.width, homePageIndex: index)
+                                    .padding(.horizontal, 12)
+                                    .padding(.bottom, -22)
+                                    .blur(radius: openFolder == nil || performanceBudget.constrained ? 0 : 8)
+                            }
+                            .padding(.bottom, 8)
                         }
-                        appLibrary(width: geometry.size.width)
-                            .tag(libraryPageIndex)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .tag(index + 1)
                     }
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                    .blur(radius: openFolder == nil ? 0 : 18)
-
-                    // Overlay instead of taking height away from the pages.
-                    // Widgets and Library both hide floating navigation and Dock.
-                    // On the widgets page, swiping still switches Home pages.
-                    VStack(spacing: 0) {
-                        pageControl
-                            .padding(.bottom, 18)
-                            .opacity(page == libraryPageIndex || page == 0 ? 0 : 1)
-                            .allowsHitTesting(page != libraryPageIndex && page != 0)
-                            .accessibilityHidden(page == libraryPageIndex || page == 0)
-                        dock(width: geometry.size.width)
-                            .padding(.horizontal, 12)
-                            .padding(.bottom, -22)
-                            .blur(radius: openFolder == nil ? 0 : 18)
-                            .opacity((page == 0 || page == libraryPageIndex) ? 0 : 1)
-                            .allowsHitTesting(page > 0 && page < libraryPageIndex)
-                            .accessibilityHidden(page == 0 || page == libraryPageIndex)
-                    }
-                    .padding(.bottom, 8)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.38),
-                               value: page == libraryPageIndex)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.28),
-                               value: page == 0)
+                    appLibrary(width: geometry.size.width)
+                        .tag(libraryPageIndex)
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height)
-                .blur(radius: searching ? 14 : 0)
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .blur(radius: openFolder == nil || performanceBudget.constrained ? 0 : 8)
+                .blur(radius: searching && !performanceBudget.constrained ? 8 : 0)
                 .allowsHitTesting(!searching)
                 .accessibilityHidden(searching)
                 if installInProgress {
@@ -331,6 +325,7 @@ struct BloomBoxHomeScreen: View {
                 }
             })
             .onChange(of: scenePhase) { phase in
+                performanceBudget.refresh()
                 stopAlivePlayfulness()
                 if phase == .active { ramPlus.refresh() }
                 if phase == .active, #available(iOS 16.2, *) {
@@ -338,6 +333,24 @@ struct BloomBoxHomeScreen: View {
                 }
             }
             .onChange(of: page) { _ in stopAlivePlayfulness() }
+            .onChange(of: performanceBudget.constrained) { constrained in
+                if constrained {
+                    stopAlivePlayfulness()
+                    aliveBooting = false
+                    aliveIntroVisible = false
+                    aliveRevealed = true
+                }
+            }
+            .onChange(of: placedWidgetsJSON) { value in
+                placedWidgetsCache = (try? JSONDecoder().decode([Int: [BloomBoxPlacedWidget]].self,
+                                      from: Data(value.utf8))) ?? [:]
+                placedWidgetsCacheSource = value
+            }
+            .onChange(of: livingWidgetSettingsJSON) { value in
+                livingSettingsCache = (try? JSONDecoder().decode([String: LivingSettings].self,
+                                       from: Data(value.utf8))) ?? [:]
+                livingSettingsCacheSource = value
+            }
             .onChange(of: editing) { _ in stopAlivePlayfulness() }
             .onChange(of: searching) { _ in stopAlivePlayfulness() }
             .onChange(of: openFolder) { _ in stopAlivePlayfulness() }
@@ -362,6 +375,13 @@ struct BloomBoxHomeScreen: View {
                 })
             }
             .onAppear {
+                performanceBudget.refresh()
+                placedWidgetsCacheSource = placedWidgetsJSON
+                placedWidgetsCache = (try? JSONDecoder().decode([Int: [BloomBoxPlacedWidget]].self,
+                                      from: Data(placedWidgetsJSON.utf8))) ?? [:]
+                livingSettingsCacheSource = livingWidgetSettingsJSON
+                livingSettingsCache = (try? JSONDecoder().decode([String: LivingSettings].self,
+                                       from: Data(livingWidgetSettingsJSON.utf8))) ?? [:]
                 ramPlus.refresh()
                 Task { await tweakCatalog.refreshIfNeeded() }
                 // Only a genuinely fresh Home receives the owner's Kirby preset.
@@ -410,7 +430,7 @@ struct BloomBoxHomeScreen: View {
                     } catch { break }
                     guard scenePhase == .active, aliveEnabled, aliveIdleEnabled,
                           Date().timeIntervalSince(aliveLastInteraction) >= 5,
-                          !reduceMotion, !aliveBooting, !editing, !searching,
+                          !decorativeMotionDisabled, !aliveBooting, !editing, !searching,
                           openFolder == nil, !pageManager, !customizing,
                           !desktopSettings, !appStorePresented, !tweakStorePresented,
                           !modulesPresented, !jitSetup,
@@ -894,7 +914,7 @@ struct BloomBoxHomeScreen: View {
                 Color.black
                 if wallpaperStyle == "motion", let url = BloomBoxMotionMedia.url(motionWallpaper) {
                     BloomBoxAnimatedWallpaper(url: url, fit: wallpaperFit,
-                        paused: pauseWallpaper || reduceMotion || paused)
+                        paused: pauseWallpaper || decorativeMotionDisabled || paused)
                         .id(motionWallpaper)
                         .frame(width: geometry.size.width, height: geometry.size.height).clipped()
                 } else if wallpaperStyle == "photo", let wallpaper {
@@ -1355,12 +1375,15 @@ struct BloomBoxHomeScreen: View {
         (try? JSONDecoder().decode([Int: [String]].self, from: Data(pageWidgetsJSON.utf8))) ?? [:]
     }
     private var placedWidgets: [Int: [BloomBoxPlacedWidget]] {
-        (try? JSONDecoder().decode([Int: [BloomBoxPlacedWidget]].self,
-                                   from: Data(placedWidgetsJSON.utf8))) ?? [:]
+        if placedWidgetsCacheSource == placedWidgetsJSON { return placedWidgetsCache }
+        return (try? JSONDecoder().decode([Int: [BloomBoxPlacedWidget]].self,
+                                          from: Data(placedWidgetsJSON.utf8))) ?? [:]
     }
     private func savePlacedWidgets(_ values: [Int: [BloomBoxPlacedWidget]]) {
         if let data = try? JSONEncoder().encode(values),
            let encoded = String(data: data, encoding: .utf8) {
+            placedWidgetsCache = values
+            placedWidgetsCacheSource = encoded
             placedWidgetsJSON = encoded
         }
     }
@@ -1737,7 +1760,7 @@ struct BloomBoxHomeScreen: View {
     private func startBloomBoxAlive() {
         guard !aliveStartupPlayed else { return }
         aliveStartupPlayed = true
-        guard aliveEnabled, !reduceMotion,
+        guard aliveEnabled, !decorativeMotionDisabled,
               page > 0, page < libraryPageIndex else { return }
         aliveStartupPage = page
         // Never show the same phrase on consecutive starts.
@@ -1784,7 +1807,7 @@ struct BloomBoxHomeScreen: View {
     }
 
     private func aliveEntrance(for pageIndex: Int, delay: Double, key: String? = nil) -> BloomBoxAliveEntrance {
-        let enabled = aliveEnabled && !reduceMotion && aliveBooting &&
+        let enabled = aliveEnabled && !decorativeMotionDisabled && aliveBooting &&
                       aliveStartupPage == pageIndex + 1 && page == pageIndex + 1
         return BloomBoxAliveEntrance(
             entranceEnabled: enabled, revealed: !enabled || aliveRevealed,
@@ -1825,6 +1848,9 @@ struct BloomBoxHomeScreen: View {
     }
 
     private func livingSettings(for id: String) -> LivingSettings {
+        if livingSettingsCacheSource == livingWidgetSettingsJSON {
+            return livingSettingsCache[id] ?? LivingSettings()
+        }
         let values = (try? JSONDecoder().decode([String: LivingSettings].self,
             from: Data(livingWidgetSettingsJSON.utf8))) ?? [:]
         return values[id] ?? LivingSettings()
@@ -1838,6 +1864,8 @@ struct BloomBoxHomeScreen: View {
         values[id] = settings
         if let data = try? JSONEncoder().encode(values),
            let json = String(data: data, encoding: .utf8) {
+            livingSettingsCache = values
+            livingSettingsCacheSource = json
             livingWidgetSettingsJSON = json
         }
     }
@@ -1905,13 +1933,13 @@ struct BloomBoxHomeScreen: View {
             .offset(x: 14 + CGFloat(widget.slot % 4) * cellWidth,
                     y: (editing ? 50 : 20) + CGFloat(widget.slot / 4) * pitch)
             .modifier(BloomBoxLivingMotion(mode: living.mode, speed: living.speed, travel: living.travel,
-                enabled: scenePhase == .active && page == index + 1 && !editing && !reduceMotion && !searching))
-            .shadow(color: (living.depth ?? false) && !editing ? Color.black.opacity(0.38) : .clear,
-                    radius: (living.depth ?? false) && !editing ? 15 : 0, x: 0, y: 12)
-            .shadow(color: (living.glow ?? false) && !editing ? accent.opacity(0.48) : .clear,
-                    radius: (living.glow ?? false) && !editing ? 20 : 0, x: 0, y: 8)
+                enabled: scenePhase == .active && page == index + 1 && !editing && !decorativeMotionDisabled && !searching))
+            .shadow(color: (living.depth ?? false) && !editing && !performanceBudget.constrained ? Color.black.opacity(0.38) : .clear,
+                    radius: (living.depth ?? false) && !editing && !performanceBudget.constrained ? 15 : 0, x: 0, y: 12)
+            .shadow(color: (living.glow ?? false) && !editing && !performanceBudget.constrained ? accent.opacity(0.48) : .clear,
+                    radius: (living.glow ?? false) && !editing && !performanceBudget.constrained ? 20 : 0, x: 0, y: 8)
             .overlay {
-                if (living.adaptiveGlass ?? false) && widget.glass && !editing {
+                if (living.adaptiveGlass ?? false) && widget.glass && !editing && !performanceBudget.constrained {
                     RoundedRectangle(cornerRadius: 19)
                         .strokeBorder(accent.opacity(0.34), lineWidth: 1)
                         .allowsHitTesting(false)
@@ -2177,6 +2205,8 @@ struct BloomBoxHomeScreen: View {
     private func homeIconGrid(_ index: Int, width: CGFloat, height: CGFloat) -> some View {
         let cellWidth = (width - 28) / 4
         let pitch = min(editing ? 92 : 99, max(72, (height - (editing ? 69 : 39)) / 6))
+        // Compute widget occupancy once per page, not once per each of 24 cells.
+        let occupied = occupiedCells(on: index)
         return VStack(spacing: 0) {
             ForEach(0..<6, id: \.self) { row in
                 HStack(alignment: .top, spacing: 0) {
@@ -2184,7 +2214,7 @@ struct BloomBoxHomeScreen: View {
                         let slot = row * 4 + column
                         let key = layout.pages[index][slot]
                         ZStack(alignment: .top) {
-                            if let key, !occupiedCells(on: index).contains(slot) {
+                            if let key, !occupied.contains(slot) {
                                 homeItem(key, showLabel: !largeIcons)
                                     .modifier(aliveEntrance(for: index,
                                         delay: Double(column) * 0.145 + Double(row) * 0.026,
@@ -2193,7 +2223,7 @@ struct BloomBoxHomeScreen: View {
                                         GeometryReader { iconGeometry in
                                             Color.clear.preference(
                                                 key: BloomBoxAliveIconFrames.self,
-                                                value: page == index + 1
+                                                value: page == index + 1 && aliveEnabled && aliveIdleEnabled && !decorativeMotionDisabled && !editing
                                                     ? [key: iconGeometry.frame(in: .named("bloombox.alive.viewport"))]
                                                     : [:])
                                         }
@@ -2237,7 +2267,7 @@ struct BloomBoxHomeScreen: View {
             } else if let app = appMap[key] {
                 LiveBoardHomeIcon(app: app, title: title(key), size: largeIcons ? 76 : 64,
                                   showLabel: showLabel, dark: darkIcons, editing: editing,
-                                  reduceMotion: reduceMotion, action: {
+                                  reduceMotion: decorativeMotionDisabled, action: {
                     if editing { return }
                     requestLaunch(app)
                 })
@@ -2305,7 +2335,7 @@ struct BloomBoxHomeScreen: View {
                 .frame(width: size, height: size)
                 .modifier(BloomBoxIconTreatment())
                 .clipShape(RoundedRectangle(cornerRadius: size * 0.23))
-                .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
+                .modifier(LiveBoardEditWobble(active: editing && !decorativeMotionDisabled,
                          phase: isSideStore ? 0.7 : 2.1))
                 if showLabel {
                     Text(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : isModules ? "Módulos" : isThemes ? "Temas" : "Instalar app")
@@ -2446,13 +2476,13 @@ struct BloomBoxHomeScreen: View {
         }
     }
 
-    private func dock(width: CGFloat) -> some View {
+    private func dock(width: CGFloat, homePageIndex: Int) -> some View {
         HStack(spacing: 0) {
             ForEach(0..<4, id: \.self) { slot in
                 ZStack {
                     if layout.dock.indices.contains(slot) {
                         homeItem(layout.dock[slot], showLabel: false)
-                            .modifier(aliveEntrance(for: max(0, page - 1),
+                            .modifier(aliveEntrance(for: homePageIndex,
                                  delay: 0.69 + Double(slot) * 0.16, key: layout.dock[slot]))
                     } else {
                         Color.clear
@@ -2464,7 +2494,7 @@ struct BloomBoxHomeScreen: View {
                 .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
                     acceptDrop(providers) { key in
                         withAnimation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.84)) {
-                            _ = layout.moveToDock(key, at: slot, fallbackPage: max(0, page - 1))
+                            _ = layout.moveToDock(key, at: slot, fallbackPage: homePageIndex)
                             reconcile()
                         }
                     }
@@ -2577,7 +2607,7 @@ struct BloomBoxHomeScreen: View {
                 }
                 .padding(6).frame(width: size, height: size)
                 .liveBoardGlass(radius: size * 0.23)
-                .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
+                .modifier(LiveBoardEditWobble(active: editing && !decorativeMotionDisabled,
                                                 phase: Double(abs(folder.id.hashValue % 31)) / 7,
                                                 speed: 8.0, amplitude: 1.0))
                 if showLabel { Text(folder.name).font(.system(size: 12)).lineLimit(1).shadow(color: .black.opacity(0.8), radius: 2, y: 1).frame(width: 80) }
