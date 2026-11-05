@@ -180,6 +180,7 @@ private final class NikaidoGameControllerHost: ObservableObject {
     @Published private(set) var isDualSense = false
     @Published private(set) var supportsLight = false
     @Published private(set) var supportsHaptics = false
+    @Published private(set) var previewLightColor: Color = .cyan
     @Published private(set) var batteryText = "No disponible"
     @Published private(set) var leftRaw: (Float, Float) = (0, 0)
     @Published private(set) var rightRaw: (Float, Float) = (0, 0)
@@ -193,6 +194,7 @@ private final class NikaidoGameControllerHost: ObservableObject {
     private var appliedTriggers = false
     private var calibrationSamples: [(Double, Double, Double, Double)] = []
     private let sampleTarget = 60
+    private var lastInputSampleUptime: TimeInterval = 0
 
     func activate(gameKey: String) {
         stopEffects()
@@ -223,6 +225,11 @@ private final class NikaidoGameControllerHost: ObservableObject {
     }
 
     func sampleInput() {
+        let now = ProcessInfo.processInfo.systemUptime
+        // High frequency only during the 3-second calibration; avoid driving
+        // continuous SwiftUI Form updates when the user is merely browsing.
+        if !calibrating && now - lastInputSampleUptime < 0.2 { return }
+        lastInputSampleUptime = now
         guard let pad = controller?.extendedGamepad else {
             leftRaw = (0, 0)
             rightRaw = (0, 0)
@@ -413,9 +420,11 @@ private final class NikaidoGameControllerHost: ObservableObject {
         case .sunset:
             rgb = mix([1, 0.26, 0.04], [0.54, 0.08, 0.65], wave)
         }
-        light.color = GCColor(red: Float(min(1, max(0, rgb[0] * brightness))),
-                              green: Float(min(1, max(0, rgb[1] * brightness))),
-                              blue: Float(min(1, max(0, rgb[2] * brightness))))
+        let r = min(1, max(0, rgb[0] * brightness))
+        let g = min(1, max(0, rgb[1] * brightness))
+        let b = min(1, max(0, rgb[2] * brightness))
+        light.color = GCColor(red: Float(r), green: Float(g), blue: Float(b))
+        previewLightColor = Color(red: r, green: g, blue: b)
     }
 
     func stopEffects() {
@@ -634,7 +643,7 @@ struct BloomBoxNikaidoControllerView: View {
             RoundedRectangle(cornerRadius: 18)
                 .fill(LinearGradient(
                     colors: [
-                        Color(red: host.profile.red, green: host.profile.green, blue: host.profile.blue),
+                        host.previewLightColor,
                         Color(red: host.profile.secondaryRed, green: host.profile.secondaryGreen,
                               blue: host.profile.secondaryBlue)
                     ], startPoint: .topLeading, endPoint: .bottomTrailing
