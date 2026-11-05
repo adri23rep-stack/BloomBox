@@ -59,6 +59,8 @@ struct BloomBoxGameBoxV2Screen: View {
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @State private var focusedKey: String?
     @GestureState private var isCarouselDragging = false
+    @State private var previousTapKey: String?
+    @State private var previousTapUptime: TimeInterval = 0
     @State private var alphabetical = false
     @State private var quickMenu = false
     @State private var showDiagnostics = false
@@ -464,19 +466,10 @@ struct BloomBoxGameBoxV2Screen: View {
         }
         .frame(width: size + 16, height: size + 16)
         .contentShape(Rectangle())
-        .gesture(
-            TapGesture(count: 2)
-                .exclusively(before: TapGesture(count: 1))
-                .onEnded { result in
-                    switch result {
-                    case .first:
-                        select(app)
-                        toggleFavorite(app)
-                    case .second:
-                        select(app)
-                    }
-                }
-        )
+        .onTapGesture {
+            // Select at first touch-up; do not wait for a second-tap timeout.
+            handleIconTap(app)
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title(app) + (favorites.contains(key(app)) ? ", favorito" : ""))
         .accessibilityAddTraits(selected ? .isSelected : [])
@@ -637,6 +630,17 @@ struct BloomBoxGameBoxV2Screen: View {
                 .font(.caption).foregroundStyle(.white.opacity(0.7))
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func handleIconTap(_ app: BloomBoxGameBoxEntry) {
+        let id = key(app)
+        let now = ProcessInfo.processInfo.systemUptime
+        let isSecondTap = previousTapKey == id &&
+            now - previousTapUptime > 0 && now - previousTapUptime < 0.36
+        previousTapKey = isSecondTap ? nil : id
+        previousTapUptime = isSecondTap ? 0 : now
+        select(app)
+        if isSecondTap { toggleFavorite(app) }
     }
 
     private func select(_ app: BloomBoxGameBoxEntry) {
