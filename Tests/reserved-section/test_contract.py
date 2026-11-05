@@ -109,6 +109,31 @@ assert "Ver origen y atribución" in gamebox
 assert "Buscar fondo en Internet" in gamebox
 assert "Quitar fondo descargado" in gamebox
 assert "mode: autoBackgroundMode" in gamebox
+# GameBox wallpaper lookup gets a bounded mini startup window; animated
+# icons never touch the carousel's selection or guest launch paths.
+intro = (ui / "BloomBoxGameBoxArtworkIntro.swift").read_text()
+assert "BloomBoxGameBoxArtworkIntro(" in gamebox
+assert '"BloomBoxGameBoxArtworkIntroEnabled"' in gamebox
+assert "private var artworkIntroEnabled = true" in gamebox
+assert "beginArtworkIntroIfNeeded()" in gamebox
+assert "finishArtworkIntroAfterLookup()" in gamebox
+assert "Task.sleep(nanoseconds: 6_000_000_000)" in gamebox
+assert "Task.sleep(nanoseconds: UInt64((1.15 - elapsed) * 1_000_000_000))" in gamebox
+assert "guard wallpaperCatalogReady else { return }" in gamebox
+assert "await wallpaperRules.refreshIfNeeded()" in gamebox
+assert "Button(\"Reactivar fondos de GameBox\"" in gamebox
+assert ".alert(\"Fondos desactivados por seguridad\"" in gamebox
+assert "safeGraphics = false" in gamebox
+assert "onSkip" in intro and "onEnableGraphics" in intro
+assert "Bloombox" not in intro  # use GAMEBOX branding
+assert "repeatForever(autoreverses: true)" in intro
+assert ".delay(Double(slot) * 0.13)" in intro
+assert "ProgressView()" in intro
+assert "Modo seguro: fondos pausados" in intro
+assert "bloombox.gamebox.wallpaper-intro" in intro
+assert "Image(uiImage: waveIcons[slot])" in intro
+assert "scrollPosition(" not in intro and "moveSelection(" not in intro
+
 
 # Glass refinement must keep the icon carousel untouched while reducing
 # only the panel height and visual density of background surfaces.
