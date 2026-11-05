@@ -8,7 +8,7 @@ enum BloomBoxGameBoxL10n {
     /// Uses the language selected in BloomBox Experiments, or the device
     /// language if System is selected. Spanish is the source/fallback language.
     static func t(_ source: String) -> String {
-        let preference = LCUtils.appGroupUserDefault.string(forKey: "BloomBoxPreferredLanguage") ?? "system"
+        let preference = LiveContainerPreferencesAdapter.defaults.string(forKey: "BloomBoxPreferredLanguage") ?? "system"
         let language = preference == "system" ?
             (Locale.preferredLanguages.first ?? Locale.current.identifier) : preference
 
