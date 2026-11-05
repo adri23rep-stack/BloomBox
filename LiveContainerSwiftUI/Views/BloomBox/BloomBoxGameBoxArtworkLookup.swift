@@ -54,6 +54,7 @@ enum BloomBoxGameBoxArtworkLookup {
             ("melocafe", "Wii U"),
             ("cemu", "Wii U"),
             ("melonx", "Nintendo Switch"),
+            ("melonnx", "Nintendo Switch"),
             ("melon nx", "Nintendo Switch"),
             ("lemonx", "Nintendo Switch"),
             ("lemon nx", "Nintendo Switch"),
@@ -61,9 +62,11 @@ enum BloomBoxGameBoxArtworkLookup {
             ("ryujinx", "Nintendo Switch"),
             ("sudachi", "Nintendo Switch"),
             ("vita3k", "PlayStation Vita"),
+            ("vita3kios", "PlayStation Vita"),
             ("ppsspp", "PlayStation Portable"),
             ("retroarch", "Video game console"),
             ("delta emulator", "Nintendo DS"),
+            ("delta", "Nintendo DS"),
             ("melon ds", "Nintendo DS"),
             ("melonds", "Nintendo DS"),
             ("folium", "Nintendo 3DS"),
@@ -206,7 +209,7 @@ enum BloomBoxGameBoxArtworkLookup {
     private static func json(from url: URL, host: String) async -> Data? {
         guard url.scheme == "https", url.host == host else { return nil }
         var request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 12)
-        request.setValue("BloomBox-GameBox/2.0 (artwork search)", forHTTPHeaderField: "User-Agent")
+        request.setValue("BloomBox-GameBox/2.0 (https://github.com/adri23rep-stack/BloomBox)", forHTTPHeaderField: "User-Agent")
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard !Task.isCancelled, let http = response as? HTTPURLResponse,
@@ -221,7 +224,8 @@ enum BloomBoxGameBoxArtworkLookup {
     private static func image(from url: URL, permittedHosts: [String]) async -> UIImage? {
         guard url.scheme == "https", let host = url.host,
               permittedHosts.contains(host) else { return nil }
-        let request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 15)
+        var request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 15)
+        request.setValue("BloomBox-GameBox/2.0 (https://github.com/adri23rep-stack/BloomBox)", forHTTPHeaderField: "User-Agent")
         do {
             // Download to a temporary file instead of buffering a remote image
             // entirely in SwiftUI's main process memory.
