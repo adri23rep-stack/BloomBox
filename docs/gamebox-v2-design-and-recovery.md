@@ -47,8 +47,8 @@ Only a recognized selected title or a generic console topic is queried. URL
 hosts and redirects are validated, downloaded images have a 12 MB limit, and
 decoded images are downsampled. Missing/ambiguous results are cached as an
 attempt for 24 hours; the app never chooses a merely similar game at random.
-A manual background is never overwritten. No external copyrighted image is
-bundled into a release.
+A manual background is never overwritten. Curated public-domain photographs
+are downloaded at runtime, not bundled as copyrighted release assets.
 
 Remote services are online dependencies and may stop responding or change
 their public interfaces. The original local fallback always remains usable.
@@ -64,8 +64,12 @@ app name with an innocent version suffix can match; a random substring cannot.
 The portable GameBox view receives `app.bundleIdentifier` through its host
 adapter, but passes **only** the approved console/game topic to Steam or
 Wikipedia. The remote config is strictly decoded and rejects unknown fields,
-unsafe image URLs, executable material, invalid providers, duplicate aliases,
-ambiguous IDs, and excessive size. The last validated copy is kept offline.
+arbitrary image hosts, executable material, invalid providers, duplicate aliases,
+ambiguous IDs, and excessive size. Selected emulator rules may also contain an
+explicit `imageURL` pointing to a verified public-domain photograph served by
+`upload.wikimedia.org`, plus a matching Commons `sourceURL` and
+`imageLicense`. The client downloads it **before** the ordinary console
+search and keeps the source page available for attribution. The last validated copy is kept offline.
 All manual artwork still takes precedence. When a remote rule changes, the
 downloaded *automatic* background may be refreshed without touching manual art.
 
@@ -114,6 +118,21 @@ file search for that *specific console* (not arbitrary game art), validates
 the candidate's file name, image type and dimensions, and keeps the Commons
 file-description link for credit and licensing. Sources can still be
 unavailable offline or rate-limited; the gradient/app-icon fallback remains.
+
+### Pinned images and corrected Husk identity
+
+The six first pinned emulator wallpapers live in
+[BloomBox-Catalog PR #6](https://github.com/adri23rep-stack/BloomBox-Catalog/pull/6):
+MeloNX/MelonNX and LemoNX → Nintendo Switch, DolphiniOS → GameCube,
+MeloCafe → Wii U, Vita3KiOS → PS Vita, PPSSPP → PSP. The five selected
+photographs were created by Evan-Amos and released into the public domain.
+Each entry retains a direct `upload.wikimedia.org` image link and the matching
+file-description page. The app validates that these refer to the **same file**.
+
+Husk was previously incorrectly treated as Minecraft Dungeons. Husk is an
+Android runtime/emulator; that mapping has been removed from both the remote
+rules and built-in fallback. Until a verified Android background is chosen,
+Husk uses its icon or the user's custom image.
 
 ## Crash recovery and diagnostics
 
