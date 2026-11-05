@@ -99,6 +99,15 @@ assert 'Self.matchesAlias($0, normalizedName: normalized)' in schema
 assert 'normalizedName.hasPrefix(word + " ")' in schema
 assert 'allowedSuffixes' in schema
 assert "BloomBoxGameBoxAutoBackgrounds" in gamebox
+# The actual remote catalog uses parentheses in a canonical Wikipedia
+# title. Regressing this alphabet used to reject the entire feed.
+assert '"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -:' in schema
+assert 'BloomBoxGameBoxWallpaperRulesVerified-v2' in resolver
+assert 'BloomBoxGameBoxWallpaperRulesSynced-v2' in resolver
+assert "if index != nil, let lastSync" in resolver
+assert "Actualizar catálogo de fondos" in gamebox
+assert "Catálogo de fondos sin conexión" in gamebox
+assert 'await wallpaperRules.refreshIfNeeded(force: true)' in gamebox
 # Curated direct-link images are strictly allowlisted and override fuzzy
 # console search. Husk is Android emulation, never Minecraft Dungeons.
 assert "let imageURL: String?" in schema
