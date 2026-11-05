@@ -621,25 +621,116 @@ struct BloomBoxNikaidoControllerView: View {
         }
     }
 
+    private var lightPreview: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 18)
+                .fill(LinearGradient(
+                    colors: [
+                        Color(red: host.profile.red, green: host.profile.green, blue: host.profile.blue),
+                        Color(red: host.profile.secondaryRed, green: host.profile.secondaryGreen,
+                              blue: host.profile.secondaryBlue)
+                    ], startPoint: .topLeading, endPoint: .bottomTrailing
+                ))
+            RoundedRectangle(cornerRadius: 18).fill(.black.opacity(0.27))
+            HStack {
+                Image(systemName: "gamecontroller.fill")
+                    .font(.system(size: 40, weight: .semibold))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(host.profile.lightStyle.title).font(.title3.bold())
+                    Text("Vista previa · RGB Studio").font(.caption)
+                        .foregroundStyle(.white.opacity(0.83))
+                }
+                Spacer()
+                Image(systemName: host.profile.lightStyle.symbol).font(.title2)
+            }
+            .foregroundStyle(.white).padding(18)
+        }
+        .frame(height: 100)
+    }
+
+    private func lightCell(_ style: NikaidoLightStyle) -> some View {
+        let selected = host.profile.lightStyle == style
+        return Button {
+            host.change { $0.lightStyle = style }
+        } label: {
+            VStack(spacing: 7) {
+                Image(systemName: style.symbol)
+                    .font(.system(size: 19, weight: .medium))
+                    .frame(height: 25)
+                Text(style.title)
+                    .font(.system(size: 10, weight: .semibold))
+                    .lineLimit(1).minimumScaleFactor(0.75)
+            }
+            .frame(maxWidth: .infinity).padding(.vertical, 12)
+            .foregroundStyle(selected ? Color.white : Color.primary)
+            .background(selected ? Color.cyan.opacity(0.35) : Color.secondary.opacity(0.10),
+                        in: RoundedRectangle(cornerRadius: 13))
+            .overlay(RoundedRectangle(cornerRadius: 13)
+                .strokeBorder(selected ? Color.cyan : Color.clear, lineWidth: 1.5))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func colorBinding(primary: Bool) -> Binding<Color> {
+        Binding(
+            get: {
+                if primary {
+                    return Color(red: host.profile.red, green: host.profile.green, blue: host.profile.blue)
+                }
+                return Color(red: host.profile.secondaryRed, green: host.profile.secondaryGreen,
+                             blue: host.profile.secondaryBlue)
+            },
+            set: { color in
+                let ui = UIColor(color)
+                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+                guard ui.getRed(&r, green: &g, blue: &b, alpha: &a) else { return }
+                host.change { profile in
+                    if primary {
+                        profile.red = Double(r); profile.green = Double(g); profile.blue = Double(b)
+                    } else {
+                        profile.secondaryRed = Double(r)
+                        profile.secondaryGreen = Double(g)
+                        profile.secondaryBlue = Double(b)
+                    }
+                }
+            }
+        )
+    }
+
     @ViewBuilder
     private func triggerRow(
         _ title: String, style: WritableKeyPath<NikaidoGameProfile, NikaidoTriggerStyle>,
-        strength: WritableKeyPath<NikaidoGameProfile, Double>
+        strength: WritableKeyPath<NikaidoGameProfile, Double>,
+        start: WritableKeyPath<NikaidoGameProfile, Double>
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Picker(title, selection: binding(style)) {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack {
+                Label(title, systemImage: "pianokeys").font(.headline)
+                Spacer()
+                Text(host.profile[keyPath: style].detail)
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Picker("Sensación", selection: binding(style)) {
                 ForEach(NikaidoTriggerStyle.allCases, id: \.self) { item in
                     Text(item.title).tag(item)
                 }
-            }
+            }.pickerStyle(.menu)
             HStack {
                 Text("Fuerza")
                 Slider(value: binding(strength), in: 0...1)
                 Text("\(Int(host.profile[keyPath: strength] * 100))%")
                     .monospacedDigit().frame(width: 46)
-            }.font(.subheadline)
-            .disabled(!host.isDualSense || host.profile[keyPath: style] == .off)
+            }
+            HStack {
+                Text("Inicio")
+                Slider(value: binding(start), in: 0.05...0.65)
+                Text("\(Int(host.profile[keyPath: start] * 100))%")
+                    .monospacedDigit().frame(width: 46)
+            }
         }
+        .font(.subheadline).padding(10)
+        .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
         .disabled(!host.isDualSense)
     }
 
@@ -649,11 +740,14 @@ struct BloomBoxNikaidoControllerView: View {
         deadzone: WritableKeyPath<NikaidoGameProfile, Double>,
         sensitivity: WritableKeyPath<NikaidoGameProfile, Double>,
         invert: WritableKeyPath<NikaidoGameProfile, Bool>,
+        offsetX: WritableKeyPath<NikaidoGameProfile, Double>,
+        offsetY: WritableKeyPath<NikaidoGameProfile, Double>,
         physical: (Float, Float)
     ) -> some View {
         let output = NikaidoGameProfile.shaped(
             x: physical.0, y: physical.1, deadzone: host.profile[keyPath: deadzone],
-            sensitivity: host.profile[keyPath: sensitivity], invertY: host.profile[keyPath: invert]
+            sensitivity: host.profile[keyPath: sensitivity], invertY: host.profile[keyPath: invert],
+            offsetX: host.profile[keyPath: offsetX], offsetY: host.profile[keyPath: offsetY]
         )
         VStack(alignment: .leading, spacing: 7) {
             Text(title).font(.headline)
@@ -670,10 +764,64 @@ struct BloomBoxNikaidoControllerView: View {
                     .monospacedDigit().frame(width: 45)
             }
             Toggle("Invertir eje vertical", isOn: binding(invert))
-            Text(String(format: "Lectura: %.2f, %.2f · Resultado: %.2f, %.2f",
-                        physical.0, physical.1, output.0, output.1))
+            Text(String(format: "Centro: %+.3f, %+.3f · Físico: %.2f, %.2f",
+                        host.profile[keyPath: offsetX], host.profile[keyPath: offsetY],
+                        physical.0, physical.1))
+                .font(.caption2).monospacedDigit().foregroundStyle(.secondary)
+            Text(String(format: "Resultado ajustado: %.2f, %.2f", output.0, output.1))
                 .font(.caption2).monospacedDigit().foregroundStyle(.secondary)
         }.font(.subheadline)
+    }
+
+    private func applyPreset(_ name: String) {
+        host.change { p in
+            // Preserve calibration and remapping when switching presets.
+            p.leftTriggerStyle = .off
+            p.rightTriggerStyle = .off
+            p.leftStrength = 0.45
+            p.rightStrength = 0.45
+            p.leftStart = 0.25
+            p.rightStart = 0.25
+            switch name {
+            case "shooter":
+                p.rightTriggerStyle = .weapon
+                p.rightStrength = 0.65
+                p.lightStyle = .pulse
+                p.red = 0.18; p.green = 0.75; p.blue = 1
+                p.rightSensitivity = 1.25
+            case "precision":
+                p.rightTriggerStyle = .sniper
+                p.rightStrength = 0.7
+                p.lightStyle = .fixed
+                p.rightSensitivity = 0.8
+            case "racing":
+                p.leftTriggerStyle = .ramp
+                p.rightTriggerStyle = .heavy
+                p.leftStrength = 0.5; p.rightStrength = 0.65
+                p.lightStyle = .wave
+            case "archery":
+                p.rightTriggerStyle = .bow
+                p.rightStrength = 0.7
+                p.lightStyle = .aurora
+            case "horror":
+                p.leftTriggerStyle = .resistance
+                p.rightTriggerStyle = .recoil
+                p.lightStyle = .heartbeat
+            case "arcade":
+                p.leftTriggerStyle = .soft
+                p.rightTriggerStyle = .rapid
+                p.lightStyle = .rainbow
+            case "soft":
+                p.leftTriggerStyle = .soft
+                p.rightTriggerStyle = .soft
+                p.leftStrength = 0.2; p.rightStrength = 0.2
+                p.lightStyle = .breathe
+            default:
+                p.lightStyle = .fixed
+                p.red = 0.25; p.green = 0.57; p.blue = 1
+                p.leftSensitivity = 1; p.rightSensitivity = 1
+            }
+        }
     }
 
     private func mappingRow(_ name: String, key: WritableKeyPath<NikaidoGameProfile, String>) -> some View {
