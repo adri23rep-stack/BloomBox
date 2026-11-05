@@ -103,6 +103,12 @@ assert "BloomBoxGameBoxAutoBackgrounds" in gamebox
 # title. Regressing this alphabet used to reject the entire feed.
 assert '"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -:' in schema
 assert 'BloomBoxGameBoxWallpaperRulesVerified-v2' in resolver
+assert "private static let bundledRules: Data" in resolver
+assert "index = BloomBoxWallpaperRuleIndex.validated(from: Self.bundledRules)" in resolver
+for emulator in ["melonnx-switch", "lemonx-switch", "dolphinios-gamecube",
+                 "melocafe-wiiu", "vita3k-vita", "ppsspp-psp", "husk-android"]:
+    assert emulator in resolver
+assert "BloomBoxGameBoxArtworkLastAttemptRule-v3:" in gamebox
 assert 'BloomBoxGameBoxWallpaperRulesSynced-v2' in resolver
 assert "if index != nil, let lastSync" in resolver
 assert "Actualizar catálogo de fondos" in gamebox
@@ -142,7 +148,7 @@ assert "guard autoBackgrounds, !safeGraphics,\n              let app = selectedA
 assert "guard autoBackgrounds, !safeGraphics, !constrained" not in gamebox
 assert "fetchingAutoBackground != id" in gamebox
 assert "if fetchingAutoBackground == id { fetchingAutoBackground = nil }" in gamebox
-assert "BloomBoxGameBoxArtworkLastAttemptRule-v2:" in gamebox
+assert "BloomBoxGameBoxArtworkLastAttemptRule-v3:" in gamebox
 assert 'wallpaperLookupStatus[id] = "Fondo listo"' in gamebox
 assert 'wallpaperLookupStatus[id] = "Sin resultado · reintentar"' in gamebox
 assert "Text(wallpaperStatusText(for: app))" in gamebox
