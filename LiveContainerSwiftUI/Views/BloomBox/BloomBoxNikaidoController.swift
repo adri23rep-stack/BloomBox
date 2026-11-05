@@ -184,6 +184,8 @@ private final class NikaidoGameControllerHost: ObservableObject {
     @Published private(set) var batteryText = "No disponible"
     @Published private(set) var leftRaw: (Float, Float) = (0, 0)
     @Published private(set) var rightRaw: (Float, Float) = (0, 0)
+    @Published private(set) var leftTriggerRaw: Float = 0
+    @Published private(set) var rightTriggerRaw: Float = 0
     @Published private(set) var calibrating = false
     @Published private(set) var calibrationProgress: Double = 0
     @Published private(set) var calibrationMessage = "Sin calibrar"
@@ -234,10 +236,14 @@ private final class NikaidoGameControllerHost: ObservableObject {
         guard let pad = controller?.extendedGamepad else {
             leftRaw = (0, 0)
             rightRaw = (0, 0)
+            leftTriggerRaw = 0
+            rightTriggerRaw = 0
             return
         }
         leftRaw = (pad.leftThumbstick.xAxis.value, pad.leftThumbstick.yAxis.value)
         rightRaw = (pad.rightThumbstick.xAxis.value, pad.rightThumbstick.yAxis.value)
+        leftTriggerRaw = pad.leftTrigger.value
+        rightTriggerRaw = pad.rightTrigger.value
         collectCalibrationSample()
     }
 
@@ -310,17 +316,16 @@ private final class NikaidoGameControllerHost: ObservableObject {
     private func applyEffects() {
         lightTimer?.invalidate()
         lightTimer = nil
-        guard controller != nil else { return }
         applyTrigger(profile.leftTriggerStyle, strength: profile.leftStrength,
                      start: profile.leftStart, left: true)
         applyTrigger(profile.rightTriggerStyle, strength: profile.rightStrength,
                      start: profile.rightStart, left: false)
-        if supportsLight {
-            updateLight()
-            if profile.lightStyle.animated {
-                lightTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
-                    Task { @MainActor in self?.updateLight() }
-                }
+        updateLight()
+        // Preview continues while disconnected. Hardware updates remain gated
+        // by controller.light; no simulated device is reported as connected.
+        if profile.lightStyle.animated {
+            lightTimer = Timer.scheduledTimer(withTimeInterval: 0.12, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.updateLight() }
             }
         }
     }
@@ -372,7 +377,6 @@ private final class NikaidoGameControllerHost: ObservableObject {
     }
 
     private func updateLight() {
-        guard let light = controller?.light else { return }
         let t = Date().timeIntervalSinceReferenceDate * profile.lightSpeed
         let primary = [profile.red, profile.green, profile.blue]
         let secondary = [profile.secondaryRed, profile.secondaryGreen, profile.secondaryBlue]
@@ -424,7 +428,7 @@ private final class NikaidoGameControllerHost: ObservableObject {
         let r = min(1, max(0, rgb[0] * brightness))
         let g = min(1, max(0, rgb[1] * brightness))
         let b = min(1, max(0, rgb[2] * brightness))
-        light.color = GCColor(red: Float(r), green: Float(g), blue: Float(b))
+        controller?.light?.color = GCColor(red: Float(r), green: Float(g), blue: Float(b))
         previewLightColor = Color(red: r, green: g, blue: b)
     }
 
