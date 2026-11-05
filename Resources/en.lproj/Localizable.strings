@@ -216,3 +216,10 @@
 "Se aplican solo a esta app. Se hará una vez; tus cambios manuales posteriores se respetarán. Ningún permiso global ni firma se modifica." = "These settings apply only to this app. They will be applied once; any manual changes you make afterward will be preserved. No global permissions or signing are changed.";
 "Nikaido · GameBox" = "Nikaido · GameBox";
 "Conecta un DualSense para probar los efectos." = "Connect a DualSense to test the effects.";
+", batería " = ", battery ";
+", favorito" = ", favorite";
+"No se puede desinstalar una app compartida, en ejecución o en proceso de firma. Las apps compartidas se administran desde sus ajustes de LiveContainer." = "A shared app, a running app, or an app currently being signed cannot be uninstalled. Manage shared apps in their LiveContainer settings.";
+"Abrir la app mientras JIT espera" = "Open app while JIT waits";
+"La navegación de sesión requiere iOS 16 o posterior." = "Session navigation requires iOS 16 or later.";
+"Desactiva Classic Mode en los ajustes de esta app para mantener abierto el launcher." = "Turn off Classic Mode in this app's settings to keep the launcher open.";
+"SideStore no está disponible en esta instalación." = "SideStore is unavailable in this installation.";
