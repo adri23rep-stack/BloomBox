@@ -151,7 +151,12 @@ assert "if fetchingAutoBackground == id { fetchingAutoBackground = nil }" in gam
 assert "BloomBoxGameBoxArtworkLastAttemptRule-v3:" in gamebox
 assert 'wallpaperLookupStatus[id] = "Fondo listo"' in gamebox
 assert 'wallpaperLookupStatus[id] = "Sin resultado · reintentar"' in gamebox
-assert "Text(wallpaperStatusText(for: app))" in gamebox
+# The wallpaper status must be rendered; it may pass through the translation
+# adapter so English users see the localized state.
+assert (
+    "Text(wallpaperStatusText(for: app))" in gamebox
+    or "Text(BloomBoxGameBoxL10n.t(wallpaperStatusText(for: app)))" in gamebox
+)
 assert ".animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: artwork.revision)" in gamebox
 # Copyright-conscious fallback: Wikimedia Commons must match the selected
 # emulator's platform topic, not any game's unrelated artwork.

@@ -9,6 +9,7 @@ import PhotosUI
 import ImageIO
 import UniformTypeIdentifiers
 import AudioToolbox
+import GameController
 
 /// Portable UI item. Only the existing host adapts installed guest metadata.
 struct BloomBoxGameBoxEntry: Identifiable {
@@ -20,27 +21,51 @@ struct BloomBoxGameBoxEntry: Identifiable {
 }
 
 
-/// A visual reservation only. Nikaido will own the controller logic in a
-/// future integration module; GameBox must not bind gestures, actions or
-/// runtime state to this slot until that bridge exists.
+/// The original controller-shaped reservation now opens Nikaido's native
+/// GameController panel. The integration does not change launch/JIT ownership.
 @available(iOS 16.0, *)
 private struct BloomBoxNikaidoControllerSlot: View {
     let diameter: CGFloat
+    let action: () -> Void
+    var batteryPercent: Int? = nil
 
     var body: some View {
-        Image(systemName: "gamecontroller.fill")
-            .font(.system(size: diameter * 0.39, weight: .medium))
-            .foregroundStyle(.white.opacity(0.72))
-            .frame(width: diameter, height: diameter)
-            .background {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .opacity(0.38)
+        Button(action: action) {
+            Image(systemName: "gamecontroller.fill")
+                .font(.system(size: diameter * 0.39, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: diameter, height: diameter)
+                .background {
+                    Circle().fill(.ultraThinMaterial).opacity(0.38)
+                }
+                .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .bottomTrailing) {
+            if let batteryPercent {
+                Text("\(batteryPercent)%")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(batteryPercent < 20 ? .orange : .white)
+                    .padding(.horizontal, 4).padding(.vertical, 2)
+                    .background(.black.opacity(0.86), in: Capsule())
+                    .offset(x: 9, y: 5)
             }
-            .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
-            .allowsHitTesting(false)
-            .accessibilityLabel("Reservado para Nikaido")
-            .accessibilityHint("Todavía no tiene controles ni acciones")
+        }
+        .overlay {
+            if let batteryPercent {
+                Circle()
+                    .trim(from: 0, to: CGFloat(batteryPercent) / 100)
+                    .stroke(batteryPercent < 20 ? Color.orange : Color.mint,
+                            style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: diameter + 3, height: diameter + 3)
+                    .allowsHitTesting(false)
+            }
+        }
+        .accessibilityLabel(BloomBoxGameBoxL10n.t("Nikaido · Ajustes del control") +
+                            (batteryPercent.map { BloomBoxGameBoxL10n.t(", batería ") + String($0) + "%" } ?? ""))
+        .accessibilityHint("Luces, gatillos adaptativos y perfiles por juego")
     }
 }
 
@@ -81,6 +106,8 @@ struct BloomBoxGameBoxV2Screen: View {
     @State private var previousTapUptime: TimeInterval = 0
     @State private var alphabetical = false
     @State private var quickMenu = false
+    @State private var showNikaidoPanel = false
+    @State private var dualSenseBatteryPercent: Int?
     @State private var showDiagnostics = false
     @State private var showExpiryReminders = false
     @State private var freeStorage: String?
@@ -260,6 +287,7 @@ struct BloomBoxGameBoxV2Screen: View {
         }
         .onAppear {
             BloomBoxCrashJournal.shared.enterGameBox()
+            refreshDualSenseBattery()
             if focusedKey == nil { focusedKey = visibleApps.first.map(key) }
             refreshSystemBudget()
             refreshStorage()
@@ -356,13 +384,28 @@ struct BloomBoxGameBoxV2Screen: View {
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.batteryLevelDidChangeNotification)) { _ in
             refreshBattery()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in
+            refreshDualSenseBattery()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidDisconnect)) { _ in
+            refreshDualSenseBattery()
+        }
+        .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
+            refreshDualSenseBattery()
+        }
+        .sheet(isPresented: $showNikaidoPanel) {
+            BloomBoxNikaidoControllerView(
+                gameID: selectedApp?.bundleID ?? selectedApp?.id ?? "gamebox",
+                gameName: selectedApp?.name ?? "GameBox"
+            )
+        }
         .confirmationDialog("GameBox", isPresented: $quickMenu) {
             if safeGraphics {
                 Button("Reactivar fondos de GameBox", systemImage: "photo") {
                     showSafeGraphicsAlert = true
                 }
             }
-            Button(artworkIntroEnabled ? "Desactivar animación de carga" : "Activar animación de carga",
+            Button(BloomBoxGameBoxL10n.t(artworkIntroEnabled ? "Desactivar animación de carga" : "Activar animación de carga"),
                    systemImage: "waveform") {
                 artworkIntroEnabled.toggle()
             }
@@ -390,7 +433,7 @@ struct BloomBoxGameBoxV2Screen: View {
         )) {
             Button("Entendido", role: .cancel) { upcomingFeature = nil }
         } message: {
-            Text(upcomingFeature ?? "")
+            Text(BloomBoxGameBoxL10n.t(upcomingFeature ?? ""))
         }
         .accessibilityIdentifier("bloombox.gamebox.v2")
     }
@@ -429,8 +472,8 @@ struct BloomBoxGameBoxV2Screen: View {
     private func header(compact: Bool) -> some View {
         HStack(spacing: compact ? 5 : 9) {
             topButton("ellipsis", label: "Menú") { quickMenu = true }
-            // Controller-shaped location is intentionally inert until Nikaido arrives.
-            BloomBoxNikaidoControllerSlot(diameter: 39)
+            // Native DualSense panel; guest input remains unchanged.
+            BloomBoxNikaidoControllerSlot(diameter: 39, batteryPercent: dualSenseBatteryPercent) { showNikaidoPanel = true }
             topButton("arrow.up.arrow.down", label: "Ordenar") {
                 alphabetical.toggle()
                 selectionHaptic()
@@ -453,7 +496,7 @@ struct BloomBoxGameBoxV2Screen: View {
                         .background(focusedAccent.opacity(0.35), in: Capsule())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(safeGraphics ? "Modo seguro; toca para activar fondos" : "Versión 2")
+                .accessibilityLabel(BloomBoxGameBoxL10n.t(safeGraphics ? "Modo seguro; toca para activar fondos" : "Versión 2"))
                 TimelineView(.periodic(from: .now, by: 60)) { time in
                     Text(time.date, format: .dateTime.hour().minute())
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
@@ -511,7 +554,7 @@ struct BloomBoxGameBoxV2Screen: View {
                 .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(label)
+        .accessibilityLabel(BloomBoxGameBoxL10n.t(label))
     }
 
     // The carousel owns only scrolling; selection belongs exclusively to
@@ -583,7 +626,7 @@ struct BloomBoxGameBoxV2Screen: View {
             handleIconTap(app)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(title(app) + (favorites.contains(key(app)) ? ", favorito" : ""))
+        .accessibilityLabel(title(app) + (favorites.contains(key(app)) ? BloomBoxGameBoxL10n.t(", favorito") : ""))
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityHint("Toca para seleccionar, dos veces para alternar favorito. Usa Play para abrir.")
         .accessibilityAction(named: Text("Alternar favorito")) { toggleFavorite(app) }
@@ -619,11 +662,11 @@ struct BloomBoxGameBoxV2Screen: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.72)
                         HStack(spacing: 7) {
-                            Text(favorites.contains(key(app)) ? "★ Favorito" : "Listo para jugar")
+                            Text(BloomBoxGameBoxL10n.t(favorites.contains(key(app)) ? "★ Favorito" : "Listo para jugar"))
                             Text("•")
-                            Text(app.requiresJIT ? "JIT disponible" : "Lanzamiento normal")
+                            Text(BloomBoxGameBoxL10n.t(app.requiresJIT ? "JIT disponible" : "Lanzamiento normal"))
                             Text("•")
-                            Text(wallpaperStatusText(for: app))
+                            Text(BloomBoxGameBoxL10n.t(wallpaperStatusText(for: app)))
                         }
                         .font(.system(size: compact ? 9 : 11, weight: .medium))
                         .foregroundStyle(.white.opacity(0.72))
@@ -652,7 +695,7 @@ struct BloomBoxGameBoxV2Screen: View {
                         Button("Abrir con JIT", systemImage: "bolt.fill") {
                             requestLaunch(app, forceJIT: true)
                         }
-                        Button(favorites.contains(key(app)) ? "Quitar de favoritos" : "Añadir a favoritos",
+                        Button(BloomBoxGameBoxL10n.t(favorites.contains(key(app)) ? "Quitar de favoritos" : "Añadir a favoritos"),
                                systemImage: "heart") { toggleFavorite(app) }
                         Button("Ajustes de esta app", systemImage: "gearshape") { manage(key(app)) }
                         Divider()
@@ -669,11 +712,11 @@ struct BloomBoxGameBoxV2Screen: View {
                             chooseArtworkFromFiles(for: app, kind: .background)
                         }
                         Divider()
-                        Button(autoBackgrounds ? "Desactivar fondos automáticos" : "Activar fondos automáticos",
+                        Button(BloomBoxGameBoxL10n.t(autoBackgrounds ? "Desactivar fondos automáticos" : "Activar fondos automáticos"),
                                systemImage: autoBackgrounds ? "globe.americas.fill" : "globe") {
                             autoBackgrounds.toggle()
                         }
-                        Button(fetchingAutoBackground == key(app) ? "Buscando fondo…" : "Buscar fondo en Internet",
+                        Button(BloomBoxGameBoxL10n.t(fetchingAutoBackground == key(app) ? "Buscando fondo…" : "Buscar fondo en Internet"),
                                systemImage: "magnifyingglass") {
                             Task {
                                 await wallpaperRules.refreshIfNeeded(force: true)
@@ -719,8 +762,8 @@ struct BloomBoxGameBoxV2Screen: View {
                         footerCircle("ellipsis", label: "Opciones del juego")
                     }
                     Spacer(minLength: 0)
-                    // Do not connect this controller-shaped slot to Nikaido yet.
-                    BloomBoxNikaidoControllerSlot(diameter: compact ? 34 : 40)
+                    // Nikaido native controller panel for the selected game.
+                    BloomBoxNikaidoControllerSlot(diameter: compact ? 34 : 40) { showNikaidoPanel = true }
                     Button { manage(key(app)) } label: {
                         footerCircle("slider.horizontal.3", label: "Ajustes del juego")
                     }
@@ -771,7 +814,7 @@ struct BloomBoxGameBoxV2Screen: View {
                     .opacity(0.37)
             }
             .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
-            .accessibilityLabel(label)
+            .accessibilityLabel(BloomBoxGameBoxL10n.t(label))
     }
 
     private var emptyLibrary: some View {
@@ -1065,6 +1108,19 @@ struct BloomBoxGameBoxV2Screen: View {
         if gb.isFinite, gb >= 0 {
             freeStorage = String(format: "%.1f GB libres", gb)
         }
+    }
+
+    private func refreshDualSenseBattery() {
+        guard let controller = GCController.controllers().first(where: {
+            $0.extendedGamepad is GCDualSenseGamepad
+        }), let battery = controller.battery,
+           battery.batteryLevel.isFinite,
+           battery.batteryLevel >= 0, battery.batteryLevel <= 1 else {
+            dualSenseBatteryPercent = nil
+            return
+        }
+        let level = Int((battery.batteryLevel * 100).rounded())
+        dualSenseBatteryPercent = (0...100).contains(level) ? level : nil
     }
 
     private func refreshBattery() {

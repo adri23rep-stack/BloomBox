@@ -1,4 +1,6 @@
 import SwiftUI
+import GameController
+import UIKit
 
 /// BloomBox's own mode host. LiveContainer stays mounted for guest/JIT/signing.
 struct BloomBoxLauncherRootView: View {
@@ -10,6 +12,8 @@ struct BloomBoxLauncherRootView: View {
     @State private var showDestination = false
     @State private var showDiagnostics = false
     @State private var showRecoveryNotice = false
+    @AppStorage("BloomBoxAutoGameBoxOnController", store: LCUtils.appGroupUserDefault)
+    private var autoGameBoxOnController = true
 
     private var locale: Locale {
         Locale(identifier: language == "system" ? (Locale.preferredLanguages.first ?? "en") : language)
@@ -45,6 +49,16 @@ struct BloomBoxLauncherRootView: View {
                                 .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 20))
                         }
                         .buttonStyle(.plain)
+                        Toggle(isOn: $autoGameBoxOnController) {
+                            Label("Abrir GameBox al conectar un control", systemImage: "gamecontroller.fill")
+                        }
+                        .tint(.cyan)
+                        .padding(16)
+                        .background(Color.white.opacity(0.06),
+                                    in: RoundedRectangle(cornerRadius: 16))
+                        Text("La detección funciona al usar BloomBox. iOS no permite abrirla desde cero cuando está cerrada o suspendida.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         Text("El escritorio es el inicio predeterminado de BloomBox.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
@@ -101,7 +115,21 @@ struct BloomBoxLauncherRootView: View {
             }
             ready = true
             showRecoveryNotice = BloomBoxCrashJournal.shared.previousInterrupted
+            routeConnectedControllerIfAllowed()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in
+            routeConnectedControllerIfAllowed()
+        }
+    }
+
+    private func routeConnectedControllerIfAllowed() {
+        // Do not relaunch an interrupted GameBox session or steal focus from a guest.
+        guard autoGameBoxOnController, ready, !showRecoveryNotice,
+              !showDestination, !showModeSheet, mode != "gamebox",
+              UIApplication.shared.applicationState == .active,
+              !GCController.controllers().isEmpty else { return }
+        mode = "gamebox"
+        BloomBoxCrashJournal.shared.record("gamebox.controller.auto_enter")
     }
 
     @ViewBuilder private var destinationContent: some View {
@@ -121,8 +149,8 @@ struct BloomBoxLauncherRootView: View {
             HStack(spacing: 16) {
                 Image(systemName: icon).font(.title).frame(width: 48)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(title).font(.headline)
-                    Text(detail).font(.subheadline).foregroundStyle(.secondary)
+                    Text(BloomBoxGameBoxL10n.t(title)).font(.headline)
+                    Text(BloomBoxGameBoxL10n.t(detail)).font(.subheadline).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
                 Image(systemName: mode == value ? "checkmark.circle.fill" : "circle")
