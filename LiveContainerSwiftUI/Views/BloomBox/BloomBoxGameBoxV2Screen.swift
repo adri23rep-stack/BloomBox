@@ -163,19 +163,14 @@ struct BloomBoxGameBoxV2Screen: View {
         .photosPicker(isPresented: $photoPickerPresented, selection: $selectedPhoto, matching: .images)
         .fileImporter(isPresented: $filesPickerPresented, allowedContentTypes: [.image]) { result in
             guard let target = artworkTargetKey else { return }
+            let kind = artworkTargetKind
+            artworkTargetKey = nil
             do {
-                let url = try result.get()
-                let security = url.startAccessingSecurityScopedResource()
-                defer { if security { url.stopAccessingSecurityScopedResource() } }
-                let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-                guard size <= 20 * 1024 * 1024 else { throw CocoaError(.fileReadTooLarge) }
-                try artwork.save(try decodeArtwork(Data(contentsOf: url)), for: target, kind: artworkTargetKind)
-                BloomBoxCrashJournal.shared.record("gamebox.artwork.files.success")
+                try importArtworkFile(result.get(), for: target, kind: kind)
             } catch {
                 artworkError = error.localizedDescription
                 BloomBoxCrashJournal.shared.record("gamebox.artwork.files.failed")
             }
-            artworkTargetKey = nil
         }
         .onChange(of: selectedPhoto) { photo in
             guard let photo, let target = artworkTargetKey else { return }
@@ -737,6 +732,37 @@ struct BloomBoxGameBoxV2Screen: View {
     private func toggleFavorite(_ app: BloomBoxGameBoxEntry) {
         favoritesJSON = BloomBoxHomeAppPolicy.toggledFavorite(key(app), in: favoritesJSON)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func importArtworkFile(_ url: URL, for key: String,
+                                   kind: BloomBoxArtworkLibrary.Kind) throws {
+        guard !importingArtwork else { return }
+        importingArtwork = true
+        Task { @MainActor in
+            defer { importingArtwork = false }
+            do {
+                // Reading remote Files/iCloud documents synchronously on the
+                // main thread can trigger a watchdog termination. Stream only
+                // the allowed prefix off-main to avoid unbounded memory use.
+                let bytes = try await Task.detached(priority: .userInitiated) { () throws -> Data in
+                    let scoped = url.startAccessingSecurityScopedResource()
+                    defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                    let file = try FileHandle(forReadingFrom: url)
+                    defer { file.closeFile() }
+                    let limit = 20 * 1024 * 1024
+                    let data = try file.read(upToCount: limit + 1) ?? Data()
+                    guard !data.isEmpty, data.count <= limit else {
+                        throw CocoaError(.fileReadTooLarge)
+                    }
+                    return data
+                }.value
+                try artwork.save(decodeArtwork(bytes), for: key, kind: kind)
+                BloomBoxCrashJournal.shared.record("gamebox.artwork.files.success")
+            } catch {
+                artworkError = error.localizedDescription
+                BloomBoxCrashJournal.shared.record("gamebox.artwork.files.failed")
+            }
+        }
     }
 
     private func decodeArtwork(_ data: Data) throws -> UIImage {
