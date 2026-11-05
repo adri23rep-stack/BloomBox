@@ -84,6 +84,19 @@ static void BloomBoxRecordLiveProcessPhase(NSString *phase) {
     close(fd);
 }
 
+/// Fail gracefully when a supplied extension payload cannot be opened.
+/// Never jump into a NULL function pointer or expose a private payload path.
+static int BloomBoxFailRequest(NSString *phase, NSString *detail) {
+    BloomBoxRecordLiveProcessPhase(phase);
+    NSError *error = [NSError errorWithDomain:@"BloomBox.LiveProcess"
+                                        code:106
+                                    userInfo:@{NSLocalizedDescriptionKey:
+                                                   detail ?: @"No se pudo iniciar la aplicación."}];
+    NSExtensionContext *context = [LiveProcessHandler extensionContext];
+    if (context) [context cancelRequestWithError:error];
+    return 1;
+}
+
 extern int LiveContainerMain(int argc, char *argv[]);
 static char **_envp, **_apple = NULL;
 int LiveProcessMain(int argc, char *argv[]) {
@@ -92,7 +105,10 @@ int LiveProcessMain(int argc, char *argv[]) {
     CFRunLoopRun();
     // Ensure app info is delivered
     NSDictionary *appInfo = LiveProcessHandler.retrievedAppInfo;
-    NSCAssert(appInfo, @"Failed to retrieve app info");
+    if (![appInfo isKindOfClass:[NSDictionary class]]) {
+        return BloomBoxFailRequest(@"liveprocess.request.invalid",
+                                   @"LiveProcess no recibió los datos de la aplicación.");
+    }
     BloomBoxRecordLiveProcessPhase(@"liveprocess.request.received");
     BloomBoxReportJITPermissions();
     
@@ -100,20 +116,38 @@ int LiveProcessMain(int argc, char *argv[]) {
     NSString *customPayloadDylib = appInfo[@"customPayloadDylib"];
     if(customPayloadDylib) {
         BloomBoxRecordLiveProcessPhase(@"liveprocess.custom_payload.requested");
+        if (![customPayloadDylib isKindOfClass:[NSString class]] ||
+            customPayloadDylib.length == 0) {
+            return BloomBoxFailRequest(@"liveprocess.custom_payload.invalid",
+                                       @"La ruta del módulo no es válida.");
+        }
         void *handle = dlopen(customPayloadDylib.fileSystemRepresentation, RTLD_LAZY);
-        NSCAssert(appInfo, @"Failed to load custom payload dylib at path: %@", customPayloadDylib);
-        
+        if (!handle) {
+            return BloomBoxFailRequest(@"liveprocess.custom_payload.dlopen_failed",
+                                       @"No se pudo abrir el módulo solicitado.");
+        }
+
         NSString *customPayloadEntry = appInfo[@"customPayloadEntry"];
-        NSCAssert(customPayloadEntry, @"Missing customPayloadEntry");
+        if (![customPayloadEntry isKindOfClass:[NSString class]] ||
+            customPayloadEntry.length == 0) {
+            dlclose(handle);
+            return BloomBoxFailRequest(@"liveprocess.custom_payload.entry_missing",
+                                       @"El módulo no indicó una función de inicio.");
+        }
         int (*payloadEntry)(int, char **, char **, char **) = dlsym(handle, customPayloadEntry.UTF8String);
+        if (!payloadEntry) {
+            dlclose(handle);
+            return BloomBoxFailRequest(@"liveprocess.custom_payload.symbol_missing",
+                                       @"El módulo no contiene la función solicitada.");
+        }
         int status = payloadEntry(argc, argv, _envp, _apple);
         BloomBoxRecordLiveProcessPhase(@"liveprocess.custom_payload.returned");
         return status;
     }
     
-    NSLog(@"Retrieved app info: %@", appInfo);
+    NSLog(@"[BloomBox] LiveProcess guest request received (details redacted).");
     // Set LiveContainer's home path
-    setenv("LP_HOME_PATH", getenv("HOME"), 1);
+    if (getenv("HOME")) setenv("LP_HOME_PATH", getenv("HOME"), 1);
     const char *overrideHomePath = [appInfo[@"lcHomePath"] fileSystemRepresentation];
     if(overrideHomePath) setenv("LC_HOME_PATH", overrideHomePath, 1);
     // Pass selected app info to user defaults
@@ -124,9 +158,18 @@ int LiveProcessMain(int argc, char *argv[]) {
     [lcUserDefaults setObject:appInfo[@"selectedContainer"] forKey:@"selectedContainer"];
     
     BOOL access = NO;
-    NSArray<NSData *> *bookmarks = appInfo[@"bookmarks"];
+    id suppliedBookmarks = appInfo[@"bookmarks"];
+    if (suppliedBookmarks && ![suppliedBookmarks isKindOfClass:[NSArray class]]) {
+        return BloomBoxFailRequest(@"liveprocess.bookmarks.invalid_format",
+                                   @"El acceso a los datos privados no tiene un formato válido.");
+    }
+    NSArray<NSData *> *bookmarks = suppliedBookmarks ?: @[];
     NSMutableArray<NSURL *> *bookmarkedUrls = [NSMutableArray array];
     for (NSData *bookmark in bookmarks) {
+        if (![bookmark isKindOfClass:[NSData class]]) {
+            return BloomBoxFailRequest(@"liveprocess.bookmarks.invalid_entry",
+                                       @"Una autorización de acceso privado no es válida.");
+        }
         BOOL isStale = NO;
         NSError *error = nil;
         NSURL *scopedURL = [NSURL URLByResolvingBookmarkData:bookmark options:0
