@@ -77,7 +77,7 @@ static void BloomBoxRecordLiveProcessPhase(NSString *phase) {
     int fd = open(file.fileSystemRepresentation, O_WRONLY | O_CREAT | O_APPEND, 0600);
     if (fd < 0) return;
     // Never include bundle identifiers, guest paths, bookmarks or custom payloads.
-    NSString *line = [NSString stringWithFormat:@"%.3f pid=%d %@\\n",
+    NSString *line = [NSString stringWithFormat:@"%.3f pid=%d %@\n",
                       [NSDate date].timeIntervalSince1970, getpid(), phase];
     NSData *bytes = [line dataUsingEncoding:NSUTF8StringEncoding];
     if (bytes.length) (void)write(fd, bytes.bytes, bytes.length);
