@@ -128,10 +128,13 @@ if "struct BloomBoxReservedSection: View" not in reserved:
 for code in (reserved, launcher, app_list):
     if "BloomBoxRequestGameMode" in code or "BloomBoxGameBoxScreen" in code:
         raise SystemExit("Retired console route returned")
-if "GameBox" in launcher or 'value: "reserved"' not in launcher:
-    raise SystemExit("Old launcher card returned")
+if 'value: "gamebox"' not in launcher or 'value: "reserved"' not in launcher:
+    raise SystemExit("GameBox v2 and independent reserved destination must both exist")
+gamebox_v2 = (VIEWS / "BloomBox/BloomBoxGameBoxV2Screen.swift").read_text(encoding="utf-8")
+if "BloomBoxNikaidoControllerSlot" not in gamebox_v2 or ".allowsHitTesting(false)" not in gamebox_v2:
+    raise SystemExit("Nikaido controller reservation must stay inert")
 icon_source = (VIEWS / "BloomBox/BloomBoxIconStore.swift").read_text(encoding="utf-8")
 if "LiveBoardByeTunes" in icon_source or "com.EduAlexxis.MusicManager" in icon_source:
     raise SystemExit("Legacy music artwork override returned")
 
-print(f"BloomBox code audit passed: {count} source files; GameBox retired, reserved slot active, credits preserved")
+print(f"BloomBox code audit passed: {count} source files; legacy GameBox retired, v2 display-only and Nikaido reserved, credits preserved")
