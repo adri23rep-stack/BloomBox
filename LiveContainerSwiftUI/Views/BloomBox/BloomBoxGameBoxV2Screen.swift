@@ -52,6 +52,17 @@ private struct BloomBoxNikaidoControllerSlot: View {
                     .offset(x: 9, y: 5)
             }
         }
+        .overlay {
+            if let batteryPercent {
+                Circle()
+                    .trim(from: 0, to: CGFloat(batteryPercent) / 100)
+                    .stroke(batteryPercent < 20 ? Color.orange : Color.mint,
+                            style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: diameter + 3, height: diameter + 3)
+                    .allowsHitTesting(false)
+            }
+        }
         .accessibilityLabel("Nikaido · Ajustes del control" +
                             (batteryPercent.map { ", batería \($0)%" } ?? ""))
         .accessibilityHint("Luces, gatillos adaptativos y perfiles por juego")
