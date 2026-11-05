@@ -695,7 +695,6 @@ struct BloomBoxNikaidoControllerView: View {
                                valueText: String(format: "%.1fx", host.profile.lightSpeed))
                     .disabled(!host.profile.lightStyle.animated)
             }
-            .disabled(!host.supportsLight && host.isDualSense)
             Text(host.supportsLight ? "El DualSense tiene una sola barra RGB; el brillo y el color cambian juntos." :
                  "Modo demostración: los efectos animan el control dibujado. Conecta un DualSense compatible para probar las luces reales.")
                 .font(.caption)
@@ -1070,41 +1069,6 @@ struct BloomBoxNikaidoControllerView: View {
         )
     }
 
-    private func availability(_ title: String, _ available: Bool) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: available ? "checkmark.circle.fill" : "minus.circle")
-                .foregroundStyle(available ? Color.green : Color.secondary)
-            Text(title).font(.caption)
-        }
-    }
-
-    private var lightPreview: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 18)
-                .fill(LinearGradient(
-                    colors: [
-                        host.previewLightColor,
-                        Color(red: host.profile.secondaryRed, green: host.profile.secondaryGreen,
-                              blue: host.profile.secondaryBlue)
-                    ], startPoint: .topLeading, endPoint: .bottomTrailing
-                ))
-            RoundedRectangle(cornerRadius: 18).fill(.black.opacity(0.27))
-            HStack {
-                Image(systemName: "gamecontroller.fill")
-                    .font(.system(size: 40, weight: .semibold))
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(host.profile.lightStyle.title).font(.title3.bold())
-                    Text("Vista previa · RGB Studio").font(.caption)
-                        .foregroundStyle(.white.opacity(0.83))
-                }
-                Spacer()
-                Image(systemName: host.profile.lightStyle.symbol).font(.title2)
-            }
-            .foregroundStyle(.white).padding(18)
-        }
-        .frame(height: 100)
-    }
-
     private func lightCell(_ style: NikaidoLightStyle) -> some View {
         let selected = host.profile.lightStyle == style
         return Button {
@@ -1178,42 +1142,6 @@ struct BloomBoxNikaidoControllerView: View {
                 }
             }
         )
-    }
-
-    @ViewBuilder
-    private func triggerRow(
-        _ title: String, style: WritableKeyPath<NikaidoGameProfile, NikaidoTriggerStyle>,
-        strength: WritableKeyPath<NikaidoGameProfile, Double>,
-        start: WritableKeyPath<NikaidoGameProfile, Double>
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack {
-                Label(title, systemImage: "pianokeys").font(.headline)
-                Spacer()
-                Text(host.profile[keyPath: style].detail)
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Picker("Sensación", selection: binding(style)) {
-                ForEach(NikaidoTriggerStyle.allCases, id: \.self) { item in
-                    Text(item.title).tag(item)
-                }
-            }.pickerStyle(.menu)
-            HStack {
-                Text("Fuerza")
-                Slider(value: binding(strength), in: 0...1)
-                Text("\(Int(host.profile[keyPath: strength] * 100))%")
-                    .monospacedDigit().frame(width: 46)
-            }
-            HStack {
-                Text("Inicio")
-                Slider(value: binding(start), in: 0.05...0.65)
-                Text("\(Int(host.profile[keyPath: start] * 100))%")
-                    .monospacedDigit().frame(width: 46)
-            }
-        }
-        .font(.subheadline).padding(10)
-        .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
-        .disabled(!host.isDualSense)
     }
 
     @ViewBuilder
