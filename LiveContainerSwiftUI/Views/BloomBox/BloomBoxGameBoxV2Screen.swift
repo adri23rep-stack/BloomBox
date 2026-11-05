@@ -1113,7 +1113,9 @@ struct BloomBoxGameBoxV2Screen: View {
     private func refreshDualSenseBattery() {
         guard let controller = GCController.controllers().first(where: {
             $0.extendedGamepad is GCDualSenseGamepad
-        }), let battery = controller.battery else {
+        }), let battery = controller.battery,
+           battery.batteryLevel.isFinite,
+           battery.batteryLevel >= 0, battery.batteryLevel <= 1 else {
             dualSenseBatteryPercent = nil
             return
         }
