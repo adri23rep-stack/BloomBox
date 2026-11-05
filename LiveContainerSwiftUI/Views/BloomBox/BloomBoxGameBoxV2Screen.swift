@@ -671,7 +671,7 @@ struct BloomBoxGameBoxV2Screen: View {
                                systemImage: "magnifyingglass") {
                             Task { await resolveAutomaticBackground(force: true) }
                         }
-                        .disabled(fetchingAutoBackground != nil || !autoBackgrounds)
+                        .disabled(fetchingAutoBackground == key(app) || !autoBackgrounds)
                         if artwork.image(for: key(app), kind: .background,
                                          mode: autoBackgroundMode) != nil {
                             if let link = LiveContainerPreferencesAdapter.defaults.string(
