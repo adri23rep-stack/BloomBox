@@ -139,6 +139,13 @@ import ImageIO
         revision += 1
     }
 
+    /// Release decoded images immediately if iOS warns about memory pressure.
+    /// Files and saved mappings stay intact for the next safe launch.
+    func clearDecodedCache() {
+        cache.removeAllObjects()
+        revision &+= 1
+    }
+
     func remove(for key: String, kind: Kind, mode: String = "bigPicture") {
         let id = identifier(key, kind: kind, mode: mode)
         var updated = mappings
