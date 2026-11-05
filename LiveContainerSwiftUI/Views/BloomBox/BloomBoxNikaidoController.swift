@@ -560,31 +560,33 @@ struct BloomBoxNikaidoControllerView: View {
                 }
 
                 Section {
-                    Menu("Aplicar configuración rápida") {
-                        Button("Predeterminado") { host.change { $0 = NikaidoGameProfile() } }
-                        Button("Shooter") { host.change { p in
-                            p.leftDeadzone = 0.04
-                            p.rightDeadzone = 0.04
-                            p.rightSensitivity = 1.3
-                            p.rightTriggerStyle = .weapon
-                            p.rightStrength = 0.55
-                        } }
-                        Button("Carreras") { host.change { p in
-                            p.leftDeadzone = 0.12
-                            p.rightDeadzone = 0.12
-                            p.leftTriggerStyle = .resistance
-                            p.rightTriggerStyle = .resistance
-                            p.leftStrength = 0.35
-                            p.rightStrength = 0.35
-                        } }
+                    HStack {
+                        Image(systemName: "square.stack.3d.up.fill").foregroundStyle(.cyan)
+                        VStack(alignment: .leading) {
+                            Text(gameName).font(.headline)
+                            Text("Configuración guardada automáticamente")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    Menu {
+                        Button("Por defecto") { applyPreset("default") }
+                        Button("Shooter / FPS") { applyPreset("shooter") }
+                        Button("Precisión / sniper") { applyPreset("precision") }
+                        Button("Carreras") { applyPreset("racing") }
+                        Button("Arco y aventura") { applyPreset("archery") }
+                        Button("Horror") { applyPreset("horror") }
+                        Button("Arcade") { applyPreset("arcade") }
+                        Button("Suave / accesibilidad") { applyPreset("soft") }
+                    } label: {
+                        Label("Elegir perfil para este juego", systemImage: "square.stack.3d.up")
                     }
                     Button("Restaurar perfil de este juego", role: .destructive) {
                         host.change { $0 = NikaidoGameProfile() }
                     }
                 } header: {
-                    Text("Perfiles automáticos")
+                    Text("Perfiles por juego")
                 } footer: {
-                    Text("Cada juego guarda su perfil de GameBox por separado. No altera perfiles de Nikaido para Windows.")
+                    Text("Los perfiles no cambian Nikaido en Windows. El remapeo y la corrección del drift quedan listos para emuladores compatibles.")
                 }
             }
             .navigationTitle("Nikaido · GameBox")
