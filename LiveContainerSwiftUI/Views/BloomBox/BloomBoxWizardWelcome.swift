@@ -69,7 +69,7 @@ struct BloomBoxWizardWelcomeView: View {
                         }
                         .font(.system(size: min(proxy.size.width * 0.115, 53),
                                       weight: .heavy, design: .rounded))
-                        .tracking(-1.6)
+                        .kerning(-1.6)
                         .foregroundStyle(mainInk)
                         .frame(height: 73)
                         .accessibilityIdentifier("bloombox.wizard.greeting")
@@ -87,7 +87,7 @@ struct BloomBoxWizardWelcomeView: View {
                     VStack(spacing: 18) {
                         Text(isSpanish ? "ELIGE TU IDIOMA" : "CHOOSE YOUR LANGUAGE")
                             .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .tracking(2.3)
+                            .kerning(2.3)
                             .foregroundStyle(mainInk.opacity(0.46))
 
                         languageWheel
