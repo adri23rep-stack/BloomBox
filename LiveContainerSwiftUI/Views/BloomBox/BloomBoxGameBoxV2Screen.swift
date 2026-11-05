@@ -60,6 +60,8 @@ struct BloomBoxGameBoxV2Screen: View {
     @State private var quickMenu = false
     @State private var showDiagnostics = false
     @State private var freeStorage: String?
+    @AppStorage("BloomBoxGameBoxSafeGraphics", store: LiveContainerPreferencesAdapter.defaults)
+    private var safeGraphics = false
     @State private var upcomingFeature: String?
     @State private var constrained = false
     @State private var batteryPercent: Int?
@@ -109,10 +111,12 @@ struct BloomBoxGameBoxV2Screen: View {
         return colors[seed % colors.count]
     }
     private func cover(_ app: BloomBoxGameBoxEntry) -> UIImage? {
-        artwork.image(for: key(app), kind: .cover)
+        guard !safeGraphics else { return nil }
+        return artwork.image(for: key(app), kind: .cover)
     }
     private func backdrop(_ app: BloomBoxGameBoxEntry) -> UIImage? {
-        artwork.image(for: key(app), kind: .background) ??
+        guard !safeGraphics else { return nil }
+        return artwork.image(for: key(app), kind: .background) ??
         artwork.image(for: key(app), kind: .cover) ??
         app.icon
     }
@@ -306,7 +310,7 @@ struct BloomBoxGameBoxV2Screen: View {
                     .font(.system(size: compact ? 13 : 17, weight: .semibold))
                 Text("GAMEBOX").font(.system(size: compact ? 12 : 15, weight: .black, design: .rounded))
                     .tracking(1.3)
-                Text("V2").font(.system(size: 10, weight: .heavy, design: .rounded))
+                Text(safeGraphics ? "SAFE" : "V2").font(.system(size: 10, weight: .heavy, design: .rounded))
                     .padding(.horizontal, 6).padding(.vertical, 2)
                     .background(focusedAccent.opacity(0.35), in: Capsule())
                 TimelineView(.periodic(from: .now, by: 60)) { time in
