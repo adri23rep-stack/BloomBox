@@ -39,6 +39,27 @@ assert "liveprocess.guest_boot.started" in liveprocess
 assert "liveprocess.guest_boot.returned" in liveprocess
 assert "Library/BloomBoxDiagnostics" in adapter
 assert "LCUtils" not in journal and "LCSharedUtils" not in journal
+# Second-pass audit: prevent regressions in native launch, mobile geometry,
+# gesture precedence, cross-process logging and recovery export.
+assert ".scrollTargetBehavior(.viewAligned)" in gamebox
+assert ".scrollPosition(id: $focusedKey)" in gamebox
+assert "let compact = safeHeight < 520" in gamebox
+assert "exclusively(before: TapGesture(count: 1))" in gamebox
+assert "guard !launchPending else { return }" in gamebox
+assert ".disabled(launchPending)" in gamebox
+assert "if (!handle)" in liveprocess and "if (!payloadEntry)" in liveprocess
+assert "BloomBoxFailRequest" in liveprocess
+assert "liveprocess.custom_payload.dlopen_failed" in liveprocess
+assert "liveprocess.bookmarks.invalid_format" in liveprocess
+assert "Retrieved app info: %@" not in liveprocess
+assert "ftruncate(fd, 0)" in liveprocess
+assert "FileManager.default.urls(for: .applicationSupportDirectory" in adapter
+assert "String(decoding: data.suffix" in journal
+assert "contentModificationDate" in journal
+assert "BloomBox-Diagnostics-" in journal
+app_delegate = (root / "LiveContainerSwiftUI/App/AppDelegate.swift").read_text()
+assert "if let original = class_getInstanceMethod" in app_delegate
+assert "self.keyWindow!" not in app_delegate
 assert ".allowsHitTesting(false)" in (ui / "BloomBoxGameBoxV2Screen.swift").read_text()
 assert "gameRoutePrompt" not in host and "gameGatePrompt" not in host
 assert "BloomBoxRAMPlusView" in host and "LiveBoardJITSetup" in host
