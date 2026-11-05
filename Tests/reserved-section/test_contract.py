@@ -77,6 +77,25 @@ assert "download(for: request)" in lookup
 assert "permittedHosts.contains(finalHost)" in lookup
 assert '["image/jpeg", "image/png", "image/webp"]' in lookup
 assert "20 * 1024 * 1024" not in lookup
+# Only the native host may disclose a guest's exact bundle identity
+# to the wallpaper resolver; the remote data has no executable authority.
+bridge = (root / "LiveContainerSwiftUI/Views/AppList/LCAppListView.swift").read_text()
+resolver = (ui / "BloomBoxRemoteWallpaperRules.swift").read_text()
+schema = (root / "LiveContainerSwiftUI/Utilities/BloomBoxWallpaperRuleSchema.swift").read_text()
+assert "bundleID: app.bundleIdentifier" in bridge
+assert "let bundleID: String?" in gamebox
+assert "wallpaperRules.rule(bundleID: app.bundleID, name: app.name)" in gamebox
+assert "BloomBoxGameBoxArtworkLookup.find(app.name, rule: rule)" in gamebox
+assert "wallpaperRules.refreshIfNeeded()" in gamebox
+assert "String(wallpaperRules.revision)" in gamebox
+assert 'index?.rule(bundleID: bundleID, name: name)' in resolver
+assert 'feature/gamebox-wallpaper-keywords-20261105/catalog/gamebox-wallpaper-rules.json' in resolver
+assert 'BloomBoxWallpaperRuleIndex.validated(from: data)' in resolver
+assert '"schemaVersion", "catalogID", "updatedAt", "rules"' in schema
+assert '"provider", "query", "note"' in schema
+assert 'Set(words).count == words.count' in schema
+assert 'if let bundleID, let exact = rules.first' in schema
+assert 'Self.normalize($0) == normalized' in schema
 assert "BloomBoxGameBoxAutoBackgrounds" in gamebox
 assert 'private let autoBackgroundMode = "autoGameBox"' in gamebox
 assert "artwork.image(for: key(app), kind: .background) ??" in gamebox
