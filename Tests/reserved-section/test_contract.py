@@ -41,10 +41,25 @@ assert "Library/BloomBoxDiagnostics" in adapter
 assert "LCUtils" not in journal and "LCSharedUtils" not in journal
 # Second-pass audit: prevent regressions in native launch, mobile geometry,
 # gesture precedence, cross-process logging and recovery export.
-assert ".scrollTargetBehavior(.viewAligned)" in gamebox
-assert ".scrollPosition(id: $focusedKey)" in gamebox
+# Free scrolling and selection must stay independent. Do not restore the
+# native snapping or ScrollViewReader that previously bounced to app zero.
+assert "carousel(iconSize: iconSize)" in gamebox
+assert "private func appIconItem(" in gamebox
+assert "gameCard(" not in gamebox
+assert ".scrollPosition(" not in gamebox
+assert ".scrollTargetBehavior(" not in gamebox
+assert "ScrollViewReader" not in gamebox
+assert "scroll.scrollTo(" not in gamebox
+assert "moveSelection(" not in gamebox
 assert "let compact = safeHeight < 520" in gamebox
 assert "exclusively(before: TapGesture(count: 1))" in gamebox
+assert "AudioServicesPlaySystemSound(1104)" in gamebox
+assert "isCarouselDragging" in gamebox
+assert "UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.6)" in gamebox
+assert "Image(uiImage: image).resizable().scaledToFit()" in gamebox
+assert '"bloombox.gamebox.icon."' in gamebox
+assert "Text(title(app))" in gamebox  # details panel only
+assert "BloomBoxNikaidoControllerSlot" in gamebox
 assert "guard !launchPending else { return }" in gamebox
 assert ".disabled(launchPending)" in gamebox
 assert "if (!handle)" in liveprocess and "if (!payloadEntry)" in liveprocess
