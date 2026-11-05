@@ -52,7 +52,10 @@ assert "ScrollViewReader" not in gamebox
 assert "scroll.scrollTo(" not in gamebox
 assert "moveSelection(" not in gamebox
 assert "let compact = safeHeight < 520" in gamebox
-assert "exclusively(before: TapGesture(count: 1))" in gamebox
+assert "handleIconTap(app)" in gamebox
+assert "previousTapUptime" in gamebox
+assert "now - previousTapUptime < 0.36" in gamebox
+assert "exclusively(before: TapGesture" not in gamebox
 assert "AudioServicesPlaySystemSound(1104)" in gamebox
 assert "isCarouselDragging" in gamebox
 assert "UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.6)" in gamebox
