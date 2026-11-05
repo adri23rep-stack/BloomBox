@@ -8,6 +8,8 @@ struct BloomBoxLauncherRootView: View {
     @State private var ready = false
     @State private var showModeSheet = false
     @State private var showDestination = false
+    @State private var showDiagnostics = false
+    @State private var showRecoveryNotice = false
 
     private var locale: Locale {
         Locale(identifier: language == "system" ? (Locale.preferredLanguages.first ?? "en") : language)
@@ -35,6 +37,14 @@ struct BloomBoxLauncherRootView: View {
                         }
                         launcherOption(title: "Espacio reservado", detail: "Listo para una futura función.",
                                        icon: "square.dashed", value: "reserved")
+                        NavigationLink(destination: BloomBoxDiagnosticsView()) {
+                            Label("Diagnósticos y recuperación", systemImage: "waveform.path.ecg")
+                                .font(.headline)
+                                .padding(20)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 20))
+                        }
+                        .buttonStyle(.plain)
                         Text("El escritorio es el inicio predeterminado de BloomBox.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
@@ -59,6 +69,23 @@ struct BloomBoxLauncherRootView: View {
                 destinationContent
             }
         }
+        .sheet(isPresented: $showDiagnostics) {
+            NavigationView {
+                BloomBoxDiagnosticsView()
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Listo") { showDiagnostics = false }
+                        }
+                    }
+            }
+            .navigationViewStyle(.stack)
+        }
+        .alert("GameBox recuperado", isPresented: $showRecoveryNotice) {
+            Button("Ver registro") { showDiagnostics = true }
+            Button("Seguir en inicio", role: .cancel) { }
+        } message: {
+            Text("La sesión anterior terminó mientras GameBox estaba abierto. BloomBox inició en el escritorio para evitar un ciclo de cierres. Guardamos los últimos pasos para investigar.")
+        }
         .onChange(of: sharedModel.selectedTab) { tab in
             if tab == .apps {
                 showDestination = false
@@ -73,6 +100,7 @@ struct BloomBoxLauncherRootView: View {
                 BloomBoxLauncherSession.restored = true
             }
             ready = true
+            showRecoveryNotice = BloomBoxCrashJournal.shared.previousInterrupted
         }
     }
 
