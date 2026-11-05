@@ -31,9 +31,12 @@ private struct BloomBoxNikaidoControllerSlot: View {
             .font(.system(size: diameter * 0.39, weight: .medium))
             .foregroundStyle(.white.opacity(0.72))
             .frame(width: diameter, height: diameter)
-            .background(.ultraThinMaterial, in: Circle())
-            .overlay(Circle().strokeBorder(.white.opacity(0.22), lineWidth: 1))
-            .opacity(0.8)
+            .background {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .opacity(0.38)
+            }
+            .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
             .allowsHitTesting(false)
             .accessibilityLabel("Reservado para Nikaido")
             .accessibilityHint("Todavía no tiene controles ni acciones")
@@ -155,7 +158,8 @@ struct BloomBoxGameBoxV2Screen: View {
                             .frame(height: iconSize + 28)
                     }
                     detailPanel(compact: compact)
-                        .frame(height: compact ? 112 : 128)
+                        // Slimmer by ~11%, preserving room for the title and controls.
+                        .frame(height: compact ? 100 : 114)
                         .padding(.horizontal, compact ? 12 : 25)
                 }
                 .padding(.vertical, compact ? 3 : 12)
@@ -375,8 +379,12 @@ struct BloomBoxGameBoxV2Screen: View {
             .minimumScaleFactor(0.75)
             .padding(.horizontal, compact ? 10 : 16)
             .frame(height: compact ? 36 : 46)
-            .background(.black.opacity(0.23), in: Capsule())
-            .overlay(Capsule().strokeBorder(.white.opacity(0.15)))
+            .background {
+                Capsule()
+                    .fill(.ultraThinMaterial)
+                    .opacity(0.36)
+            }
+            .overlay(Capsule().strokeBorder(.white.opacity(0.15), lineWidth: 0.8))
             Spacer(minLength: 4)
             topButton("bell.fill", label: "Avisos de caducidad") {
                 showExpiryReminders = true
@@ -395,8 +403,12 @@ struct BloomBoxGameBoxV2Screen: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 39, height: 39)
-                .background(.ultraThinMaterial, in: Circle())
-                .overlay(Circle().strokeBorder(.white.opacity(0.16), lineWidth: 1))
+                .background {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .opacity(0.38)
+                }
+                .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
@@ -497,7 +509,7 @@ struct BloomBoxGameBoxV2Screen: View {
     }
 
     private func detailPanel(compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: compact ? 6 : 11) {
+        VStack(alignment: .leading, spacing: compact ? 4 : 8) {
             if let app = selectedApp {
                 HStack(spacing: 10) {
                     gameIcon(app, size: compact ? 34 : 48)
@@ -527,7 +539,7 @@ struct BloomBoxGameBoxV2Screen: View {
                     } label: {
                         Label("Play", systemImage: "play.fill")
                             .font(.system(size: compact ? 14 : 17, weight: .semibold, design: .rounded))
-                            .frame(width: compact ? 145 : 195, height: compact ? 36 : 48)
+                            .frame(width: compact ? 145 : 195, height: compact ? 34 : 43)
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.black)
@@ -573,7 +585,7 @@ struct BloomBoxGameBoxV2Screen: View {
                     }
                     Spacer(minLength: 0)
                     // Do not connect this controller-shaped slot to Nikaido yet.
-                    BloomBoxNikaidoControllerSlot(diameter: compact ? 36 : 45)
+                    BloomBoxNikaidoControllerSlot(diameter: compact ? 34 : 40)
                     Button { manage(key(app)) } label: {
                         footerCircle("slider.horizontal.3", label: "Ajustes del juego")
                     }
@@ -600,23 +612,30 @@ struct BloomBoxGameBoxV2Screen: View {
             }
         }
         .padding(.horizontal, compact ? 14 : 22)
-        .padding(.vertical, compact ? 8 : 14)
+        .padding(.vertical, compact ? 6 : 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.ultraThinMaterial,
-                    in: RoundedRectangle(cornerRadius: 25, style: .continuous))
+        .background {
+            RoundedRectangle(cornerRadius: 23, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .opacity(0.42)
+        }
         .overlay {
-            RoundedRectangle(cornerRadius: 25, style: .continuous)
-                .strokeBorder(.white.opacity(0.26), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 23, style: .continuous)
+                .strokeBorder(.white.opacity(0.19), lineWidth: 0.8)
         }
     }
 
     private func footerCircle(_ symbol: String, label: String) -> some View {
         Image(systemName: symbol)
             .font(.system(size: 16, weight: .semibold))
-            .frame(width: 43, height: 43)
+            .frame(width: 38, height: 38)
             .foregroundStyle(.white)
-            .background(.white.opacity(0.11), in: Circle())
-            .overlay(Circle().strokeBorder(.white.opacity(0.21)))
+            .background {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .opacity(0.37)
+            }
+            .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
             .accessibilityLabel(label)
     }
 
