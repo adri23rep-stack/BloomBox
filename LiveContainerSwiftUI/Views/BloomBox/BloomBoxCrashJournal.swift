@@ -151,12 +151,21 @@ final class BloomBoxCrashJournal: ObservableObject {
         if let old = try? FileManager.default.contentsOfDirectory(
             at: temp, includingPropertiesForKeys: [.contentModificationDateKey]
         ) {
-            for item in old where item.lastPathComponent.hasPrefix("BloomBox-Diagnostics-")
-                && item.pathExtension == "txt" {
-                let age = (try? item.resourceValues(forKeys: [.contentModificationDateKey])
-                    .contentModificationDate).map { Date().timeIntervalSince($0) } ?? 0
-                if age > 60 * 60 {
-                    try? FileManager.default.removeItem(at: item)
+            let exports = old.filter {
+                $0.lastPathComponent.hasPrefix("BloomBox-Diagnostics-")
+                    && $0.pathExtension == "txt"
+            }.sorted {
+                let a = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?
+                    .contentModificationDate ?? .distantPast
+                let b = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]))?
+                    .contentModificationDate ?? .distantPast
+                return a < b
+            }
+            // Preserve only the two newest prior exports, including those
+            // created in the last hour; repeated taps must not fill storage.
+            if exports.count > 2 {
+                for old in exports.prefix(exports.count - 2) {
+                    try? FileManager.default.removeItem(at: old)
                 }
             }
         }
