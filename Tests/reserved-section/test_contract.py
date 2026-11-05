@@ -99,6 +99,22 @@ assert 'Self.matchesAlias($0, normalizedName: normalized)' in schema
 assert 'normalizedName.hasPrefix(word + " ")' in schema
 assert 'allowedSuffixes' in schema
 assert "BloomBoxGameBoxAutoBackgrounds" in gamebox
+# Curated direct-link images are strictly allowlisted and override fuzzy
+# console search. Husk is Android emulation, never Minecraft Dungeons.
+assert "let imageURL: String?" in schema
+assert "let sourceURL: String?" in schema
+assert "let imageLicense: String?" in schema
+assert "image.host == \"upload.wikimedia.org\"" in schema
+assert "origin.host == \"commons.wikimedia.org\"" in schema
+assert 'imageLicense == "Public domain"' in schema
+assert "image.lastPathComponent == String(origin.lastPathComponent.dropFirst(5))" in schema
+assert "vettedArtworkURL" in lookup
+assert "Curated Wikimedia Commons" in lookup
+assert "gamebox.wallpaper.curated_image.unavailable" in lookup
+assert "if full == \"husk\"" not in lookup
+assert '"husk"' in lookup
+assert '":" + ($0.imageURL ?? "")' in gamebox
+
 assert 'private let autoBackgroundMode = "autoGameBox"' in gamebox
 assert "artwork.image(for: key(app), kind: .background) ??" in gamebox
 assert "artwork.image(for: key(app), kind: .cover) ??" in gamebox
