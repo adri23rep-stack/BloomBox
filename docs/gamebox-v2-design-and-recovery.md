@@ -99,6 +99,35 @@ Once the user opts in, the wave panel transitions from the SAFE message into
 normal wallpaper lookup with a renewed six-second limit. Neither the intro
 nor the remote catalog silently disables crash protection.
 
+### Root cause: complete catalog rejected by one legal Wikipedia title
+
+A real-device report showed GameBox still rendering the app-icon gradient
+after all seven curated images had been added. The earlier wallpaper validator
+did not permit parentheses in topic queries. The actual BloomBox-Catalog feed
+contained the correct article `Android (operating system)` for Husk, so
+`BloomBoxWallpaperRuleIndex.validated` rejected **all 13 rules at once**.
+The small original Swift unit test did not contain this article, so CI
+incorrectly passed while the full feed failed.
+
+Fixes:
+- Accept `(` and `)` in the restricted article-topic character set (no arbitrary URLs).
+- Run a **real-catalog integration test** over both a checked-in full JSON
+  fixture and the live raw GitHub feed, asserting all seven direct pinned URLs
+  and known emulator mappings decode successfully.
+- Reset the verified remote rules cache to v2 and bypass old synchronization
+  clock when there is no usable catalog.
+- Provide a small **bundled, validated metadata-only fallback** for seven
+  known emulator images, so a temporary GitHub fetch error does not prevent
+  lookup. Remote catalog rules still win; actual images remain downloaded and
+  cached on first use, not shipped in the IPA.
+- Reset per-game failed lookup cooldown to v3 and offer **Actualizar catálogo
+  de fondos** from the GameBox menu. A manual retry always re-fetches the
+  catalog before re-attempting an image.
+
+This fixes a concrete all-or-nothing metadata failure, but cannot guarantee
+download success on offline devices; consult the visible wallpaper state and
+local diagnostics if a CDN connection fails.
+
 ### Fix: wallpaper not appearing even with SAFE off
 
 Earlier builds also hid the wallpaper whenever iOS **Low Power Mode**
