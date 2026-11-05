@@ -88,12 +88,6 @@ struct BloomBoxWallpaperRule: Codable {
     let query: String
     let note: String
 
-    private static let consoles: Set<String> = [
-        "Nintendo Switch", "Nintendo GameCube", "Wii U",
-        "PlayStation Vita", "PlayStation Portable", "Video game console",
-        "Nintendo DS", "Nintendo 3DS", "Game Boy Advance"
-    ]
-
     var isValid: Bool {
         let safeID = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-")
         let safeBundle = CharacterSet(charactersIn:
@@ -118,7 +112,7 @@ struct BloomBoxWallpaperRule: Codable {
         else { return false }
 
         switch provider {
-        case "wikipedia": return Self.consoles.contains(query)
+        case "wikipedia": return query.count <= 70
         case "steam": return query.count <= 70
         default: return false
         }
