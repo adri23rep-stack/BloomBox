@@ -449,175 +449,83 @@ private final class NikaidoGameControllerHost: ObservableObject {
     }
 }
 
+private enum NikaidoStudioPage: String, CaseIterable {
+    case lights = "Luces"
+    case triggers = "Gatillos"
+    case sticks = "Palancas"
+    case profiles = "Perfiles"
+
+    var symbol: String {
+        switch self {
+        case .lights: return "lightspectrum.horizontal"
+        case .triggers: return "hand.point.up.left.fill"
+        case .sticks: return "scope"
+        case .profiles: return "square.stack.3d.up.fill"
+        }
+    }
+}
+
+private enum NikaidoTriggerSide {
+    case left, right
+}
+
 @available(iOS 16.0, *)
 struct BloomBoxNikaidoControllerView: View {
     let gameID: String
     let gameName: String
     @Environment(\.dismiss) private var dismiss
     @StateObject private var host = NikaidoGameControllerHost()
+    @State private var page: NikaidoStudioPage = .lights
+    @State private var selectedTrigger: NikaidoTriggerSide = .right
+    @State private var demoPlayback = true
+    @State private var selectedPreset = "custom"
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    Label(host.controllerName, systemImage: host.isDualSense ? "gamecontroller.fill" : "gamecontroller")
-                    HStack {
-                        Label("Batería del control", systemImage: "battery.75")
-                        Spacer()
-                        Text(host.batteryText).foregroundStyle(.secondary)
-                    }
-                    HStack(spacing: 14) {
-                        availability("RGB", host.supportsLight)
-                        availability("Gatillos", host.isDualSense)
-                        availability("Vibración", host.supportsHaptics)
-                    }
-                    Button("Buscar controles conectados") { host.refresh() }
-                } header: {
-                    Text(gameName)
-                } footer: {
-                    Text("Los efectos se prueban desde GameBox; un emulador puede sobrescribirlos al abrirse.")
-                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 17) {
+                    studioHeader
+                    liveDualSense
+                    studioTabs
 
-                Section {
-                    lightPreview
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()),
-                                        GridItem(.flexible())], spacing: 8) {
-                        ForEach(NikaidoLightStyle.allCases, id: \.self) { item in
-                            lightCell(item)
+                    Group {
+                        switch page {
+                        case .lights: lightingStudio
+                        case .triggers: triggerStudio
+                        case .sticks: stickStudio
+                        case .profiles: profilesStudio
                         }
                     }
-                    .padding(.vertical, 6)
-                    HStack {
-                        ColorPicker("Principal", selection: colorBinding(primary: true), supportsOpacity: false)
-                        ColorPicker("Secundario", selection: colorBinding(primary: false), supportsOpacity: false)
-                    }
-                    HStack {
-                        Text("Brillo")
-                        Slider(value: binding(\.lightBrightness), in: 0...1)
-                        Text("\(Int(host.profile.lightBrightness * 100))%")
-                            .monospacedDigit().frame(width: 46)
-                    }
-                    HStack {
-                        Text("Velocidad")
-                        Slider(value: binding(\.lightSpeed), in: 0.25...3)
-                        Text(String(format: "%.1fx", host.profile.lightSpeed))
-                            .monospacedDigit().frame(width: 46)
-                    }.disabled(!host.profile.lightStyle.animated)
-                } header: {
-                    Label("RGB Studio · 12 efectos", systemImage: "lightspectrum.horizontal")
-                } footer: {
-                    Text("El DualSense tiene una barra de un solo color. GameBox anima el color, no zonas LED independientes. El juego puede reemplazar el efecto.")
-                }
-                .disabled(!host.supportsLight)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: page)
 
-                Section("Gatillos adaptativos") {
-                    triggerRow("L2", style: \.leftTriggerStyle, strength: \.leftStrength,
-                               start: \.leftStart)
-                    triggerRow("R2", style: \.rightTriggerStyle, strength: \.rightStrength,
-                               start: \.rightStart)
-                    HStack {
-                        Button("Copiar L2 → R2") {
-                            host.change { p in
-                                p.rightTriggerStyle = p.leftTriggerStyle
-                                p.rightStrength = p.leftStrength
-                                p.rightStart = p.leftStart
-                            }
-                        }
-                        Spacer()
-                        Button("Apagar ambos") {
-                            host.change { p in
-                                p.leftTriggerStyle = .off
-                                p.rightTriggerStyle = .off
-                            }
-                        }
-                    }.font(.subheadline).disabled(!host.isDualSense)
+                    Text("GameBox controla y previsualiza las funciones compatibles del DualSense. Algunos emuladores pueden sobrescribir luces y gatillos. El remapeo y drift todavía no modifican la entrada de los juegos invitados.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.48))
+                        .padding(.horizontal, 5)
+                        .padding(.bottom, 12)
                 }
-
-                Section {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Label("Autocalibración de drift", systemImage: "scope").font(.headline)
-                        Text("Apoya el control, suelta las dos palancas y no las toques durante la medición.")
-                            .font(.subheadline).foregroundStyle(.secondary)
-                        if host.calibrating {
-                            ProgressView(value: host.calibrationProgress)
-                            Button("Cancelar medición") { host.cancelCalibration() }
-                        } else {
-                            Button { host.beginCalibration() } label: {
-                                Label("Medir y calibrar centro", systemImage: "dot.scope")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.borderedProminent).disabled(!host.isDualSense)
-                        }
-                        Text(host.calibrationMessage).font(.caption).foregroundStyle(.secondary)
-                        if !host.calibrating {
-                            Button("Borrar compensación de drift") {
-                                host.change { p in
-                                    p.leftDriftX = 0; p.leftDriftY = 0
-                                    p.rightDriftX = 0; p.rightDriftY = 0
-                                }
-                            }.font(.caption)
-                        }
-                    }
-                    stickRow("Palanca izquierda", deadzone: \.leftDeadzone,
-                             sensitivity: \.leftSensitivity, invert: \.invertLeftY,
-                             offsetX: \.leftDriftX, offsetY: \.leftDriftY,
-                             physical: host.leftRaw)
-                    stickRow("Palanca derecha", deadzone: \.rightDeadzone,
-                             sensitivity: \.rightSensitivity, invert: \.invertRightY,
-                             offsetX: \.rightDriftX, offsetY: \.rightDriftY,
-                             physical: host.rightRaw)
-                } header: {
-                    Text("Input Studio · vista previa")
-                } footer: {
-                    Text("La medición guarda compensaciones del centro y ajusta la zona muerta si hace falta. NO repara el hardware ni cambia controles en apps invitadas hasta integrar su puente de entradas.")
-                }
-
-                Section {
-                    mappingRow("Cruz (×)", key: \.crossMapping)
-                    mappingRow("Círculo (○)", key: \.circleMapping)
-                } header: {
-                    Text("Remapeo · perfil preparado")
-                } footer: {
-                    Text("El remapeo se guarda por juego, pero todavía NO altera botones dentro de las apps invitadas. No se inyectan entradas ni se realizan cambios globales en iOS.")
-                }
-
-                Section {
-                    HStack {
-                        Image(systemName: "square.stack.3d.up.fill").foregroundStyle(.cyan)
-                        VStack(alignment: .leading) {
-                            Text(gameName).font(.headline)
-                            Text("Configuración guardada automáticamente")
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
-                    Menu {
-                        Button("Por defecto") { applyPreset("default") }
-                        Button("Shooter / FPS") { applyPreset("shooter") }
-                        Button("Precisión / sniper") { applyPreset("precision") }
-                        Button("Carreras") { applyPreset("racing") }
-                        Button("Arco y aventura") { applyPreset("archery") }
-                        Button("Horror") { applyPreset("horror") }
-                        Button("Arcade") { applyPreset("arcade") }
-                        Button("Suave / accesibilidad") { applyPreset("soft") }
-                    } label: {
-                        Label("Elegir perfil para este juego", systemImage: "square.stack.3d.up")
-                    }
-                    Button("Restaurar perfil de este juego", role: .destructive) {
-                        host.change { $0 = NikaidoGameProfile() }
-                    }
-                } header: {
-                    Text("Perfiles por juego")
-                } footer: {
-                    Text("Los perfiles no cambian Nikaido en Windows. El remapeo y la corrección del drift quedan listos para emuladores compatibles.")
-                }
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
             }
-            .navigationTitle("Nikaido · GameBox")
+            .background {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.04, green: 0.06, blue: 0.12),
+                        Color(red: 0.01, green: 0.02, blue: 0.05)
+                    ], startPoint: .topLeading, endPoint: .bottomTrailing
+                ).ignoresSafeArea()
+            }
+            .scrollIndicators(.hidden)
+            .navigationTitle("Nikaido Studio")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Listo") { dismiss() }
+                        .foregroundStyle(.cyan)
                 }
             }
+            .preferredColorScheme(.dark)
             .onAppear { host.activate(gameKey: gameID) }
             .onDisappear { host.deactivate() }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
@@ -631,6 +539,300 @@ struct BloomBoxNikaidoControllerView: View {
             .onReceive(Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()) { _ in
                 host.sampleInput()
             }
+        }
+    }
+
+    private var studioHeader: some View {
+        HStack(spacing: 11) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 13).fill(.cyan.opacity(0.14))
+                Image(systemName: "gamecontroller.fill")
+                    .font(.system(size: 21))
+                    .foregroundStyle(.cyan)
+            }
+            .frame(width: 44, height: 44)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(gameName)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .lineLimit(1)
+                Text(host.controllerName)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.55))
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            VStack(alignment: .trailing, spacing: 4) {
+                Label(host.batteryText, systemImage: "battery.75")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.85))
+                HStack(spacing: 5) {
+                    Circle().fill(host.isDualSense ? .green : .orange)
+                        .frame(width: 6, height: 6)
+                    Text(host.isDualSense ? "DualSense" : "Vista previa")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.65))
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var liveDualSense: some View {
+        TimelineView(.periodic(from: .now, by: 0.12)) { timeline in
+            let tick = timeline.date.timeIntervalSinceReferenceDate
+            let demoPress = Float(reduceMotion || !demoPlayback ? 0 : (0.5 + 0.5 * sin(tick * 1.7)))
+            BloomBoxDualSenseVisualPreview(
+                lightColor: host.previewLightColor,
+                lightEffectName: host.profile.lightStyle.title,
+                leftPressure: host.isDualSense ? host.leftTriggerRaw : demoPress,
+                rightPressure: host.isDualSense ? host.rightTriggerRaw : demoPress,
+                leftStrength: host.profile.leftStrength,
+                rightStrength: host.profile.rightStrength,
+                leftEnabled: host.profile.leftTriggerStyle != .off,
+                rightEnabled: host.profile.rightTriggerStyle != .off,
+                leftStick: host.isDualSense ? host.leftRaw : (0, 0),
+                rightStick: host.isDualSense ? host.rightRaw : (0, 0),
+                connected: host.isDualSense,
+                onLightTap: { page = .lights },
+                onLeftTriggerTap: { selectedTrigger = .left; page = .triggers },
+                onRightTriggerTap: { selectedTrigger = .right; page = .triggers }
+            )
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if !host.isDualSense && !reduceMotion {
+                Button {
+                    demoPlayback.toggle()
+                } label: {
+                    Label(demoPlayback ? "Pausar demo" : "Reproducir demo",
+                          systemImage: demoPlayback ? "pause.fill" : "play.fill")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(.black.opacity(0.6), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .padding(11)
+                .accessibilityIdentifier("bloombox.nikaido.preview.playback")
+            }
+        }
+    }
+
+    private var studioTabs: some View {
+        HStack(spacing: 6) {
+            ForEach(NikaidoStudioPage.allCases, id: \.self) { item in
+                Button {
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
+                        page = item
+                    }
+                } label: {
+                    VStack(spacing: 5) {
+                        Image(systemName: item.symbol).font(.system(size: 17, weight: .medium))
+                        Text(item.rawValue).font(.system(size: 10, weight: .bold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 55)
+                    .foregroundStyle(page == item ? .white : .white.opacity(0.6))
+                    .background(page == item ? Color.cyan.opacity(0.24) :
+                                Color.white.opacity(0.055),
+                                in: RoundedRectangle(cornerRadius: 13))
+                    .overlay(RoundedRectangle(cornerRadius: 13)
+                        .strokeBorder(page == item ? .cyan.opacity(0.7) : .clear,
+                                      lineWidth: 1.2))
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(page == item ? .isSelected : [])
+            }
+        }
+        .accessibilityIdentifier("bloombox.nikaido.studio.tabs")
+    }
+
+    private var lightingStudio: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionTitle("RGB Studio", subtitle: "12 efectos que se reflejan en el control de arriba",
+                         symbol: "lightspectrum.horizontal")
+            studioCard {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()),
+                                    GridItem(.flexible())], spacing: 9) {
+                    ForEach(NikaidoLightStyle.allCases, id: \.self) { item in
+                        lightCell(item)
+                    }
+                }
+            }
+            studioCard {
+                HStack {
+                    Label("Colores", systemImage: "paintpalette")
+                        .font(.headline)
+                    Spacer()
+                    Text(host.profile.lightStyle.title)
+                        .font(.caption).foregroundStyle(.cyan)
+                }
+                HStack(spacing: 16) {
+                    ColorPicker("Principal", selection: colorBinding(primary: true), supportsOpacity: false)
+                    ColorPicker("Secundario", selection: colorBinding(primary: false), supportsOpacity: false)
+                }
+                settingsSlider("Brillo", value: binding(\.lightBrightness), range: 0...1,
+                               valueText: "\(Int(host.profile.lightBrightness * 100))%")
+                settingsSlider("Velocidad", value: binding(\.lightSpeed), range: 0.25...3,
+                               valueText: String(format: "%.1fx", host.profile.lightSpeed))
+                    .disabled(!host.profile.lightStyle.animated)
+            }
+            .disabled(!host.supportsLight && host.isDualSense)
+            Text(host.supportsLight ? "El DualSense tiene una sola barra RGB; el brillo y el color cambian juntos." :
+                 "Modo demostración: los efectos animan el control dibujado. Conecta un DualSense compatible para probar las luces reales.")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.6))
+        }
+    }
+
+    private var triggerStudio: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionTitle("Adaptive Trigger Studio",
+                         subtitle: "Selecciona L2 o R2 directamente en el control",
+                         symbol: "hand.point.up.left.fill")
+
+            HStack(spacing: 10) {
+                triggerSideButton(.left, name: "L2", effect: host.profile.leftTriggerStyle,
+                                  strength: host.profile.leftStrength)
+                triggerSideButton(.right, name: "R2", effect: host.profile.rightTriggerStyle,
+                                  strength: host.profile.rightStrength)
+            }
+            studioCard {
+                Label("11 sensaciones", systemImage: "waveform.path")
+                    .font(.headline)
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 9) {
+                    ForEach(NikaidoTriggerStyle.allCases, id: \.self) { item in
+                        triggerEffectCard(item)
+                    }
+                }
+            }
+            studioCard {
+                Label(selectedTrigger == .left ? "Ajustar L2" : "Ajustar R2",
+                      systemImage: "slider.horizontal.3")
+                    .font(.headline)
+                let strength = selectedTrigger == .left ? host.profile.leftStrength : host.profile.rightStrength
+                let start = selectedTrigger == .left ? host.profile.leftStart : host.profile.rightStart
+                settingsSlider("Resistencia", value: selectedTriggerStrength, range: 0...1,
+                               valueText: "\(Int(strength * 100))%")
+                settingsSlider("Inicio", value: selectedTriggerStart, range: 0.05...0.65,
+                               valueText: "\(Int(start * 100))%")
+                triggerResponseGraph(start: start, strength: strength)
+                HStack {
+                    Button("Copiar al otro gatillo") {
+                        host.change { p in
+                            if selectedTrigger == .left {
+                                p.rightTriggerStyle = p.leftTriggerStyle
+                                p.rightStrength = p.leftStrength
+                                p.rightStart = p.leftStart
+                            } else {
+                                p.leftTriggerStyle = p.rightTriggerStyle
+                                p.leftStrength = p.rightStrength
+                                p.leftStart = p.rightStart
+                            }
+                        }
+                    }
+                    Spacer()
+                    Button("Apagar ambos") {
+                        host.change { p in
+                            p.leftTriggerStyle = .off
+                            p.rightTriggerStyle = .off
+                        }
+                    }
+                }
+                .font(.system(size: 12, weight: .semibold))
+            }
+            Text("Los gatillos físicos requieren un DualSense conectado. Su comportamiento puede ser reemplazado por un juego.")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.55))
+        }
+    }
+
+    private var stickStudio: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            sectionTitle("Input Studio", subtitle: "Mide el drift y mira las palancas en vivo",
+                         symbol: "scope")
+            studioCard {
+                Label("Autocalibración de drift", systemImage: "dot.scope")
+                    .font(.headline)
+                Text("Deja el control quieto y suelta ambas palancas durante la medición.")
+                    .font(.caption).foregroundStyle(.white.opacity(0.64))
+                if host.calibrating {
+                    ProgressView(value: host.calibrationProgress)
+                        .tint(.cyan)
+                    Button("Cancelar") { host.cancelCalibration() }
+                } else {
+                    Button {
+                        host.beginCalibration()
+                    } label: {
+                        Label("Medir y calibrar centro", systemImage: "scope")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!host.isDualSense)
+                }
+                Text(host.calibrationMessage)
+                    .font(.caption).foregroundStyle(.white.opacity(0.6))
+                Button("Borrar compensación de drift") {
+                    host.change { p in
+                        p.leftDriftX = 0; p.leftDriftY = 0
+                        p.rightDriftX = 0; p.rightDriftY = 0
+                    }
+                }
+                .font(.caption)
+                .disabled(host.calibrating)
+            }
+            studioCard {
+                stickRow("Palanca izquierda", deadzone: \.leftDeadzone,
+                         sensitivity: \.leftSensitivity, invert: \.invertLeftY,
+                         offsetX: \.leftDriftX, offsetY: \.leftDriftY,
+                         physical: host.leftRaw)
+            }
+            studioCard {
+                stickRow("Palanca derecha", deadzone: \.rightDeadzone,
+                         sensitivity: \.rightSensitivity, invert: \.invertRightY,
+                         offsetX: \.rightDriftX, offsetY: \.rightDriftY,
+                         physical: host.rightRaw)
+            }
+            studioCard {
+                Label("Remapeo guardado", systemImage: "arrow.left.arrow.right")
+                    .font(.headline)
+                mappingRow("Cruz (×)", key: \.crossMapping)
+                mappingRow("Círculo (○)", key: \.circleMapping)
+            }
+            Text("Las zonas muertas y el remapeo se previsualizan y guardan por juego. Para afectar a un emulador se necesita su puente de entradas. Esto no repara drift físico.")
+                .font(.caption).foregroundStyle(.white.opacity(0.55))
+        }
+    }
+
+    private var profilesStudio: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            sectionTitle("Perfiles", subtitle: "Un estilo para cada tipo de juego",
+                         symbol: "square.stack.3d.up.fill")
+            studioCard {
+                Label(gameName, systemImage: "gamecontroller.fill")
+                    .font(.headline).lineLimit(1)
+                Text("Se guarda automáticamente. Cambiar de perfil conserva las compensaciones de drift.")
+                    .font(.caption).foregroundStyle(.white.opacity(0.6))
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    profileCard("default", title: "Por defecto", symbol: "circle.grid.2x2", tint: .cyan)
+                    profileCard("shooter", title: "Shooter", symbol: "scope", tint: .orange)
+                    profileCard("precision", title: "Precisión", symbol: "target", tint: .mint)
+                    profileCard("racing", title: "Carreras", symbol: "car.fill", tint: .blue)
+                    profileCard("archery", title: "Aventura", symbol: "leaf.fill", tint: .green)
+                    profileCard("horror", title: "Horror", symbol: "moon.stars.fill", tint: .purple)
+                    profileCard("arcade", title: "Arcade", symbol: "sparkles", tint: .pink)
+                    profileCard("soft", title: "Suave", symbol: "hand.raised.fill", tint: .teal)
+                }
+            }
+            Button(role: .destructive) {
+                host.change { $0 = NikaidoGameProfile() }
+                selectedPreset = "default"
+            } label: {
+                Label("Restaurar todos los ajustes del juego", systemImage: "arrow.counterclockwise")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
         }
     }
 
