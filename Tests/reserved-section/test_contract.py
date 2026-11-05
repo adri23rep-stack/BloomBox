@@ -109,6 +109,29 @@ assert "Ver origen y atribución" in gamebox
 assert "Buscar fondo en Internet" in gamebox
 assert "Quitar fondo descargado" in gamebox
 assert "mode: autoBackgroundMode" in gamebox
+# Background must render regardless of Low Power Mode (constrained only
+# reduces blur/motion). A prior request cannot starve the next selection.
+assert "if let app = selectedApp, let image = backdrop(app)" in gamebox
+assert "if !constrained, let app = selectedApp" not in gamebox
+assert "guard autoBackgrounds, !safeGraphics,\n              let app = selectedApp" in gamebox
+assert "guard autoBackgrounds, !safeGraphics, !constrained" not in gamebox
+assert "fetchingAutoBackground != id" in gamebox
+assert "if fetchingAutoBackground == id { fetchingAutoBackground = nil }" in gamebox
+assert "BloomBoxGameBoxArtworkLastAttemptRule-v2:" in gamebox
+assert 'wallpaperLookupStatus[id] = "Fondo listo"' in gamebox
+assert 'wallpaperLookupStatus[id] = "Sin resultado · reintentar"' in gamebox
+assert "Text(wallpaperStatusText(for: app))" in gamebox
+assert ".animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: artwork.revision)" in gamebox
+# Copyright-conscious fallback: Wikimedia Commons must match the selected
+# emulator's platform topic, not any game's unrelated artwork.
+assert "private static func commonsConsoleArtwork(for platform: String)" in lookup
+assert 'URLComponents(string: "https://commons.wikimedia.org/w/api.php")' in lookup
+assert 'URLQueryItem(name: "gsrnamespace", value: "6")' in lookup
+assert 'URLQueryItem(name: "iiprop", value: "url|mime|size")' in lookup
+assert "name.contains(platformName)" in lookup
+assert "source.host == \"commons.wikimedia.org\"" in lookup
+assert "return await commonsConsoleArtwork(for: article)" in lookup
+
 # GameBox wallpaper lookup gets a bounded mini startup window; animated
 # icons never touch the carousel's selection or guest launch paths.
 intro = (ui / "BloomBoxGameBoxArtworkIntro.swift").read_text()
