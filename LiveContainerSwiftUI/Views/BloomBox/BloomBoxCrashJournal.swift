@@ -50,6 +50,10 @@ final class BloomBoxCrashJournal: ObservableObject {
         defaults.set(false, forKey: runningKey)
         defaults.set(interrupted, forKey: interruptedKey)
         previousInterrupted = interrupted
+        if interrupted {
+            // Safe graphics on next launch; user can re-enable full artwork.
+            defaults.set(true, forKey: "BloomBoxGameBoxSafeGraphics")
+        }
         trimOldLogs()
         record(interrupted ? "host.restarted.after.foreground.interruption" : "host.started")
     }
@@ -235,6 +239,8 @@ struct BloomBoxDiagnosticsView: View {
     @ObservedObject private var journal = BloomBoxCrashJournal.shared
     @State private var exportURL: URL?
     @State private var confirmClear = false
+    @AppStorage("BloomBoxGameBoxSafeGraphics", store: LiveContainerPreferencesAdapter.defaults)
+    private var safeGraphics = false
 
     var body: some View {
         ScrollView {
@@ -248,6 +254,13 @@ struct BloomBoxDiagnosticsView: View {
                     Label("Se detectó una sesión interrumpida. BloomBox arrancó en el escritorio para evitar repetir el problema.", systemImage: "exclamationmark.triangle.fill")
                         .font(.subheadline)
                         .foregroundStyle(.orange)
+                }
+                Toggle(isOn: $safeGraphics) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Modo seguro de GameBox")
+                        Text("Desactiva fondos pesados y carátulas personalizadas hasta que puedas probarlos otra vez.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                 }
                 HStack {
                     if let exportURL {
