@@ -183,11 +183,16 @@ private final class NikaidoGameControllerHost: ObservableObject {
     @Published private(set) var batteryText = "No disponible"
     @Published private(set) var leftRaw: (Float, Float) = (0, 0)
     @Published private(set) var rightRaw: (Float, Float) = (0, 0)
+    @Published private(set) var calibrating = false
+    @Published private(set) var calibrationProgress: Double = 0
+    @Published private(set) var calibrationMessage = "Sin calibrar"
 
     private var gameKey = ""
     private var controller: GCController?
     private var lightTimer: Timer?
     private var appliedTriggers = false
+    private var calibrationSamples: [(Double, Double, Double, Double)] = []
+    private let sampleTarget = 60
 
     func activate(gameKey: String) {
         stopEffects()
@@ -199,7 +204,10 @@ private final class NikaidoGameControllerHost: ObservableObject {
     func refresh() {
         let current = GCController.controllers()
         let preferred = current.first(where: { $0.extendedGamepad is GCDualSenseGamepad }) ?? current.first
-        if controller !== preferred { stopEffects() }
+        if controller !== preferred {
+            stopEffects()
+            if calibrating { cancelCalibration("El control se desconectó. Intenta de nuevo.") }
+        }
         controller = preferred
         controllerName = preferred?.vendorName ?? "Sin control conectado"
         isDualSense = preferred?.extendedGamepad is GCDualSenseGamepad
@@ -222,6 +230,67 @@ private final class NikaidoGameControllerHost: ObservableObject {
         }
         leftRaw = (pad.leftThumbstick.xAxis.value, pad.leftThumbstick.yAxis.value)
         rightRaw = (pad.rightThumbstick.xAxis.value, pad.rightThumbstick.yAxis.value)
+        collectCalibrationSample()
+    }
+
+    func beginCalibration() {
+        guard isDualSense, controller?.extendedGamepad != nil else {
+            calibrationMessage = "Conecta un DualSense para calibrar."
+            return
+        }
+        calibrationSamples.removeAll(keepingCapacity: true)
+        calibrationProgress = 0
+        calibrating = true
+        calibrationMessage = "No toques las palancas durante 3 segundos."
+    }
+
+    func cancelCalibration(_ message: String = "Calibración cancelada.") {
+        calibrating = false
+        calibrationSamples.removeAll()
+        calibrationProgress = 0
+        calibrationMessage = message
+    }
+
+    private func collectCalibrationSample() {
+        guard calibrating, controller?.extendedGamepad != nil else { return }
+        let values = (Double(leftRaw.0), Double(leftRaw.1),
+                      Double(rightRaw.0), Double(rightRaw.1))
+        let axes = [values.0, values.1, values.2, values.3]
+        guard axes.allSatisfy({ $0.isFinite && abs($0) < 0.22 }) else {
+            cancelCalibration("Detecté movimiento o drift demasiado alto. Suelta las palancas e inténtalo otra vez.")
+            return
+        }
+        calibrationSamples.append(values)
+        calibrationProgress = Double(calibrationSamples.count) / Double(sampleTarget)
+        guard calibrationSamples.count >= sampleTarget else { return }
+        let count = Double(calibrationSamples.count)
+        let means = (calibrationSamples.reduce(0) { $0 + $1.0 } / count,
+                     calibrationSamples.reduce(0) { $0 + $1.1 } / count,
+                     calibrationSamples.reduce(0) { $0 + $1.2 } / count,
+                     calibrationSamples.reduce(0) { $0 + $1.3 } / count)
+        let deviation = calibrationSamples.map { sample in
+            max(abs(sample.0 - means.0), abs(sample.1 - means.1),
+                abs(sample.2 - means.2), abs(sample.3 - means.3))
+        }.max() ?? 0
+        guard deviation <= 0.07 else {
+            cancelCalibration("Las lecturas no fueron estables. No se guardó ningún cambio.")
+            return
+        }
+        // Calibrates software center offsets for GameBox's preview/compatible
+        // guest bridges; it cannot modify controller firmware or heal damage.
+        let recommended = min(0.25, max(0.035, deviation * 3 + 0.02))
+        change { p in
+            p.leftDriftX = means.0
+            p.leftDriftY = means.1
+            p.rightDriftX = means.2
+            p.rightDriftY = means.3
+            p.leftDeadzone = max(p.leftDeadzone, recommended)
+            p.rightDeadzone = max(p.rightDeadzone, recommended)
+        }
+        calibrating = false
+        calibrationSamples.removeAll()
+        calibrationProgress = 1
+        calibrationMessage = String(format: "Centro guardado · variación máxima %.3f", deviation)
     }
 
     func change(_ change: (inout NikaidoGameProfile) -> Void) {
@@ -234,11 +303,13 @@ private final class NikaidoGameControllerHost: ObservableObject {
         lightTimer?.invalidate()
         lightTimer = nil
         guard controller != nil else { return }
-        applyTrigger(profile.leftTriggerStyle, strength: profile.leftStrength, left: true)
-        applyTrigger(profile.rightTriggerStyle, strength: profile.rightStrength, left: false)
+        applyTrigger(profile.leftTriggerStyle, strength: profile.leftStrength,
+                     start: profile.leftStart, left: true)
+        applyTrigger(profile.rightTriggerStyle, strength: profile.rightStrength,
+                     start: profile.rightStart, left: false)
         if supportsLight {
             updateLight()
-            if profile.lightStyle != .fixed {
+            if profile.lightStyle.animated {
                 lightTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
                     Task { @MainActor in self?.updateLight() }
                 }
@@ -246,10 +317,12 @@ private final class NikaidoGameControllerHost: ObservableObject {
         }
     }
 
-    private func applyTrigger(_ effect: NikaidoTriggerStyle, strength: Double, left: Bool) {
+    private func applyTrigger(_ effect: NikaidoTriggerStyle, strength: Double,
+                              start: Double, left: Bool) {
         guard let pad = controller?.extendedGamepad as? GCDualSenseGamepad else { return }
         let trigger = left ? pad.leftTrigger : pad.rightTrigger
         let force = Float(min(max(strength, 0), 1))
+        let startPosition = Float(min(max(start, 0.05), 0.65))
         guard force > 0, effect != .off else {
             trigger.setModeOff()
             return
@@ -258,36 +331,83 @@ private final class NikaidoGameControllerHost: ObservableObject {
         switch effect {
         case .off: trigger.setModeOff()
         case .resistance:
-            trigger.setModeFeedbackWithStartPosition(0.25, resistiveStrength: force)
+            trigger.setModeFeedbackWithStartPosition(startPosition, resistiveStrength: force)
+        case .soft:
+            trigger.setModeFeedbackWithStartPosition(startPosition, resistiveStrength: force * 0.35)
+        case .heavy:
+            trigger.setModeFeedbackWithStartPosition(startPosition, resistiveStrength: min(1, force * 1.25))
         case .weapon:
-            trigger.setModeWeaponWithStartPosition(0.2, endPosition: 0.8, resistiveStrength: force)
+            trigger.setModeWeaponWithStartPosition(startPosition, endPosition: 0.84, resistiveStrength: force)
+        case .sniper:
+            trigger.setModeWeaponWithStartPosition(0.58, endPosition: 0.92, resistiveStrength: force)
+        case .bow:
+            trigger.setModeSlopeFeedback(startPosition: startPosition, endPosition: 0.96,
+                                         startStrength: force * 0.2, endStrength: force)
+        case .ramp:
+            trigger.setModeSlopeFeedback(startPosition: startPosition, endPosition: 0.9,
+                                         startStrength: 0, endStrength: force)
         case .vibration:
-            trigger.setModeVibrationWithStartPosition(0.25, amplitude: force, frequency: 12)
+            trigger.setModeVibrationWithStartPosition(startPosition, amplitude: force, frequency: 0.22)
+        case .recoil:
+            trigger.setModeVibrationWithStartPosition(startPosition, amplitude: force, frequency: 0.62)
+        case .rapid:
+            trigger.setModeVibrationWithStartPosition(startPosition, amplitude: force, frequency: 0.88)
         }
     }
 
     private func updateLight() {
         guard let light = controller?.light else { return }
-        var red = profile.red
-        var green = profile.green
-        var blue = profile.blue
+        let t = Date().timeIntervalSinceReferenceDate * profile.lightSpeed
+        let primary = [profile.red, profile.green, profile.blue]
+        let secondary = [profile.secondaryRed, profile.secondaryGreen, profile.secondaryBlue]
+        func mix(_ a: [Double], _ b: [Double], _ f: Double) -> [Double] {
+            let amount = min(1, max(0, f))
+            return zip(a, b).map { $0 * (1 - amount) + $1 * amount }
+        }
+        func rainbow(_ hue: Double) -> [Double] {
+            let color = UIColor(hue: CGFloat(hue - floor(hue)), saturation: 0.95,
+                                brightness: 1, alpha: 1)
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            color.getRed(&r, green: &g, blue: &b, alpha: &a)
+            return [Double(r), Double(g), Double(b)]
+        }
+        var rgb = primary
+        var brightness = profile.lightBrightness
+        let wave = 0.5 + 0.5 * sin(t * 2.2)
         switch profile.lightStyle {
         case .fixed: break
         case .breathe:
-            let factor = 0.25 + 0.75 * (0.5 + 0.5 * sin(Date().timeIntervalSinceReferenceDate * 2))
-            red *= factor
-            green *= factor
-            blue *= factor
+            brightness *= 0.15 + 0.85 * wave
         case .rainbow:
-            let hue = Date().timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 8) / 8
-            let rgb = UIColor(hue: CGFloat(hue), saturation: 0.9, brightness: 1, alpha: 1)
-            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-            rgb.getRed(&r, green: &g, blue: &b, alpha: &a)
-            red = Double(r)
-            green = Double(g)
-            blue = Double(b)
+            rgb = rainbow(t / 9)
+        case .pulse:
+            brightness *= 0.18 + 0.82 * pow(wave, 4)
+        case .heartbeat:
+            let beat = t.truncatingRemainder(dividingBy: 2)
+            brightness *= 0.12 + 0.88 * max(exp(-pow((beat - 0.18) * 7, 2)),
+                                            0.58 * exp(-pow((beat - 0.54) * 7, 2)))
+        case .wave:
+            rgb = mix(primary, secondary, wave)
+        case .comet:
+            let phase = t.truncatingRemainder(dividingBy: 2.8) / 2.8
+            brightness *= 0.1 + 0.9 * exp(-phase * 5)
+            rgb = mix(primary, secondary, phase)
+        case .aurora:
+            rgb = mix(rainbow(0.45 + sin(t / 4) * 0.09),
+                      rainbow(0.79 + sin(t / 7) * 0.09), wave)
+        case .fire:
+            rgb = mix([1, 0.08, 0], [1, 0.57, 0.02], wave)
+            brightness *= 0.62 + 0.3 * (0.5 + 0.5 * sin(t * 8))
+        case .police:
+            rgb = sin(t * 3.2) >= 0 ? [1, 0.02, 0.04] : [0.01, 0.1, 1]
+        case .sparkle:
+            rgb = mix(primary, [1, 1, 1], pow(max(0, sin(t * 5)), 12))
+        case .sunset:
+            rgb = mix([1, 0.26, 0.04], [0.54, 0.08, 0.65], wave)
         }
-        light.color = GCColor(red: Float(red), green: Float(green), blue: Float(blue))
+        light.color = GCColor(red: Float(min(1, max(0, rgb[0] * brightness))),
+                              green: Float(min(1, max(0, rgb[1] * brightness))),
+                              blue: Float(min(1, max(0, rgb[2] * brightness))))
     }
 
     func stopEffects() {
@@ -301,6 +421,7 @@ private final class NikaidoGameControllerHost: ObservableObject {
     }
 
     func deactivate() {
+        cancelCalibration()
         stopEffects()
         controller = nil
     }
