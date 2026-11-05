@@ -28,7 +28,9 @@ guard let index = BloomBoxWallpaperRuleIndex.validated(from: encode(valid)) else
 assert(index.rule(bundleID: "me.oatmealdome.DolphiniOS-njb-patreon-beta",
                   name: "Other Name")?.query == "Nintendo GameCube")
 assert(index.rule(bundleID: nil, name: "mElOnNX")?.query == "Nintendo Switch")
-assert(index.rule(bundleID: nil, name: "MelonNX 2") == nil)
+assert(index.rule(bundleID: nil, name: "MelonNX 2.6")?.query == "Nintendo Switch")
+assert(index.rule(bundleID: nil, name: "MelonNX Copycat") == nil)
+assert(index.rule(bundleID: nil, name: "DolphiniOS Public Beta")?.query == "Nintendo GameCube")
 assert(index.rule(bundleID: nil, name: "Delta Force") == nil)
 assert(index.rule(bundleID: nil, name: "RDR - IOSVIZOR.COM")?.query == "Red Dead Redemption")
 assert(index.rule(bundleID: "com.unknown.app", name: "Unknown") == nil)
