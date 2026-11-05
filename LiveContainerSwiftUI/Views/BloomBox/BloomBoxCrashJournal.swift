@@ -131,8 +131,8 @@ final class BloomBoxCrashJournal: ObservableObject {
         }
         for file in ["events.log", "liveprocess.log"] {
             let url = folder.appendingPathComponent(file)
-            if let data = try? Data(contentsOf: url),
-               let text = String(data: data.suffix(64 * 1024), encoding: .utf8) {
+            if let data = try? Data(contentsOf: url) {
+                let text = String(decoding: data.suffix(64 * 1024), as: UTF8.self)
                 pieces.append("== \(file) ==\n" + text)
             }
         }
@@ -146,8 +146,22 @@ final class BloomBoxCrashJournal: ObservableObject {
     /// Plain text export combines breadcrumbs and original MetricKit JSON.
     /// This intentionally never uploads anything.
     func makeExport() -> URL? {
-        let output = FileManager.default.temporaryDirectory
-            .appendingPathComponent("BloomBox-Diagnostics-\(UUID().uuidString).txt")
+        // Refreshing an export must not leak unlimited copies into Caches/tmp.
+        let temp = FileManager.default.temporaryDirectory
+        if let old = try? FileManager.default.contentsOfDirectory(
+            at: temp, includingPropertiesForKeys: [.contentModificationDateKey]
+        ) {
+            for item in old where item.lastPathComponent.hasPrefix("BloomBox-Diagnostics-")
+                && item.pathExtension == "txt" {
+                let age = (try? item.resourceValues(forKeys: [.contentModificationDateKey])
+                    .contentModificationDate).map { Date().timeIntervalSince($0) } ?? 0
+                if age > 60 * 60 {
+                    try? FileManager.default.removeItem(at: item)
+                }
+            }
+        }
+        let output = temp.appendingPathComponent(
+            "BloomBox-Diagnostics-\(UUID().uuidString).txt")
         var report = "BloomBox — diagnóstico local\nEl registro de interrupción no confirma por sí solo un crash.\n\n"
         report += summary()
         if let folder {
@@ -185,7 +199,11 @@ final class BloomBoxCrashJournal: ObservableObject {
             at: folder, includingPropertiesForKeys: [.contentModificationDateKey]
         )) ?? [])
         .filter { $0.lastPathComponent.hasPrefix("metric-") && $0.pathExtension == "json" }
-        .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        .sorted {
+            let lhs = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+            let rhs = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+            return lhs < rhs
+        }
     }
 
     private func trimOldLogs() {
