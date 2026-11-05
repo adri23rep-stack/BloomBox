@@ -17,7 +17,7 @@ final class BloomBoxCrashJournal: ObservableObject {
 
     private let runningKey = "BloomBoxGameBoxForegroundSession"
     private let interruptedKey = "BloomBoxGameBoxPreviousInterruption"
-    private let defaults = LCUtils.appGroupUserDefault
+    private let defaults = LiveContainerPreferencesAdapter.defaults
     private let lock = NSLock()
     private var started = false
     private let maxLogBytes = 256 * 1024
