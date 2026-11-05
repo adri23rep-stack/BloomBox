@@ -9,7 +9,7 @@ struct BloomBoxWizardWelcomeView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
+    @AppStorage("BloomBoxPreferredLanguage", store: LiveContainerPreferencesAdapter.defaults)
     private var preferredLanguage = "system"
     @State private var showEnglishGreeting = true
 
