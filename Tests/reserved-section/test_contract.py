@@ -63,6 +63,16 @@ assert "Image(uiImage: image).resizable().scaledToFit()" in gamebox
 assert '"bloombox.gamebox.icon."' in gamebox
 assert "Text(title(app))" in gamebox  # details panel only
 assert "BloomBoxNikaidoControllerSlot" in gamebox
+# Glass refinement must keep the icon carousel untouched while reducing
+# only the panel height and visual density of background surfaces.
+assert ".frame(height: compact ? 100 : 120)" in gamebox
+assert ".opacity(0.42)" in gamebox  # detail sheet material
+assert ".opacity(0.36)" in gamebox  # status capsule material
+assert ".opacity(0.38)" in gamebox  # circular header material
+assert ".frame(width: 38, height: 38)" in gamebox
+assert "carousel(iconSize: iconSize)" in gamebox
+assert ".scrollPosition(" not in gamebox
+assert ".scrollTargetBehavior(" not in gamebox
 assert "guard !launchPending else { return }" in gamebox
 assert ".disabled(launchPending)" in gamebox
 assert "if (!handle)" in liveprocess and "if (!payloadEntry)" in liveprocess
