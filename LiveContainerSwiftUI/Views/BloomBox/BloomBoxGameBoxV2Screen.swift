@@ -57,6 +57,8 @@ struct BloomBoxGameBoxV2Screen: View {
     @State private var focusedKey: String?
     @State private var alphabetical = false
     @State private var quickMenu = false
+    @State private var showDiagnostics = false
+    @State private var freeStorage: String?
     @State private var upcomingFeature: String?
     @State private var constrained = false
     @State private var batteryPercent: Int?
@@ -132,7 +134,7 @@ struct BloomBoxGameBoxV2Screen: View {
                         emptyLibrary
                             .frame(height: cardHeight)
                     } else {
-                        carousel(cardWidth: cardWidth, height: cardHeight)
+                        carousel(cardWidth: cardWidth, height: cardHeight, viewportWidth: safeWidth)
                             .frame(height: cardHeight + 12)
                     }
                     detailPanel(compact: compact)
@@ -164,7 +166,9 @@ struct BloomBoxGameBoxV2Screen: View {
                         throw CocoaError(.fileReadCorruptFile)
                     }
                     try artwork.save(image, for: target, kind: kind)
+                    BloomBoxCrashJournal.shared.record("gamebox.artwork.import.success")
                 } catch {
+                    BloomBoxCrashJournal.shared.record("gamebox.artwork.import.failed")
                     artworkError = error.localizedDescription
                 }
             }
@@ -186,10 +190,29 @@ struct BloomBoxGameBoxV2Screen: View {
             Text(artworkError ?? "")
         }
         .onAppear {
+            BloomBoxCrashJournal.shared.enterGameBox()
             if focusedKey == nil { focusedKey = visibleApps.first.map(key) }
             refreshSystemBudget()
+            refreshStorage()
             UIDevice.current.isBatteryMonitoringEnabled = true
             refreshBattery()
+        }
+        .onDisappear { BloomBoxCrashJournal.shared.leaveGameBox() }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            BloomBoxCrashJournal.shared.returnedToForeground(gameBoxVisible: true)
+            refreshBattery()
+            refreshStorage()
+        }
+        .sheet(isPresented: $showDiagnostics) {
+            NavigationView {
+                BloomBoxDiagnosticsView()
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Listo") { showDiagnostics = false }
+                        }
+                    }
+            }
+            .navigationViewStyle(.stack)
         }
         .onChange(of: entries.map(key)) { keys in
             if let focusedKey, !keys.contains(focusedKey) {
@@ -206,6 +229,7 @@ struct BloomBoxGameBoxV2Screen: View {
             refreshBattery()
         }
         .confirmationDialog("GameBox", isPresented: $quickMenu) {
+            Button("Diagnósticos y recuperación") { showDiagnostics = true }
             Button("Administrar aplicaciones", action: openManagement)
             Button("Instalar IPA", action: openInstall)
             Button("Cambiar interfaz", action: openInterface)
@@ -235,13 +259,13 @@ struct BloomBoxGameBoxV2Screen: View {
                         .scaledToFill()
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
-                        .blur(radius: 32)
-                        .opacity(0.31)
+                        .blur(radius: 17)
+                        .opacity(0.74)
                 }
                 .allowsHitTesting(false)
             }
             LinearGradient(
-                colors: [.black.opacity(0.25), .clear, .black.opacity(0.66)],
+                colors: [.black.opacity(0.45), .black.opacity(0.06), .black.opacity(0.64)],
                 startPoint: .top, endPoint: .bottom
             )
         }
@@ -260,7 +284,10 @@ struct BloomBoxGameBoxV2Screen: View {
                 selectionHaptic()
             }
             Spacer(minLength: 4)
-            HStack(spacing: 8) {
+            HStack(spacing: compact ? 5 : 8) {
+                Image(systemName: "person.crop.circle.fill")
+                    .font(.system(size: compact ? 16 : 19))
+                    .foregroundStyle(.white.opacity(0.9))
                 Image(systemName: "gamecontroller.fill")
                     .font(.system(size: compact ? 13 : 17, weight: .semibold))
                 Text("GAMEBOX").font(.system(size: compact ? 12 : 15, weight: .black, design: .rounded))
@@ -281,6 +308,12 @@ struct BloomBoxGameBoxV2Screen: View {
                         .font(.system(size: 12))
                     Text(String(batteryPercent) + "%")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
+                }
+                if let freeStorage, !compact {
+                    Image(systemName: "internaldrive")
+                        .font(.system(size: 10))
+                    Text(freeStorage)
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
                 }
             }
             .lineLimit(1)
@@ -314,7 +347,7 @@ struct BloomBoxGameBoxV2Screen: View {
         .accessibilityLabel(label)
     }
 
-    private func carousel(cardWidth: CGFloat, height: CGFloat) -> some View {
+    private func carousel(cardWidth: CGFloat, height: CGFloat, viewportWidth: CGFloat) -> some View {
         ScrollViewReader { scroll in
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .center, spacing: 14) {
@@ -323,7 +356,8 @@ struct BloomBoxGameBoxV2Screen: View {
                             .id(key(app))
                     }
                 }
-                .padding(.horizontal, 9)
+                // Makes the first and last cover truly centerable, too.
+                .padding(.horizontal, max(9, (viewportWidth - cardWidth) / 2 - 25))
                 .padding(.vertical, 5)
             }
             .simultaneousGesture(DragGesture(minimumDistance: 35).onEnded { value in
@@ -475,6 +509,9 @@ struct BloomBoxGameBoxV2Screen: View {
                 HStack(spacing: compact ? 9 : 12) {
                     Button {
                         UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                        BloomBoxCrashJournal.shared.record("gamebox.guest.launch.requested")
+                        // Once a guest owns the scene, its exit is not a GameBox UI crash.
+                        BloomBoxCrashJournal.shared.leaveGameBox()
                         launch(key(app))
                     } label: {
                         Label("Play", systemImage: "play.fill")
@@ -486,7 +523,11 @@ struct BloomBoxGameBoxV2Screen: View {
                     .background(.white, in: Capsule())
                     .accessibilityIdentifier("bloombox.gamebox.play")
                     Menu {
-                        Button("Abrir con JIT", systemImage: "bolt.fill") { launchWithJIT(key(app)) }
+                        Button("Abrir con JIT", systemImage: "bolt.fill") {
+                            BloomBoxCrashJournal.shared.record("gamebox.guest.jit_launch.requested")
+                            BloomBoxCrashJournal.shared.leaveGameBox()
+                            launchWithJIT(key(app))
+                        }
                         Button(favorites.contains(key(app)) ? "Quitar de favoritos" : "Añadir a favoritos",
                                systemImage: "heart") { toggleFavorite(app) }
                         Button("Ajustes de esta app", systemImage: "gearshape") { manage(key(app)) }
@@ -496,6 +537,13 @@ struct BloomBoxGameBoxV2Screen: View {
                         }
                         Button("Elegir fondo", systemImage: "photo.on.rectangle") {
                             chooseArtwork(for: app, kind: .background)
+                        }
+                        if backdrop(app) != nil {
+                            Button(role: .destructive) {
+                                artwork.remove(for: key(app), kind: .background)
+                            } label: {
+                                Label("Quitar fondo personalizado", systemImage: "rectangle.on.rectangle.slash")
+                            }
                         }
                         if cover(app) != nil {
                             Button(role: .destructive) {
@@ -572,6 +620,7 @@ struct BloomBoxGameBoxV2Screen: View {
         let next = key(app)
         guard focusedKey != next else { return }
         focusedKey = next
+        BloomBoxCrashJournal.shared.record("gamebox.selection.changed")
         selectionHaptic()
     }
 
@@ -589,6 +638,7 @@ struct BloomBoxGameBoxV2Screen: View {
 
     private func chooseArtwork(for app: BloomBoxGameBoxEntry,
                                kind: BloomBoxArtworkLibrary.Kind) {
+        BloomBoxCrashJournal.shared.record("gamebox.artwork.picker.open")
         artworkTargetKey = key(app)
         artworkTargetKind = kind
         photoPickerPresented = true
@@ -596,6 +646,15 @@ struct BloomBoxGameBoxV2Screen: View {
 
     private func selectionHaptic() {
         UISelectionFeedbackGenerator().selectionChanged()
+    }
+
+    private func refreshStorage() {
+        guard let stats = try? FileManager.default.attributesOfFileSystem(forPath: NSHomeDirectory()),
+              let bytes = stats[.systemFreeSize] as? NSNumber else { return }
+        let gb = bytes.doubleValue / 1_073_741_824
+        if gb.isFinite, gb >= 0 {
+            freeStorage = String(format: "%.1f GB libres", gb)
+        }
     }
 
     private func refreshBattery() {
