@@ -9,9 +9,15 @@ import Intents
 
         
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? ) -> Bool {
+        // Arm a locally persisted recovery trail before any guest is opened.
+        BloomBoxCrashJournal.shared.beginHostSession()
+        if #available(iOS 13.0, *) { BloomBoxMetricKitSink.shared.start() }
         application.shortcutItems = nil
         UserDefaults.standard.removeObject(forKey: "LCNeedToAcquireJIT")
         
+        NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+            BloomBoxCrashJournal.shared.wentToBackground()
+        }
         NotificationCenter.default.addObserver(forName: UIApplication.willTerminateNotification, object: nil, queue: .main) { _ in
             // Fix launching app if user opens JIT waiting dialog and kills the app. Won't trigger normally.
             if DataManager.shared.model.isJITModalOpen && !UserDefaults.standard.bool(forKey: "LCKeepSelectedWhenQuit"){
@@ -21,9 +27,16 @@ import Intents
         }
         
         // allow new scene pop up as a new fullscreen window
-        method_exchangeImplementations(
-            class_getInstanceMethod(UIApplication.self, #selector(UIApplication.requestSceneSessionActivation(_ :userActivity:options:errorHandler:)))!,
-            class_getInstanceMethod(UIApplication.self, #selector(UIApplication.hook_requestSceneSessionActivation(_:userActivity:options:errorHandler:)))!)
+        if let original = class_getInstanceMethod(
+                UIApplication.self,
+                #selector(UIApplication.requestSceneSessionActivation(_:userActivity:options:errorHandler:))),
+           let hook = class_getInstanceMethod(
+                UIApplication.self,
+                #selector(UIApplication.hook_requestSceneSessionActivation(_:userActivity:options:errorHandler:))) {
+            method_exchangeImplementations(original, hook)
+        } else {
+            BloomBoxCrashJournal.shared.record("host.scene_swizzle.unavailable")
+        }
 
         // remove symbol caches if user upgraded iOS
         if let lastIOSBuildVersion = LCUtils.appGroupUserDefault.string(forKey: "LCLastIOSBuildVersion"),
@@ -75,7 +88,8 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate, ObservableObject { // Make
         if newOptions == nil {
             newOptions = UIScene.ActivationRequestOptions()
         }
-        newOptions!._setRequestFullscreen(UIScreen.main.bounds == self.keyWindow!.bounds)
+        let fullscreen = self.keyWindow.map { UIScreen.main.bounds == $0.bounds } ?? false
+        newOptions?._setRequestFullscreen(fullscreen)
         self.hook_requestSceneSessionActivation(sceneSession, userActivity: userActivity, options: newOptions, errorHandler: errorHandler)
     }
     
