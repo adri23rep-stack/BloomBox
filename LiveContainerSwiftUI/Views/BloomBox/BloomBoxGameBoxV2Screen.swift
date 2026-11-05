@@ -55,6 +55,10 @@ struct BloomBoxGameBoxV2Screen: View {
     let openInstall: () -> Void
 
     @StateObject private var artwork = BloomBoxArtworkLibrary()
+    @AppStorage("BloomBoxGameBoxAutoBackgrounds", store: LiveContainerPreferencesAdapter.defaults)
+    private var autoBackgrounds = true
+    @State private var fetchingAutoBackground: String?
+    private let autoBackgroundMode = "autoGameBox"
     @AppStorage("BloomBoxGameBoxV2Favorites", store: LiveContainerPreferencesAdapter.defaults)
     private var favoritesJSON = "[]"
     @AppStorage("LiveBoardReduceMotion", store: LiveContainerPreferencesAdapter.defaults)
@@ -84,6 +88,10 @@ struct BloomBoxGameBoxV2Screen: View {
     @State private var artworkError: String?
 
     private var reduceMotion: Bool { systemReduceMotion || localReduceMotion || constrained }
+    private var autoBackgroundTaskID: String {
+        (focusedKey ?? "") + ":" + String(autoBackgrounds) + ":" +
+        String(safeGraphics) + ":" + String(constrained)
+    }
     private var favorites: Set<String> {
         Set(BloomBoxHomeAppPolicy.favorites(from: favoritesJSON))
     }
@@ -127,8 +135,12 @@ struct BloomBoxGameBoxV2Screen: View {
     }
     private func backdrop(_ app: BloomBoxGameBoxEntry) -> UIImage? {
         guard !safeGraphics else { return nil }
+        // Explicit edits always outrank downloads; auto artwork is a separate
+        // cache mode and can never replace user-selected artwork.
         return artwork.image(for: key(app), kind: .background) ??
         artwork.image(for: key(app), kind: .cover) ??
+        (autoBackgrounds ? artwork.image(for: key(app), kind: .background,
+                                        mode: autoBackgroundMode) : nil) ??
         app.icon
     }
 
@@ -229,6 +241,9 @@ struct BloomBoxGameBoxV2Screen: View {
             refreshBattery()
         }
         .onDisappear { BloomBoxCrashJournal.shared.leaveGameBox() }
+        .task(id: autoBackgroundTaskID) {
+            await resolveAutomaticBackground()
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             BloomBoxCrashJournal.shared.returnedToForeground(gameBoxVisible: true)
             refreshBattery()
@@ -566,6 +581,36 @@ struct BloomBoxGameBoxV2Screen: View {
                         Button("Fondo desde Archivos", systemImage: "folder.fill") {
                             chooseArtworkFromFiles(for: app, kind: .background)
                         }
+                        Divider()
+                        Button(autoBackgrounds ? "Desactivar fondos automáticos" : "Activar fondos automáticos",
+                               systemImage: autoBackgrounds ? "globe.americas.fill" : "globe") {
+                            autoBackgrounds.toggle()
+                        }
+                        Button(fetchingAutoBackground == key(app) ? "Buscando fondo…" : "Buscar fondo en Internet",
+                               systemImage: "magnifyingglass") {
+                            Task { await resolveAutomaticBackground(force: true) }
+                        }
+                        .disabled(fetchingAutoBackground != nil || !autoBackgrounds)
+                        if artwork.image(for: key(app), kind: .background,
+                                         mode: autoBackgroundMode) != nil {
+                            if let link = LiveContainerPreferencesAdapter.defaults.string(
+                                forKey: "BloomBoxGameBoxArtworkSource:" + key(app)),
+                               let sourceURL = URL(string: link), sourceURL.scheme == "https" {
+                                Button("Ver origen y atribución", systemImage: "link") {
+                                    UIApplication.shared.open(sourceURL)
+                                }
+                            }
+                            Button(role: .destructive) {
+                                artwork.remove(for: key(app), kind: .background,
+                                               mode: autoBackgroundMode)
+                                LiveContainerPreferencesAdapter.defaults.removeObject(
+                                    forKey: "BloomBoxGameBoxArtworkSource:" + key(app))
+                                LiveContainerPreferencesAdapter.defaults.removeObject(
+                                    forKey: "BloomBoxGameBoxArtworkLastAttempt:" + key(app))
+                            } label: {
+                                Label("Quitar fondo descargado", systemImage: "trash")
+                            }
+                        }
                         if artwork.image(for: key(app), kind: .background) != nil {
                             Button(role: .destructive) {
                                 artwork.remove(for: key(app), kind: .background)
@@ -671,6 +716,54 @@ struct BloomBoxGameBoxV2Screen: View {
         // settings and does not install a looping audio engine.
         AudioServicesPlaySystemSound(1104)
         selectionHaptic()
+    }
+
+    @MainActor
+    private func resolveAutomaticBackground(force: Bool = false) async {
+        guard autoBackgrounds, !safeGraphics, !constrained,
+              let app = selectedApp, BloomBoxGameBoxArtworkLookup.supported(title(app)) else {
+            return
+        }
+        let id = key(app)
+        let prefs = LiveContainerPreferencesAdapter.defaults
+        let attemptedKey = "BloomBoxGameBoxArtworkLastAttempt:" + id
+        // No network needed when artwork is already saved. Also respect any
+        // manually selected background or cover.
+        if artwork.image(for: id, kind: .background) != nil ||
+           artwork.image(for: id, kind: .cover) != nil {
+            return
+        }
+        if !force {
+            guard artwork.image(for: id, kind: .background,
+                                mode: autoBackgroundMode) == nil else { return }
+            guard Date().timeIntervalSince1970 - prefs.double(forKey: attemptedKey) >
+                    24 * 60 * 60 else { return }
+            // Avoid requesting artwork during fast swipes and first render.
+            do { try await Task.sleep(nanoseconds: 650_000_000) }
+            catch { return }
+        }
+        guard !Task.isCancelled, key(selectedApp ?? app) == id,
+              fetchingAutoBackground == nil else { return }
+        fetchingAutoBackground = id
+        defer { fetchingAutoBackground = nil }
+        prefs.set(Date().timeIntervalSince1970, forKey: attemptedKey)
+        BloomBoxCrashJournal.shared.record("gamebox.online_wallpaper.lookup")
+        guard let found = await BloomBoxGameBoxArtworkLookup.find(title(app)),
+              !Task.isCancelled, key(selectedApp ?? app) == id,
+              artwork.image(for: id, kind: .background) == nil,
+              artwork.image(for: id, kind: .cover) == nil else {
+            BloomBoxCrashJournal.shared.record("gamebox.online_wallpaper.unavailable")
+            return
+        }
+        do {
+            try artwork.save(found.image, for: id, kind: .background,
+                             mode: autoBackgroundMode)
+            prefs.set(found.sourceURL.absoluteString,
+                      forKey: "BloomBoxGameBoxArtworkSource:" + id)
+            BloomBoxCrashJournal.shared.record("gamebox.online_wallpaper.saved")
+        } catch {
+            BloomBoxCrashJournal.shared.record("gamebox.online_wallpaper.save_failed")
+        }
     }
 
     private func requestLaunch(_ app: BloomBoxGameBoxEntry, forceJIT: Bool) {
