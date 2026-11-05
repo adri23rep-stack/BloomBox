@@ -53,6 +53,26 @@ bundled into a release.
 Remote services are online dependencies and may stop responding or change
 their public interfaces. The original local fallback always remains usable.
 
+### Curated app identification via BloomBox-Catalog
+
+A separate `catalog/gamebox-wallpaper-rules.json` feed is now maintained in
+[BloomBox-Catalog PR #6](https://github.com/adri23rep-stack/BloomBox-Catalog/pull/6).
+Its rules map verified installed bundle IDs or explicitly listed whole-name
+aliases (e.g. `MeloNX`/`MelonNX`) to a precise provider/topic. A displayed
+app name with an innocent version suffix can match; a random substring cannot.
+
+The portable GameBox view receives `app.bundleIdentifier` through its host
+adapter, but passes **only** the approved console/game topic to Steam or
+Wikipedia. The remote config is strictly decoded and rejects unknown fields,
+unsafe image URLs, executable material, invalid providers, duplicate aliases,
+ambiguous IDs, and excessive size. The last validated copy is kept offline.
+All manual artwork still takes precedence. When a remote rule changes, the
+downloaded *automatic* background may be refreshed without touching manual art.
+
+While both PRs are drafts, the client points to the catalog **preview branch**.
+After merging the catalog PR, update the source URL to `/main/` and run the
+iPhone device QA before releasing BloomBox.
+
 ## Crash recovery and diagnostics
 
 The local, opt-in-to-export journal lives in the app-group folder `Library/BloomBoxDiagnostics/`:
