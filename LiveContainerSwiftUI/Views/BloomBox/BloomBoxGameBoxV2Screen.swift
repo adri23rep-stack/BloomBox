@@ -72,6 +72,7 @@ struct BloomBoxGameBoxV2Screen: View {
     @State private var artworkTargetKey: String?
     @State private var artworkTargetKind: BloomBoxArtworkLibrary.Kind = .cover
     @State private var importingArtwork = false
+    @State private var launchPending = false
     @State private var artworkError: String?
 
     private var reduceMotion: Bool { systemReduceMotion || localReduceMotion || constrained }
@@ -551,11 +552,7 @@ struct BloomBoxGameBoxV2Screen: View {
                 }
                 HStack(spacing: compact ? 9 : 12) {
                     Button {
-                        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-                        BloomBoxCrashJournal.shared.record("gamebox.guest.launch.requested")
-                        // Once a guest owns the scene, its exit is not a GameBox UI crash.
-                        BloomBoxCrashJournal.shared.leaveGameBox()
-                        launch(key(app))
+                        requestLaunch(app, forceJIT: false)
                     } label: {
                         Label("Play", systemImage: "play.fill")
                             .font(.system(size: compact ? 14 : 17, weight: .semibold, design: .rounded))
@@ -564,12 +561,11 @@ struct BloomBoxGameBoxV2Screen: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(.black)
                     .background(.white, in: Capsule())
+                    .disabled(launchPending)
                     .accessibilityIdentifier("bloombox.gamebox.play")
                     Menu {
                         Button("Abrir con JIT", systemImage: "bolt.fill") {
-                            BloomBoxCrashJournal.shared.record("gamebox.guest.jit_launch.requested")
-                            BloomBoxCrashJournal.shared.leaveGameBox()
-                            launchWithJIT(key(app))
+                            requestLaunch(app, forceJIT: true)
                         }
                         Button(favorites.contains(key(app)) ? "Quitar de favoritos" : "Añadir a favoritos",
                                systemImage: "heart") { toggleFavorite(app) }
@@ -670,7 +666,11 @@ struct BloomBoxGameBoxV2Screen: View {
         guard focusedKey != next else { return }
         focusedKey = next
         BloomBoxCrashJournal.shared.record("gamebox.selection.changed")
-        selectionHaptic()
+        if #available(iOS 17.0, *) {
+            // Native scroll binding triggers the haptic once in onChange.
+        } else {
+            selectionHaptic()
+        }
     }
 
     private func moveSelection(_ delta: Int) {
@@ -678,6 +678,24 @@ struct BloomBoxGameBoxV2Screen: View {
         let current = visibleApps.firstIndex(where: { key($0) == selectedApp.map(key) }) ?? 0
         let next = min(max(0, current + delta), visibleApps.count - 1)
         select(visibleApps[next])
+    }
+
+    private func requestLaunch(_ app: BloomBoxGameBoxEntry, forceJIT: Bool) {
+        // A double-tap can otherwise launch the same guest twice and race
+        // LiveProcess/JIT setup. Unlock shortly afterwards if the host refuses
+        // or the guest cannot start; no second launch occurs during the delay.
+        guard !launchPending else { return }
+        launchPending = true
+        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+        BloomBoxCrashJournal.shared.record(
+            forceJIT ? "gamebox.guest.jit_launch.requested" : "gamebox.guest.launch.requested")
+        BloomBoxCrashJournal.shared.leaveGameBox()
+        if forceJIT { launchWithJIT(key(app)) }
+        else { launch(key(app)) }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_800_000_000)
+            launchPending = false
+        }
     }
 
     private func toggleFavorite(_ app: BloomBoxGameBoxEntry) {
