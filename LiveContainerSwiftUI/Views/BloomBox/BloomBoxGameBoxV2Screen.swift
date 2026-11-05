@@ -493,17 +493,26 @@ struct BloomBoxGameBoxV2Screen: View {
         .scaleEffect(focused && !reduceMotion ? 1.045 : 1)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: focused)
         .contentShape(RoundedRectangle(cornerRadius: 19))
-        .onTapGesture(count: 2) {
-            select(app)
-            toggleFavorite(app)
-        }
-        .onTapGesture {
-            select(app)
-        }
+        // The gestures are mutually exclusive: a double tap must toggle
+        // exactly once without also firing the single-tap handler.
+        .gesture(
+            TapGesture(count: 2)
+                .exclusively(before: TapGesture(count: 1))
+                .onEnded { result in
+                    switch result {
+                    case .first(_):
+                        select(app)
+                        toggleFavorite(app)
+                    case .second(_):
+                        select(app)
+                    }
+                }
+        )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title(app) + (favorites.contains(key(app)) ? ", favorito" : ""))
         .accessibilityAddTraits(focused ? .isSelected : [])
         .accessibilityHint("Toca para seleccionar, dos veces para alternar favorito. Usa Jugar para abrir.")
+        .accessibilityAction(named: Text("Alternar favorito")) { toggleFavorite(app) }
         .accessibilityIdentifier("bloombox.gamebox.card." + key(app))
     }
 
