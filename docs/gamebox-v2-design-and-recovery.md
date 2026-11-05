@@ -91,7 +91,9 @@ respects Reduce Motion.
 pressure triggered safe graphics, the same intro clearly says that background
 downloads are paused. It offers **Activar fondos** as an explicit opt-in;
 the SAFE badge in the header also opens a confirmation to reactivate images.
-Neither the intro nor the remote catalog silently disables crash protection.
+Once the user opts in, the wave panel transitions from the SAFE message into
+normal wallpaper lookup with a renewed six-second limit. Neither the intro
+nor the remote catalog silently disables crash protection.
 
 ## Crash recovery and diagnostics
 
