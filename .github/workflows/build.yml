@@ -345,7 +345,7 @@ jobs:
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxWallpaperRuleSchema.swift Tests/gamebox-wallpaper-rules/real-catalog/main.swift -o "$RUNNER_TEMP/gamebox-real-catalog-tests"
           "$RUNNER_TEMP/gamebox-real-catalog-tests" Tests/gamebox-wallpaper-rules/fixtures/catalog.json
           curl -fLsS --retry 2 --connect-timeout 10 --max-time 30 \
-            "https://raw.githubusercontent.com/adri23rep-stack/BloomBox-Catalog/feature/gamebox-wallpaper-keywords-20261105/catalog/gamebox-wallpaper-rules.json" \
+            "https://raw.githubusercontent.com/adri23rep-stack/BloomBox-Catalog/main/catalog/gamebox-wallpaper-rules.json" \
             -o "$RUNNER_TEMP/live-gamebox-wallpaper-rules.json"
           "$RUNNER_TEMP/gamebox-real-catalog-tests" "$RUNNER_TEMP/live-gamebox-wallpaper-rules.json"
       - name: Verify retired GameBox is absent and a reserved slot remains
