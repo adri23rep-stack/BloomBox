@@ -103,6 +103,9 @@ struct BloomBoxGameBoxV2Screen: View {
         String(safeGraphics) + ":" + String(constrained) + ":" +
         String(wallpaperRules.revision) + ":" + String(wallpaperCatalogReady)
     }
+    private var artworkIntroTimeoutID: String {
+        String(artworkIntroVisible) + ":" + String(safeGraphics)
+    }
     private var favorites: Set<String> {
         Set(BloomBoxHomeAppPolicy.favorites(from: favoritesJSON))
     }
@@ -192,10 +195,7 @@ struct BloomBoxGameBoxV2Screen: View {
                         reduceMotion: reduceMotion,
                         safeMode: safeGraphics,
                         onSkip: { dismissArtworkIntro() },
-                        onEnableGraphics: {
-                            safeGraphics = false
-                            dismissArtworkIntro()
-                        }
+                        onEnableGraphics: { resumeSafeGraphicsAndLoadArt() }
                     )
                     .transition(.opacity.combined(with: .scale(scale: 0.96)))
                     .zIndex(10)
@@ -287,7 +287,7 @@ struct BloomBoxGameBoxV2Screen: View {
                 await finishArtworkIntroAfterLookup()
             }
         }
-        .task(id: artworkIntroVisible) {
+        .task(id: artworkIntroTimeoutID) {
             guard artworkIntroVisible else { return }
             // The internet can be down; never keep the GameBox UI covered
             // indefinitely. The normal lookup continues behind this view.
@@ -372,10 +372,7 @@ struct BloomBoxGameBoxV2Screen: View {
             Button("Volver al escritorio", action: backToHome)
         }
         .alert("Fondos desactivados por seguridad", isPresented: $showSafeGraphicsAlert) {
-            Button("Activar fondos") {
-                safeGraphics = false
-                dismissArtworkIntro()
-            }
+            Button("Activar fondos") { resumeSafeGraphicsAndLoadArt() }
             Button("Mantener modo seguro", role: .cancel) {}
         } message: {
             Text("GameBox activó SAFE tras una sesión interrumpida o una alerta de memoria. Puedes reactivar los fondos; si vuelve a cerrarse, revisa Diagnósticos.")
@@ -865,6 +862,23 @@ struct BloomBoxGameBoxV2Screen: View {
         artworkIntroStartedAt = Date()
         withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
             artworkIntroVisible = true
+        }
+    }
+
+    private func resumeSafeGraphicsAndLoadArt() {
+        // A user explicitly opted back into GPU-heavy artwork. Keep the
+        // loader visible while the first background is prepared; switching
+        // SAFE -> normal restarts the bounded six-second timeout.
+        BloomBoxCrashJournal.shared.record("gamebox.safe_graphics.user_resumed")
+        artworkIntroAppKey = selectedApp.map(key)
+        artworkIntroStartedAt = Date()
+        safeGraphics = false
+        if artworkIntroEnabled && autoBackgrounds {
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
+                artworkIntroVisible = true
+            }
+        } else {
+            dismissArtworkIntro()
         }
     }
 
