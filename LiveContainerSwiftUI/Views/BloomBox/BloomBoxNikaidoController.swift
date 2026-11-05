@@ -1109,20 +1109,45 @@ struct BloomBoxNikaidoControllerView: View {
         return Button {
             host.change { $0.lightStyle = style }
         } label: {
-            VStack(spacing: 7) {
-                Image(systemName: style.symbol)
-                    .font(.system(size: 19, weight: .medium))
-                    .frame(height: 25)
+            VStack(alignment: .leading, spacing: 6) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(LinearGradient(
+                            colors: [
+                                selected ? host.previewLightColor : Color(red: host.profile.red,
+                                                                          green: host.profile.green,
+                                                                          blue: host.profile.blue),
+                                Color(red: host.profile.secondaryRed, green: host.profile.secondaryGreen,
+                                      blue: host.profile.secondaryBlue).opacity(0.6)
+                            ],
+                            startPoint: .leading, endPoint: .trailing
+                        ))
+                    Image(systemName: style.symbol)
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.45), radius: 4)
+                }
+                .frame(height: 48)
                 Text(style.title)
-                    .font(.system(size: 10, weight: .semibold))
-                    .lineLimit(1).minimumScaleFactor(0.75)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(selected ? Color.cyan : Color.white.opacity(0.3))
+                        .frame(width: 5, height: 5)
+                    Text(selected ? "Activo" : "Probar")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.white.opacity(0.6))
+                }
             }
-            .frame(maxWidth: .infinity).padding(.vertical, 12)
-            .foregroundStyle(selected ? Color.white : Color.primary)
-            .background(selected ? Color.cyan.opacity(0.35) : Color.secondary.opacity(0.10),
+            .padding(7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(selected ? Color.cyan.opacity(0.15) : Color.white.opacity(0.035),
                         in: RoundedRectangle(cornerRadius: 13))
             .overlay(RoundedRectangle(cornerRadius: 13)
-                .strokeBorder(selected ? Color.cyan : Color.clear, lineWidth: 1.5))
+                .strokeBorder(selected ? Color.cyan : Color.white.opacity(0.09), lineWidth: 1.2))
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : [])
@@ -1280,13 +1305,32 @@ struct BloomBoxNikaidoControllerView: View {
         }
     }
 
-    private func mappingRow(_ name: String, key: WritableKeyPath<NikaidoGameProfile, String>) -> some View {
-        Picker(name, selection: binding(key)) {
-            Text("A / Cruz").tag("A")
-            Text("B / Círculo").tag("B")
-            Text("X / Cuadrado").tag("X")
-            Text("Y / Triángulo").tag("Y")
-            Text("Desactivado").tag("none")
+    private func mappingRow(_ title: String,
+                            key: WritableKeyPath<NikaidoGameProfile, String>) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.system(size: 12, weight: .medium))
+            HStack(spacing: 5) {
+                ForEach(["A", "B", "X", "Y", "none"], id: \.self) { value in
+                    let selected = host.profile[keyPath: key] == value
+                    Button {
+                        host.change { $0[keyPath: key] = value }
+                    } label: {
+                        Text(value == "none" ? "—" : value)
+                            .font(.system(size: 12, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 34)
+                            .foregroundStyle(selected ? Color.white : Color.white.opacity(0.55))
+                            .background(selected ? Color.cyan.opacity(0.28) : Color.white.opacity(0.055),
+                                        in: RoundedRectangle(cornerRadius: 9))
+                            .overlay(RoundedRectangle(cornerRadius: 9)
+                                .strokeBorder(selected ? Color.cyan : Color.clear, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(value == "none" ? "Desactivado" : value)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+            }
         }
     }
+
 }
