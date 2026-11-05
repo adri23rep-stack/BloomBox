@@ -7,6 +7,7 @@ import SwiftUI
 import UIKit
 import PhotosUI
 import ImageIO
+import UniformTypeIdentifiers
 
 /// Portable UI item. Only the existing host adapts installed guest metadata.
 struct BloomBoxGameBoxEntry: Identifiable {
@@ -66,6 +67,7 @@ struct BloomBoxGameBoxV2Screen: View {
     @State private var constrained = false
     @State private var batteryPercent: Int?
     @State private var photoPickerPresented = false
+    @State private var filesPickerPresented = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var artworkTargetKey: String?
     @State private var artworkTargetKind: BloomBoxArtworkLibrary.Kind = .cover
@@ -155,6 +157,22 @@ struct BloomBoxGameBoxV2Screen: View {
         .navigationBarHidden(true)
         .preferredColorScheme(.dark)
         .photosPicker(isPresented: $photoPickerPresented, selection: $selectedPhoto, matching: .images)
+        .fileImporter(isPresented: $filesPickerPresented, allowedContentTypes: [.image]) { result in
+            guard let target = artworkTargetKey else { return }
+            do {
+                let url = try result.get()
+                let security = url.startAccessingSecurityScopedResource()
+                defer { if security { url.stopAccessingSecurityScopedResource() } }
+                let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+                guard size <= 20 * 1024 * 1024 else { throw CocoaError(.fileReadTooLarge) }
+                try artwork.save(try decodeArtwork(Data(contentsOf: url)), for: target, kind: artworkTargetKind)
+                BloomBoxCrashJournal.shared.record("gamebox.artwork.files.success")
+            } catch {
+                artworkError = error.localizedDescription
+                BloomBoxCrashJournal.shared.record("gamebox.artwork.files.failed")
+            }
+            artworkTargetKey = nil
+        }
         .onChange(of: selectedPhoto) { photo in
             guard let photo, let target = artworkTargetKey else { return }
             let kind = artworkTargetKind
@@ -166,24 +184,10 @@ struct BloomBoxGameBoxV2Screen: View {
                     artworkTargetKey = nil
                 }
                 do {
-                    guard let data = try await photo.loadTransferable(type: Data.self),
-                          data.count <= 20 * 1024 * 1024,
-                          let source = CGImageSourceCreateWithData(data as CFData, nil) else {
-                        throw CocoaError(.fileReadTooLarge)
-                    }
-                    // Decode at safe resolution instead of allocating a massive
-                    // full-resolution Photos JPEG or HEIC before downscaling.
-                    let options: [CFString: Any] = [
-                        kCGImageSourceCreateThumbnailFromImageAlways: true,
-                        kCGImageSourceCreateThumbnailWithTransform: true,
-                        kCGImageSourceThumbnailMaxPixelSize: 1800,
-                        kCGImageSourceShouldCacheImmediately: true
-                    ]
-                    guard let bitmap = CGImageSourceCreateThumbnailAtIndex(source, 0,
-                                                                          options as CFDictionary) else {
+                    guard let data = try await photo.loadTransferable(type: Data.self) else {
                         throw CocoaError(.fileReadCorruptFile)
                     }
-                    try artwork.save(UIImage(cgImage: bitmap), for: target, kind: kind)
+                    try artwork.save(try decodeArtwork(data), for: target, kind: kind)
                     BloomBoxCrashJournal.shared.record("gamebox.artwork.import.success")
                 } catch {
                     BloomBoxCrashJournal.shared.record("gamebox.artwork.import.failed")
@@ -551,13 +555,19 @@ struct BloomBoxGameBoxV2Screen: View {
                                systemImage: "heart") { toggleFavorite(app) }
                         Button("Ajustes de esta app", systemImage: "gearshape") { manage(key(app)) }
                         Divider()
-                        Button("Elegir carátula", systemImage: "photo") {
+                        Button("Carátula desde Fotos", systemImage: "photo") {
                             chooseArtwork(for: app, kind: .cover)
                         }
-                        Button("Elegir fondo", systemImage: "photo.on.rectangle") {
+                        Button("Fondo desde Fotos", systemImage: "photo.on.rectangle") {
                             chooseArtwork(for: app, kind: .background)
                         }
-                        if backdrop(app) != nil {
+                        Button("Carátula desde Archivos", systemImage: "folder") {
+                            chooseArtworkFromFiles(for: app, kind: .cover)
+                        }
+                        Button("Fondo desde Archivos", systemImage: "folder.fill") {
+                            chooseArtworkFromFiles(for: app, kind: .background)
+                        }
+                        if artwork.image(for: key(app), kind: .background) != nil {
                             Button(role: .destructive) {
                                 artwork.remove(for: key(app), kind: .background)
                             } label: {
@@ -653,6 +663,31 @@ struct BloomBoxGameBoxV2Screen: View {
     private func toggleFavorite(_ app: BloomBoxGameBoxEntry) {
         favoritesJSON = BloomBoxHomeAppPolicy.toggledFavorite(key(app), in: favoritesJSON)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func decodeArtwork(_ data: Data) throws -> UIImage {
+        guard data.count <= 20 * 1024 * 1024,
+              let source = CGImageSourceCreateWithData(data as CFData, nil) else {
+            throw CocoaError(.fileReadTooLarge)
+        }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: 1800,
+            kCGImageSourceShouldCacheImmediately: true
+        ]
+        guard let bitmap = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        return UIImage(cgImage: bitmap)
+    }
+
+    private func chooseArtworkFromFiles(for app: BloomBoxGameBoxEntry,
+                                        kind: BloomBoxArtworkLibrary.Kind) {
+        BloomBoxCrashJournal.shared.record("gamebox.artwork.files.open")
+        artworkTargetKey = key(app)
+        artworkTargetKind = kind
+        filesPickerPresented = true
     }
 
     private func chooseArtwork(for app: BloomBoxGameBoxEntry,
