@@ -121,11 +121,12 @@ unavailable offline or rate-limited; the gradient/app-icon fallback remains.
 
 ### Pinned images and corrected Husk identity
 
-The six first pinned emulator wallpapers live in
+The seven initial pinned emulator wallpapers live in
 [BloomBox-Catalog PR #6](https://github.com/adri23rep-stack/BloomBox-Catalog/pull/6):
 MeloNX/MelonNX and LemoNX → Nintendo Switch, DolphiniOS → GameCube,
-MeloCafe → Wii U, Vita3KiOS → PS Vita, PPSSPP → PSP. The five selected
-photographs were created by Evan-Amos and released into the public domain.
+MeloCafe → Wii U, Vita3KiOS → PS Vita, PPSSPP → PSP, Husk → representative
+Android gaming hardware (Sony Xperia Play). These six selected photographs
+were created by Evan-Amos and released into the public domain.
 Each entry retains a direct `upload.wikimedia.org` image link and the matching
 file-description page. The app validates that these refer to the **same file**.
 
