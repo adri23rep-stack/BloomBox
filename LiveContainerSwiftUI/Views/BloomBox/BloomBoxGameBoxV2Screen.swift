@@ -283,8 +283,7 @@ struct BloomBoxGameBoxV2Screen: View {
         .task(id: autoBackgroundTaskID) {
             guard wallpaperCatalogReady else { return }
             await resolveAutomaticBackground()
-            if key(selectedApp ?? visibleApps.first ?? BloomBoxGameBoxEntry(
-                id: "", bundleID: nil, name: "", icon: nil, requiresJIT: false)) == artworkIntroAppKey {
+            if let selectedApp, key(selectedApp) == artworkIntroAppKey {
                 await finishArtworkIntroAfterLookup()
             }
         }
