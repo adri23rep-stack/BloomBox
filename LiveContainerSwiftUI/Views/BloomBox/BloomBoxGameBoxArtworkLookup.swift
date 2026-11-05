@@ -92,6 +92,19 @@ enum BloomBoxGameBoxArtworkLookup {
         emulatorTopic(title) != nil || gameQuery(title) != nil
     }
 
+    // Trusted, strictly validated metadata overrides heuristic name
+    // searches. The remote feed cannot provide URLs, only curated topics.
+    static func find(_ rawTitle: String, rule: BloomBoxWallpaperRule?) async -> Result? {
+        if let rule {
+            switch rule.provider {
+            case "wikipedia": return await wikipediaArtwork(for: rule.query)
+            case "steam": return await steamArtwork(for: rule.query)
+            default: return nil
+            }
+        }
+        return await find(rawTitle)
+    }
+
     static func find(_ rawTitle: String) async -> Result? {
         if let article = emulatorTopic(rawTitle) {
             return await wikipediaArtwork(for: article)
