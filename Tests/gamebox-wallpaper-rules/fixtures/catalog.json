@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "catalogID": "bloombox.gamebox.wallpaper-rules",
+  "updatedAt": "2026-11-05",
+  "rules": [
+    {
+      "id": "melonnx-switch",
+      "bundleIDs": [],
+      "keywords": [
+        "MeloNX",
+        "MelonNX",
+        "Melon NX",
+        "MelonNX Emulator"
+      ],
+      "provider": "wikipedia",
+      "query": "Nintendo Switch",
+      "note": "MeloNX/MelonNX emulates Nintendo Switch; exact bundle ID to be added after inspection of the installed IPA. Curated Evan-Amos console photograph (public domain), linked to the Commons file details.",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/5/5b/Nintendo-Switch-Console-Flat-Top.jpg",
+      "sourceURL": "https://commons.wikimedia.org/wiki/File:Nintendo-Switch-Console-Flat-Top.jpg",
+      "imageLicense": "Public domain"
+    },
+    {
+      "id": "lemonx-switch",
+      "bundleIDs": [],
+      "keywords": [
+        "LemoNX",
+        "Lemon NX",
+        "LemoNX Binaries"
+      ],
+      "provider": "wikipedia",
+      "query": "Nintendo Switch",
+      "note": "Nintendo Switch emulator; no unverified bundle ID. Curated Evan-Amos console photograph (public domain), linked to the Commons file details.",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/5/5b/Nintendo-Switch-Console-Flat-Top.jpg",
+      "sourceURL": "https://commons.wikimedia.org/wiki/File:Nintendo-Switch-Console-Flat-Top.jpg",
+      "imageLicense": "Public domain"
+    },
+    {
+      "id": "dolphinios-gamecube",
+      "bundleIDs": [
+        "me.oatmealdome.DolphiniOS-njb-patreon-beta"
+      ],
+      "keywords": [
+        "DolphiniOS",
+        "Dolphin iOS",
+        "Dolphin Emulator"
+      ],
+      "provider": "wikipedia",
+      "query": "Nintendo GameCube",
+      "note": "Generic GameCube background for the Wii/GameCube emulator, not game cover art. Curated Evan-Amos console photograph (public domain), linked to the Commons file details.",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/8/8a/Nintendo-GameCube-Console-FL.jpg",
+      "sourceURL": "https://commons.wikimedia.org/wiki/File:Nintendo-GameCube-Console-FL.jpg",
+      "imageLicense": "Public domain"
+    },
+    {
+      "id": "melocafe-wiiu",
+      "bundleIDs": [],
+      "keywords": [
+        "MeloCafe",
+        "Melo Cafe",
+        "Cemu"
+      ],
+      "provider": "wikipedia",
+      "query": "Wii U",
+      "note": "Wii U emulator. Do not use an unverified or placeholder bundle ID. Curated Evan-Amos console photograph (public domain), linked to the Commons file details.",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/d/dd/Nintendo-Wii-U-Console-FL.jpg",
+      "sourceURL": "https://commons.wikimedia.org/wiki/File:Nintendo-Wii-U-Console-FL.jpg",
+      "imageLicense": "Public domain"
+    },
+    {
+      "id": "vita3k-vita",
+      "bundleIDs": [
+        "org.vita3k.ios"
+      ],
+      "keywords": [
+        "Vita3K",
+        "Vita3KiOS",
+        "Vita3K iOS"
+      ],
+      "provider": "wikipedia",
+      "query": "PlayStation Vita",
+      "note": "PlayStation Vita emulator. Curated Evan-Amos console photograph (public domain), linked to the Commons file details.",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/c/c1/PlayStation-Vita-2001-FL.jpg",
+      "sourceURL": "https://commons.wikimedia.org/wiki/File:PlayStation-Vita-2001-FL.jpg",
+      "imageLicense": "Public domain"
+    },
+    {
+      "id": "ppsspp-psp",
+      "bundleIDs": [],
+      "keywords": [
+        "PPSSPP",
+        "PPSSPP Gold"
+      ],
+      "provider": "wikipedia",
+      "query": "PlayStation Portable",
+      "note": "PSP emulator. Curated Evan-Amos console photograph (public domain), linked to the Commons file details.",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/a/a9/Sony-PSP-1000-Body.jpg",
+      "sourceURL": "https://commons.wikimedia.org/wiki/File:Sony-PSP-1000-Body.jpg",
+      "imageLicense": "Public domain"
+    },
+    {
+      "id": "retroarch-console",
+      "bundleIDs": [],
+      "keywords": [
+        "RetroArch",
+        "RetroArch iOS"
+      ],
+      "provider": "wikipedia",
+      "query": "Video game console",
+      "note": "Multisystem emulator; use a generic console image, never guess a specific game."
+    },
+    {
+      "id": "delta-ds",
+      "bundleIDs": [],
+      "keywords": [
+        "Delta",
+        "Delta Emulator"
+      ],
+      "provider": "wikipedia",
+      "query": "Nintendo DS",
+      "note": "Exact app name matching; 'Delta Force' is not this emulator."
+    },
+    {
+      "id": "folium-3ds",
+      "bundleIDs": [],
+      "keywords": [
+        "Folium",
+        "Folium Emulator"
+      ],
+      "provider": "wikipedia",
+      "query": "Nintendo 3DS",
+      "note": "Nintendo 3DS emulator."
+    },
+    {
+      "id": "mgba-gba",
+      "bundleIDs": [],
+      "keywords": [
+        "mGBA",
+        "mGBA Emulator"
+      ],
+      "provider": "wikipedia",
+      "query": "Game Boy Advance",
+      "note": "Game Boy Advance emulator."
+    },
+    {
+      "id": "husk-android",
+      "bundleIDs": [],
+      "keywords": [
+        "Husk",
+        "Husk Android"
+      ],
+      "provider": "wikipedia",
+      "query": "Android (operating system)",
+      "note": "Husk is an Android emulator/runtime, NOT Minecraft Dungeons. Pinned photo is an Android gaming handset (Xperia Play) as a generic platform illustration, not Husk's logo or an emulated game's artwork. Photo by Evan-Amos, public domain.",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/e/e5/Sony-Xperia-Play-Open-FL.jpg",
+      "sourceURL": "https://commons.wikimedia.org/wiki/File:Sony-Xperia-Play-Open-FL.jpg",
+      "imageLicense": "Public domain"
+    },
+    {
+      "id": "rdr-port",
+      "bundleIDs": [],
+      "keywords": [
+        "RDR",
+        "RDR - IOSVIZOR.COM",
+        "Red Dead Redemption"
+      ],
+      "provider": "steam",
+      "query": "Red Dead Redemption",
+      "note": "Red Dead Redemption port; actual guest bundle ID remains unverified."
+    },
+    {
+      "id": "gta5-port",
+      "bundleIDs": [],
+      "keywords": [
+        "GTA5",
+        "GTA V Port",
+        "Grand Theft Auto V Port",
+        "Five Star Port"
+      ],
+      "provider": "steam",
+      "query": "Grand Theft Auto V",
+      "note": "Known GTA V port names; no guessed bundle ID."
+    }
+  ]
+}
