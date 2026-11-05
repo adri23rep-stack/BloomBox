@@ -843,7 +843,7 @@ struct BloomBoxGameBoxV2Screen: View {
         let attemptedKey = "BloomBoxGameBoxArtworkLastAttempt:" + id
         // Invalidate the old 24-hour cooldown from the previous broken lookup
         // version. New versions use their own retry marker.
-        let attemptedRuleKey = "BloomBoxGameBoxArtworkLastAttemptRule-v2:" + id
+        let attemptedRuleKey = "BloomBoxGameBoxArtworkLastAttemptRule-v3:" + id
         let savedRuleKey = "BloomBoxGameBoxArtworkAppliedRule:" + id
         // Rules can change without reinstalling the app. A newly published
         // mapping should be applied even when a fallback image is cached.
