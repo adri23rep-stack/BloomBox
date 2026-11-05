@@ -126,7 +126,7 @@ struct BloomBoxWallpaperRule: Codable {
         let safeBundle = CharacterSet(charactersIn:
             "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_")
         let safeText = CharacterSet(charactersIn:
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -:'&.!+")
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -:'&.!+()")
         guard !id.isEmpty, id.count <= 65,
               id.unicodeScalars.allSatisfy({ safeID.contains($0) }),
               bundleIDs.count <= 12, keywords.count <= 12,
