@@ -612,7 +612,8 @@ struct BloomBoxNikaidoControllerView: View {
                 connected: host.isDualSense,
                 onLightTap: { page = .lights },
                 onLeftTriggerTap: { selectedTrigger = .left; page = .triggers },
-                onRightTriggerTap: { selectedTrigger = .right; page = .triggers }
+                onRightTriggerTap: { selectedTrigger = .right; page = .triggers },
+                onStickTap: { page = .sticks }
             )
         }
         .overlay(alignment: .bottomTrailing) {
