@@ -89,7 +89,7 @@ assert "BloomBoxGameBoxArtworkLookup.find(app.name, rule: rule)" in gamebox
 assert "wallpaperRules.refreshIfNeeded()" in gamebox
 assert "String(wallpaperRules.revision)" in gamebox
 assert 'index?.rule(bundleID: bundleID, name: name)' in resolver
-assert 'feature/gamebox-wallpaper-keywords-20261105/catalog/gamebox-wallpaper-rules.json' in resolver
+assert 'main/catalog/gamebox-wallpaper-rules.json' in resolver
 assert 'BloomBoxWallpaperRuleIndex.validated(from: data)' in resolver
 assert '"schemaVersion", "catalogID", "updatedAt", "rules"' in schema
 assert '"provider", "query", "note"' in schema
