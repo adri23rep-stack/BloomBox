@@ -9,6 +9,7 @@ import PhotosUI
 import ImageIO
 import UniformTypeIdentifiers
 import AudioToolbox
+import GameController
 
 /// Portable UI item. Only the existing host adapts installed guest metadata.
 struct BloomBoxGameBoxEntry: Identifiable {
@@ -26,6 +27,7 @@ struct BloomBoxGameBoxEntry: Identifiable {
 private struct BloomBoxNikaidoControllerSlot: View {
     let diameter: CGFloat
     let action: () -> Void
+    var batteryPercent: Int? = nil
 
     var body: some View {
         Button(action: action) {
@@ -39,7 +41,19 @@ private struct BloomBoxNikaidoControllerSlot: View {
                 .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Nikaido · Ajustes del control")
+        .overlay(alignment: .bottomTrailing) {
+            if let batteryPercent {
+                Text("\(batteryPercent)%")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(batteryPercent < 20 ? .orange : .white)
+                    .padding(.horizontal, 4).padding(.vertical, 2)
+                    .background(.black.opacity(0.86), in: Capsule())
+                    .offset(x: 9, y: 5)
+            }
+        }
+        .accessibilityLabel("Nikaido · Ajustes del control" +
+                            (batteryPercent.map { ", batería \($0)%" } ?? ""))
         .accessibilityHint("Luces, gatillos adaptativos y perfiles por juego")
     }
 }
@@ -82,6 +96,7 @@ struct BloomBoxGameBoxV2Screen: View {
     @State private var alphabetical = false
     @State private var quickMenu = false
     @State private var showNikaidoPanel = false
+    @State private var dualSenseBatteryPercent: Int?
     @State private var showDiagnostics = false
     @State private var showExpiryReminders = false
     @State private var freeStorage: String?
@@ -261,6 +276,7 @@ struct BloomBoxGameBoxV2Screen: View {
         }
         .onAppear {
             BloomBoxCrashJournal.shared.enterGameBox()
+            refreshDualSenseBattery()
             if focusedKey == nil { focusedKey = visibleApps.first.map(key) }
             refreshSystemBudget()
             refreshStorage()
@@ -357,6 +373,15 @@ struct BloomBoxGameBoxV2Screen: View {
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.batteryLevelDidChangeNotification)) { _ in
             refreshBattery()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in
+            refreshDualSenseBattery()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidDisconnect)) { _ in
+            refreshDualSenseBattery()
+        }
+        .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
+            refreshDualSenseBattery()
+        }
         .sheet(isPresented: $showNikaidoPanel) {
             BloomBoxNikaidoControllerView(
                 gameID: selectedApp?.bundleID ?? selectedApp?.id ?? "gamebox",
@@ -437,7 +462,7 @@ struct BloomBoxGameBoxV2Screen: View {
         HStack(spacing: compact ? 5 : 9) {
             topButton("ellipsis", label: "Menú") { quickMenu = true }
             // Native DualSense panel; guest input remains unchanged.
-            BloomBoxNikaidoControllerSlot(diameter: 39) { showNikaidoPanel = true }
+            BloomBoxNikaidoControllerSlot(diameter: 39, batteryPercent: dualSenseBatteryPercent) { showNikaidoPanel = true }
             topButton("arrow.up.arrow.down", label: "Ordenar") {
                 alphabetical.toggle()
                 selectionHaptic()
@@ -1072,6 +1097,17 @@ struct BloomBoxGameBoxV2Screen: View {
         if gb.isFinite, gb >= 0 {
             freeStorage = String(format: "%.1f GB libres", gb)
         }
+    }
+
+    private func refreshDualSenseBattery() {
+        guard let controller = GCController.controllers().first(where: {
+            $0.extendedGamepad is GCDualSenseGamepad
+        }), let battery = controller.battery else {
+            dualSenseBatteryPercent = nil
+            return
+        }
+        let level = Int((battery.batteryLevel * 100).rounded())
+        dualSenseBatteryPercent = (0...100).contains(level) ? level : nil
     }
 
     private func refreshBattery() {
