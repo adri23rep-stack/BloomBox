@@ -63,6 +63,29 @@ assert "Image(uiImage: image).resizable().scaledToFit()" in gamebox
 assert '"bloombox.gamebox.icon."' in gamebox
 assert "Text(title(app))" in gamebox  # details panel only
 assert "BloomBoxNikaidoControllerSlot" in gamebox
+lookup = (ui / "BloomBoxGameBoxArtworkLookup.swift").read_text()
+# Only the selected title is looked up; never send guest filesystem
+# metadata or embedded credentials to public artwork services.
+assert "SteamSearch" in lookup and "WikipediaResponse" in lookup
+assert "store.steampowered.com/api/storesearch/" in lookup
+assert "pilicense" in lookup and 'value: "free"' in lookup
+assert "normalize($0.name) == normalize(title)" in lookup
+assert "download(for: request)" in lookup
+assert "permittedHosts.contains(finalHost)" in lookup
+assert '["image/jpeg", "image/png", "image/webp"]' in lookup
+assert "20 * 1024 * 1024" not in lookup
+assert "BloomBoxGameBoxAutoBackgrounds" in gamebox
+assert 'private let autoBackgroundMode = "autoGameBox"' in gamebox
+assert "artwork.image(for: key(app), kind: .background) ??" in gamebox
+assert "artwork.image(for: key(app), kind: .cover) ??" in gamebox
+assert "autoBackgrounds ? artwork.image(" in gamebox
+assert "Task.sleep(nanoseconds: 650_000_000)" in gamebox
+assert "24 * 60 * 60" in gamebox
+assert "Ver origen y atribución" in gamebox
+assert "Buscar fondo en Internet" in gamebox
+assert "Quitar fondo descargado" in gamebox
+assert "mode: autoBackgroundMode" in gamebox
+
 # Glass refinement must keep the icon carousel untouched while reducing
 # only the panel height and visual density of background surfaces.
 assert ".frame(height: compact ? 100 : 120)" in gamebox
