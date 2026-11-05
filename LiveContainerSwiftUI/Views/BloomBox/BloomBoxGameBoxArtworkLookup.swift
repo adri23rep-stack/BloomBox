@@ -102,7 +102,9 @@ enum BloomBoxGameBoxArtworkLookup {
     private static let excludedAppWords: [String] = [
         "youtube", "sidestore", "takopi", "nikaview", "tweakstore",
         "appstore", "settings", "instalar", "bloombox", "discord",
-        "spotify", "instagram", "safari", "files", "browser", "music"
+        "spotify", "instagram", "safari", "files", "browser", "music",
+        // Husk runs Android apps; it is not Minecraft Dungeons.
+        "husk"
     ]
 
     static func supported(_ title: String) -> Bool {
@@ -113,6 +115,19 @@ enum BloomBoxGameBoxArtworkLookup {
     // searches. The remote feed cannot provide URLs, only curated topics.
     static func find(_ rawTitle: String, rule: BloomBoxWallpaperRule?) async -> Result? {
         if let rule {
+            // Hand-curated public-domain artwork first. Never let a keyword
+            // search replace a source that an editor already verified.
+            if let direct = rule.vettedArtworkURL,
+               let origin = rule.sourceURL.flatMap(URL.init(string:)) {
+                if let rendered = await image(from: direct,
+                                              permittedHosts: ["upload.wikimedia.org"]) {
+                    return Result(image: rendered, sourceURL: origin,
+                                  provider: "Curated Wikimedia Commons")
+                }
+                BloomBoxCrashJournal.shared.record("gamebox.wallpaper.curated_image.unavailable")
+            }
+            // If a curated image is removed upstream, retain the conservative
+            // console-topic fallback; never use an arbitrary image URL.
             switch rule.provider {
             case "wikipedia": return await wikipediaArtwork(for: rule.query)
             case "steam": return await steamArtwork(for: rule.query)
@@ -140,7 +155,6 @@ enum BloomBoxGameBoxArtworkLookup {
         if full == "rdr" || full.hasPrefix("rdr iosvizor") { return "Red Dead Redemption" }
         if full == "rdr2" || full.hasPrefix("rdr 2 ") { return "Red Dead Redemption 2" }
         if full == "gta5" || full.hasPrefix("gta 5 ") { return "Grand Theft Auto V" }
-        if full == "husk" { return "Minecraft Dungeons" }
 
         let title = raw.components(separatedBy: " - ").first ?? raw
         let cleaned = title
