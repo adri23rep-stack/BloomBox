@@ -76,6 +76,7 @@ struct BloomBoxModulesPanel: View {
     private var melonScriptCrossAppEnabled = false
     @AppStorage("BloomBoxJITUseLegacyLaunchUI", store: LCUtils.appGroupUserDefault)
     private var legacyJITUI = false
+    @State private var showWizardPreview = false
 
     enum Destination { case jit, desktop, interface, wallpaper, apps, settings, tweaks, sidestore }
     enum Module: String, CaseIterable, Identifiable {
@@ -189,6 +190,12 @@ struct BloomBoxModulesPanel: View {
         }
         .navigationViewStyle(.stack)
         .preferredColorScheme(.dark)
+        .fullScreenCover(isPresented: $showWizardPreview) {
+            BloomBoxWizardWelcomeView(isPreview: true) {
+                showWizardPreview = false
+            }
+            .preferredColorScheme(BloomBoxWizardSystemAppearance.current)
+        }
     }
 
     private func tile(_ module: Module) -> some View {
@@ -342,6 +349,17 @@ struct BloomBoxModulesPanel: View {
                     }
                     .accessibilityIdentifier("bloombox.experiments.language.picker")
                     Text("Elige el idioma de BloomBox y sus noticias. Automático usa el idioma del iPhone; no modifica el idioma del sistema.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Divider()
+                    Button {
+                        showWizardPreview = true
+                    } label: {
+                        Label("Simular primer arranque del wizard", systemImage: "sparkles.rectangle.stack")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .accessibilityIdentifier("bloombox.experiments.wizard.preview")
+                    Text("Abre la bienvenida como si fuera la primera vez. No borra perfiles, aplicaciones ni datos; tampoco reinicia el estado del wizard. Solo el idioma que selecciones se guarda.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Divider()
