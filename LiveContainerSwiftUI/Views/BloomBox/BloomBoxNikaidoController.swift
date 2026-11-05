@@ -215,9 +215,10 @@ private final class NikaidoGameControllerHost: ObservableObject {
         isDualSense = preferred?.extendedGamepad is GCDualSenseGamepad
         supportsLight = preferred?.light != nil
         supportsHaptics = preferred?.haptics != nil
-        if let battery = preferred?.battery {
+        if let battery = preferred?.battery, battery.batteryLevel.isFinite,
+           battery.batteryLevel >= 0, battery.batteryLevel <= 1 {
             let value = Int((battery.batteryLevel * 100).rounded())
-            batteryText = (0...100).contains(value) ? "\(value)%" : "No disponible"
+            batteryText = "\(value)%"
         } else {
             batteryText = "No disponible"
         }
