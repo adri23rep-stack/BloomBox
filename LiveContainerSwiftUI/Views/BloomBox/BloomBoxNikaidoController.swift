@@ -616,6 +616,12 @@ struct BloomBoxNikaidoControllerView: View {
             }
             .onAppear { host.activate(gameKey: gameID) }
             .onDisappear { host.deactivate() }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+                host.deactivate()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                host.refresh()
+            }
             .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in host.refresh() }
             .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidDisconnect)) { _ in host.refresh() }
             .onReceive(Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()) { _ in
