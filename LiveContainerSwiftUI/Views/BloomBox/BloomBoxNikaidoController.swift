@@ -64,6 +64,22 @@ private enum NikaidoTriggerStyle: String, CaseIterable, Codable {
         }
     }
 
+    var symbol: String {
+        switch self {
+        case .off: return "power"
+        case .resistance: return "hand.raised.fill"
+        case .weapon: return "scope"
+        case .vibration: return "waveform"
+        case .soft: return "feather.fill"
+        case .heavy: return "dumbbell.fill"
+        case .sniper: return "target"
+        case .bow: return "arrow.up.right"
+        case .recoil: return "bolt.fill"
+        case .rapid: return "waveform.path"
+        case .ramp: return "chart.line.uptrend.xyaxis"
+        }
+    }
+
     var detail: String {
         switch self {
         case .off: return "Sin resistencia"
@@ -834,6 +850,216 @@ struct BloomBoxNikaidoControllerView: View {
             }
             .buttonStyle(.bordered)
         }
+    }
+
+    private func sectionTitle(_ title: String, subtitle: String, symbol: String) -> some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: symbol)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(.cyan)
+                .frame(width: 27)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.55))
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 3)
+    }
+
+    private func studioCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 13, content: content)
+            .padding(15)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(.white)
+            .background(Color.white.opacity(0.065),
+                        in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 19)
+                .strokeBorder(.white.opacity(0.10), lineWidth: 1))
+    }
+
+    private func settingsSlider(_ title: String, value: Binding<Double>,
+                                range: ClosedRange<Double>, valueText: String) -> some View {
+        HStack(spacing: 8) {
+            Text(title).font(.system(size: 12, weight: .medium))
+                .frame(width: 78, alignment: .leading)
+            Slider(value: value, in: range)
+                .tint(.cyan)
+            Text(valueText)
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .frame(width: 45, alignment: .trailing)
+                .foregroundStyle(.white.opacity(0.8))
+        }
+    }
+
+    private var selectedTriggerStrength: Binding<Double> {
+        Binding(
+            get: { selectedTrigger == .left ? host.profile.leftStrength : host.profile.rightStrength },
+            set: { value in
+                host.change { p in
+                    if selectedTrigger == .left { p.leftStrength = value }
+                    else { p.rightStrength = value }
+                }
+            }
+        )
+    }
+
+    private var selectedTriggerStart: Binding<Double> {
+        Binding(
+            get: { selectedTrigger == .left ? host.profile.leftStart : host.profile.rightStart },
+            set: { value in
+                host.change { p in
+                    if selectedTrigger == .left { p.leftStart = value }
+                    else { p.rightStart = value }
+                }
+            }
+        )
+    }
+
+    private func triggerSideButton(_ side: NikaidoTriggerSide, name: String,
+                                   effect: NikaidoTriggerStyle, strength: Double) -> some View {
+        let selected = selectedTrigger == side
+        return Button {
+            selectedTrigger = side
+        } label: {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack {
+                    Text(name).font(.system(size: 22, weight: .black, design: .rounded))
+                    Spacer()
+                    Image(systemName: "hand.point.up.left")
+                        .font(.system(size: 15))
+                }
+                Text(effect.title)
+                    .font(.system(size: 11, weight: .medium))
+                    .lineLimit(1).minimumScaleFactor(0.75)
+                GeometryReader { geo in
+                    Capsule().fill(.white.opacity(0.12))
+                        .overlay(alignment: .leading) {
+                            Capsule().fill(selected ? .cyan : .white.opacity(0.45))
+                                .frame(width: geo.size.width * min(1, max(0, strength)))
+                        }
+                }
+                .frame(height: 4)
+            }
+            .padding(14)
+            .foregroundStyle(selected ? .white : .white.opacity(0.7))
+            .frame(maxWidth: .infinity)
+            .background(selected ? Color.cyan.opacity(0.16) : Color.white.opacity(0.05),
+                        in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(selected ? .cyan : .white.opacity(0.1),
+                              lineWidth: selected ? 1.5 : 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func triggerEffectCard(_ effect: NikaidoTriggerStyle) -> some View {
+        let selectedStyle = selectedTrigger == .left ?
+            host.profile.leftTriggerStyle : host.profile.rightTriggerStyle
+        let selected = effect == selectedStyle
+        return Button {
+            host.change { p in
+                if selectedTrigger == .left { p.leftTriggerStyle = effect }
+                else { p.rightTriggerStyle = effect }
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Image(systemName: effect.symbol)
+                        .font(.system(size: 18))
+                        .foregroundStyle(selected ? .cyan : .white.opacity(0.75))
+                    Spacer()
+                    if selected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.cyan)
+                    }
+                }
+                Text(effect.title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1).minimumScaleFactor(0.75)
+                Text(effect.detail)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.white.opacity(0.53))
+                    .lineLimit(2)
+                    .frame(height: 26, alignment: .topLeading)
+            }
+            .padding(11)
+            .frame(maxWidth: .infinity, minHeight: 86, alignment: .leading)
+            .background(selected ? Color.cyan.opacity(0.14) : Color.white.opacity(0.05),
+                        in: RoundedRectangle(cornerRadius: 13))
+            .overlay(RoundedRectangle(cornerRadius: 13)
+                .strokeBorder(selected ? .cyan.opacity(0.9) : .white.opacity(0.08),
+                              lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func triggerResponseGraph(start: Double, strength: Double) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Vista previa de resistencia")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white.opacity(0.58))
+            HStack(alignment: .bottom, spacing: 4) {
+                ForEach(0..<19, id: \.self) { index in
+                    let position = Double(index) / 18
+                    let amplitude = position < start ? 0.04 :
+                        min(1, 0.12 + strength * ((position - start) / max(0.1, 1 - start)))
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(position < start ? Color.white.opacity(0.11) : Color.cyan.opacity(0.35 + amplitude * 0.65))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 7 + amplitude * 31)
+                }
+            }
+            .frame(height: 38, alignment: .bottom)
+            HStack {
+                Text("Inicio")
+                Spacer()
+                Text("Presión final")
+            }
+            .font(.system(size: 10))
+            .foregroundStyle(.white.opacity(0.4))
+        }
+        .padding(11)
+        .background(.black.opacity(0.2), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func profileCard(_ id: String, title: String, symbol: String,
+                             tint: Color) -> some View {
+        let selected = selectedPreset == id
+        return Button {
+            applyPreset(id)
+            selectedPreset = id
+        } label: {
+            VStack(alignment: .leading, spacing: 11) {
+                HStack {
+                    Image(systemName: symbol)
+                        .font(.system(size: 23))
+                        .foregroundStyle(tint)
+                    Spacer()
+                    if selected { Image(systemName: "checkmark.circle.fill").foregroundStyle(tint) }
+                }
+                Text(title)
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text(selected ? "Seleccionado" : "Aplicar perfil")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.white.opacity(0.55))
+            }
+            .frame(maxWidth: .infinity, minHeight: 91, alignment: .leading)
+            .padding(12)
+            .background(selected ? tint.opacity(0.16) : Color.white.opacity(0.055),
+                        in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(selected ? tint.opacity(0.85) : .white.opacity(0.08), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private func binding<T>(_ keyPath: WritableKeyPath<NikaidoGameProfile, T>) -> Binding<T> {
