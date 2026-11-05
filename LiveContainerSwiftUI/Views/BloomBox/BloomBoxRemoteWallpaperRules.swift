@@ -1,8 +1,9 @@
 import Foundation
 import Combine
 
-/// Small, read-only remote configuration. The profile contains no downloaded
-/// image URL, executable payload, JIT setting or permission instruction.
+/// Small, read-only remote configuration. Curated Commons image URLs
+/// require a matching public-domain license/source record; arbitrary hosts,
+/// executable payloads, JIT settings and permission instructions are rejected.
 @MainActor
 final class BloomBoxRemoteWallpaperRules: ObservableObject {
     static let shared = BloomBoxRemoteWallpaperRules()
