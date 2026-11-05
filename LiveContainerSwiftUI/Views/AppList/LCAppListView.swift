@@ -211,6 +211,42 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                                         launchWithJIT: { app in Task { await launchFromLiveBoard(app, forceJIT: true) } })
     }
 
+    // GameBox only owns presentation. Every action reuses the live host launch,
+    // preflight, compatibility, guest orientation and app-management paths.
+    @available(iOS 16.0, *)
+    private var gameBoxV2: some View {
+        let guests = launcherApps
+        // Adapt host guest models to a portable, display-only BloomBox contract.
+        // No LiveContainer/SideStore runtime types leak into GameBox source.
+        return BloomBoxGameBoxV2Screen(
+            entries: guests.map { app in
+                BloomBoxGameBoxEntry(
+                    id: liveBoardAppKey(app),
+                    name: LiveBoardAppCustomization.shared.name(app),
+                    icon: LiveBoardIconStore.image(app, dark: darkModeIcon),
+                    requiresJIT: app.appInfo.isJITNeeded)
+            },
+            launch: { key in
+                guard let app = guests.first(where: { liveBoardAppKey($0) == key }) else { return }
+                Task { await launchFromLiveBoard(app) }
+            },
+            launchWithJIT: { key in
+                guard let app = guests.first(where: { liveBoardAppKey($0) == key }) else { return }
+                Task { await launchFromLiveBoard(app, forceJIT: true) }
+            },
+            manage: { key in
+                guard let app = guests.first(where: { liveBoardAppKey($0) == key }) else { return }
+                manageLauncherApp(app)
+            },
+            backToHome: { liveBoardMode = "ios" },
+            openInterface: openInterface,
+            openManagement: { manageLibrary = true },
+            openInstall: {
+                if sharedModel.multiLCStatus == 2 { manageLibrary = true }
+                else { choosingIPA = true }
+            })
+    }
+
     private var reservedSection: some View {
         BloomBoxReservedSection(backToHome: { liveBoardMode = "ios" })
     }
@@ -219,7 +255,13 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         NavigationView {
             ZStack {
                 NavigationLink(destination: navigateTo, isActive: $isNavigationActive) { EmptyView() }.hidden()
-                if !manageLibrary && liveBoardMode == "reserved" {
+                if !manageLibrary && liveBoardMode == "gamebox" {
+                    if #available(iOS 16.0, *) {
+                        gameBoxV2
+                    } else {
+                        reservedSection
+                    }
+                } else if !manageLibrary && liveBoardMode == "reserved" {
                     reservedSection
                 } else if !manageLibrary {
                     iosLauncher
@@ -820,7 +862,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         // cleanup makes immediate retries possible without restarting BloomBox.
         do {
             if app.appInfo.is32bit { try await ensureBundled32BitRuntime(for: app) }
-            if liveBoardMode == "ios" {
+            if liveBoardMode == "ios" || liveBoardMode == "gamebox" {
                 // Run a private guest in its original host process, before
                 // any virtual-window-only iOS/Classic Mode restrictions.
                 if !app.uiIsShared &&
