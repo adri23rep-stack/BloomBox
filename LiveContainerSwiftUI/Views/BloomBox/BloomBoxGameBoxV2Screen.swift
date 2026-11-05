@@ -244,10 +244,12 @@ struct BloomBoxGameBoxV2Screen: View {
             refreshBattery()
         }
         .onDisappear { BloomBoxCrashJournal.shared.leaveGameBox() }
-        .task(id: autoBackgroundTaskID) {
-            // Refresh a validated remote rule list before deciding what image
-            // to request. An offline last-known-good copy stays usable.
+        // Catalog refresh lives independently of icon selection. Rapidly
+        // choosing another app must never cancel the one pending rules request.
+        .task {
             await wallpaperRules.refreshIfNeeded()
+        }
+        .task(id: autoBackgroundTaskID) {
             await resolveAutomaticBackground()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
