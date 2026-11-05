@@ -13,8 +13,11 @@ final class BloomBoxRemoteWallpaperRules: ObservableObject {
     @Published private(set) var lastError: String?
 
     private let defaults = LiveContainerPreferencesAdapter.defaults
-    private let cachedKey = "BloomBoxGameBoxWallpaperRulesVerified-v1"
-    private let lastSyncKey = "BloomBoxGameBoxWallpaperRulesSynced-v1"
+    // v1 accepted a narrower topic alphabet and could reject the entire
+    // updated catalog when one valid Wikipedia article contained parentheses.
+    // Restart the verified cache and synchronization clock with the fix.
+    private let cachedKey = "BloomBoxGameBoxWallpaperRulesVerified-v2"
+    private let lastSyncKey = "BloomBoxGameBoxWallpaperRulesSynced-v2"
     private var index: BloomBoxWallpaperRuleIndex?
     private var refreshing = false
     private var lastAttempt: Date?
@@ -41,7 +44,7 @@ final class BloomBoxRemoteWallpaperRules: ObservableObject {
         // Do not hit raw.githubusercontent.com on every icon selection.
         if !force {
             if let lastAttempt, Date().timeIntervalSince(lastAttempt) < 1800 { return }
-            if let lastSync, Date().timeIntervalSince(lastSync) < 3600 { return }
+            if index != nil, let lastSync, Date().timeIntervalSince(lastSync) < 3600 { return }
         }
         refreshing = true
         lastAttempt = Date()
