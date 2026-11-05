@@ -10,18 +10,18 @@ private enum NikaidoLightStyle: String, CaseIterable, Codable {
 
     var title: String {
         switch self {
-        case .fixed: return "Color fijo"
-        case .breathe: return "Respiración"
-        case .rainbow: return "Arcoíris"
-        case .pulse: return "Pulso suave"
-        case .heartbeat: return "Latido"
-        case .wave: return "Ola neón"
-        case .comet: return "Cometa"
-        case .aurora: return "Aurora"
-        case .fire: return "Fuego"
-        case .police: return "Sirena"
-        case .sparkle: return "Destellos"
-        case .sunset: return "Atardecer"
+        case .fixed: return BloomBoxGameBoxL10n.t("Color fijo")
+        case .breathe: return BloomBoxGameBoxL10n.t("Respiración")
+        case .rainbow: return BloomBoxGameBoxL10n.t("Arcoíris")
+        case .pulse: return BloomBoxGameBoxL10n.t("Pulso suave")
+        case .heartbeat: return BloomBoxGameBoxL10n.t("Latido")
+        case .wave: return BloomBoxGameBoxL10n.t("Ola neón")
+        case .comet: return BloomBoxGameBoxL10n.t("Cometa")
+        case .aurora: return BloomBoxGameBoxL10n.t("Aurora")
+        case .fire: return BloomBoxGameBoxL10n.t("Fuego")
+        case .police: return BloomBoxGameBoxL10n.t("Sirena")
+        case .sparkle: return BloomBoxGameBoxL10n.t("Destellos")
+        case .sunset: return BloomBoxGameBoxL10n.t("Atardecer")
         }
     }
 
@@ -50,17 +50,17 @@ private enum NikaidoTriggerStyle: String, CaseIterable, Codable {
 
     var title: String {
         switch self {
-        case .off: return "Apagado"
-        case .resistance: return "Resistencia"
-        case .weapon: return "Gatillo de arma"
-        case .vibration: return "Pulso"
-        case .soft: return "Suave"
-        case .heavy: return "Pesado"
-        case .sniper: return "Francotirador"
-        case .bow: return "Arco"
-        case .recoil: return "Retroceso"
-        case .rapid: return "Ráfaga"
-        case .ramp: return "Progresivo"
+        case .off: return BloomBoxGameBoxL10n.t("Apagado")
+        case .resistance: return BloomBoxGameBoxL10n.t("Resistencia")
+        case .weapon: return BloomBoxGameBoxL10n.t("Gatillo de arma")
+        case .vibration: return BloomBoxGameBoxL10n.t("Pulso")
+        case .soft: return BloomBoxGameBoxL10n.t("Suave")
+        case .heavy: return BloomBoxGameBoxL10n.t("Pesado")
+        case .sniper: return BloomBoxGameBoxL10n.t("Francotirador")
+        case .bow: return BloomBoxGameBoxL10n.t("Arco")
+        case .recoil: return BloomBoxGameBoxL10n.t("Retroceso")
+        case .rapid: return BloomBoxGameBoxL10n.t("Ráfaga")
+        case .ramp: return BloomBoxGameBoxL10n.t("Progresivo")
         }
     }
 
@@ -82,17 +82,17 @@ private enum NikaidoTriggerStyle: String, CaseIterable, Codable {
 
     var detail: String {
         switch self {
-        case .off: return "Sin resistencia"
-        case .resistance: return "Punto de presión configurable"
-        case .weapon: return "Disparo con recorrido"
-        case .vibration: return "Vibración al presionar"
-        case .soft: return "Recorrido ligero"
-        case .heavy: return "Presión intensa"
-        case .sniper: return "Disparo de precisión"
-        case .bow: return "Fuerza creciente"
-        case .recoil: return "Golpe en el gatillo"
-        case .rapid: return "Vibración rápida"
-        case .ramp: return "Rampa de resistencia"
+        case .off: return BloomBoxGameBoxL10n.t("Sin resistencia")
+        case .resistance: return BloomBoxGameBoxL10n.t("Punto de presión configurable")
+        case .weapon: return BloomBoxGameBoxL10n.t("Disparo con recorrido")
+        case .vibration: return BloomBoxGameBoxL10n.t("Vibración al presionar")
+        case .soft: return BloomBoxGameBoxL10n.t("Recorrido ligero")
+        case .heavy: return BloomBoxGameBoxL10n.t("Presión intensa")
+        case .sniper: return BloomBoxGameBoxL10n.t("Disparo de precisión")
+        case .bow: return BloomBoxGameBoxL10n.t("Fuerza creciente")
+        case .recoil: return BloomBoxGameBoxL10n.t("Golpe en el gatillo")
+        case .rapid: return BloomBoxGameBoxL10n.t("Vibración rápida")
+        case .ramp: return BloomBoxGameBoxL10n.t("Rampa de resistencia")
         }
     }
 }
@@ -320,7 +320,7 @@ private final class NikaidoGameControllerHost: ObservableObject {
         calibrating = false
         calibrationSamples.removeAll()
         calibrationProgress = 1
-        calibrationMessage = String(format: "Centro guardado · variación máxima %.3f", deviation)
+        calibrationMessage = String(format: BloomBoxGameBoxL10n.t("Centro guardado · variación máxima %.3f"), deviation)
     }
 
     func change(_ change: (inout NikaidoGameProfile) -> Void) {
@@ -572,20 +572,20 @@ struct BloomBoxNikaidoControllerView: View {
                 Text(gameName)
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .lineLimit(1)
-                Text(host.controllerName)
+                Text(BloomBoxGameBoxL10n.t(host.controllerName))
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.55))
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
             VStack(alignment: .trailing, spacing: 4) {
-                Label(host.batteryText, systemImage: "battery.75")
+                Label(BloomBoxGameBoxL10n.t(host.batteryText), systemImage: "battery.75")
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.85))
                 HStack(spacing: 5) {
                     Circle().fill(host.isDualSense ? .green : .orange)
                         .frame(width: 6, height: 6)
-                    Text(host.isDualSense ? "DualSense" : "Vista previa")
+                    Text(BloomBoxGameBoxL10n.t(host.isDualSense ? "DualSense" : "Vista previa"))
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.white.opacity(0.65))
                 }
@@ -646,7 +646,7 @@ struct BloomBoxNikaidoControllerView: View {
                 } label: {
                     VStack(spacing: 5) {
                         Image(systemName: item.symbol).font(.system(size: 17, weight: .medium))
-                        Text(item.rawValue).font(.system(size: 10, weight: .bold))
+                        Text(BloomBoxGameBoxL10n.t(item.rawValue)).font(.system(size: 10, weight: .bold))
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 55)
@@ -787,7 +787,7 @@ struct BloomBoxNikaidoControllerView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(!host.isDualSense)
                 }
-                Text(host.calibrationMessage)
+                Text(BloomBoxGameBoxL10n.t(host.calibrationMessage))
                     .font(.caption).foregroundStyle(.white.opacity(0.6))
                 Button("Borrar compensación de drift") {
                     host.change { p in
@@ -859,10 +859,10 @@ struct BloomBoxNikaidoControllerView: View {
                 .foregroundStyle(.cyan)
                 .frame(width: 27)
             VStack(alignment: .leading, spacing: 3) {
-                Text(title)
+                Text(BloomBoxGameBoxL10n.t(title))
                     .font(.system(size: 19, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
-                Text(subtitle)
+                Text(BloomBoxGameBoxL10n.t(subtitle))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.white.opacity(0.55))
             }
@@ -885,11 +885,11 @@ struct BloomBoxNikaidoControllerView: View {
     private func settingsSlider(_ title: String, value: Binding<Double>,
                                 range: ClosedRange<Double>, valueText: String) -> some View {
         HStack(spacing: 8) {
-            Text(title).font(.system(size: 12, weight: .medium))
+            Text(BloomBoxGameBoxL10n.t(title)).font(.system(size: 12, weight: .medium))
                 .frame(width: 78, alignment: .leading)
             Slider(value: value, in: range)
                 .tint(.cyan)
-            Text(valueText)
+            Text(BloomBoxGameBoxL10n.t(valueText))
                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
                 .frame(width: 45, alignment: .trailing)
                 .foregroundStyle(.white.opacity(0.8))
@@ -1045,10 +1045,10 @@ struct BloomBoxNikaidoControllerView: View {
                     Spacer()
                     if selected { Image(systemName: "checkmark.circle.fill").foregroundStyle(tint) }
                 }
-                Text(title)
+                Text(BloomBoxGameBoxL10n.t(title))
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
-                Text(selected ? "Seleccionado" : "Aplicar perfil")
+                Text(BloomBoxGameBoxL10n.t(selected ? "Seleccionado" : "Aplicar perfil"))
                     .font(.system(size: 10))
                     .foregroundStyle(.white.opacity(0.55))
             }
@@ -1102,7 +1102,7 @@ struct BloomBoxNikaidoControllerView: View {
                     Circle()
                         .fill(selected ? Color.cyan : Color.white.opacity(0.3))
                         .frame(width: 5, height: 5)
-                    Text(selected ? "Activo" : "Probar")
+                    Text(BloomBoxGameBoxL10n.t(selected ? "Activo" : "Probar"))
                         .font(.system(size: 9))
                         .foregroundStyle(.white.opacity(0.6))
                 }
@@ -1160,7 +1160,7 @@ struct BloomBoxNikaidoControllerView: View {
             offsetX: host.profile[keyPath: offsetX], offsetY: host.profile[keyPath: offsetY]
         )
         VStack(alignment: .leading, spacing: 7) {
-            Text(title).font(.headline)
+            Text(BloomBoxGameBoxL10n.t(title)).font(.headline)
             HStack {
                 Text("Zona muerta")
                 Slider(value: binding(deadzone), in: 0...0.5)
@@ -1174,11 +1174,11 @@ struct BloomBoxNikaidoControllerView: View {
                     .monospacedDigit().frame(width: 45)
             }
             Toggle("Invertir eje vertical", isOn: binding(invert))
-            Text(String(format: "Centro: %+.3f, %+.3f · Físico: %.2f, %.2f",
+            Text(String(format: BloomBoxGameBoxL10n.t("Centro: %+.3f, %+.3f · Físico: %.2f, %.2f"),
                         host.profile[keyPath: offsetX], host.profile[keyPath: offsetY],
                         physical.0, physical.1))
                 .font(.caption2).monospacedDigit().foregroundStyle(.secondary)
-            Text(String(format: "Resultado ajustado: %.2f, %.2f", output.0, output.1))
+            Text(String(format: BloomBoxGameBoxL10n.t("Resultado ajustado: %.2f, %.2f"), output.0, output.1))
                 .font(.caption2).monospacedDigit().foregroundStyle(.secondary)
         }.font(.subheadline)
     }
@@ -1237,7 +1237,7 @@ struct BloomBoxNikaidoControllerView: View {
     private func mappingRow(_ title: String,
                             key: WritableKeyPath<NikaidoGameProfile, String>) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.system(size: 12, weight: .medium))
+            Text(BloomBoxGameBoxL10n.t(title)).font(.system(size: 12, weight: .medium))
             HStack(spacing: 5) {
                 ForEach(["A", "B", "X", "Y", "none"], id: \.self) { value in
                     let selected = host.profile[keyPath: key] == value
