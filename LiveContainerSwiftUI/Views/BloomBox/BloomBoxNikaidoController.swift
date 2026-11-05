@@ -621,7 +621,7 @@ struct BloomBoxNikaidoControllerView: View {
                 Button {
                     demoPlayback.toggle()
                 } label: {
-                    Label(demoPlayback ? "Pausar demo" : "Reproducir demo",
+                    Label(BloomBoxGameBoxL10n.t(demoPlayback ? "Pausar demo" : "Reproducir demo"),
                           systemImage: demoPlayback ? "pause.fill" : "play.fill")
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.white.opacity(0.9))
@@ -695,8 +695,8 @@ struct BloomBoxNikaidoControllerView: View {
                                valueText: String(format: "%.1fx", host.profile.lightSpeed))
                     .disabled(!host.profile.lightStyle.animated)
             }
-            Text(host.supportsLight ? "El DualSense tiene una sola barra RGB; el brillo y el color cambian juntos." :
-                 "Modo demostración: los efectos animan el control dibujado. Conecta un DualSense compatible para probar las luces reales.")
+            Text(BloomBoxGameBoxL10n.t(host.supportsLight ? "El DualSense tiene una sola barra RGB; el brillo y el color cambian juntos." :
+                 "Modo demostración: los efectos animan el control dibujado. Conecta un DualSense compatible para probar las luces reales."))
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.6))
         }
@@ -724,7 +724,7 @@ struct BloomBoxNikaidoControllerView: View {
                 }
             }
             studioCard {
-                Label(selectedTrigger == .left ? "Ajustar L2" : "Ajustar R2",
+                Label(BloomBoxGameBoxL10n.t(selectedTrigger == .left ? "Ajustar L2" : "Ajustar R2"),
                       systemImage: "slider.horizontal.3")
                     .font(.headline)
                 let strength = selectedTrigger == .left ? host.profile.leftStrength : host.profile.rightStrength
