@@ -159,7 +159,7 @@ struct BloomBoxGameBoxV2Screen: View {
                     }
                     detailPanel(compact: compact)
                         // Slimmer by ~11%, preserving room for the title and controls.
-                        .frame(height: compact ? 100 : 114)
+                        .frame(height: compact ? 100 : 120)
                         .padding(.horizontal, compact ? 12 : 25)
                 }
                 .padding(.vertical, compact ? 3 : 12)
