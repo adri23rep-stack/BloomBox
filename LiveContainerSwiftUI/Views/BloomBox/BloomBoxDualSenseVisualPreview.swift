@@ -43,6 +43,7 @@ struct BloomBoxDualSenseVisualPreview: View {
     let onLightTap: () -> Void
     let onLeftTriggerTap: () -> Void
     let onRightTriggerTap: () -> Void
+    let onStickTap: () -> Void
 
     private let cyan = Color(red: 0.25, green: 0.83, blue: 1)
 
@@ -162,6 +163,23 @@ struct BloomBoxDualSenseVisualPreview: View {
             analogStick(leftStick).position(x: 149, y: 163)
             analogStick(rightStick).position(x: 250, y: 163)
 
+            Button(action: onStickTap) {
+                Circle().fill(.clear)
+                    .frame(width: 52, height: 52)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .position(x: 149, y: 163)
+            .accessibilityLabel("Editar palanca izquierda")
+            Button(action: onStickTap) {
+                Circle().fill(.clear)
+                    .frame(width: 52, height: 52)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .position(x: 250, y: 163)
+            .accessibilityLabel("Editar palanca derecha")
+
             Text("✦")
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(.white.opacity(0.75))
@@ -223,7 +241,9 @@ struct BloomBoxDualSenseVisualPreview: View {
             .shadow(color: enabled ? lightColor.opacity(strength * 0.25) : .clear, radius: 8)
         }
         .buttonStyle(.plain)
+        .offset(y: CGFloat(max(0, min(1, pressure))) * 4)
         .position(x: x, y: 58)
+        .animation(.easeOut(duration: 0.12), value: pressure)
         .accessibilityLabel("Configurar gatillo " + title)
     }
 
