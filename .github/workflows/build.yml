@@ -336,6 +336,10 @@ jobs:
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxGameProfileSchema.swift Tests/remote-game-profiles/main.swift -o "$RUNNER_TEMP/game-profiles-tests"
           "$RUNNER_TEMP/game-profiles-tests"
 
+      - name: Test GameBox wallpaper registry identity and safety
+        run: |
+          swiftc LiveContainerSwiftUI/Utilities/BloomBoxWallpaperRuleSchema.swift Tests/gamebox-wallpaper-rules/main.swift -o "$RUNNER_TEMP/gamebox-wallpaper-rules-tests"
+          "$RUNNER_TEMP/gamebox-wallpaper-rules-tests"
       - name: Verify retired GameBox is absent and a reserved slot remains
         run: python3 Tests/reserved-section/test_contract.py
       - name: Test BloomBox launcher startup fallback
