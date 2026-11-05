@@ -27,10 +27,9 @@ final class BloomBoxRemoteWallpaperRules: ObservableObject {
     private var refreshing = false
     private var lastAttempt: Date?
 
-    // Preview feed on a dedicated catalog branch. Change only this URL to
-    // /main/catalog/gamebox-wallpaper-rules.json after the catalog PR merges.
+    // Stable curated wallpaper feed, merged into BloomBox-Catalog/main.
     private static let catalogURL = URL(string:
-        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox-Catalog/feature/gamebox-wallpaper-keywords-20261105/catalog/gamebox-wallpaper-rules.json")!
+        "https://raw.githubusercontent.com/adri23rep-stack/BloomBox-Catalog/main/catalog/gamebox-wallpaper-rules.json")!
 
     private init() {
         if let bytes = defaults.data(forKey: cachedKey),
