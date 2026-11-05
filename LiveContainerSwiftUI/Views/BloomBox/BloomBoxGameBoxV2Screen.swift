@@ -128,8 +128,10 @@ struct BloomBoxGameBoxV2Screen: View {
             // Geometry may briefly be zero during LiveProcess orientation changes.
             let safeWidth = geometry.size.width.isFinite && geometry.size.width > 0 ? geometry.size.width : 844
             let safeHeight = geometry.size.height.isFinite && geometry.size.height > 0 ? geometry.size.height : 390
-            let compact = safeHeight < 370
-            let cardHeight = max(125, min(compact ? 191 : 290, safeHeight * (compact ? 0.44 : 0.47)))
+            // iPhone landscape can report 375-450 points after safe areas.
+            // Its original noncompact sizes exceeded the available height.
+            let compact = safeHeight < 520
+            let cardHeight = max(120, min(compact ? 191 : 290, safeHeight * (compact ? 0.41 : 0.45)))
             let cardWidth = cardHeight * 0.79
             ZStack {
                 consoleBackground
@@ -238,6 +240,8 @@ struct BloomBoxGameBoxV2Screen: View {
         }
         .onChange(of: entries.map(key)) { keys in
             if let focusedKey, !keys.contains(focusedKey) {
+                self.focusedKey = visibleApps.first.map(key)
+            } else if self.focusedKey == nil {
                 self.focusedKey = visibleApps.first.map(key)
             }
         }
@@ -369,8 +373,12 @@ struct BloomBoxGameBoxV2Screen: View {
         .accessibilityLabel(label)
     }
 
+    @ViewBuilder
     private func carousel(cardWidth: CGFloat, height: CGFloat, viewportWidth: CGFloat) -> some View {
-        ScrollViewReader { scroll in
+        let edgeInset = max(9, (viewportWidth - cardWidth) / 2 - 25)
+        if #available(iOS 17.0, *) {
+            // Native snapping and a bound selection: scrolling no longer fights
+            // our own drag gesture or snaps back to the wrong card.
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .center, spacing: 14) {
                     ForEach(visibleApps, id: \.id) { app in
@@ -378,23 +386,35 @@ struct BloomBoxGameBoxV2Screen: View {
                             .id(key(app))
                     }
                 }
-                // Makes the first and last cover truly centerable, too.
-                .padding(.horizontal, max(9, (viewportWidth - cardWidth) / 2 - 25))
+                .scrollTargetLayout()
+                .padding(.horizontal, edgeInset)
                 .padding(.vertical, 5)
             }
-            .simultaneousGesture(DragGesture(minimumDistance: 35).onEnded { value in
-                guard abs(value.translation.width) > 45 else { return }
-                moveSelection(value.translation.width < 0 ? 1 : -1)
-            })
-            .onChange(of: focusedKey) { changed in
-                guard let changed else { return }
-                withAnimation(reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.85)) {
-                    scroll.scrollTo(changed, anchor: .center)
-                }
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $focusedKey)
+            .onChange(of: focusedKey) { _ in
+                selectionHaptic()
             }
-            .onAppear {
-                if let focusedKey {
-                    scroll.scrollTo(focusedKey, anchor: .center)
+        } else {
+            ScrollViewReader { scroll in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .center, spacing: 14) {
+                        ForEach(visibleApps, id: \.id) { app in
+                            gameCard(app, width: cardWidth, height: height)
+                                .id(key(app))
+                        }
+                    }
+                    .padding(.horizontal, edgeInset)
+                    .padding(.vertical, 5)
+                }
+                .onChange(of: focusedKey) { changed in
+                    guard let changed else { return }
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.24)) {
+                        scroll.scrollTo(changed, anchor: .center)
+                    }
+                }
+                .onAppear {
+                    if let focusedKey { scroll.scrollTo(focusedKey, anchor: .center) }
                 }
             }
         }
@@ -472,13 +492,13 @@ struct BloomBoxGameBoxV2Screen: View {
         .scaleEffect(focused && !reduceMotion ? 1.045 : 1)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: focused)
         .contentShape(RoundedRectangle(cornerRadius: 19))
+        .onTapGesture(count: 2) {
+            select(app)
+            toggleFavorite(app)
+        }
         .onTapGesture {
             select(app)
         }
-        .highPriorityGesture(TapGesture(count: 2).onEnded {
-            select(app)
-            toggleFavorite(app)
-        })
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title(app) + (favorites.contains(key(app)) ? ", favorito" : ""))
         .accessibilityAddTraits(focused ? .isSelected : [])
@@ -574,7 +594,7 @@ struct BloomBoxGameBoxV2Screen: View {
                                 Label("Quitar fondo personalizado", systemImage: "rectangle.on.rectangle.slash")
                             }
                         }
-                        if cover(app) != nil {
+                        if artwork.image(for: key(app), kind: .cover) != nil {
                             Button(role: .destructive) {
                                 artwork.remove(for: key(app), kind: .cover)
                             } label: {
@@ -699,6 +719,7 @@ struct BloomBoxGameBoxV2Screen: View {
     }
 
     private func selectionHaptic() {
+        guard !reduceMotion else { return }
         UISelectionFeedbackGenerator().selectionChanged()
     }
 
