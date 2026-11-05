@@ -124,6 +124,10 @@ assert "await wallpaperRules.refreshIfNeeded()" in gamebox
 assert "Button(\"Reactivar fondos de GameBox\"" in gamebox
 assert ".alert(\"Fondos desactivados por seguridad\"" in gamebox
 assert "safeGraphics = false" in gamebox
+assert "resumeSafeGraphicsAndLoadArt()" in gamebox
+assert "private var artworkIntroTimeoutID: String" in gamebox
+assert ".task(id: artworkIntroTimeoutID)" in gamebox
+assert '"gamebox.safe_graphics.user_resumed"' in gamebox
 assert "onSkip" in intro and "onEnableGraphics" in intro
 assert "Bloombox" not in intro  # use GAMEBOX branding
 assert "repeatForever(autoreverses: true)" in intro
