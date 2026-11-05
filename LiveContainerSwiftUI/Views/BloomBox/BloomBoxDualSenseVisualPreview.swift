@@ -128,7 +128,7 @@ struct BloomBoxDualSenseVisualPreview: View {
                 .shadow(color: .black.opacity(0.5), radius: 14, y: 10)
 
             BloomBoxDualSenseSilhouette()
-                .strokeBorder(.white.opacity(0.7), lineWidth: 1.5)
+                .stroke(.white.opacity(0.7), lineWidth: 1.5)
 
             // Black center / touchpad housing.
             RoundedRectangle(cornerRadius: 36)
