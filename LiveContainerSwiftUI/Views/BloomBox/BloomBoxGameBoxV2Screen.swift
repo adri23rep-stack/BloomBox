@@ -13,6 +13,7 @@ import AudioToolbox
 /// Portable UI item. Only the existing host adapts installed guest metadata.
 struct BloomBoxGameBoxEntry: Identifiable {
     let id: String
+    let bundleID: String?
     let name: String
     let icon: UIImage?
     let requiresJIT: Bool
@@ -55,6 +56,7 @@ struct BloomBoxGameBoxV2Screen: View {
     let openInstall: () -> Void
 
     @StateObject private var artwork = BloomBoxArtworkLibrary()
+    @ObservedObject private var wallpaperRules = BloomBoxRemoteWallpaperRules.shared
     @AppStorage("BloomBoxGameBoxAutoBackgrounds", store: LiveContainerPreferencesAdapter.defaults)
     private var autoBackgrounds = true
     @State private var fetchingAutoBackground: String?
@@ -90,7 +92,8 @@ struct BloomBoxGameBoxV2Screen: View {
     private var reduceMotion: Bool { systemReduceMotion || localReduceMotion || constrained }
     private var autoBackgroundTaskID: String {
         (focusedKey ?? "") + ":" + String(autoBackgrounds) + ":" +
-        String(safeGraphics) + ":" + String(constrained)
+        String(safeGraphics) + ":" + String(constrained) + ":" +
+        String(wallpaperRules.revision)
     }
     private var favorites: Set<String> {
         Set(BloomBoxHomeAppPolicy.favorites(from: favoritesJSON))
@@ -242,6 +245,9 @@ struct BloomBoxGameBoxV2Screen: View {
         }
         .onDisappear { BloomBoxCrashJournal.shared.leaveGameBox() }
         .task(id: autoBackgroundTaskID) {
+            // Refresh a validated remote rule list before deciding what image
+            // to request. An offline last-known-good copy stays usable.
+            await wallpaperRules.refreshIfNeeded()
             await resolveAutomaticBackground()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
@@ -721,34 +727,46 @@ struct BloomBoxGameBoxV2Screen: View {
     @MainActor
     private func resolveAutomaticBackground(force: Bool = false) async {
         guard autoBackgrounds, !safeGraphics, !constrained,
-              let app = selectedApp, BloomBoxGameBoxArtworkLookup.supported(title(app)) else {
-            return
-        }
+              let app = selectedApp else { return }
+        let rule = wallpaperRules.rule(bundleID: app.bundleID, name: app.name)
+        guard rule != nil || BloomBoxGameBoxArtworkLookup.supported(title(app)) else { return }
+
         let id = key(app)
         let prefs = LiveContainerPreferencesAdapter.defaults
         let attemptedKey = "BloomBoxGameBoxArtworkLastAttempt:" + id
-        // No network needed when artwork is already saved. Also respect any
-        // manually selected background or cover.
+        let attemptedRuleKey = "BloomBoxGameBoxArtworkLastAttemptRule:" + id
+        let savedRuleKey = "BloomBoxGameBoxArtworkAppliedRule:" + id
+        // Rules can change without reinstalling the app. A newly published
+        // mapping should be applied even when a fallback image is cached.
+        let ruleToken = rule.map {
+            "remote:" + $0.id + ":" + $0.provider + ":" + $0.query
+        } ?? "built-in:" + app.name
+
+        // Manual image/cover always wins. Remote metadata never overwrites it.
         if artwork.image(for: id, kind: .background) != nil ||
-           artwork.image(for: id, kind: .cover) != nil {
-            return
-        }
+           artwork.image(for: id, kind: .cover) != nil { return }
+
         if !force {
-            guard artwork.image(for: id, kind: .background,
-                                mode: autoBackgroundMode) == nil else { return }
-            guard Date().timeIntervalSince1970 - prefs.double(forKey: attemptedKey) >
-                    24 * 60 * 60 else { return }
-            // Avoid requesting artwork during fast swipes and first render.
+            let existing = artwork.image(for: id, kind: .background,
+                                         mode: autoBackgroundMode) != nil
+            if existing && (prefs.string(forKey: savedRuleKey) == ruleToken ||
+                            rule == nil) { return }
+            if prefs.string(forKey: attemptedRuleKey) == ruleToken &&
+               Date().timeIntervalSince1970 - prefs.double(forKey: attemptedKey) <
+                    24 * 60 * 60 { return }
+            // Avoid network requests while rapidly tapping across the row.
             do { try await Task.sleep(nanoseconds: 650_000_000) }
             catch { return }
         }
+
         guard !Task.isCancelled, key(selectedApp ?? app) == id,
               fetchingAutoBackground == nil else { return }
         fetchingAutoBackground = id
         defer { fetchingAutoBackground = nil }
         prefs.set(Date().timeIntervalSince1970, forKey: attemptedKey)
+        prefs.set(ruleToken, forKey: attemptedRuleKey)
         BloomBoxCrashJournal.shared.record("gamebox.online_wallpaper.lookup")
-        guard let found = await BloomBoxGameBoxArtworkLookup.find(title(app)),
+        guard let found = await BloomBoxGameBoxArtworkLookup.find(app.name, rule: rule),
               !Task.isCancelled, key(selectedApp ?? app) == id,
               artwork.image(for: id, kind: .background) == nil,
               artwork.image(for: id, kind: .cover) == nil else {
@@ -760,6 +778,7 @@ struct BloomBoxGameBoxV2Screen: View {
                              mode: autoBackgroundMode)
             prefs.set(found.sourceURL.absoluteString,
                       forKey: "BloomBoxGameBoxArtworkSource:" + id)
+            prefs.set(ruleToken, forKey: savedRuleKey)
             BloomBoxCrashJournal.shared.record("gamebox.online_wallpaper.saved")
         } catch {
             BloomBoxCrashJournal.shared.record("gamebox.online_wallpaper.save_failed")
