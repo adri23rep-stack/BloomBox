@@ -456,41 +456,98 @@ struct BloomBoxNikaidoControllerView: View {
                     Text("Los efectos se prueban desde GameBox; un emulador puede sobrescribirlos al abrirse.")
                 }
 
-                Section("Luces RGB") {
-                    Picker("Efecto", selection: binding(\.lightStyle)) {
-                        ForEach(NikaidoLightStyle.allCases, id: \.self) { style in
-                            Text(style.title).tag(style)
+                Section {
+                    lightPreview
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()),
+                                        GridItem(.flexible())], spacing: 8) {
+                        ForEach(NikaidoLightStyle.allCases, id: \.self) { item in
+                            lightCell(item)
                         }
                     }
-                    .disabled(!host.supportsLight)
-                    ColorPicker("Color principal", selection: Binding(
-                        get: { Color(red: host.profile.red, green: host.profile.green, blue: host.profile.blue) },
-                        set: { color in
-                            let ui = UIColor(color)
-                            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-                            guard ui.getRed(&r, green: &g, blue: &b, alpha: &a) else { return }
-                            host.change { $0.red = Double(r); $0.green = Double(g); $0.blue = Double(b) }
-                        }
-                    ), supportsOpacity: false)
-                    .disabled(!host.supportsLight || host.profile.lightStyle == .rainbow)
+                    .padding(.vertical, 6)
+                    HStack {
+                        ColorPicker("Principal", selection: colorBinding(primary: true), supportsOpacity: false)
+                        ColorPicker("Secundario", selection: colorBinding(primary: false), supportsOpacity: false)
+                    }
+                    HStack {
+                        Text("Brillo")
+                        Slider(value: binding(\.lightBrightness), in: 0...1)
+                        Text("\(Int(host.profile.lightBrightness * 100))%")
+                            .monospacedDigit().frame(width: 46)
+                    }
+                    HStack {
+                        Text("Velocidad")
+                        Slider(value: binding(\.lightSpeed), in: 0.25...3)
+                        Text(String(format: "%.1fx", host.profile.lightSpeed))
+                            .monospacedDigit().frame(width: 46)
+                    }.disabled(!host.profile.lightStyle.animated)
+                } header: {
+                    Label("RGB Studio · 12 efectos", systemImage: "lightspectrum.horizontal")
+                } footer: {
+                    Text("El DualSense tiene una barra de un solo color. GameBox anima el color, no zonas LED independientes. El juego puede reemplazar el efecto.")
                 }
+                .disabled(!host.supportsLight)
 
                 Section("Gatillos adaptativos") {
-                    triggerRow("L2", style: \.leftTriggerStyle, strength: \.leftStrength)
-                    triggerRow("R2", style: \.rightTriggerStyle, strength: \.rightStrength)
+                    triggerRow("L2", style: \.leftTriggerStyle, strength: \.leftStrength,
+                               start: \.leftStart)
+                    triggerRow("R2", style: \.rightTriggerStyle, strength: \.rightStrength,
+                               start: \.rightStart)
+                    HStack {
+                        Button("Copiar L2 → R2") {
+                            host.change { p in
+                                p.rightTriggerStyle = p.leftTriggerStyle
+                                p.rightStrength = p.leftStrength
+                                p.rightStart = p.leftStart
+                            }
+                        }
+                        Spacer()
+                        Button("Apagar ambos") {
+                            host.change { p in
+                                p.leftTriggerStyle = .off
+                                p.rightTriggerStyle = .off
+                            }
+                        }
+                    }.font(.subheadline).disabled(!host.isDualSense)
                 }
 
                 Section {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Autocalibración de drift", systemImage: "scope").font(.headline)
+                        Text("Apoya el control, suelta las dos palancas y no las toques durante la medición.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                        if host.calibrating {
+                            ProgressView(value: host.calibrationProgress)
+                            Button("Cancelar medición") { host.cancelCalibration() }
+                        } else {
+                            Button { host.beginCalibration() } label: {
+                                Label("Medir y calibrar centro", systemImage: "dot.scope")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent).disabled(!host.isDualSense)
+                        }
+                        Text(host.calibrationMessage).font(.caption).foregroundStyle(.secondary)
+                        if !host.calibrating {
+                            Button("Borrar compensación de drift") {
+                                host.change { p in
+                                    p.leftDriftX = 0; p.leftDriftY = 0
+                                    p.rightDriftX = 0; p.rightDriftY = 0
+                                }
+                            }.font(.caption)
+                        }
+                    }
                     stickRow("Palanca izquierda", deadzone: \.leftDeadzone,
                              sensitivity: \.leftSensitivity, invert: \.invertLeftY,
+                             offsetX: \.leftDriftX, offsetY: \.leftDriftY,
                              physical: host.leftRaw)
                     stickRow("Palanca derecha", deadzone: \.rightDeadzone,
                              sensitivity: \.rightSensitivity, invert: \.invertRightY,
+                             offsetX: \.rightDriftX, offsetY: \.rightDriftY,
                              physical: host.rightRaw)
                 } header: {
                     Text("Input Studio · vista previa")
                 } footer: {
-                    Text("Aquí se calcula y guarda el ajuste. Aún NO modifica las entradas de los juegos: para eso se necesita un puente específico en el emulador.")
+                    Text("La medición guarda compensaciones del centro y ajusta la zona muerta si hace falta. NO repara el hardware ni cambia controles en apps invitadas hasta integrar su puente de entradas.")
                 }
 
                 Section {
@@ -541,7 +598,7 @@ struct BloomBoxNikaidoControllerView: View {
             .onDisappear { host.deactivate() }
             .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in host.refresh() }
             .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidDisconnect)) { _ in host.refresh() }
-            .onReceive(Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()) { _ in
+            .onReceive(Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()) { _ in
                 host.sampleInput()
             }
         }
