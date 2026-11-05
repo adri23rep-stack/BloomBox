@@ -76,6 +76,12 @@ static void BloomBoxRecordLiveProcessPhase(NSString *phase) {
     NSURL *file = [folder URLByAppendingPathComponent:@"liveprocess.log"];
     int fd = open(file.fileSystemRepresentation, O_WRONLY | O_CREAT | O_APPEND, 0600);
     if (fd < 0) return;
+    // Bound growth even after repeated child-process crashes. Truncation is
+    // best-effort; every future line remains independently parseable.
+    struct stat stats;
+    if (fstat(fd, &stats) == 0 && stats.st_size > 512 * 1024) {
+        (void)ftruncate(fd, 0);
+    }
     // Never include bundle identifiers, guest paths, bookmarks or custom payloads.
     NSString *line = [NSString stringWithFormat:@"%.3f pid=%d %@\n",
                       [NSDate date].timeIntervalSince1970, getpid(), phase];
