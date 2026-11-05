@@ -268,6 +268,11 @@ struct BloomBoxGameBoxV2Screen: View {
                 self.focusedKey = visibleApps.first.map(key)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+            BloomBoxCrashJournal.shared.record("gamebox.memory_warning.graphics_safed")
+            safeGraphics = true
+            artwork.clearDecodedCache()
+        }
         .onReceive(NotificationCenter.default.publisher(for: ProcessInfo.thermalStateDidChangeNotification)) { _ in
             refreshSystemBudget()
         }
