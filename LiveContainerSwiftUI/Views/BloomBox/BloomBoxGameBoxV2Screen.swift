@@ -63,7 +63,7 @@ private struct BloomBoxNikaidoControllerSlot: View {
                     .allowsHitTesting(false)
             }
         }
-        .accessibilityLabel("Nikaido · Ajustes del control" +
+        .accessibilityLabel(BloomBoxGameBoxL10n.t("Nikaido · Ajustes del control") +
                             (batteryPercent.map { ", batería \($0)%" } ?? ""))
         .accessibilityHint("Luces, gatillos adaptativos y perfiles por juego")
     }
@@ -405,7 +405,7 @@ struct BloomBoxGameBoxV2Screen: View {
                     showSafeGraphicsAlert = true
                 }
             }
-            Button(artworkIntroEnabled ? "Desactivar animación de carga" : "Activar animación de carga",
+            Button(BloomBoxGameBoxL10n.t(artworkIntroEnabled ? "Desactivar animación de carga" : "Activar animación de carga"),
                    systemImage: "waveform") {
                 artworkIntroEnabled.toggle()
             }
@@ -433,7 +433,7 @@ struct BloomBoxGameBoxV2Screen: View {
         )) {
             Button("Entendido", role: .cancel) { upcomingFeature = nil }
         } message: {
-            Text(upcomingFeature ?? "")
+            Text(BloomBoxGameBoxL10n.t(upcomingFeature ?? ""))
         }
         .accessibilityIdentifier("bloombox.gamebox.v2")
     }
@@ -496,7 +496,7 @@ struct BloomBoxGameBoxV2Screen: View {
                         .background(focusedAccent.opacity(0.35), in: Capsule())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(safeGraphics ? "Modo seguro; toca para activar fondos" : "Versión 2")
+                .accessibilityLabel(BloomBoxGameBoxL10n.t(safeGraphics ? "Modo seguro; toca para activar fondos" : "Versión 2"))
                 TimelineView(.periodic(from: .now, by: 60)) { time in
                     Text(time.date, format: .dateTime.hour().minute())
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
@@ -554,7 +554,7 @@ struct BloomBoxGameBoxV2Screen: View {
                 .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(label)
+        .accessibilityLabel(BloomBoxGameBoxL10n.t(label))
     }
 
     // The carousel owns only scrolling; selection belongs exclusively to
@@ -662,11 +662,11 @@ struct BloomBoxGameBoxV2Screen: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.72)
                         HStack(spacing: 7) {
-                            Text(favorites.contains(key(app)) ? "★ Favorito" : "Listo para jugar")
+                            Text(BloomBoxGameBoxL10n.t(favorites.contains(key(app)) ? "★ Favorito" : "Listo para jugar"))
                             Text("•")
-                            Text(app.requiresJIT ? "JIT disponible" : "Lanzamiento normal")
+                            Text(BloomBoxGameBoxL10n.t(app.requiresJIT ? "JIT disponible" : "Lanzamiento normal"))
                             Text("•")
-                            Text(wallpaperStatusText(for: app))
+                            Text(BloomBoxGameBoxL10n.t(wallpaperStatusText(for: app)))
                         }
                         .font(.system(size: compact ? 9 : 11, weight: .medium))
                         .foregroundStyle(.white.opacity(0.72))
@@ -695,7 +695,7 @@ struct BloomBoxGameBoxV2Screen: View {
                         Button("Abrir con JIT", systemImage: "bolt.fill") {
                             requestLaunch(app, forceJIT: true)
                         }
-                        Button(favorites.contains(key(app)) ? "Quitar de favoritos" : "Añadir a favoritos",
+                        Button(BloomBoxGameBoxL10n.t(favorites.contains(key(app)) ? "Quitar de favoritos" : "Añadir a favoritos"),
                                systemImage: "heart") { toggleFavorite(app) }
                         Button("Ajustes de esta app", systemImage: "gearshape") { manage(key(app)) }
                         Divider()
@@ -712,11 +712,11 @@ struct BloomBoxGameBoxV2Screen: View {
                             chooseArtworkFromFiles(for: app, kind: .background)
                         }
                         Divider()
-                        Button(autoBackgrounds ? "Desactivar fondos automáticos" : "Activar fondos automáticos",
+                        Button(BloomBoxGameBoxL10n.t(autoBackgrounds ? "Desactivar fondos automáticos" : "Activar fondos automáticos"),
                                systemImage: autoBackgrounds ? "globe.americas.fill" : "globe") {
                             autoBackgrounds.toggle()
                         }
-                        Button(fetchingAutoBackground == key(app) ? "Buscando fondo…" : "Buscar fondo en Internet",
+                        Button(BloomBoxGameBoxL10n.t(fetchingAutoBackground == key(app) ? "Buscando fondo…" : "Buscar fondo en Internet"),
                                systemImage: "magnifyingglass") {
                             Task {
                                 await wallpaperRules.refreshIfNeeded(force: true)
@@ -814,7 +814,7 @@ struct BloomBoxGameBoxV2Screen: View {
                     .opacity(0.37)
             }
             .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
-            .accessibilityLabel(label)
+            .accessibilityLabel(BloomBoxGameBoxL10n.t(label))
     }
 
     private var emptyLibrary: some View {
