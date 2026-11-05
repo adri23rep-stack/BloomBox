@@ -152,7 +152,10 @@ enum BloomBoxGameBoxArtworkLookup {
 
         // Prefer a widescreen hero; a missing hero is normal for older games.
         if let hero = URL(string: "https://shared.steamstatic.com/store_item_assets/steam/apps/\(match.id)/library_hero.jpg"),
-           let image = await image(from: hero, permittedHosts: ["shared.steamstatic.com"]) {
+           let image = await image(from: hero, permittedHosts: [
+                "shared.steamstatic.com", "shared.fastly.steamstatic.com",
+                "shared.cloudflare.steamstatic.com", "cdn.cloudflare.steamstatic.com"
+           ]) {
             return Result(image: image, sourceURL: sourceURL, provider: "Steam")
         }
 
