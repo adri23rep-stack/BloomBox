@@ -30,6 +30,26 @@ import ImageIO
 
     init() {
         migratePreferences()
+        pruneUnreferencedArtwork()
+    }
+
+    // Only generated JPGs in our own artwork directory are eligible.
+    // A failed save can leave a file behind after an interruption; clean
+    // stale orphans without ever touching installed games or legacy files.
+    private func pruneUnreferencedArtwork() {
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: [.contentModificationDateKey]
+        ) else { return }
+        let referenced = Set(mappings.values)
+        let cutoff = Date().addingTimeInterval(-24 * 60 * 60)
+        for file in files where Self.safeFile(file.lastPathComponent)
+            && !referenced.contains(file.lastPathComponent) {
+            let modified = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate ?? .distantFuture
+            if modified < cutoff {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
     }
 
     private func dictionary(for key: String) -> [String: String] {
