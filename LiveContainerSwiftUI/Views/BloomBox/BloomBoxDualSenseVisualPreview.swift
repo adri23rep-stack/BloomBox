@@ -59,7 +59,7 @@ struct BloomBoxDualSenseVisualPreview: View {
                 Circle()
                     .fill(connected ? Color.green : Color.orange)
                     .frame(width: 7, height: 7)
-                Text(connected ? "CONECTADO" : "SIMULACIÓN")
+                Text(BloomBoxGameBoxL10n.t(connected ? "CONECTADO" : "SIMULACIÓN"))
                     .font(.system(size: 9, weight: .bold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.7))
             }
@@ -80,7 +80,7 @@ struct BloomBoxDualSenseVisualPreview: View {
             HStack(spacing: 10) {
                 Circle().fill(lightColor).frame(width: 9, height: 9)
                     .shadow(color: lightColor.opacity(0.8), radius: 5)
-                Text(lightEffectName)
+                Text(BloomBoxGameBoxL10n.t(lightEffectName))
                     .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
                 Spacer()
@@ -244,7 +244,7 @@ struct BloomBoxDualSenseVisualPreview: View {
         .offset(y: CGFloat(max(0, min(1, pressure))) * 4)
         .position(x: x, y: 58)
         .animation(.easeOut(duration: 0.12), value: pressure)
-        .accessibilityLabel("Configurar gatillo " + title)
+        .accessibilityLabel(BloomBoxGameBoxL10n.t("Configurar gatillo ") + title)
     }
 
     private var dPad: some View {
