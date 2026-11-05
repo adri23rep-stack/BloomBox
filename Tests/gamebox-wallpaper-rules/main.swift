@@ -19,6 +19,7 @@ let valid: [String: Any] = [
         entry("dolphinios-gamecube", ["me.oatmealdome.DolphiniOS-njb-patreon-beta"],
               ["DolphiniOS"], "wikipedia", "Nintendo GameCube"),
         entry("delta-ds", [], ["Delta"], "wikipedia", "Nintendo DS"),
+        entry("new-platform", [], ["A Future Emulator"], "wikipedia", "Nintendo 64"),
         entry("rdr-port", [], ["RDR - IOSVIZOR.COM"], "steam", "Red Dead Redemption")
     ]
 ]
@@ -32,6 +33,7 @@ assert(index.rule(bundleID: nil, name: "MelonNX 2.6")?.query == "Nintendo Switch
 assert(index.rule(bundleID: nil, name: "MelonNX Copycat") == nil)
 assert(index.rule(bundleID: nil, name: "DolphiniOS Public Beta")?.query == "Nintendo GameCube")
 assert(index.rule(bundleID: nil, name: "Delta Force") == nil)
+assert(index.rule(bundleID: nil, name: "A Future Emulator")?.query == "Nintendo 64")
 assert(index.rule(bundleID: nil, name: "RDR - IOSVIZOR.COM")?.query == "Red Dead Redemption")
 assert(index.rule(bundleID: "com.unknown.app", name: "Unknown") == nil)
 func expectReject(_ mutate: (inout [String: Any]) -> Void) {
