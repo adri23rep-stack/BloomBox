@@ -12,6 +12,9 @@ struct BloomBoxLauncherRootView: View {
     @State private var showDestination = false
     @State private var showDiagnostics = false
     @State private var showRecoveryNotice = false
+    @State private var showFirstRunWizard = false
+    @AppStorage("BloomBoxWizardInitialCompletedV1", store: LCUtils.appGroupUserDefault)
+    private var wizardCompleted = false
     @AppStorage("BloomBoxAutoGameBoxOnController", store: LCUtils.appGroupUserDefault)
     private var autoGameBoxOnController = true
 
@@ -23,12 +26,20 @@ struct BloomBoxLauncherRootView: View {
         Group {
             if ready {
                 LCAppListView(openInterface: { showModeSheet = true })
+                    .preferredColorScheme(.dark)
             } else {
                 Color.black.ignoresSafeArea()
             }
         }
         .environment(\.locale, locale)
-        .preferredColorScheme(.dark)
+        .fullScreenCover(isPresented: $showFirstRunWizard) {
+            BloomBoxWizardWelcomeView(isPreview: false) {
+                wizardCompleted = true
+                showFirstRunWizard = false
+                showRecoveryNotice = BloomBoxCrashJournal.shared.previousInterrupted
+            }
+            .preferredColorScheme(BloomBoxWizardSystemAppearance.current)
+        }
         .sheet(isPresented: $showModeSheet) {
             NavigationView {
                 ScrollView {
@@ -114,8 +125,12 @@ struct BloomBoxLauncherRootView: View {
                 BloomBoxLauncherSession.restored = true
             }
             ready = true
-            showRecoveryNotice = BloomBoxCrashJournal.shared.previousInterrupted
-            routeConnectedControllerIfAllowed()
+            if !wizardCompleted {
+                showFirstRunWizard = true
+            } else {
+                showRecoveryNotice = BloomBoxCrashJournal.shared.previousInterrupted
+                routeConnectedControllerIfAllowed()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in
             routeConnectedControllerIfAllowed()
@@ -124,7 +139,8 @@ struct BloomBoxLauncherRootView: View {
 
     private func routeConnectedControllerIfAllowed() {
         // Do not relaunch an interrupted GameBox session or steal focus from a guest.
-        guard autoGameBoxOnController, ready, !showRecoveryNotice,
+        guard autoGameBoxOnController, ready, wizardCompleted,
+              !showFirstRunWizard, !showRecoveryNotice,
               !showDestination, !showModeSheet, mode != "gamebox",
               UIApplication.shared.applicationState == .active,
               !GCController.controllers().isEmpty else { return }
