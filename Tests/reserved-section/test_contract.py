@@ -95,7 +95,9 @@ assert '"schemaVersion", "catalogID", "updatedAt", "rules"' in schema
 assert '"provider", "query", "note"' in schema
 assert 'Set(words).count == words.count' in schema
 assert 'if let bundleID, let exact = rules.first' in schema
-assert 'Self.normalize($0) == normalized' in schema
+assert 'Self.matchesAlias($0, normalizedName: normalized)' in schema
+assert 'normalizedName.hasPrefix(word + " ")' in schema
+assert 'allowedSuffixes' in schema
 assert "BloomBoxGameBoxAutoBackgrounds" in gamebox
 assert 'private let autoBackgroundMode = "autoGameBox"' in gamebox
 assert "artwork.image(for: key(app), kind: .background) ??" in gamebox
