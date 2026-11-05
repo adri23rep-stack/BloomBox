@@ -6,6 +6,7 @@
 import SwiftUI
 import UIKit
 import PhotosUI
+import ImageIO
 
 /// Portable UI item. Only the existing host adapts installed guest metadata.
 struct BloomBoxGameBoxEntry: Identifiable {
@@ -162,10 +163,23 @@ struct BloomBoxGameBoxV2Screen: View {
                 }
                 do {
                     guard let data = try await photo.loadTransferable(type: Data.self),
-                          let image = UIImage(data: data) else {
+                          data.count <= 20 * 1024 * 1024,
+                          let source = CGImageSourceCreateWithData(data as CFData, nil) else {
+                        throw CocoaError(.fileReadTooLarge)
+                    }
+                    // Decode at safe resolution instead of allocating a massive
+                    // full-resolution Photos JPEG or HEIC before downscaling.
+                    let options: [CFString: Any] = [
+                        kCGImageSourceCreateThumbnailFromImageAlways: true,
+                        kCGImageSourceCreateThumbnailWithTransform: true,
+                        kCGImageSourceThumbnailMaxPixelSize: 1800,
+                        kCGImageSourceShouldCacheImmediately: true
+                    ]
+                    guard let bitmap = CGImageSourceCreateThumbnailAtIndex(source, 0,
+                                                                          options as CFDictionary) else {
                         throw CocoaError(.fileReadCorruptFile)
                     }
-                    try artwork.save(image, for: target, kind: kind)
+                    try artwork.save(UIImage(cgImage: bitmap), for: target, kind: kind)
                     BloomBoxCrashJournal.shared.record("gamebox.artwork.import.success")
                 } catch {
                     BloomBoxCrashJournal.shared.record("gamebox.artwork.import.failed")
@@ -425,14 +439,15 @@ struct BloomBoxGameBoxV2Screen: View {
                     }
                 }
                 Spacer()
-                HStack(spacing: 7) {
-                    // The real installed app icon remains visible, even with cover art.
-                    gameIcon(app, size: 26)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                    Text(title(app))
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
+                if cover(app) == nil {
+                    HStack(spacing: 7) {
+                        gameIcon(app, size: 26)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                        Text(title(app))
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
                 }
             }
             .padding(9)
@@ -446,7 +461,7 @@ struct BloomBoxGameBoxV2Screen: View {
         }
         .shadow(color: focused ? focusedAccent.opacity(0.34) : .black.opacity(0.12),
                 radius: focused ? 15 : 3, y: 4)
-        .scaleEffect(focused && !reduceMotion ? 1.025 : 1)
+        .scaleEffect(focused && !reduceMotion ? 1.045 : 1)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: focused)
         .contentShape(RoundedRectangle(cornerRadius: 19))
         .onTapGesture {
