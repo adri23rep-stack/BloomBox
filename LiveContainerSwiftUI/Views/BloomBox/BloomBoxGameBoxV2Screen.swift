@@ -60,6 +60,7 @@ struct BloomBoxGameBoxV2Screen: View {
     @AppStorage("BloomBoxGameBoxAutoBackgrounds", store: LiveContainerPreferencesAdapter.defaults)
     private var autoBackgrounds = true
     @State private var fetchingAutoBackground: String?
+    @State private var wallpaperLookupStatus: [String: String] = [:]
     private let autoBackgroundMode = "autoGameBox"
     @AppStorage("BloomBoxGameBoxArtworkIntroEnabled", store: LiveContainerPreferencesAdapter.defaults)
     private var artworkIntroEnabled = true
@@ -394,15 +395,17 @@ struct BloomBoxGameBoxV2Screen: View {
                 colors: [.black, focusedAccent.opacity(0.42), Color(red: 0.05, green: 0.07, blue: 0.15)],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
-            if !constrained, let app = selectedApp, let image = backdrop(app) {
+            // Low Power Mode only softens animation. It must not hide cached
+            // wallpapers or prohibit user-enabled automatic backgrounds.
+            if let app = selectedApp, let image = backdrop(app) {
                 GeometryReader { geo in
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
-                        .blur(radius: 17)
-                        .opacity(0.74)
+                        .blur(radius: constrained ? 4 : 17)
+                        .opacity(constrained ? 0.56 : 0.74)
                 }
                 .allowsHitTesting(false)
             }
@@ -413,6 +416,7 @@ struct BloomBoxGameBoxV2Screen: View {
         }
         .ignoresSafeArea()
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.34), value: focusedKey)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: artwork.revision)
         .accessibilityHidden(true)
     }
 
@@ -612,6 +616,8 @@ struct BloomBoxGameBoxV2Screen: View {
                             Text(favorites.contains(key(app)) ? "★ Favorito" : "Listo para jugar")
                             Text("•")
                             Text(app.requiresJIT ? "JIT disponible" : "Lanzamiento normal")
+                            Text("•")
+                            Text(wallpaperStatusText(for: app))
                         }
                         .font(.system(size: compact ? 9 : 11, weight: .medium))
                         .foregroundStyle(.white.opacity(0.72))
@@ -793,17 +799,37 @@ struct BloomBoxGameBoxV2Screen: View {
         selectionHaptic()
     }
 
+    private func wallpaperStatusText(for app: BloomBoxGameBoxEntry) -> String {
+        let id = key(app)
+        if safeGraphics { return "Fondo: SAFE" }
+        if artwork.image(for: id, kind: .background) != nil ||
+            artwork.image(for: id, kind: .cover) != nil {
+            return "Fondo personalizado"
+        }
+        if !autoBackgrounds { return "Fondo automático apagado" }
+        if artwork.image(for: id, kind: .background, mode: autoBackgroundMode) != nil {
+            return "Fondo listo"
+        }
+        if fetchingAutoBackground == id { return "Buscando fondo…" }
+        return wallpaperLookupStatus[id] ?? "Fondo: pendiente"
+    }
+
     @MainActor
     private func resolveAutomaticBackground(force: Bool = false) async {
-        guard autoBackgrounds, !safeGraphics, !constrained,
+        guard autoBackgrounds, !safeGraphics,
               let app = selectedApp else { return }
-        let rule = wallpaperRules.rule(bundleID: app.bundleID, name: app.name)
-        guard rule != nil || BloomBoxGameBoxArtworkLookup.supported(title(app)) else { return }
-
         let id = key(app)
+        let rule = wallpaperRules.rule(bundleID: app.bundleID, name: app.name)
+        guard rule != nil || BloomBoxGameBoxArtworkLookup.supported(title(app)) else {
+            wallpaperLookupStatus[id] = "Sin fondo identificado"
+            return
+        }
+
         let prefs = LiveContainerPreferencesAdapter.defaults
         let attemptedKey = "BloomBoxGameBoxArtworkLastAttempt:" + id
-        let attemptedRuleKey = "BloomBoxGameBoxArtworkLastAttemptRule:" + id
+        // Invalidate the old 24-hour cooldown from the previous broken lookup
+        // version. New versions use their own retry marker.
+        let attemptedRuleKey = "BloomBoxGameBoxArtworkLastAttemptRule-v2:" + id
         let savedRuleKey = "BloomBoxGameBoxArtworkAppliedRule:" + id
         // Rules can change without reinstalling the app. A newly published
         // mapping should be applied even when a fallback image is cached.
@@ -819,19 +845,30 @@ struct BloomBoxGameBoxV2Screen: View {
             let existing = artwork.image(for: id, kind: .background,
                                          mode: autoBackgroundMode) != nil
             if existing && (prefs.string(forKey: savedRuleKey) == ruleToken ||
-                            rule == nil) { return }
+                            rule == nil) {
+                wallpaperLookupStatus[id] = "Fondo listo"
+                return
+            }
             if prefs.string(forKey: attemptedRuleKey) == ruleToken &&
                Date().timeIntervalSince1970 - prefs.double(forKey: attemptedKey) <
-                    24 * 60 * 60 { return }
+                    24 * 60 * 60 {
+                wallpaperLookupStatus[id] = "Sin resultado · reintentar"
+                return
+            }
             // Avoid network requests while rapidly tapping across the row.
             do { try await Task.sleep(nanoseconds: 650_000_000) }
             catch { return }
         }
 
         guard !Task.isCancelled, key(selectedApp ?? app) == id,
-              fetchingAutoBackground == nil else { return }
+              fetchingAutoBackground != id else { return }
+        // A request for another app may still be winding down after its
+        // task was cancelled. Never let it block the newly selected icon.
         fetchingAutoBackground = id
-        defer { fetchingAutoBackground = nil }
+        wallpaperLookupStatus[id] = "Buscando fondo…"
+        defer {
+            if fetchingAutoBackground == id { fetchingAutoBackground = nil }
+        }
         prefs.set(Date().timeIntervalSince1970, forKey: attemptedKey)
         prefs.set(ruleToken, forKey: attemptedRuleKey)
         BloomBoxCrashJournal.shared.record("gamebox.online_wallpaper.lookup")
@@ -839,7 +876,10 @@ struct BloomBoxGameBoxV2Screen: View {
               !Task.isCancelled, key(selectedApp ?? app) == id,
               artwork.image(for: id, kind: .background) == nil,
               artwork.image(for: id, kind: .cover) == nil else {
-            BloomBoxCrashJournal.shared.record("gamebox.online_wallpaper.unavailable")
+            if !Task.isCancelled {
+                wallpaperLookupStatus[id] = "Sin resultado · reintentar"
+                BloomBoxCrashJournal.shared.record("gamebox.online_wallpaper.unavailable")
+            }
             return
         }
         do {
@@ -848,8 +888,10 @@ struct BloomBoxGameBoxV2Screen: View {
             prefs.set(found.sourceURL.absoluteString,
                       forKey: "BloomBoxGameBoxArtworkSource:" + id)
             prefs.set(ruleToken, forKey: savedRuleKey)
+            wallpaperLookupStatus[id] = "Fondo listo"
             BloomBoxCrashJournal.shared.record("gamebox.online_wallpaper.saved")
         } catch {
+            wallpaperLookupStatus[id] = "Error al guardar fondo"
             BloomBoxCrashJournal.shared.record("gamebox.online_wallpaper.save_failed")
         }
     }
