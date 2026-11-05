@@ -20,27 +20,27 @@ struct BloomBoxGameBoxEntry: Identifiable {
 }
 
 
-/// A visual reservation only. Nikaido will own the controller logic in a
-/// future integration module; GameBox must not bind gestures, actions or
-/// runtime state to this slot until that bridge exists.
+/// The original controller-shaped reservation now opens Nikaido's native
+/// GameController panel. The integration does not change launch/JIT ownership.
 @available(iOS 16.0, *)
 private struct BloomBoxNikaidoControllerSlot: View {
     let diameter: CGFloat
+    let action: () -> Void
 
     var body: some View {
-        Image(systemName: "gamecontroller.fill")
-            .font(.system(size: diameter * 0.39, weight: .medium))
-            .foregroundStyle(.white.opacity(0.72))
-            .frame(width: diameter, height: diameter)
-            .background {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .opacity(0.38)
-            }
-            .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
-            .allowsHitTesting(false)
-            .accessibilityLabel("Reservado para Nikaido")
-            .accessibilityHint("Todavía no tiene controles ni acciones")
+        Button(action: action) {
+            Image(systemName: "gamecontroller.fill")
+                .font(.system(size: diameter * 0.39, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: diameter, height: diameter)
+                .background {
+                    Circle().fill(.ultraThinMaterial).opacity(0.38)
+                }
+                .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Nikaido · Ajustes del control")
+        .accessibilityHint("Luces, gatillos adaptativos y perfiles por juego")
     }
 }
 
@@ -81,6 +81,7 @@ struct BloomBoxGameBoxV2Screen: View {
     @State private var previousTapUptime: TimeInterval = 0
     @State private var alphabetical = false
     @State private var quickMenu = false
+    @State private var showNikaidoPanel = false
     @State private var showDiagnostics = false
     @State private var showExpiryReminders = false
     @State private var freeStorage: String?
@@ -356,6 +357,12 @@ struct BloomBoxGameBoxV2Screen: View {
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.batteryLevelDidChangeNotification)) { _ in
             refreshBattery()
         }
+        .sheet(isPresented: $showNikaidoPanel) {
+            BloomBoxNikaidoControllerView(
+                gameID: selectedApp?.bundleID ?? selectedApp?.id ?? "gamebox",
+                gameName: selectedApp?.name ?? "GameBox"
+            )
+        }
         .confirmationDialog("GameBox", isPresented: $quickMenu) {
             if safeGraphics {
                 Button("Reactivar fondos de GameBox", systemImage: "photo") {
@@ -429,8 +436,8 @@ struct BloomBoxGameBoxV2Screen: View {
     private func header(compact: Bool) -> some View {
         HStack(spacing: compact ? 5 : 9) {
             topButton("ellipsis", label: "Menú") { quickMenu = true }
-            // Controller-shaped location is intentionally inert until Nikaido arrives.
-            BloomBoxNikaidoControllerSlot(diameter: 39)
+            // Native DualSense panel; guest input remains unchanged.
+            BloomBoxNikaidoControllerSlot(diameter: 39) { showNikaidoPanel = true }
             topButton("arrow.up.arrow.down", label: "Ordenar") {
                 alphabetical.toggle()
                 selectionHaptic()
@@ -719,8 +726,8 @@ struct BloomBoxGameBoxV2Screen: View {
                         footerCircle("ellipsis", label: "Opciones del juego")
                     }
                     Spacer(minLength: 0)
-                    // Do not connect this controller-shaped slot to Nikaido yet.
-                    BloomBoxNikaidoControllerSlot(diameter: compact ? 34 : 40)
+                    // Nikaido native controller panel for the selected game.
+                    BloomBoxNikaidoControllerSlot(diameter: compact ? 34 : 40) { showNikaidoPanel = true }
                     Button { manage(key(app)) } label: {
                         footerCircle("slider.horizontal.3", label: "Ajustes del juego")
                     }
