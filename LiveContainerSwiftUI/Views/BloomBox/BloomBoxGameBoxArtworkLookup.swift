@@ -43,6 +43,23 @@ enum BloomBoxGameBoxArtworkLookup {
     private struct WikipediaThumbnail: Decodable {
         let source: String
     }
+    private struct CommonsResponse: Decodable {
+        let query: CommonsPages?
+    }
+    private struct CommonsPages: Decodable {
+        let pages: [String: CommonsFile]
+    }
+    private struct CommonsFile: Decodable {
+        let title: String
+        let imageinfo: [CommonsImage]?
+    }
+    private struct CommonsImage: Decodable {
+        let thumburl: String?
+        let descriptionurl: String?
+        let mime: String?
+        let width: Int?
+        let height: Int?
+    }
 
     // Emulator applications are *not* the game running inside them. Prefer a
     // free-license illustration of their platform, never a random game cover.
@@ -199,30 +216,82 @@ enum BloomBoxGameBoxArtworkLookup {
         components?.queryItems = [
             URLQueryItem(name: "action", value: "query"),
             URLQueryItem(name: "format", value: "json"),
+            URLQueryItem(name: "redirects", value: "1"),
             URLQueryItem(name: "prop", value: "pageimages"),
             URLQueryItem(name: "titles", value: article),
             URLQueryItem(name: "pithumbsize", value: "1400"),
             URLQueryItem(name: "pilicense", value: "free"),
             URLQueryItem(name: "piprop", value: "thumbnail|name")
         ]
+        if let endpoint = components?.url,
+           let data = await json(from: endpoint, host: "en.wikipedia.org"),
+           let pages = try? JSONDecoder().decode(WikipediaResponse.self, from: data).query?.pages,
+           let page = pages.values.first(where: { $0.thumbnail != nil }),
+           let source = page.thumbnail?.source,
+           let url = URL(string: source),
+           let rendered = await image(from: url, permittedHosts: ["upload.wikimedia.org"]) {
+            let wikiFile = page.pageimage ?? ""
+            let attribution = URLComponents(string: "https://commons.wikimedia.org/wiki/File:" +
+                                            wikiFile.replacingOccurrences(of: " ", with: "_"))?.url
+            let articleURL = URLComponents(string: "https://en.wikipedia.org/wiki/" +
+                                           article.replacingOccurrences(of: " ", with: "_"))?.url
+            if let source = attribution ?? articleURL {
+                return Result(image: rendered, sourceURL: source, provider: "Wikimedia")
+            }
+        }
+        // PageImages with pilicense=free may have no thumbnail even for a
+        // valid console article. Search Commons File namespace for the
+        // *curated* console name, never an arbitrary installed app name.
+        return await commonsConsoleArtwork(for: article)
+    }
+
+    private static func commonsConsoleArtwork(for platform: String) async -> Result? {
+        var components = URLComponents(string: "https://commons.wikimedia.org/w/api.php")
+        components?.queryItems = [
+            URLQueryItem(name: "action", value: "query"),
+            URLQueryItem(name: "format", value: "json"),
+            URLQueryItem(name: "generator", value: "search"),
+            URLQueryItem(name: "gsrsearch", value: platform + " console"),
+            URLQueryItem(name: "gsrnamespace", value: "6"),
+            URLQueryItem(name: "gsrlimit", value: "8"),
+            URLQueryItem(name: "prop", value: "imageinfo"),
+            URLQueryItem(name: "iiprop", value: "url|mime|size"),
+            URLQueryItem(name: "iiurlwidth", value: "1400")
+        ]
         guard let endpoint = components?.url,
-              let data = await json(from: endpoint, host: "en.wikipedia.org"),
-              let pages = try? JSONDecoder().decode(WikipediaResponse.self, from: data).query?.pages,
-              let page = pages.values.first(where: { $0.title == article && $0.thumbnail != nil }),
-              let imageString = page.thumbnail?.source,
-              let url = URL(string: imageString),
-              let image = await image(from: url, permittedHosts: ["upload.wikimedia.org"]) else {
+              let data = await json(from: endpoint, host: "commons.wikimedia.org"),
+              let pages = try? JSONDecoder().decode(CommonsResponse.self, from: data).query?.pages else {
+            BloomBoxCrashJournal.shared.record("gamebox.wallpaper.commons_search.unavailable")
             return nil
         }
-        // The file-description page lets the user view authorship and license;
-        // never claim Wikipedia article text is the license for its image.
-        let wikiFile = page.pageimage ?? ""
-        let attribution = URLComponents(string: "https://commons.wikimedia.org/wiki/File:" +
-                                        wikiFile.replacingOccurrences(of: " ", with: "_"))?.url
-        let articleURL = URLComponents(string: "https://en.wikipedia.org/wiki/" +
-                                       article.replacingOccurrences(of: " ", with: "_"))?.url
-        guard let source = attribution ?? articleURL else { return nil }
-        return Result(image: image, sourceURL: source, provider: "Wikimedia")
+
+        let platformName = normalize(platform)
+        let excluded = ["logo", "icon", "screenshot", "gameplay", "cover", "controller",
+                        "cartridge", "box art", "case", "advertisement", "advert",
+                        "diagram", "manual", "emulator"]
+        // Use only verifiable console photo candidates. Never grab a random
+        // game's screenshot or a misleading logo.
+        let candidates = pages.values.filter { item in
+            let name = normalize(item.title)
+            guard name.contains(platformName), !excluded.contains(where: name.contains),
+                  let detail = item.imageinfo?.first,
+                  ["image/jpeg", "image/png", "image/webp"].contains(detail.mime ?? ""),
+                  (detail.width ?? 0) >= 650, (detail.height ?? 0) >= 350 else { return false }
+            return true
+        }.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+
+        for item in candidates.prefix(3) {
+            guard !Task.isCancelled else { return nil }
+            guard let detail = item.imageinfo?.first,
+                  let imagePath = detail.thumburl, let url = URL(string: imagePath),
+                  let source = detail.descriptionurl.flatMap(URL.init(string:)),
+                  source.scheme == "https", source.host == "commons.wikimedia.org" else { continue }
+            if let bitmap = await image(from: url, permittedHosts: ["upload.wikimedia.org"]) {
+                return Result(image: bitmap, sourceURL: source, provider: "Wikimedia Commons")
+            }
+        }
+        BloomBoxCrashJournal.shared.record("gamebox.wallpaper.commons_search.no_photo")
+        return nil
     }
 
     private static func json(from url: URL, host: String) async -> Data? {
