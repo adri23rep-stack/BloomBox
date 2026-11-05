@@ -44,7 +44,6 @@ struct BloomBoxWizardWelcomeView: View {
                     HStack {
                         Label("BloomBox", systemImage: "sparkle")
                             .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .tracking(0.5)
                             .foregroundStyle(mainInk.opacity(0.77))
                         Spacer()
                         Text("01 / 01")
