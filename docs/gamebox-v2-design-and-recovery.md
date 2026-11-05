@@ -73,9 +73,8 @@ search and keeps the source page available for attribution. The last validated c
 All manual artwork still takes precedence. When a remote rule changes, the
 downloaded *automatic* background may be refreshed without touching manual art.
 
-While both PRs are drafts, the client points to the catalog **preview branch**.
-After merging the catalog PR, update the source URL to `/main/` and run the
-iPhone device QA before releasing BloomBox.
+The catalog has been merged into **BloomBox-Catalog/main**, and the client now
+uses that stable path. Run iPhone device QA before any BloomBox release.
 
 ### Startup mini loader (default on)
 
