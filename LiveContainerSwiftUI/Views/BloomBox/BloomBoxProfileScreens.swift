@@ -12,6 +12,7 @@ struct BloomBoxWizardFlowView: View {
     @State private var name = ""
     @State private var accentHex = BloomBoxProfileStore.active.accentHex
     @State private var photo: UIImage?
+    @State private var selectedTheme = "KirbyPink"
 
     var body: some View {
         Group {
@@ -35,14 +36,23 @@ struct BloomBoxWizardFlowView: View {
                     onBack: { forward(to: 1) },
                     onNext: { forward(to: 3) }
                 )
-            default:
+            case 3:
                 BloomBoxWizardValidationView(
                     accentHex: accentHex, isPreview: isPreview,
                     onBack: { forward(to: 2) },
+                    onFinish: { forward(to: 4) }
+                )
+            default:
+                BloomBoxWizardThemeChoiceView(
+                    selectedID: $selectedTheme, accentHex: accentHex,
+                    isPreview: isPreview,
+                    onBack: { forward(to: 3) },
                     onFinish: {
-                        // Commit the actual profile only when the complete
-                        // first-run flow ends; preview cannot mutate profiles.
                         if !isPreview {
+                            // Store the chosen theme before the home screen
+                            // initializes its fresh-install layout.
+                            LCUtils.appGroupUserDefault.set(
+                                selectedTheme, forKey: BloomBoxBundledThemes.chosenKey)
                             BloomBoxProfileStore.finishInitialSetup(
                                 name: name, accentHex: accentHex, image: photo)
                         }
