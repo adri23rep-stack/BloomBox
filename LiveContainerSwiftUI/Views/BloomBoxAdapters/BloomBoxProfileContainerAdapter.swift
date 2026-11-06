@@ -58,8 +58,10 @@ enum BloomBoxProfileContainerAdapter {
                                     name: tag + " " + profile.name,
                                     isShared: app.uiIsShared)
         let path = container.containerURL
+        var createdHere = false
         do {
             try FileManager.default.createDirectory(at: path, withIntermediateDirectories: false)
+            createdHere = true
             container.makeLCContainerInfoPlist(appIdentifier: bundleID, keychainGroupId: freeGroup)
             guard FileManager.default.fileExists(
                 atPath: path.appendingPathComponent("LCContainerInfo.plist").path
@@ -67,8 +69,8 @@ enum BloomBoxProfileContainerAdapter {
                 throw BloomBoxProfileContainerError.failedToCreate
             }
         } catch {
-            // Only remove a directory created right here, never an old container.
-            try? FileManager.default.removeItem(at: path)
+            // A collision or failed directory creation must never remove old data.
+            if createdHere { try? FileManager.default.removeItem(at: path) }
             throw error
         }
 
