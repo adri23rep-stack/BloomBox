@@ -338,6 +338,8 @@ struct BloomBoxProfileManagementView: View {
     @State private var draftName = ""
     @State private var draftAccent = BloomBoxProfileStore.palette[0]
     @State private var draftPhoto: UIImage?
+    @State private var introProfile: BloomBoxUserProfile?
+    @State private var introSequence = 0
 
     @AppStorage("BloomBoxPreferredLanguage", store: LiveContainerPreferencesAdapter.defaults)
     private var language = "system"
@@ -361,6 +363,7 @@ struct BloomBoxProfileManagementView: View {
                     Button {
                         BloomBoxProfileStore.activate(profile.id)
                         reload()
+                        playProfileIntro(profile)
                         UISelectionFeedbackGenerator().selectionChanged()
                     } label: {
                         HStack(spacing: 15) {
@@ -425,6 +428,16 @@ struct BloomBoxProfileManagementView: View {
         }
         .navigationTitle(spanish ? "Perfiles" : "Profiles")
         .onAppear(perform: reload)
+        .overlay(alignment: .top) {
+            if let introProfile {
+                BloomBoxActiveProfileIntro(profile: introProfile) {
+                    self.introProfile = nil
+                }
+                .id(introSequence)
+                .padding(.top, 10)
+                .allowsHitTesting(false)
+            }
+        }
         .fullScreenCover(isPresented: $creating) {
             BloomBoxProfileEditorView(
                 name: $draftName, accentHex: $draftAccent, photo: $draftPhoto,
@@ -437,10 +450,16 @@ struct BloomBoxProfileManagementView: View {
                     BloomBoxProfileStore.activate(new.id)
                     reload()
                     creating = false
+                    playProfileIntro(new)
                 }
             )
             .preferredColorScheme(BloomBoxWizardSystemAppearance.current)
         }
+    }
+
+    private func playProfileIntro(_ profile: BloomBoxUserProfile) {
+        introProfile = profile
+        introSequence += 1
     }
 
     private func reload() {
