@@ -10,6 +10,12 @@ struct BloomBoxLauncherRootView: View {
     @State private var introSequence = 0
     @State private var lastIntroAt = Date.distantPast
     @AppStorage("LiveBoardMode", store: LCUtils.appGroupUserDefault) private var mode = "ios"
+    @AppStorage(BloomBoxProfileStore.activeKey, store: LCUtils.appGroupUserDefault)
+    private var activeProfileID = BloomBoxUserProfile.primaryID
+    private var preferredExperience: String {
+        BloomBoxLaunchPreferences.preferredMode(
+            defaults: LCUtils.appGroupUserDefault, profileID: activeProfileID)
+    }
     @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault) private var language = "system"
     @State private var ready = false
     @State private var showModeSheet = false
@@ -52,6 +58,7 @@ struct BloomBoxLauncherRootView: View {
             BloomBoxWizardFlowView(isPreview: false) {
                 wizardCompleted = true
                 showFirstRunWizard = false
+                mode = BloomBoxLaunchPreferences.runtimeMode(for: preferredExperience)
                 showRecoveryNotice = BloomBoxCrashJournal.shared.previousInterrupted
                 showProfileIntro()
             }
@@ -61,14 +68,16 @@ struct BloomBoxLauncherRootView: View {
             NavigationView {
                 ScrollView {
                     VStack(spacing: 16) {
+                        launcherOption(
+                            title: language == "en" ? "Hybrid · Recommended" : "Híbrido · Recomendado",
+                            detail: language == "en" ? "iOS Home; compatible games enter GameBox automatically." : "Escritorio iOS; los juegos compatibles entran automáticamente en GameBox.",
+                            icon: "square.on.square", value: "hybrid")
                         launcherOption(title: "iOS Home", detail: "Escritorio, apps y widgets.",
                                        icon: "square.grid.3x3.fill", value: "ios")
                         if #available(iOS 16.0, *) {
                             launcherOption(title: "GameBox v2", detail: "Interfaz de consola con carátulas, fondos y cristal.",
                                            icon: "gamecontroller.fill", value: "gamebox")
                         }
-                        launcherOption(title: "Espacio reservado", detail: "Listo para una futura función.",
-                                       icon: "square.dashed", value: "reserved")
                         NavigationLink(destination: BloomBoxDiagnosticsView()) {
                             Label("Diagnósticos y recuperación", systemImage: "waveform.path.ecg")
                                 .font(.headline)
@@ -87,7 +96,7 @@ struct BloomBoxLauncherRootView: View {
                         Text("La detección funciona al usar BloomBox. iOS no permite abrirla desde cero cuando está cerrada o suspendida.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text("El escritorio es el inicio predeterminado de BloomBox.")
+                        Text(language == "en" ? "Your choice is saved per profile. Existing profiles keep their iOS Home setting until you change it." : "Tu selección se guarda por perfil. Los perfiles existentes conservan su inicio iOS hasta que lo cambies.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -138,7 +147,7 @@ struct BloomBoxLauncherRootView: View {
         .onAppear {
             if !BloomBoxLauncherSession.restored {
                 mode = BloomBoxLaunchPreferences.resetForNewProcess(
-                    defaults: LCUtils.appGroupUserDefault)
+                    defaults: LCUtils.appGroupUserDefault, profileID: activeProfileID)
                 BloomBoxLauncherSession.restored = true
             }
             ready = true
@@ -158,7 +167,8 @@ struct BloomBoxLauncherRootView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: BloomBoxProfileStore.didActivate)) { _ in
-            // News and profile settings both use the same per-app containers.
+            // Profile-switch keeps each person's chosen launcher and containers.
+            mode = BloomBoxLaunchPreferences.runtimeMode(for: preferredExperience)
             showProfileIntro(force: true)
         }
         .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in
@@ -200,7 +210,10 @@ struct BloomBoxLauncherRootView: View {
 
     private func launcherOption(title: String, detail: String, icon: String, value: String) -> some View {
         Button {
-            mode = value
+            BloomBoxLaunchPreferences.setPreferredMode(
+                value, profileID: activeProfileID,
+                defaults: LCUtils.appGroupUserDefault)
+            mode = BloomBoxLaunchPreferences.runtimeMode(for: value)
             showModeSheet = false
         } label: {
             HStack(spacing: 16) {
@@ -210,15 +223,15 @@ struct BloomBoxLauncherRootView: View {
                     Text(BloomBoxGameBoxL10n.t(detail)).font(.subheadline).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
-                Image(systemName: mode == value ? "checkmark.circle.fill" : "circle")
+                Image(systemName: preferredExperience == value ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(.blue)
             }
             .padding(20)
-            .background(Color.white.opacity(mode == value ? 0.12 : 0.05),
+            .background(Color.white.opacity(preferredExperience == value ? 0.12 : 0.05),
                         in: RoundedRectangle(cornerRadius: 24))
         }
         .buttonStyle(.plain)
-        .accessibilityAddTraits(mode == value ? .isSelected : [])
+        .accessibilityAddTraits(preferredExperience == value ? .isSelected : [])
     }
 }
 
