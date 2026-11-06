@@ -246,7 +246,7 @@ struct BloomBoxWizardValidationView: View {
                             : (spanish ? "Configurar RAM+" : "Set up RAM+"),
                         tint: Color(red: 0.68, green: 0.49, blue: 0.96)
                     ) {
-                        showRAM = true
+                        if !isPreview { showRAM = true }
                     }
 
                     statusCard(
@@ -263,7 +263,7 @@ struct BloomBoxWizardValidationView: View {
                         buttonTitle: spanish ? "Configurar JIT" : "Set up JIT",
                         tint: Color(red: 0.99, green: 0.67, blue: 0.28)
                     ) {
-                        showJIT = true
+                        if !isPreview { showJIT = true }
                     }
 
                     Label(spanish
@@ -397,6 +397,8 @@ struct BloomBoxWizardValidationView: View {
                             in: RoundedRectangle(cornerRadius: 14))
             }
             .buttonStyle(.plain)
+            .disabled(isPreview)
+            .opacity(isPreview ? 0.55 : 1)
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
