@@ -5,6 +5,10 @@ import UIKit
 /// BloomBox's own mode host. LiveContainer stays mounted for guest/JIT/signing.
 struct BloomBoxLauncherRootView: View {
     @EnvironmentObject private var sharedModel: SharedModel
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var introProfile: BloomBoxUserProfile?
+    @State private var introSequence = 0
+    @State private var lastIntroAt = Date.distantPast
     @AppStorage("LiveBoardMode", store: LCUtils.appGroupUserDefault) private var mode = "ios"
     @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault) private var language = "system"
     @State private var ready = false
@@ -32,11 +36,24 @@ struct BloomBoxLauncherRootView: View {
             }
         }
         .environment(\.locale, locale)
+        .overlay(alignment: .top) {
+            if let introProfile, wizardCompleted, !showFirstRunWizard {
+                BloomBoxActiveProfileIntro(profile: introProfile) {
+                    self.introProfile = nil
+                }
+                .id(introSequence)
+                .padding(.top, 24)
+                .zIndex(200)
+                .allowsHitTesting(false)
+                .transition(.opacity)
+            }
+        }
         .fullScreenCover(isPresented: $showFirstRunWizard) {
             BloomBoxWizardFlowView(isPreview: false) {
                 wizardCompleted = true
                 showFirstRunWizard = false
                 showRecoveryNotice = BloomBoxCrashJournal.shared.previousInterrupted
+                showProfileIntro()
             }
             .preferredColorScheme(BloomBoxWizardSystemAppearance.current)
         }
@@ -130,11 +147,35 @@ struct BloomBoxLauncherRootView: View {
             } else {
                 showRecoveryNotice = BloomBoxCrashJournal.shared.previousInterrupted
                 routeConnectedControllerIfAllowed()
+                showProfileIntro()
             }
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
+                showProfileIntro()
+            } else if phase == .background {
+                introProfile = nil
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: BloomBoxProfileStore.didActivate)) { _ in
+            // News and profile settings both use the same per-app containers.
+            showProfileIntro(force: true)
         }
         .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in
             routeConnectedControllerIfAllowed()
         }
+    }
+
+    private func showProfileIntro(force: Bool = false) {
+        guard ready, wizardCompleted, !showFirstRunWizard, !showRecoveryNotice,
+              !showDestination, !showModeSheet,
+              UIApplication.shared.applicationState == .active else { return }
+        // onAppear and scenePhase can happen together. One greeting is enough,
+        // but selecting another profile must always show its own greeting.
+        if !force && Date().timeIntervalSince(lastIntroAt) < 2.5 { return }
+        lastIntroAt = Date()
+        introSequence += 1
+        introProfile = BloomBoxProfileStore.active
     }
 
     private func routeConnectedControllerIfAllowed() {
