@@ -36,6 +36,11 @@ struct BloomBoxWizardThemeChoiceView: View {
                            center: .top, startRadius: 0, endRadius: 560)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
+            BloomBoxWizardAmbientSymbols(isDark: scheme == .dark, accentHex: accentHex)
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+                .allowsHitTesting(false)
+
             ScrollView {
                 VStack(spacing: 20) {
                     HStack {
