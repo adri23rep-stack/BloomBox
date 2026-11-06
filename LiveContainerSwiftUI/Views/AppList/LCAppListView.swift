@@ -39,6 +39,15 @@ struct AppReplaceOption : Hashable {
 
 struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     @AppStorage("LiveBoardMode", store: LCUtils.appGroupUserDefault) private var liveBoardMode = "ios"
+    @AppStorage(BloomBoxProfileStore.activeKey, store: LCUtils.appGroupUserDefault)
+    private var activeLauncherProfileID = BloomBoxUserProfile.primaryID
+    @AppStorage("BloomBoxGameBoxHybridFocusKey", store: LCUtils.appGroupUserDefault)
+    private var hybridFocusKey = ""
+    @State private var hybridRunningGuestKey: String?
+    private var preferredExperience: String {
+        BloomBoxLaunchPreferences.preferredMode(
+            defaults: LCUtils.appGroupUserDefault, profileID: activeLauncherProfileID)
+    }
     @State private var manageLibrary = false
     private var builtInSideStore: LCAppModel? { LiveBoardBundledApps.sideStore }
     @State var didAppear = false
@@ -645,6 +654,11 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             let window = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
                 .flatMap { $0.windows }.first { $0.isKeyWindow }
             LiveBoardOrientation.endGuest(appKey: appKey, window: window)
+            // Hybrid's temporary GameBox screen goes away once its game closes.
+            if hybridRunningGuestKey == appKey {
+                hybridRunningGuestKey = nil
+                if preferredExperience == "hybrid" { liveBoardMode = "ios" }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.InstallAppNotification)) { obj in
             if let obj2 = obj.object as? [String: Any], let installUrl = obj2["url"] as? URL {
@@ -861,9 +875,23 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         } else {
             LiveBoardOrientation.setLandscape(false, window: window)
         }
-        // The LCAppModel delegate is invoked by this launch, too. Keep the
-        // approval associated with the app until launch returns or throws;
-        // cleanup makes immediate retries possible without restarting BloomBox.
+        // Hybrid uses the *verified remote gameMode flag* only. Never infer
+        // games from random app names, and do not bypass RAM+/JIT preflight.
+        // Switching presentation keeps the existing LiveContainer launch path.
+        let isKnownGame = remoteRequiresGame(app)
+        let hybridLaunch = preferredExperience == "hybrid" && isKnownGame
+        if hybridLaunch {
+            hybridRunningGuestKey = appKey
+            hybridFocusKey = liveBoardAppKey(app)
+            liveBoardMode = "gamebox"
+        }
+        if isKnownGame || liveBoardMode == "gamebox" {
+            BloomBoxLaunchPreferences.rememberGame(
+                app.displayName, profileID: activeLauncherProfileID,
+                defaults: LCUtils.appGroupUserDefault)
+        }
+        // Keep the approval associated with the guest until this launch
+        // returns or throws, preserving all previous per-app safety checks.
         do {
             if app.appInfo.is32bit { try await ensureBundled32BitRuntime(for: app) }
             if liveBoardMode == "ios" || liveBoardMode == "gamebox" {
@@ -896,6 +924,10 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             }
         } catch {
             LiveBoardOrientation.endGuest(appKey: appKey, window: window)
+            if hybridLaunch && hybridRunningGuestKey == appKey {
+                hybridRunningGuestKey = nil
+                liveBoardMode = "ios"
+            }
             errorInfo = error.localizedDescription
             errorShow = true
         }
