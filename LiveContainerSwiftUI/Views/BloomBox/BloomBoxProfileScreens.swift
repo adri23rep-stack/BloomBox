@@ -51,7 +51,7 @@ struct BloomBoxWizardFlowView: View {
                         if !isPreview {
                             // Store the chosen theme before the home screen
                             // initializes its fresh-install layout.
-                            LCUtils.appGroupUserDefault.set(
+                            LiveContainerPreferencesAdapter.defaults.set(
                                 selectedTheme, forKey: BloomBoxBundledThemes.chosenKey)
                             BloomBoxProfileStore.finishInitialSetup(
                                 name: name, accentHex: accentHex, image: photo)
