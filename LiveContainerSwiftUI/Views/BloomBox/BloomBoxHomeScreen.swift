@@ -660,7 +660,7 @@ struct BloomBoxHomeScreen: View {
         .sheet(isPresented: $desktopSettings, onDismiss: performDesktopAction) {
             if #available(iOS 16.4, *) {
                 controls
-                    .presentationDetents([.height(585), .large])
+                    .presentationDetents([.height(455), .large])
                     .presentationDragIndicator(.visible)
                     .presentationCornerRadius(34)
             } else if #available(iOS 16.0, *) {
@@ -2650,62 +2650,45 @@ struct BloomBoxHomeScreen: View {
                     }
                     .padding(.top, 25)
 
-                    HStack(spacing: 13) {
-                        Image(systemName: "sparkles.rectangle.stack.fill")
-                            .font(.system(size: 26, weight: .medium))
-                            .foregroundStyle(Color(red: 1, green: 0.70, blue: 0.88))
-                            .frame(width: 48, height: 48)
-                            .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 15))
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(englishUI ? "Home Screen" : "Escritorio")
-                                .font(.headline)
-                            Text(englishUI ? "Wallpapers, widgets, pages and icons" :
-                                 "Fondos, widgets, páginas e iconos")
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.69))
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.white.opacity(0.075),
-                                in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    Text(englishUI ? "What would you like to change?" : "¿Qué quieres cambiar?")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.72))
 
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 12),
-                                        GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                        desktopHubTile(
-                            englishUI ? "Wallpaper" : "Fondos",
-                            detail: englishUI ? "Photos, GIFs & effects" : "Fotos, GIF y efectos",
-                            symbol: "photo.on.rectangle.angled",
-                            tint: Color(red: 1, green: 0.60, blue: 0.76),
-                            action: .customize
-                        )
-                        desktopHubTile(
-                            "Widgets",
-                            detail: englishUI ? "Add to Home" : "Añadir al escritorio",
-                            symbol: "square.grid.2x2.fill",
-                            tint: Color(red: 0.47, green: 0.81, blue: 1),
-                            action: .widgets
-                        )
-                        desktopHubTile(
-                            englishUI ? "Pages" : "Páginas",
-                            detail: englishUI ? "Organize & hide" : "Organizar y ocultar",
-                            symbol: "square.on.square",
-                            tint: Color(red: 0.78, green: 0.69, blue: 1),
-                            action: .pages
-                        )
-                        desktopHubTile(
-                            englishUI ? "Icons" : "Iconos",
-                            detail: englishUI ? "Change their look" : "Cambia su apariencia",
-                            symbol: "app.fill",
-                            tint: Color(red: 0.98, green: 0.84, blue: 0.49),
-                            action: .icons
-                        )
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 13) {
+                            desktopHubTile(
+                                englishUI ? "Wallpaper" : "Fondos",
+                                symbol: "photo.on.rectangle.angled",
+                                tint: Color(red: 1, green: 0.60, blue: 0.76),
+                                action: .customize
+                            )
+                            desktopHubTile(
+                                "Widgets",
+                                symbol: "square.grid.2x2.fill",
+                                tint: Color(red: 0.47, green: 0.81, blue: 1),
+                                action: .widgets
+                            )
+                            desktopHubTile(
+                                englishUI ? "Pages" : "Páginas",
+                                symbol: "square.on.square",
+                                tint: Color(red: 0.78, green: 0.69, blue: 1),
+                                action: .pages
+                            )
+                            desktopHubTile(
+                                englishUI ? "Icons" : "Iconos",
+                                symbol: "app.fill",
+                                tint: Color(red: 0.98, green: 0.84, blue: 0.49),
+                                action: .icons
+                            )
+                        }
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
                     }
+                    .accessibilityIdentifier("home.controls.shortcuts")
 
                     Button { requestDesktopAction(.edit) } label: {
                         HStack(spacing: 12) {
-                            Image(systemName: "pencil.and.outline")
+                            Image(systemName: "pencil")
                             Text(englishUI ? "Edit Home Screen" : "Editar escritorio")
                                 .fontWeight(.semibold)
                             Spacer()
@@ -2745,36 +2728,28 @@ struct BloomBoxHomeScreen: View {
         .accessibilityIdentifier("bloombox.home.customize")
     }
 
-    private func desktopHubTile(_ title: String, detail: String, symbol: String,
+    private func desktopHubTile(_ title: String, symbol: String,
                                 tint: Color, action: DesktopAction) -> some View {
         Button { requestDesktopAction(action) } label: {
-            VStack(alignment: .leading, spacing: 9) {
+            VStack(spacing: 10) {
                 Image(systemName: symbol)
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.system(size: 25, weight: .medium))
                     .foregroundStyle(tint)
-                    .frame(width: 42, height: 42)
-                    .background(tint.opacity(0.16), in: RoundedRectangle(cornerRadius: 13))
-                Spacer(minLength: 0)
+                    .frame(width: 64, height: 64)
+                    .background(tint.opacity(0.15), in: Circle())
+                    .overlay {
+                        Circle()
+                            .strokeBorder(tint.opacity(0.48), lineWidth: 1.2)
+                    }
                 Text(title)
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.white)
-                Text(detail)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.white.opacity(0.65))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.82)
+                    .minimumScaleFactor(0.8)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 123)
-            .padding(14)
-            .background(.white.opacity(0.085),
-                        in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .strokeBorder(.white.opacity(0.14), lineWidth: 1)
-            }
+            .frame(width: 74)
         }
-        .accessibilityLabel(title + ". " + detail)
+        .accessibilityLabel(title)
     }
 
     private var searchResults: [LCAppModel] {
