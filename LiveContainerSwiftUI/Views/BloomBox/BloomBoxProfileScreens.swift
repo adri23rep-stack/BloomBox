@@ -17,9 +17,11 @@ struct BloomBoxWizardFlowView: View {
         Group {
             switch page {
             case 0:
-                BloomBoxWizardWelcomeView(isPreview: isPreview, accentHex: accentHex) {
-                    forward(to: 1)
-                }
+                BloomBoxWizardWelcomeView(
+                    isPreview: isPreview, accentHex: accentHex,
+                    onFinish: { forward(to: 1) },
+                    onClosePreview: onFinish
+                )
             case 1:
                 BloomBoxProfileEditorView(
                     name: $name, accentHex: $accentHex, photo: $photo,
