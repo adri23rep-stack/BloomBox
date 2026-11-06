@@ -106,6 +106,11 @@ struct BloomBoxProfileEditorView: View {
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
 
+                BloomBoxWizardAmbientSymbols(isDark: dark, accentHex: accentHex)
+                    .ignoresSafeArea()
+                    .accessibilityHidden(true)
+                    .allowsHitTesting(false)
+
                 ScrollView {
                     VStack(spacing: 22) {
                         HStack {
