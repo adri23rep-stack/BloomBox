@@ -217,7 +217,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                                         installInProgress: installprogressVisible,
                                         installProgress: Double(installProgressPercentage),
                                         secondaryInstance: sharedModel.multiLCStatus == 2,
-                                        launchWithJIT: { app in Task { await launchFromLiveBoard(app, forceJIT: true) } })
+                                        launchWithJIT: { app in Task { await launchFromLiveBoard(app, forceJIT: true) } },
+                                        openGameBox: { liveBoardMode = "gamebox" })
     }
 
     // GameBox only owns presentation. Every action reuses the live host launch,
