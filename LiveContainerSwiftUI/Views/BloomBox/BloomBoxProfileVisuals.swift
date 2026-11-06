@@ -5,6 +5,9 @@ import UIKit
 struct BloomBoxProfileAvatar: View {
     let profile: BloomBoxUserProfile
     let size: CGFloat
+    @AppStorage(BloomBoxProfileStore.revisionKey,
+                store: LiveContainerPreferencesAdapter.defaults)
+    private var profileRevision = ""
 
     private var accent: Color { BloomBoxWizardPalette.color(profile.accentHex) }
 
@@ -27,6 +30,7 @@ struct BloomBoxProfileAvatar: View {
         }
         .frame(width: size, height: size)
         .overlay(Circle().strokeBorder(accent.opacity(0.88), lineWidth: 2))
+        .id(profileRevision)
         .accessibilityHidden(true)
     }
 }
@@ -100,6 +104,12 @@ struct BloomBoxActiveProfileIntro: View {
 /// Replaces the clock in the News panel. The active profile only changes on
 /// an explicit tap; LiveContainer's profile adapter selects app data on launch.
 struct BloomBoxProfileSwitcherWidget: View {
+    let onProfileSelected: () -> Void
+
+    init(onProfileSelected: @escaping () -> Void = {}) {
+        self.onProfileSelected = onProfileSelected
+    }
+
     @AppStorage(BloomBoxProfileStore.activeKey,
                 store: LiveContainerPreferencesAdapter.defaults)
     private var activeID = BloomBoxUserProfile.primaryID
@@ -226,6 +236,7 @@ struct BloomBoxProfileSwitcherWidget: View {
             guard !selected else { return }
             BloomBoxProfileStore.activate(profile.id)
             UISelectionFeedbackGenerator().selectionChanged()
+            onProfileSelected()
         } label: {
             VStack(spacing: 6) {
                 BloomBoxProfileAvatar(profile: profile, size: 47)
