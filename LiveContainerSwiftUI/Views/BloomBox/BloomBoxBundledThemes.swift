@@ -88,7 +88,9 @@ enum BloomBoxBundledThemes {
             return nil
         }
 
-        let package = try data(for: "KirbyPink")
+        let selected = defaults.string(forKey: chosenKey) ?? "KirbyPink"
+        let selectedID = presets.contains(where: { $0.id == selected }) ? selected : "KirbyPink"
+        let package = try data(for: selectedID)
         let layout = try BloomBoxThemePackage.apply(
             package, defaults: defaults, currentLayout: BloomBoxHomeLayout(),
             appKeys: appKeys, favorites: favorites, wallpaperURL: wallpaperURL)
@@ -96,7 +98,7 @@ enum BloomBoxBundledThemes {
         // The supplied theme already has its own Dock/folder positions. Do not
         // let the old first-run folder migration rearrange them immediately.
         defaults.set(true, forKey: "BloomBoxBuiltInFolderMigrated")
-        defaults.set("KirbyPink", forKey: chosenKey)
+        defaults.set(selectedID, forKey: chosenKey)
         defaults.set(true, forKey: initializedKey)
         return layout
     }

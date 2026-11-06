@@ -33,32 +33,7 @@ struct BloomBoxNewsPage: View {
                     .accessibilityLabel(english ? "Desktop settings" : "Ajustes del escritorio")
                     .accessibilityIdentifier("bloombox.news.settings")
                 }
-                TimelineView(.periodic(from: .now, by: 60)) { context in
-                    HStack(spacing: 16) {
-                        Image(systemName: "clock.fill")
-                            .font(.system(size: 30, weight: .medium))
-                            .foregroundStyle(.cyan)
-                            .frame(width: 45, height: 50)
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(english ? "Clock" : "Reloj")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                            Text(context.date, format: .dateTime.hour().minute())
-                                .font(.system(size: 34, weight: .light, design: .rounded))
-                                .minimumScaleFactor(0.65)
-                                .lineLimit(1)
-                            Text(context.date, format: .dateTime.weekday(.wide).day().month(.wide))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .environment(\.locale, locale)
-                    .padding(18)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .liveBoardGlass(radius: 24)
-                }
-                .accessibilityIdentifier("bloombox.news.clock")
+                BloomBoxProfileSwitcherWidget()
                 BloomBoxRemoteNewsSection()
             }
             .padding(.horizontal, 22)

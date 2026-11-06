@@ -223,3 +223,5 @@
 "La navegación de sesión requiere iOS 16 o posterior." = "Session navigation requires iOS 16 or later.";
 "Desactiva Classic Mode en los ajustes de esta app para mantener abierto el launcher." = "Turn off Classic Mode in this app's settings to keep the launcher open.";
 "SideStore no está disponible en esta instalación." = "SideStore is unavailable in this installation.";
+
+"Cambiar perfil" = "Switch profile";

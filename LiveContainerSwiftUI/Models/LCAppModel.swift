@@ -248,10 +248,19 @@ class LCAppModel: ObservableObject, Hashable {
             appInfo.dataUUID = newName
             uiDefaultDataFolder = newName
         }
-        if let containerFolderName {
-            uiSelectedContainer = uiContainers.first { $0.folderName == containerFolderName } ?? uiSelectedContainer
+        // Resolve BloomBox's active profile before any launch path (Home,
+        // GameBox, guest list or deep link). Profile 1 keeps its existing
+        // default container; other profiles get separate containers on demand.
+        // Explicit container deep links retain their original target.
+        let resolvedContainerName = try BloomBoxProfileContainerAdapter.containerForLaunch(
+            app: self, explicitlyRequested: containerFolderName
+        )
+        if let resolvedContainerName {
+            uiSelectedContainer = uiContainers.first {
+                $0.folderName == resolvedContainerName
+            } ?? uiSelectedContainer
         }
-        let currentDataFolder = containerFolderName ?? uiSelectedContainer?.folderName
+        let currentDataFolder = resolvedContainerName ?? uiSelectedContainer?.folderName
         
         // The profile is selected from the installed guest, never its display name.
         let guestBundle = Bundle(path: appInfo.bundlePath())
