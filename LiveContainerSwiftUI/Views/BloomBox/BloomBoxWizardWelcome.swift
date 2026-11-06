@@ -52,7 +52,7 @@ struct BloomBoxWizardWelcomeView: View {
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                             .foregroundStyle(mainInk.opacity(0.77))
                         Spacer()
-                        Text("01 / 02")
+                        Text("01 / 04")
                             .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
                             .foregroundStyle(mainInk.opacity(0.45))
                     }
