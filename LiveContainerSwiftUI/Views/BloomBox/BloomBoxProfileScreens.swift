@@ -89,12 +89,13 @@ struct BloomBoxProfileEditorView: View {
                         .padding(.top, 18)
 
                         VStack(spacing: 8) {
-                            Text(spanish ? "Hazlo tuyo" : "Make it yours")
-                                .font(.system(size: 36, weight: .heavy, design: .rounded))
-                                .foregroundStyle(ink)
                             Text(spanish
-                                ? "Elige tu foto de perfil y tu color favorito"
-                                : "Choose your profile photo and favorite color")
+                                 ? "Elige tu foto de perfil y tu color favorito"
+                                 : "Choose your profile photo and favorite color")
+                                .font(.system(size: 27, weight: .heavy, design: .rounded))
+                                .foregroundStyle(ink)
+                                .multilineTextAlignment(.center)
+                            Text(spanish ? "Tu espacio, tu estilo." : "Your space, your style.")
                                 .font(.system(size: 15, weight: .medium, design: .rounded))
                                 .foregroundStyle(ink.opacity(0.61))
                                 .multilineTextAlignment(.center)
