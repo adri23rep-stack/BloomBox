@@ -26,7 +26,7 @@ struct BloomBoxWizardFlowView: View {
             case 1:
                 BloomBoxProfileEditorView(
                     name: $name, accentHex: $accentHex, photo: $photo,
-                    isPreview: isPreview, isWizardPage: true,
+                    isPreview: isPreview, isWizardPage: true, isEditing: false,
                     onBack: { forward(to: 0) },
                     onContinue: { forward(to: 2) }
                 )
@@ -76,6 +76,7 @@ struct BloomBoxProfileEditorView: View {
     @Binding var photo: UIImage?
     let isPreview: Bool
     let isWizardPage: Bool
+    let isEditing: Bool
     let onBack: () -> Void
     let onContinue: () -> Void
 
@@ -126,8 +127,8 @@ struct BloomBoxProfileEditorView: View {
 
                         VStack(spacing: 8) {
                             Text(spanish
-                                 ? "Elige tu foto de perfil y tu color favorito"
-                                 : "Choose your profile photo and favorite color")
+                                 ? (isEditing ? "Edita tu perfil" : "Elige tu foto de perfil y tu color favorito")
+                                 : (isEditing ? "Edit your profile" : "Choose your profile photo and favorite color"))
                                 .font(.system(size: 27, weight: .heavy, design: .rounded))
                                 .foregroundStyle(ink)
                                 .multilineTextAlignment(.center)
@@ -177,6 +178,18 @@ struct BloomBoxProfileEditorView: View {
                         .accessibilityIdentifier("bloombox.wizard.profile.photo")
                         .sheet(isPresented: $photoPickerOpen) {
                             BloomBoxProfilePhotoPicker(image: $photo)
+                        }
+
+                        if isEditing && photo != nil {
+                            Button {
+                                photo = nil
+                            } label: {
+                                Label(spanish ? "Quitar foto" : "Remove photo", systemImage: "person.crop.circle.badge.xmark")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(ink.opacity(0.70))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("bloombox.profiles.edit.removePhoto")
                         }
 
                         VStack(alignment: .leading, spacing: 8) {
@@ -271,7 +284,9 @@ struct BloomBoxProfileEditorView: View {
                                 HStack(spacing: 8) {
                                     Text(isWizardPage
                                          ? (spanish ? "Continuar" : "Continue")
-                                         : (spanish ? "Crear perfil" : "Create profile"))
+                                         : (isEditing
+                                             ? (spanish ? "Guardar cambios" : "Save changes")
+                                             : (spanish ? "Crear perfil" : "Create profile")))
                                     Image(systemName: "arrow.right")
                                 }
                                 .font(.system(size: 16, weight: .bold, design: .rounded))
@@ -441,7 +456,7 @@ struct BloomBoxProfileManagementView: View {
         .fullScreenCover(isPresented: $creating) {
             BloomBoxProfileEditorView(
                 name: $draftName, accentHex: $draftAccent, photo: $draftPhoto,
-                isPreview: false, isWizardPage: false,
+                isPreview: false, isWizardPage: false, isEditing: false,
                 onBack: { creating = false },
                 onContinue: {
                     let new = BloomBoxProfileStore.add(name: draftName,
