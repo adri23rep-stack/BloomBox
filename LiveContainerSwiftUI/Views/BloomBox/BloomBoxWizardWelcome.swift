@@ -254,7 +254,7 @@ enum BloomBoxWizardSystemAppearance {
 }
 
 /// All decorations are drawn in code, not bundled pictures or emoji.
-private struct BloomBoxWizardAmbientSymbols: View {
+struct BloomBoxWizardAmbientSymbols: View {
     let isDark: Bool
     let accentHex: String
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
