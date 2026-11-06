@@ -32,6 +32,15 @@ struct BloomBoxHomeScreen: View {
         (preferredLanguage == "system" &&
          (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("en"))
     }
+    @AppStorage(BloomBoxProfileStore.activeKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var themeActiveID = BloomBoxUserProfile.primaryID
+    @AppStorage(BloomBoxProfileStore.profilesKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var themeProfilesData = Data()
+    private var profileAccentHex: String {
+        BloomBoxProfileTheme.hex(activeID: themeActiveID, profilesData: themeProfilesData)
+    }
+    private var profileAccent: Color { BloomBoxWizardPalette.color(profileAccentHex) }
+
     @ObservedObject private var ramPlus = BloomBoxRAMPlus.shared
     @State private var pendingModuleDestination: BloomBoxModulesPanel.Destination?
     @State private var storeFocusedApp: LCAppModel?
@@ -2622,12 +2631,7 @@ struct BloomBoxHomeScreen: View {
     // Sources, Tweaks, Apps, LiveContainer y JIT mantienen sus accesos propios.
     private var controls: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(red: 0.13, green: 0.11, blue: 0.22),
-                         Color(red: 0.06, green: 0.07, blue: 0.13)],
-                startPoint: .topLeading, endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            BloomBoxProfileThemeBackdrop()
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 19) {
@@ -2697,9 +2701,13 @@ struct BloomBoxHomeScreen: View {
                         }
                         .padding(.horizontal, 18)
                         .frame(height: 52)
-                        .foregroundStyle(Color(red: 0.11, green: 0.09, blue: 0.20))
-                        .background(Color(red: 0.94, green: 0.80, blue: 1),
-                                    in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                        .foregroundStyle(BloomBoxProfileTheme.ink(for: profileAccentHex))
+                        .background(
+                            LinearGradient(colors: [profileAccent, profileAccent.opacity(0.82)],
+                                           startPoint: .topLeading, endPoint: .bottomTrailing),
+                            in: RoundedRectangle(cornerRadius: 17, style: .continuous)
+                        )
+                        .shadow(color: profileAccent.opacity(0.18), radius: 17, y: 6)
                     }
                     .accessibilityIdentifier("home.controls.edit")
 
@@ -2712,7 +2720,7 @@ struct BloomBoxHomeScreen: View {
                                 .font(.caption.weight(.semibold))
                         }
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.78))
+                        .foregroundStyle(profileAccent)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 8)
                     }
@@ -2736,11 +2744,12 @@ struct BloomBoxHomeScreen: View {
                     .font(.system(size: 25, weight: .medium))
                     .foregroundStyle(tint)
                     .frame(width: 64, height: 64)
-                    .background(tint.opacity(0.15), in: Circle())
+                    .background(profileAccent.opacity(0.15), in: Circle())
                     .overlay {
                         Circle()
-                            .strokeBorder(tint.opacity(0.48), lineWidth: 1.2)
+                            .strokeBorder(profileAccent.opacity(0.62), lineWidth: 1.2)
                     }
+                    .shadow(color: profileAccent.opacity(0.16), radius: 12)
                 Text(title)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white)
