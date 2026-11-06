@@ -283,6 +283,13 @@ struct BloomBoxThemeStoreView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
     private var preferredLanguage = "system"
+    @AppStorage(BloomBoxProfileStore.activeKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var themeProfileID = BloomBoxUserProfile.primaryID
+    @AppStorage(BloomBoxProfileStore.profilesKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var themeProfilesData = Data()
+    private var favoriteAccent: Color {
+        BloomBoxProfileTheme.color(activeID: themeProfileID, profilesData: themeProfilesData)
+    }
     private var englishUI: Bool {
         preferredLanguage == "en" ||
         (preferredLanguage == "system" &&
@@ -345,9 +352,19 @@ struct BloomBoxThemeStoreView: View {
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 22)
+                            .strokeBorder(favoriteAccent.opacity(0.34), lineWidth: 1)
+                    }
 
                     TextField(t("Search themes", "Buscar temas"), text: $search)
                         .textFieldStyle(.roundedBorder)
+                        .padding(3)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 15))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 15)
+                                .strokeBorder(favoriteAccent.opacity(0.25), lineWidth: 1)
+                        }
 
                     VStack(alignment: .leading, spacing: 10) {
                         Label(t("Included Themes", "Temas incluidos"), systemImage: "sparkles.rectangle.stack")
@@ -464,11 +481,14 @@ struct BloomBoxThemeStoreView: View {
                 }
                 .padding(18)
             }
+            .background(BloomBoxProfileThemeBackdrop())
             .navigationTitle(t("Themes", "Temas"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button(t("Done", "Listo")) { dismiss() } } }
         }
         .navigationViewStyle(.stack)
+        .tint(favoriteAccent)
+        .preferredColorScheme(.dark)
         .sheet(isPresented: Binding(
             get: { shareURL != nil },
             set: { if !$0 { shareURL = nil } }
@@ -531,8 +551,8 @@ struct BloomBoxThemeStoreView: View {
         ZStack {
             RoundedRectangle(cornerRadius: 15)
                 .fill(LinearGradient(colors: [
-                    Color(red: 0.12, green: 0.64, blue: 0.88),
-                    Color(red: 0.57, green: 0.24, blue: 0.88)
+                    favoriteAccent,
+                    favoriteAccent.opacity(0.58)
                 ], startPoint: .topLeading, endPoint: .bottomTrailing))
             Image(systemName: "sparkles.rectangle.stack.fill")
                 .font(.system(size: 23)).foregroundStyle(.white)
