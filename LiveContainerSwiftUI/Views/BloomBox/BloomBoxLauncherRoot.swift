@@ -33,7 +33,7 @@ struct BloomBoxLauncherRootView: View {
         }
         .environment(\.locale, locale)
         .fullScreenCover(isPresented: $showFirstRunWizard) {
-            BloomBoxWizardWelcomeView(isPreview: false) {
+            BloomBoxWizardFlowView(isPreview: false) {
                 wizardCompleted = true
                 showFirstRunWizard = false
                 showRecoveryNotice = BloomBoxCrashJournal.shared.previousInterrupted
