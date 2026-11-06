@@ -27,6 +27,8 @@ struct BloomBoxLauncherRootView: View {
     private var wizardCompleted = false
     @AppStorage("BloomBoxAutoGameBoxOnController", store: LCUtils.appGroupUserDefault)
     private var autoGameBoxOnController = true
+    @AppStorage(BloomBoxLaunchPreferences.shortcutKey, store: LCUtils.appGroupUserDefault)
+    private var showGameBoxShortcut = true
 
     private var locale: Locale {
         Locale(identifier: language == "system" ? (Locale.preferredLanguages.first ?? "en") : language)
@@ -86,6 +88,14 @@ struct BloomBoxLauncherRootView: View {
                                 .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 20))
                         }
                         .buttonStyle(.plain)
+                        Toggle(isOn: $showGameBoxShortcut) {
+                            Label(language == "en" ? "Show GameBox button on Home" : "Mostrar botón GameBox en el escritorio",
+                                  systemImage: "gamecontroller.fill")
+                        }
+                        .tint(.cyan)
+                        .padding(16)
+                        .background(Color.white.opacity(0.06),
+                                    in: RoundedRectangle(cornerRadius: 16))
                         Toggle(isOn: $autoGameBoxOnController) {
                             Label("Abrir GameBox al conectar un control", systemImage: "gamecontroller.fill")
                         }
