@@ -353,6 +353,11 @@ struct BloomBoxProfileManagementView: View {
     @State private var draftName = ""
     @State private var draftAccent = BloomBoxProfileStore.palette[0]
     @State private var draftPhoto: UIImage?
+    @State private var editingProfile: BloomBoxUserProfile?
+    @State private var editName = ""
+    @State private var editAccent = BloomBoxProfileStore.palette[0]
+    @State private var editPhoto: UIImage?
+    @State private var pendingDeletion: BloomBoxUserProfile?
     @State private var introProfile: BloomBoxUserProfile?
     @State private var introSequence = 0
 
@@ -375,47 +380,7 @@ struct BloomBoxProfileManagementView: View {
                     .font(.subheadline)
 
                 ForEach(profiles) { profile in
-                    Button {
-                        BloomBoxProfileStore.activate(profile.id)
-                        reload()
-                        playProfileIntro(profile)
-                        UISelectionFeedbackGenerator().selectionChanged()
-                    } label: {
-                        HStack(spacing: 15) {
-                            ZStack {
-                                Circle()
-                                    .fill(BloomBoxWizardPalette.color(profile.accentHex).opacity(0.22))
-                                if let image = BloomBoxProfileStore.photo(for: profile) {
-                                    Image(uiImage: image)
-                                        .resizable().scaledToFill().clipShape(Circle())
-                                } else {
-                                    Image(systemName: "person.fill")
-                                        .font(.system(size: 25))
-                                        .foregroundStyle(BloomBoxWizardPalette.color(profile.accentHex))
-                                }
-                            }
-                            .frame(width: 62, height: 62)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(profile.name)
-                                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                                Text(profile.id == BloomBoxUserProfile.primaryID
-                                     ? (spanish ? "Contenedores originales" : "Original containers")
-                                     : (spanish ? "Contenedores separados" : "Separate containers"))
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: 5)
-                            Image(systemName: activeID == profile.id
-                                  ? "checkmark.circle.fill" : "circle")
-                                .font(.title2)
-                                .foregroundStyle(BloomBoxWizardPalette.color(profile.accentHex))
-                        }
-                        .padding(14)
-                        .background(
-                            Color.secondary.opacity(activeID == profile.id ? 0.13 : 0.06),
-                            in: RoundedRectangle(cornerRadius: 24))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("bloombox.profiles.select.\(profile.id)")
+                    profileRow(profile)
                 }
 
                 Button {
@@ -470,6 +435,113 @@ struct BloomBoxProfileManagementView: View {
             )
             .preferredColorScheme(BloomBoxWizardSystemAppearance.current)
         }
+        .fullScreenCover(item: $editingProfile) { original in
+            BloomBoxProfileEditorView(
+                name: $editName, accentHex: $editAccent, photo: $editPhoto,
+                isPreview: false, isWizardPage: false, isEditing: true,
+                onBack: { editingProfile = nil },
+                onContinue: {
+                    let updated = BloomBoxProfileStore.edit(
+                        id: original.id, name: editName, accentHex: editAccent,
+                        image: editPhoto)
+                    editingProfile = nil
+                    reload()
+                    if let updated, updated.id == activeID {
+                        playProfileIntro(updated)
+                    }
+                }
+            )
+            .preferredColorScheme(BloomBoxWizardSystemAppearance.current)
+        }
+        .alert(item: $pendingDeletion) { profile in
+            Alert(
+                title: Text(spanish ? "¿Eliminar perfil?" : "Delete profile?"),
+                message: Text(spanish
+                    ? "Se eliminará «\(profile.name)» de BloomBox y su foto. Los contenedores y datos de sus apps NO se borrarán. Esta acción no se puede deshacer desde aquí."
+                    : "«\(profile.name)» and its picture will be removed from BloomBox. Guest app containers and data will NOT be deleted. This action can't be undone here."),
+                primaryButton: .destructive(
+                    Text(spanish ? "Eliminar perfil" : "Delete profile")
+                ) {
+                    if BloomBoxProfileStore.delete(id: profile.id) {
+                        reload()
+                        if profile.id == activeID {
+                            playProfileIntro(BloomBoxProfileStore.active)
+                        }
+                    }
+                },
+                secondaryButton: .cancel(Text(spanish ? "Cancelar" : "Cancel"))
+            )
+        }
+    }
+
+    private func profileRow(_ profile: BloomBoxUserProfile) -> some View {
+        HStack(spacing: 0) {
+            Button {
+                if activeID != profile.id {
+                    BloomBoxProfileStore.activate(profile.id)
+                    reload()
+                    playProfileIntro(profile)
+                    UISelectionFeedbackGenerator().selectionChanged()
+                }
+            } label: {
+                HStack(spacing: 15) {
+                    BloomBoxProfileAvatar(profile: profile, size: 62)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(profile.name)
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .lineLimit(1)
+                        Text(profile.id == BloomBoxUserProfile.primaryID
+                             ? (spanish ? "Contenedores originales" : "Original containers")
+                             : (spanish ? "Contenedores separados" : "Separate containers"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 5)
+                    Image(systemName: activeID == profile.id
+                          ? "checkmark.circle.fill" : "circle")
+                        .font(.title2)
+                        .foregroundStyle(BloomBoxWizardPalette.color(profile.accentHex))
+                }
+                .contentShape(Rectangle())
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("bloombox.profiles.select.\(profile.id)")
+
+            Menu {
+                Button {
+                    beginEditing(profile)
+                } label: {
+                    Label(spanish ? "Editar perfil" : "Edit profile", systemImage: "pencil")
+                }
+                if profile.id != BloomBoxUserProfile.primaryID {
+                    Button(role: .destructive) {
+                        pendingDeletion = profile
+                    } label: {
+                        Label(spanish ? "Eliminar perfil" : "Delete profile",
+                              systemImage: "trash")
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 43, height: 62)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel(spanish ? "Opciones de \(profile.name)" : "Options for \(profile.name)")
+            .accessibilityIdentifier("bloombox.profiles.options.\(profile.id)")
+        }
+        .padding(14)
+        .background(Color.secondary.opacity(activeID == profile.id ? 0.13 : 0.06),
+                    in: RoundedRectangle(cornerRadius: 24))
+    }
+
+    private func beginEditing(_ profile: BloomBoxUserProfile) {
+        editName = profile.name
+        editAccent = profile.accentHex
+        editPhoto = BloomBoxProfileStore.photo(for: profile)
+        editingProfile = profile
     }
 
     private func playProfileIntro(_ profile: BloomBoxUserProfile) {
