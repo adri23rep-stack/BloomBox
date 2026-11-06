@@ -19,6 +19,7 @@ struct BloomBoxUserProfile: Codable, Identifiable, Equatable {
 enum BloomBoxProfileStore {
     static let profilesKey = "BloomBoxUserProfilesV1"
     static let activeKey = "BloomBoxActiveUserProfileV1"
+    static let didActivate = Notification.Name("BloomBoxActiveProfileDidActivate")
     static let containerMapKey = "BloomBoxProfileContainersV1"
     static let palette = ["8A6CF4", "F064A7", "F28B55", "E5B83F",
                           "48BBA3", "58A3ED", "6A6CD9", "DF6574"]
@@ -67,8 +68,11 @@ enum BloomBoxProfileStore {
     }
 
     static func activate(_ id: String) {
-        guard profiles.contains(where: { $0.id == id }) else { return }
+        guard profiles.contains(where: { $0.id == id }), active.id != id else { return }
         defaults.set(id, forKey: activeKey)
+        // New guest launches resolve the selected profile. Never move or
+        // replace data belonging to a previous profile.
+        NotificationCenter.default.post(name: didActivate, object: id)
     }
 
     static func updateColor(_ hex: String, for id: String) {
