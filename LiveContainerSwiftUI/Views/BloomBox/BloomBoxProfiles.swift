@@ -65,6 +65,10 @@ enum BloomBoxProfileStore {
         var all = profiles
         all.append(new)
         persist(all)
+        // New secondary profiles use the wizard's recommended Hybrid
+        // experience. Existing profile choices remain unchanged.
+        BloomBoxLaunchPreferences.setPreferredMode(
+            "hybrid", profileID: id, defaults: defaults)
         return new
     }
 
