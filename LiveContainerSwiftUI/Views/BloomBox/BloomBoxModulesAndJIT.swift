@@ -77,6 +77,8 @@ struct BloomBoxModulesPanel: View {
     @AppStorage("BloomBoxJITUseLegacyLaunchUI", store: LCUtils.appGroupUserDefault)
     private var legacyJITUI = false
     @State private var showWizardPreview = false
+    @AppStorage("BloomBoxWizardPreviewAppearanceV1", store: LCUtils.appGroupUserDefault)
+    private var wizardPreviewAppearance = "system"
 
     enum Destination { case jit, desktop, interface, wallpaper, apps, settings, tweaks, sidestore }
     enum Module: String, CaseIterable, Identifiable {
@@ -191,10 +193,10 @@ struct BloomBoxModulesPanel: View {
         .navigationViewStyle(.stack)
         .preferredColorScheme(.dark)
         .fullScreenCover(isPresented: $showWizardPreview) {
-            BloomBoxWizardWelcomeView(isPreview: true) {
+            BloomBoxWizardFlowView(isPreview: true) {
                 showWizardPreview = false
             }
-            .preferredColorScheme(BloomBoxWizardSystemAppearance.current)
+            .preferredColorScheme(BloomBoxWizardSystemAppearance.preview)
         }
     }
 
@@ -352,6 +354,15 @@ struct BloomBoxModulesPanel: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Divider()
+                    Picker("Aspecto de prueba del wizard", selection: $wizardPreviewAppearance) {
+                        Text("Automático (iPhone)").tag("system")
+                        Text("Claro · blanco suave").tag("light")
+                        Text("Oscuro · negro").tag("dark")
+                    }
+                    .accessibilityIdentifier("bloombox.experiments.wizard.appearance")
+                    Text("Solo cambia el aspecto del wizard de prueba. No altera el modo claro/oscuro del iPhone.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     Button {
                         showWizardPreview = true
                     } label: {
@@ -359,7 +370,17 @@ struct BloomBoxModulesPanel: View {
                             .font(.subheadline.weight(.semibold))
                     }
                     .accessibilityIdentifier("bloombox.experiments.wizard.preview")
-                    Text("Abre la bienvenida como si fuera la primera vez. No borra perfiles, aplicaciones ni datos; tampoco reinicia el estado del wizard. Solo el idioma que selecciones se guarda.")
+                    Text("Reproduce las dos pantallas. No borra perfiles, contenedores, apps ni fotos; tampoco reinicia el primer arranque. El idioma seleccionado sí se guarda.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    NavigationLink {
+                        BloomBoxProfileManagementView()
+                    } label: {
+                        Label("Perfiles · crear y cambiar", systemImage: "person.2.crop.square.stack")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .accessibilityIdentifier("bloombox.experiments.profiles.open")
+                    Text("El primer perfil conserva sus contenedores. Los perfiles nuevos crean un contenedor aislado por app cuando la abres.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Divider()
