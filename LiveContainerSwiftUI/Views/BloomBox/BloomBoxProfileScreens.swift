@@ -462,9 +462,10 @@ struct BloomBoxProfileManagementView: View {
                 primaryButton: .destructive(
                     Text(spanish ? "Eliminar perfil" : "Delete profile")
                 ) {
+                    let wasActive = BloomBoxProfileStore.active.id == profile.id
                     if BloomBoxProfileStore.delete(id: profile.id) {
                         reload()
-                        if profile.id == activeID {
+                        if wasActive {
                             playProfileIntro(BloomBoxProfileStore.active)
                         }
                     }
