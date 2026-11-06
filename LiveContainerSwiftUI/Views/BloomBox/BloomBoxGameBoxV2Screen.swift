@@ -551,13 +551,38 @@ struct BloomBoxGameBoxV2Screen: View {
             }
             Spacer(minLength: 4)
             HStack(spacing: compact ? 5 : 8) {
-                Image(systemName: "person.crop.circle.fill")
-                    .font(.system(size: compact ? 16 : 19))
-                    .foregroundStyle(.white.opacity(0.9))
-                Image(systemName: "gamecontroller.fill")
-                    .font(.system(size: compact ? 13 : 17, weight: .semibold))
-                Text("GAMEBOX").font(.system(size: compact ? 12 : 15, weight: .black, design: .rounded))
-                    .tracking(1.3)
+                // The avatar, controller logo and username are one
+                // discoverable profile control. The separate DualSense
+                // button on the left keeps its Nikaido actions.
+                Button {
+                    withAnimation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.86)) {
+                        showProfileSwitcher.toggle()
+                    }
+                    selectionHaptic()
+                } label: {
+                    HStack(spacing: compact ? 4 : 7) {
+                        BloomBoxProfileAvatar(profile: currentProfile,
+                                              size: compact ? 25 : 30)
+                        Image(systemName: "gamecontroller.fill")
+                            .font(.system(size: compact ? 12 : 16, weight: .semibold))
+                        Text("GAMEBOX")
+                            .font(.system(size: compact ? 12 : 15, weight: .black, design: .rounded))
+                            .tracking(compact ? 0.6 : 1.2)
+                        Text(currentProfile.name)
+                            .font(.system(size: compact ? 11 : 13, weight: .semibold, design: .rounded))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(maxWidth: compact ? 83 : 145, alignment: .leading)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                    .foregroundStyle(.white)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(BloomBoxGameBoxL10n.t("Cambiar perfil") + ": " + currentProfile.name)
+                .accessibilityIdentifier("bloombox.gamebox.profiles.open")
                 Button {
                     if safeGraphics { showSafeGraphicsAlert = true }
                 } label: {
