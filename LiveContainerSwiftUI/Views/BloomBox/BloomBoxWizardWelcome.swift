@@ -5,6 +5,7 @@ import UIKit
 /// Preview mode is a visual/configuration test: it never resets app data or wizard completion.
 struct BloomBoxWizardWelcomeView: View {
     let isPreview: Bool
+    let accentHex: String
     let onFinish: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
@@ -17,7 +18,7 @@ struct BloomBoxWizardWelcomeView: View {
 
     private var dark: Bool { colorScheme == .dark }
     private var mainInk: Color { dark ? Color.white : Color(red: 0.13, green: 0.12, blue: 0.19) }
-    private var accent: Color { dark ? Color(red: 0.76, green: 0.66, blue: 1) : Color(red: 0.42, green: 0.27, blue: 0.78) }
+    private var accent: Color { BloomBoxWizardPalette.color(accentHex) }
     private var index: Int { choices.firstIndex(where: { $0.rawValue == preferredLanguage }) ?? 1 }
     private var selected: BloomBoxWizardLanguage { choices[index] }
     private var isSpanish: Bool {
@@ -35,7 +36,12 @@ struct BloomBoxWizardWelcomeView: View {
                       : Color(red: 0.977, green: 0.973, blue: 0.985))
                     .ignoresSafeArea()
 
-                BloomBoxWizardAmbientSymbols(isDark: dark)
+                RadialGradient(colors: [accent.opacity(dark ? 0.15 : 0.095), .clear],
+                               center: .topTrailing, startRadius: 6, endRadius: 500)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+
+                BloomBoxWizardAmbientSymbols(isDark: dark, accentHex: accentHex)
                     .ignoresSafeArea()
                     .accessibilityHidden(true)
                     .allowsHitTesting(false)
@@ -46,7 +52,7 @@ struct BloomBoxWizardWelcomeView: View {
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                             .foregroundStyle(mainInk.opacity(0.77))
                         Spacer()
-                        Text("01 / 01")
+                        Text("01 / 02")
                             .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
                             .foregroundStyle(mainInk.opacity(0.45))
                     }
@@ -106,14 +112,12 @@ struct BloomBoxWizardWelcomeView: View {
                                     .font(.system(size: 14, weight: .bold))
                             }
                             .font(.system(size: 17, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color.white)
+                            .foregroundStyle(accentHex == "E5B83F" ? Color.black : Color.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 58)
                             .background(
-                                LinearGradient(colors: [
-                                    Color(red: 0.47, green: 0.31, blue: 0.86),
-                                    Color(red: 0.35, green: 0.30, blue: 0.70)
-                                ], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                LinearGradient(colors: [accent, accent.opacity(0.85)],
+                                               startPoint: .topLeading, endPoint: .bottomTrailing),
                                 in: RoundedRectangle(cornerRadius: 20, style: .continuous)
                             )
                         }
@@ -192,7 +196,7 @@ struct BloomBoxWizardWelcomeView: View {
                 .font(.system(size: offset == 0 ? 23 : 18,
                               weight: offset == 0 ? .heavy : .medium,
                               design: .rounded))
-                .foregroundStyle(offset == 0 ? (dark ? Color.black : Color.white)
+                .foregroundStyle(offset == 0 ? (accentHex == "E5B83F" ? Color.black : Color.white)
                                                  : mainInk.opacity(0.34))
                 .frame(width: offset == 0 ? 254 : 232, height: offset == 0 ? 66 : 49)
                 .background {
@@ -243,13 +247,14 @@ enum BloomBoxWizardSystemAppearance {
 /// All decorations are drawn in code, not bundled pictures or emoji.
 private struct BloomBoxWizardAmbientSymbols: View {
     let isDark: Bool
+    let accentHex: String
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: reduceMotion)) { timeline in
             Canvas(opaque: false, rendersAsynchronously: true) { context, size in
                 let time = timeline.date.timeIntervalSinceReferenceDate
-                let color = isDark ? Color.white : Color(red: 0.19, green: 0.14, blue: 0.33)
+                let color = BloomBoxWizardPalette.color(accentHex)
                 for i in 0..<49 {
                     let xSeed = CGFloat((i * 47 + 29) % 103) / 103
                     let ySeed = CGFloat((i * 71 + 11) % 101) / 101
