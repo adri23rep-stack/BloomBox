@@ -34,6 +34,11 @@ struct BloomBoxWizardHighlightsView: View {
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
 
+            BloomBoxWizardAmbientSymbols(isDark: scheme == .dark, accentHex: accentHex)
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+                .allowsHitTesting(false)
+
             VStack(spacing: 14) {
                 HStack {
                     Label("BloomBox", systemImage: "sparkle")
@@ -199,6 +204,11 @@ struct BloomBoxWizardValidationView: View {
             RadialGradient(colors: [accent.opacity(0.16), .clear],
                            center: .top, startRadius: 0, endRadius: 510)
                 .ignoresSafeArea()
+
+            BloomBoxWizardAmbientSymbols(isDark: scheme == .dark, accentHex: accentHex)
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+                .allowsHitTesting(false)
 
             ScrollView {
                 VStack(spacing: 19) {
