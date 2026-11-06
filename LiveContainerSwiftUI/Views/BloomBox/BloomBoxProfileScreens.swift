@@ -253,7 +253,6 @@ struct BloomBoxProfileEditorView: View {
                     .frame(maxWidth: 500)
                     .frame(maxWidth: .infinity)
                 }
-                .scrollDismissesKeyboard(.interactively)
             }
         }
     }
