@@ -82,4 +82,32 @@ assert "BloomBoxProfileTheme.color(activeID: themeActiveID" in modules
 assert "accent: Color(red: 0.20, green: 0.55, blue: 0.77)" not in stores
 assert "accent: Color(red: 0.48, green: 0.32, blue: 0.76)" not in stores
 
+# Cross-screen launcher experience checks: hybrid keeps the existing guest
+# launch pipeline, Games use the signed catalog flag, and UI links remain wired.
+launcher_root = (ui / "BloomBoxLauncherRoot.swift").read_text()
+launcher_prefs = (ui / "BloomBoxLauncherPreferences.swift").read_text()
+wizard_flow = (ui / "BloomBoxProfileScreens.swift").read_text()
+game_box = (ui / "BloomBoxGameBoxV2Screen.swift").read_text()
+news = (ui / "BloomBoxNewsPage.swift").read_text()
+host = (root / "LiveContainerSwiftUI/Views/AppList/LCAppListView.swift").read_text()
+theme_store = (root / "LiveContainerSwiftUI/Views/BloomBoxThemeStore.swift").read_text()
+assert "struct BloomBoxWizardLauncherChoiceView: View" in wizard_flow
+assert "onBack: { forward(to: 4) }" in wizard_flow
+assert 'selectedLauncher = "hybrid"' in wizard_flow
+assert 'title: "Híbrido"' in wizard_flow
+assert "BloomBoxLaunchPreferences.setPreferredMode(" in wizard_flow
+assert 'validModes: Set<String> = ["ios", "gamebox", "hybrid"]' in launcher_prefs
+assert "profileModesKey" in launcher_prefs
+assert 'value: "hybrid"' in launcher_root
+assert "if preferredExperience == \"hybrid\" { liveBoardMode = \"ios\" }" in host
+assert "let hybridLaunch = preferredExperience == \"hybrid\" && isKnownGame" in host
+assert "let isKnownGame = remoteRequiresGame(app)" in host
+assert "app.launchFromLibrary(multitask: true, forceJIT: jitOverride)" in host
+assert "app.launchFromLibrary(multitask: false, forceJIT: jitOverride)" in host
+assert "BloomBoxGameBoxHybridFocusKey" in game_box
+assert "bloombox.home.gamebox.shortcut" in home
+assert "bloombox.news.gamebox" in news
+assert "BloomBoxProfileThemeBackdrop()" in theme_store
+assert "BloomBoxProfileTheme.color(activeID:" in theme_store
+
 print("BloomBox Home Stage 1 boundary checks passed.")
