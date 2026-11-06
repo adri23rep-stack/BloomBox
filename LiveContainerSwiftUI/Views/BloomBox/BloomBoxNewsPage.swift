@@ -27,10 +27,12 @@ struct BloomBoxNewsPage: View {
                     }
                     Spacer()
                     Button(action: openSettings) {
-                        Image(systemName: "slider.horizontal.3")
+                        Image(systemName: "paintbrush.pointed.fill")
+                            .font(.system(size: 18, weight: .semibold))
                             .frame(width: 44, height: 44)
+                            .background(.thinMaterial, in: Circle())
                     }
-                    .accessibilityLabel(english ? "Desktop settings" : "Ajustes del escritorio")
+                    .accessibilityLabel(english ? "Customize Home" : "Personalizar escritorio")
                     .accessibilityIdentifier("bloombox.news.settings")
                 }
                 BloomBoxProfileSwitcherWidget()
