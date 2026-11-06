@@ -81,6 +81,13 @@ struct BloomBoxModulesPanel: View {
     private var melonScriptCrossAppEnabled = false
     @AppStorage("BloomBoxJITUseLegacyLaunchUI", store: LCUtils.appGroupUserDefault)
     private var legacyJITUI = false
+    @AppStorage(BloomBoxProfileStore.activeKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var themeActiveID = BloomBoxUserProfile.primaryID
+    @AppStorage(BloomBoxProfileStore.profilesKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var themeProfilesData = Data()
+    private var profileAccent: Color {
+        BloomBoxProfileTheme.color(activeID: themeActiveID, profilesData: themeProfilesData)
+    }
     @State private var showWizardPreview = false
     @AppStorage("BloomBoxWizardPreviewAppearanceV1", store: LCUtils.appGroupUserDefault)
     private var wizardPreviewAppearance = "system"
@@ -149,9 +156,11 @@ struct BloomBoxModulesPanel: View {
                 VStack(alignment: .leading, spacing: 23) {
                     HStack(spacing: 16) {
                         BloomBoxModulesIcon(size: 55)
+                            .shadow(color: profileAccent.opacity(0.32), radius: 18)
                         VStack(alignment: .leading, spacing: 5) {
                             Text("Módulos")
                                 .font(.system(size: 31, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
                             Text("Tu centro de control, sin menús escondidos")
                                 .font(.subheadline)
                                 .foregroundStyle(.white.opacity(0.7))
@@ -195,6 +204,7 @@ struct BloomBoxModulesPanel: View {
             }
             .background(moduleBackdrop)
             .foregroundStyle(.white)
+            .tint(profileAccent)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -246,13 +256,14 @@ struct BloomBoxModulesPanel: View {
                 .fill(Color(red: 0.105, green: 0.12, blue: 0.18).opacity(0.88))
                 .overlay {
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(LinearGradient(colors: [module.tint.opacity(0.17), .clear],
+                        .fill(LinearGradient(colors: [profileAccent.opacity(0.16),
+                                                      module.tint.opacity(0.12), .clear],
                                              startPoint: .topLeading, endPoint: .bottomTrailing))
                 }
         }
         .overlay {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(LinearGradient(colors: [module.tint.opacity(0.62), .white.opacity(0.10)],
+                .strokeBorder(LinearGradient(colors: [profileAccent.opacity(0.48), module.tint.opacity(0.32)],
                                              startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
         }
         .accessibilityElement(children: .combine)
@@ -275,8 +286,7 @@ struct BloomBoxModulesPanel: View {
     }
 
     private var moduleBackdrop: some View {
-        Color(red: 0.055, green: 0.065, blue: 0.13).opacity(0.87)
-            .ignoresSafeArea()
+        BloomBoxProfileThemeBackdrop()
     }
 
     private var desktopDetail: some View {
