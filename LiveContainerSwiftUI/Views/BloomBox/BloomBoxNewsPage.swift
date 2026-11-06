@@ -5,6 +5,8 @@ import CryptoKit
 /// on this page. The old Manzana widget-page entry point is retained as an alias.
 struct BloomBoxNewsPage: View {
     let openSettings: () -> Void
+    var openGameBox: () -> Void = {}
+    var gameNames: [String: String] = [:]
     var singleWidget: String? = nil
 
     @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
@@ -36,6 +38,7 @@ struct BloomBoxNewsPage: View {
                     .accessibilityIdentifier("bloombox.news.settings")
                 }
                 BloomBoxProfileSwitcherWidget()
+                BloomBoxGameBoxNewsWidget(onOpen: openGameBox, gameNames: gameNames)
                 BloomBoxRemoteNewsSection()
             }
             .padding(.horizontal, 22)
@@ -47,6 +50,96 @@ struct BloomBoxNewsPage: View {
 
 // Temporary source-compatibility shim only; all new calls use BloomBoxNewsPage.
 typealias ManzanaDesktopView = BloomBoxNewsPage
+
+/// News shortcut stays on iOS Home and makes GameBox visible even when
+/// the optional floating control has been hidden. Only reads saved titles.
+private struct BloomBoxGameBoxNewsWidget: View {
+    let onOpen: () -> Void
+    let gameNames: [String: String]
+
+    @AppStorage(BloomBoxProfileStore.activeKey,
+                store: LiveContainerPreferencesAdapter.defaults)
+    private var activeProfileID = BloomBoxUserProfile.primaryID
+    @AppStorage(BloomBoxProfileStore.profilesKey,
+                store: LiveContainerPreferencesAdapter.defaults)
+    private var profiles = Data()
+    @AppStorage("BloomBoxPreferredLanguage",
+                store: LiveContainerPreferencesAdapter.defaults)
+    private var language = "system"
+    @AppStorage("BloomBoxGameBoxV2Favorites",
+                store: LiveContainerPreferencesAdapter.defaults)
+    private var favoritesJSON = "[]"
+    @AppStorage("BloomBoxGameBoxRecentRevisionV1",
+                store: LiveContainerPreferencesAdapter.defaults)
+    private var recentRevision = ""
+
+    private var english: Bool {
+        language == "en" || (language == "system" &&
+            (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("en"))
+    }
+    private var tint: Color {
+        BloomBoxProfileTheme.color(activeID: activeProfileID, profilesData: profiles)
+    }
+    private var favorites: [String] {
+        BloomBoxHomeAppPolicy.favorites(from: favoritesJSON)
+            .compactMap { gameNames[$0] }
+    }
+    private var recentlyPlayed: [String] {
+        _ = recentRevision // refresh when the game list changes
+        return BloomBoxLaunchPreferences.recentGames(
+            profileID: activeProfileID, defaults: LiveContainerPreferencesAdapter.defaults)
+    }
+
+    var body: some View {
+        Button(action: onOpen) {
+            VStack(alignment: .leading, spacing: 13) {
+                HStack(spacing: 12) {
+                    Image(systemName: "gamecontroller.fill")
+                        .font(.system(size: 23, weight: .semibold))
+                        .foregroundStyle(tint)
+                        .frame(width: 45, height: 45)
+                        .background(tint.opacity(0.14),
+                                    in: RoundedRectangle(cornerRadius: 14))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("GameBox").font(.headline)
+                        Text(english ? "Your games, one tap away" : "Tus juegos, a un toque")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "arrow.up.right.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(tint)
+                }
+                if let last = recentlyPlayed.first {
+                    Label((english ? "Recently played: " : "Último juego: ") + last,
+                          systemImage: "clock.arrow.circlepath")
+                        .font(.caption)
+                        .lineLimit(1)
+                }
+                if !favorites.isEmpty {
+                    Label((english ? "Favorites: " : "Favoritos: ") +
+                          favorites.prefix(2).joined(separator: " · "),
+                          systemImage: "star.fill")
+                        .font(.caption)
+                        .lineLimit(1)
+                        .foregroundStyle(tint)
+                }
+            }
+            .padding(17)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.ultraThinMaterial,
+                        in: RoundedRectangle(cornerRadius: 25, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 25, style: .continuous)
+                    .strokeBorder(tint.opacity(0.38), lineWidth: 1.1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("bloombox.news.gamebox")
+        .accessibilityLabel(english ? "Open GameBox" : "Abrir GameBox")
+    }
+}
 
 // MARK: - Read-only remote news. No HTML, scripts, or execution paths.
 private struct BloomBoxNewsFeed: Decodable {
