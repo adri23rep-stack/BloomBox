@@ -494,7 +494,11 @@ struct BloomBoxGameBoxV2Screen: View {
 
                 // The exact same widget as in News: switch, add, edit and
                 // safely remove profiles through its management view.
-                BloomBoxProfileSwitcherWidget()
+                BloomBoxProfileSwitcherWidget(onProfileSelected: {
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.24)) {
+                        showProfileSwitcher = false
+                    }
+                })
             }
             .padding(14)
             .frame(width: min(max(240, width - 30), 420))
