@@ -219,54 +219,35 @@ struct BloomBoxHomeScreen: View {
                 background
                     .blur(radius: (searching || page == libraryPageIndex) ? 14 : 0)
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.38), value: page == libraryPageIndex)
-                // Render every page in the full GeometryReader. The old VStack
-                // permanently reserved ~140pt for a Dock that is hidden on
-                // Widgets and App Library, leaving a blank strip and clipping
-                // the bottom rows of the library.
-                ZStack(alignment: .bottom) {
-                    TabView(selection: $page) {
-                        BloomBoxNewsPage(openSettings: { desktopSettings = true })
-                            .tag(0)
-                        ForEach(visiblePageIndices, id: \.self) { index in
+                // Dock belongs to each Home page, not a floating overlay.
+                // Swiping to News or App Library moves the Dock away with Home.
+                TabView(selection: $page) {
+                    BloomBoxNewsPage(openSettings: { desktopSettings = true })
+                        .tag(0)
+                    ForEach(visiblePageIndices, id: \.self) { index in
+                        ZStack(alignment: .bottom) {
                             homePage(index,
                                      width: geometry.size.width,
                                      height: max(400, geometry.size.height - 146))
-                                // Home pages still reserve space for their Dock;
-                                // Widgets and App Library use the full viewport.
                                 .padding(.bottom, 146)
-                                .tag(index + 1)
+                            VStack(spacing: 0) {
+                                pageControl
+                                    .padding(.bottom, 18)
+                                dock(width: geometry.size.width, homePageIndex: index)
+                                    .padding(.horizontal, 12)
+                                    .padding(.bottom, -22)
+                            }
+                            .padding(.bottom, 8)
                         }
-                        appLibrary(width: geometry.size.width)
-                            .tag(libraryPageIndex)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .tag(index + 1)
                     }
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                    .blur(radius: openFolder == nil ? 0 : 18)
-
-                    // Overlay instead of taking height away from the pages.
-                    // Widgets and Library both hide floating navigation and Dock.
-                    // On the widgets page, swiping still switches Home pages.
-                    VStack(spacing: 0) {
-                        pageControl
-                            .padding(.bottom, 18)
-                            .opacity(page == libraryPageIndex || page == 0 ? 0 : 1)
-                            .allowsHitTesting(page != libraryPageIndex && page != 0)
-                            .accessibilityHidden(page == libraryPageIndex || page == 0)
-                        dock(width: geometry.size.width)
-                            .padding(.horizontal, 12)
-                            .padding(.bottom, -22)
-                            .blur(radius: openFolder == nil ? 0 : 18)
-                            .opacity((page == 0 || page == libraryPageIndex) ? 0 : 1)
-                            .allowsHitTesting(page > 0 && page < libraryPageIndex)
-                            .accessibilityHidden(page == 0 || page == libraryPageIndex)
-                    }
-                    .padding(.bottom, 8)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.38),
-                               value: page == libraryPageIndex)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.28),
-                               value: page == 0)
+                    appLibrary(width: geometry.size.width)
+                        .tag(libraryPageIndex)
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height)
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .blur(radius: openFolder == nil ? 0 : 18)
                 .blur(radius: searching ? 14 : 0)
                 .allowsHitTesting(!searching)
                 .accessibilityHidden(searching)
@@ -2446,13 +2427,13 @@ struct BloomBoxHomeScreen: View {
         }
     }
 
-    private func dock(width: CGFloat) -> some View {
+    private func dock(width: CGFloat, homePageIndex: Int) -> some View {
         HStack(spacing: 0) {
             ForEach(0..<4, id: \.self) { slot in
                 ZStack {
                     if layout.dock.indices.contains(slot) {
                         homeItem(layout.dock[slot], showLabel: false)
-                            .modifier(aliveEntrance(for: max(0, page - 1),
+                            .modifier(aliveEntrance(for: homePageIndex,
                                  delay: 0.69 + Double(slot) * 0.16, key: layout.dock[slot]))
                     } else {
                         Color.clear
@@ -2464,7 +2445,7 @@ struct BloomBoxHomeScreen: View {
                 .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
                     acceptDrop(providers) { key in
                         withAnimation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.84)) {
-                            _ = layout.moveToDock(key, at: slot, fallbackPage: max(0, page - 1))
+                            _ = layout.moveToDock(key, at: slot, fallbackPage: homePageIndex)
                             reconcile()
                         }
                     }
