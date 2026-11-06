@@ -17,6 +17,14 @@ struct BloomBoxHomeScreen: View {
     let installProgress: Double
     let secondaryInstance: Bool
     var launchWithJIT: ((LCAppModel) -> Void)? = nil
+    var openGameBox: () -> Void = {}
+    @AppStorage(BloomBoxLaunchPreferences.shortcutKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var showGameBoxShortcut = true
+    @AppStorage(BloomBoxLaunchPreferences.shortcutXKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var gameBoxShortcutX = 0.87
+    @AppStorage(BloomBoxLaunchPreferences.shortcutYKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var gameBoxShortcutY = 0.20
+    @State private var gameBoxShortcutDrag: CGSize = .zero
     @EnvironmentObject private var sharedModel: SharedModel
     @ObservedObject private var appCustomization = LiveBoardAppCustomization.shared
     @State private var appearanceApp: LiveBoardAppearanceSelection?
@@ -222,6 +230,53 @@ struct BloomBoxHomeScreen: View {
             .appendingPathComponent("LiveBoard", isDirectory: true).appendingPathComponent("wallpaper.jpg")
     }
 
+    private var newsGameNames: [String: String] {
+        var result: [String: String] = [:]
+        for app in apps {
+            let key = LiveContainerHomeAdapter.key(app)
+            result[key] = title(key)
+        }
+        return result
+    }
+
+    private func gameBoxShortcut(width: CGFloat, height: CGFloat) -> some View {
+        let startX = width * min(0.89, max(0.11, gameBoxShortcutX))
+        let startY = height * min(0.78, max(0.16, gameBoxShortcutY))
+        return Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            openGameBox()
+        } label: {
+            Image(systemName: "gamecontroller.fill")
+                .font(.system(size: 25, weight: .semibold))
+                .foregroundStyle(profileAccent)
+                .frame(width: 57, height: 57)
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay(Circle().strokeBorder(profileAccent.opacity(0.58), lineWidth: 1.3))
+                .shadow(color: profileAccent.opacity(0.28), radius: 15, y: 5)
+        }
+        .buttonStyle(.plain)
+        .position(x: startX + gameBoxShortcutDrag.width,
+                  y: startY + gameBoxShortcutDrag.height)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 8)
+                .onChanged { gameBoxShortcutDrag = $0.translation }
+                .onEnded { move in
+                    gameBoxShortcutX = min(0.89, max(0.11,
+                        (startX + move.translation.width) / max(1, width)))
+                    gameBoxShortcutY = min(0.78, max(0.16,
+                        (startY + move.translation.height) / max(1, height)))
+                    gameBoxShortcutDrag = .zero
+                }
+        )
+        .contextMenu {
+            Button(englishUI ? "Hide GameBox button" : "Ocultar botón GameBox",
+                   systemImage: "eye.slash") { showGameBoxShortcut = false }
+        }
+        .accessibilityIdentifier("bloombox.home.gamebox.shortcut")
+        .accessibilityLabel(englishUI ? "Open GameBox, drag to move" :
+                            "Abrir GameBox, arrastra para mover")
+    }
+
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .top) {
@@ -231,7 +286,9 @@ struct BloomBoxHomeScreen: View {
                 // Dock belongs to each Home page, not a floating overlay.
                 // Swiping to News or App Library moves the Dock away with Home.
                 TabView(selection: $page) {
-                    BloomBoxNewsPage(openSettings: { desktopSettings = true })
+                    BloomBoxNewsPage(openSettings: { desktopSettings = true },
+                                     openGameBox: openGameBox,
+                                     gameNames: newsGameNames)
                         .tag(0)
                     ForEach(visiblePageIndices, id: \.self) { index in
                         ZStack(alignment: .bottom) {
@@ -295,6 +352,12 @@ struct BloomBoxHomeScreen: View {
                 if searching { searchOverlay(height: geometry.size.height) }
                 if let id = openFolder, let folder = layout.folders.first(where: { $0.id == id }) {
                     folderOverlay(folder, width: geometry.size.width)
+                }
+                if showGameBoxShortcut && !editing && !searching &&
+                    !pageManager && !customizing && !desktopSettings &&
+                    openFolder == nil && page > 0 && page < libraryPageIndex {
+                    gameBoxShortcut(width: geometry.size.width, height: geometry.size.height)
+                        .zIndex(16)
                 }
             }
             .foregroundColor(.white)
@@ -2886,6 +2949,8 @@ struct BloomBoxHomeScreen: View {
                         .foregroundStyle(.secondary)
                 }
                 Section("Home Screen") {
+                    Toggle(englishUI ? "Show floating GameBox button" : "Mostrar botón flotante de GameBox",
+                           isOn: $showGameBoxShortcut)
                     Button("Edit Home Screen") { customizing = false; editing = true }
                     Button("Add Page") { addPage(); customizing = false; editing = true }
                     Button("App Management") { customizing = false; openManagement() }
