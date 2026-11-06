@@ -272,16 +272,13 @@ struct BloomBoxModulesPanel: View {
             VStack(alignment: .leading, spacing: 16) {
                 Label("Escritorio", systemImage: "display")
                     .font(.title2.bold())
-                Text("Los accesos del menú Escritorio, ahora dentro de Módulos.")
+                Text("Fondos, widgets, páginas e iconos reunidos en un solo lugar. Las apps, las tiendas y JIT tienen sus propios accesos.")
                     .font(.subheadline).foregroundStyle(.white.opacity(0.7))
+                Button { onSelect(.desktop) } label: {
+                    moduleShortcut("Personalizar escritorio", subtitle: "Fondos, widgets, páginas e iconos", symbol: "paintbrush.pointed.fill", color: .pink)
+                }
                 Button { onSelect(.interface) } label: {
-                    moduleShortcut("Interface", subtitle: "iOS Home Screen", symbol: "square.grid.3x3.fill", color: .cyan)
-                }
-                Button { onSelect(.wallpaper) } label: {
-                    moduleShortcut("Wallpaper", subtitle: "Fotos, videos, GIF y fondo", symbol: "photo.fill", color: .pink)
-                }
-                Button { onSelect(.apps) } label: {
-                    moduleShortcut("Apps", subtitle: "Instalar y administrar apps", symbol: "square.stack.3d.up.fill", color: .purple)
+                    moduleShortcut("Opciones de interfaz", subtitle: "Apariencia del inicio", symbol: "slider.horizontal.3", color: .cyan)
                 }
             }
             .buttonStyle(.plain)
