@@ -7,6 +7,7 @@ struct BloomBoxWizardWelcomeView: View {
     let isPreview: Bool
     let accentHex: String
     let onFinish: () -> Void
+    let onClosePreview: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -125,7 +126,7 @@ struct BloomBoxWizardWelcomeView: View {
                         .accessibilityIdentifier("bloombox.wizard.continue")
 
                         if isPreview {
-                            Button(isSpanish ? "Cerrar prueba" : "Close preview", action: onFinish)
+                            Button(isSpanish ? "Cerrar prueba" : "Close preview", action: onClosePreview)
                                 .font(.system(size: 13, weight: .medium, design: .rounded))
                                 .foregroundStyle(mainInk.opacity(0.65))
                                 .frame(minHeight: 30)
