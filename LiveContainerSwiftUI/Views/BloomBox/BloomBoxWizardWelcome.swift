@@ -242,6 +242,14 @@ enum BloomBoxWizardSystemAppearance {
     static var current: ColorScheme {
         UIScreen.main.traitCollection.userInterfaceStyle == .dark ? .dark : .light
     }
+
+    static var preview: ColorScheme {
+        switch LiveContainerPreferencesAdapter.defaults.string(forKey: "BloomBoxWizardPreviewAppearanceV1") {
+        case "light": return .light
+        case "dark": return .dark
+        default: return current
+        }
+    }
 }
 
 /// All decorations are drawn in code, not bundled pictures or emoji.
