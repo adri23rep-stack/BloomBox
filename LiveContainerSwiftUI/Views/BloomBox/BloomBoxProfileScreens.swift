@@ -15,20 +15,34 @@ struct BloomBoxWizardFlowView: View {
 
     var body: some View {
         Group {
-            if page == 0 {
+            switch page {
+            case 0:
                 BloomBoxWizardWelcomeView(isPreview: isPreview, accentHex: accentHex) {
-                    withAnimation(.easeInOut(duration: 0.34)) { page = 1 }
+                    forward(to: 1)
                 }
-            } else {
+            case 1:
                 BloomBoxProfileEditorView(
                     name: $name, accentHex: $accentHex, photo: $photo,
-                    isPreview: isPreview,
-                    onBack: { withAnimation(.easeInOut(duration: 0.34)) { page = 0 } },
-                    onContinue: {
+                    isPreview: isPreview, isWizardPage: true,
+                    onBack: { forward(to: 0) },
+                    onContinue: { forward(to: 2) }
+                )
+            case 2:
+                BloomBoxWizardHighlightsView(
+                    accentHex: accentHex,
+                    onBack: { forward(to: 1) },
+                    onNext: { forward(to: 3) }
+                )
+            default:
+                BloomBoxWizardValidationView(
+                    accentHex: accentHex, isPreview: isPreview,
+                    onBack: { forward(to: 2) },
+                    onFinish: {
+                        // Commit the actual profile only when the complete
+                        // first-run flow ends; preview cannot mutate profiles.
                         if !isPreview {
-                            BloomBoxProfileStore.finishInitialSetup(name: name,
-                                                                   accentHex: accentHex,
-                                                                   image: photo)
+                            BloomBoxProfileStore.finishInitialSetup(
+                                name: name, accentHex: accentHex, image: photo)
                         }
                         onFinish()
                     }
@@ -36,6 +50,10 @@ struct BloomBoxWizardFlowView: View {
             }
         }
         .animation(.easeInOut(duration: 0.28), value: page)
+    }
+
+    private func forward(to newPage: Int) {
+        withAnimation(.easeInOut(duration: 0.34)) { page = newPage }
     }
 }
 
@@ -45,6 +63,7 @@ struct BloomBoxProfileEditorView: View {
     @Binding var accentHex: String
     @Binding var photo: UIImage?
     let isPreview: Bool
+    let isWizardPage: Bool
     let onBack: () -> Void
     let onContinue: () -> Void
 
@@ -81,7 +100,7 @@ struct BloomBoxProfileEditorView: View {
                             Label("BloomBox", systemImage: "sparkle")
                                 .font(.system(size: 14, weight: .bold, design: .rounded))
                             Spacer()
-                            Text("02 / 02")
+                            Text("02 / 04")
                                 .font(.system(size: 12, weight: .medium, design: .rounded)
                                         .monospacedDigit())
                         }
@@ -233,8 +252,8 @@ struct BloomBoxProfileEditorView: View {
                                 onContinue()
                             } label: {
                                 HStack(spacing: 8) {
-                                    Text(isPreview
-                                         ? (spanish ? "Terminar prueba" : "Finish preview")
+                                    Text(isWizardPage
+                                         ? (spanish ? "Continuar" : "Continue")
                                          : (spanish ? "Crear perfil" : "Create profile"))
                                     Image(systemName: "arrow.right")
                                 }
@@ -392,7 +411,7 @@ struct BloomBoxProfileManagementView: View {
         .fullScreenCover(isPresented: $creating) {
             BloomBoxProfileEditorView(
                 name: $draftName, accentHex: $draftAccent, photo: $draftPhoto,
-                isPreview: false,
+                isPreview: false, isWizardPage: false,
                 onBack: { creating = false },
                 onContinue: {
                     let new = BloomBoxProfileStore.add(name: draftName,
