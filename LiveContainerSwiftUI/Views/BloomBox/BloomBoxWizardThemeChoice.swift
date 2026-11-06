@@ -101,9 +101,8 @@ struct BloomBoxWizardThemeChoiceView: View {
                         .accessibilityLabel(spanish ? "Atrás" : "Back")
                         Button(action: onFinish) {
                             HStack(spacing: 9) {
-                                Text(isPreview
-                                     ? (spanish ? "Cerrar prueba" : "Close preview")
-                                     : (spanish ? "Empezar con este tema" : "Start with this theme"))
+                                Text(spanish ? "Continuar · Elegir experiencia" :
+                                     "Continue · Choose experience")
                                 Image(systemName: "arrow.right")
                             }
                             .font(.system(size: 15, weight: .bold, design: .rounded))
