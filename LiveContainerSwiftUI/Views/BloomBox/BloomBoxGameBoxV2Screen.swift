@@ -100,6 +100,8 @@ struct BloomBoxGameBoxV2Screen: View {
     @AppStorage("LiveBoardReduceMotion", store: LiveContainerPreferencesAdapter.defaults)
     private var localReduceMotion = false
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @AppStorage("BloomBoxGameBoxHybridFocusKey", store: LiveContainerPreferencesAdapter.defaults)
+    private var hybridFocusKey = ""
     @State private var focusedKey: String?
     @GestureState private var isCarouselDragging = false
     @State private var previousTapKey: String?
@@ -307,7 +309,13 @@ struct BloomBoxGameBoxV2Screen: View {
         .onAppear {
             BloomBoxCrashJournal.shared.enterGameBox()
             refreshDualSenseBattery()
-            if focusedKey == nil { focusedKey = visibleApps.first.map(key) }
+            if !hybridFocusKey.isEmpty,
+               visibleApps.contains(where: { key($0) == hybridFocusKey }) {
+                focusedKey = hybridFocusKey
+                hybridFocusKey = ""
+            } else if focusedKey == nil {
+                focusedKey = visibleApps.first.map(key)
+            }
             refreshSystemBudget()
             refreshStorage()
             UIDevice.current.isBatteryMonitoringEnabled = true
