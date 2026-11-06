@@ -70,6 +70,11 @@ struct BloomBoxModulesIcon: View {
 struct BloomBoxModulesPanel: View {
     @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
     private var preferredLanguage = "system"
+    private var englishUI: Bool {
+        preferredLanguage == "en" ||
+        (preferredLanguage == "system" &&
+         (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("en"))
+    }
     @AppStorage("BloomBoxRAMPlusExperimentalControls", store: LCUtils.appGroupUserDefault)
     private var ramExperimentalControlsEnabled = false
     @AppStorage("BloomBoxJITTryMeloNXScriptForOtherAppsV2", store: LCUtils.appGroupUserDefault)
@@ -174,6 +179,13 @@ struct BloomBoxModulesPanel: View {
                             .accessibilityIdentifier("bloombox.modules.\(module.rawValue)")
                         }
                     }
+                    Button { onSelect(.settings) } label: {
+                        moduleShortcut(englishUI ? "LiveContainer Settings" : "Ajustes de LiveContainer",
+                                       subtitle: englishUI ? "App and container preferences" : "Configuración de apps y contenedores",
+                                       symbol: "gearshape.fill", color: .gray)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("bloombox.modules.livecontainer.settings")
                     Text("Accesos directos a funciones reales. JIT y RAM+ conservan sus comprobaciones y permisos originales.")
                         .font(.footnote)
                         .foregroundStyle(.white.opacity(0.66))
@@ -270,15 +282,21 @@ struct BloomBoxModulesPanel: View {
     private var desktopDetail: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Label("Escritorio", systemImage: "display")
+                Label(englishUI ? "Home Screen" : "Escritorio", systemImage: "display")
                     .font(.title2.bold())
-                Text("Fondos, widgets, páginas e iconos reunidos en un solo lugar. Las apps, las tiendas y JIT tienen sus propios accesos.")
+                Text(englishUI
+                     ? "Wallpapers, widgets, pages and icons in one place. Apps, stores and JIT have their own shortcuts."
+                     : "Fondos, widgets, páginas e iconos reunidos en un solo lugar. Las apps, las tiendas y JIT tienen sus propios accesos.")
                     .font(.subheadline).foregroundStyle(.white.opacity(0.7))
                 Button { onSelect(.desktop) } label: {
-                    moduleShortcut("Personalizar escritorio", subtitle: "Fondos, widgets, páginas e iconos", symbol: "paintbrush.pointed.fill", color: .pink)
+                    moduleShortcut(englishUI ? "Customize Home" : "Personalizar escritorio",
+                                   subtitle: englishUI ? "Wallpapers, widgets, pages & icons" : "Fondos, widgets, páginas e iconos",
+                                   symbol: "paintbrush.pointed.fill", color: .pink)
                 }
                 Button { onSelect(.interface) } label: {
-                    moduleShortcut("Opciones de interfaz", subtitle: "Apariencia del inicio", symbol: "slider.horizontal.3", color: .cyan)
+                    moduleShortcut(englishUI ? "Interface options" : "Opciones de interfaz",
+                                   subtitle: englishUI ? "Home screen appearance" : "Apariencia del inicio",
+                                   symbol: "slider.horizontal.3", color: .cyan)
                 }
             }
             .buttonStyle(.plain)
