@@ -75,6 +75,58 @@ enum BloomBoxProfileStore {
         NotificationCenter.default.post(name: didActivate, object: id)
     }
 
+    /// Only changes BloomBox profile details. Existing LiveContainer
+    /// guest folders, mappings and default containers remain untouched.
+    @discardableResult
+    static func edit(id: String, name: String, accentHex: String,
+                     image: UIImage?) -> BloomBoxUserProfile? {
+        var all = profiles
+        guard let index = all.firstIndex(where: { $0.id == id }) else { return nil }
+        all[index].name = cleanedName(name)
+        all[index].accentHex = safeAccent(accentHex)
+        if let image {
+            if let filename = savePhoto(image, for: id) {
+                all[index].photoFile = filename
+            }
+        } else {
+            removePhoto(for: all[index])
+            all[index].photoFile = nil
+        }
+        persist(all)
+        return all[index]
+    }
+
+    /// Remove a secondary *profile record*, never the guest app data.
+    /// The installed app containers stay available for manual recovery.
+    @discardableResult
+    static func delete(id: String) -> Bool {
+        guard id != BloomBoxUserProfile.primaryID,
+              let victim = profiles.first(where: { $0.id == id }) else { return false }
+        let remaining = profiles.filter { $0.id != id }
+        guard remaining.contains(where: { $0.id == BloomBoxUserProfile.primaryID }) else {
+            return false
+        }
+        persist(remaining)
+        // No filesystem operation touches an installed app or its containers.
+        // Keep historical container mappings for possible data recovery.
+        removePhoto(for: victim)
+        if defaults.string(forKey: activeKey) == id {
+            defaults.set(BloomBoxUserProfile.primaryID, forKey: activeKey)
+            NotificationCenter.default.post(name: didActivate,
+                                            object: BloomBoxUserProfile.primaryID)
+        }
+        return true
+    }
+
+    private static func removePhoto(for profile: BloomBoxUserProfile) {
+        // Only our own per-profile image may be removed, never a guest folder.
+        let expected = "profile-" + profile.id + ".jpg"
+        guard profile.photoFile == expected,
+              expected == URL(fileURLWithPath: expected).lastPathComponent else { return }
+        try? FileManager.default.removeItem(
+            at: photoDirectory.appendingPathComponent(expected))
+    }
+
     static func updateColor(_ hex: String, for id: String) {
         var all = profiles
         guard let index = all.firstIndex(where: { $0.id == id }) else { return }
