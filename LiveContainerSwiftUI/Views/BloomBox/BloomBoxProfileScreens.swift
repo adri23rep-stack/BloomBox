@@ -13,6 +13,7 @@ struct BloomBoxWizardFlowView: View {
     @State private var accentHex = BloomBoxProfileStore.active.accentHex
     @State private var photo: UIImage?
     @State private var selectedTheme = "KirbyPink"
+    @State private var selectedLauncher = "hybrid"
 
     var body: some View {
         Group {
@@ -42,19 +43,31 @@ struct BloomBoxWizardFlowView: View {
                     onBack: { forward(to: 2) },
                     onFinish: { forward(to: 4) }
                 )
-            default:
+            case 4:
                 BloomBoxWizardThemeChoiceView(
                     selectedID: $selectedTheme, accentHex: accentHex,
                     isPreview: isPreview,
                     onBack: { forward(to: 3) },
+                    onFinish: { forward(to: 5) }
+                )
+            default:
+                BloomBoxWizardLauncherChoiceView(
+                    selection: $selectedLauncher, accentHex: accentHex,
+                    onBack: { forward(to: 4) },
                     onFinish: {
                         if !isPreview {
-                            // Store the chosen theme before the home screen
-                            // initializes its fresh-install layout.
-                            LiveContainerPreferencesAdapter.defaults.set(
-                                selectedTheme, forKey: BloomBoxBundledThemes.chosenKey)
+                            // Save the theme and profile before the launcher mode.
+                            // Pre-existing installs are not changed by wizard previews.
+                            let defaults = LiveContainerPreferencesAdapter.defaults
+                            defaults.set(selectedTheme, forKey: BloomBoxBundledThemes.chosenKey)
                             BloomBoxProfileStore.finishInitialSetup(
                                 name: name, accentHex: accentHex, image: photo)
+                            BloomBoxLaunchPreferences.setPreferredMode(
+                                selectedLauncher, profileID: BloomBoxUserProfile.primaryID,
+                                defaults: defaults)
+                            defaults.set(
+                                BloomBoxLaunchPreferences.runtimeMode(for: selectedLauncher),
+                                forKey: BloomBoxLaunchPreferences.sessionKey)
                         }
                         onFinish()
                     }
@@ -553,5 +566,154 @@ struct BloomBoxProfileManagementView: View {
     private func reload() {
         profiles = BloomBoxProfileStore.profiles
         activeID = BloomBoxProfileStore.active.id
+    }
+}
+
+
+/// Last onboarding page: choose the actual first-run experience.
+/// Hybrid is recommended for new profiles and works without an attached controller.
+struct BloomBoxWizardLauncherChoiceView: View {
+    @Binding var selection: String
+    let accentHex: String
+    let onBack: () -> Void
+    let onFinish: () -> Void
+
+    @Environment(\.colorScheme) private var scheme
+    @AppStorage("BloomBoxPreferredLanguage", store: LiveContainerPreferencesAdapter.defaults)
+    private var language = "system"
+
+    private var english: Bool {
+        language == "en" || (language == "system" &&
+            (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("en"))
+    }
+    private var tint: Color { BloomBoxWizardPalette.color(accentHex) }
+    private var ink: Color {
+        scheme == .dark ? .white : Color(red: 0.14, green: 0.13, blue: 0.22)
+    }
+
+    var body: some View {
+        ZStack {
+            (scheme == .dark ? Color(red: 0.042, green: 0.045, blue: 0.063) :
+             Color(red: 0.977, green: 0.973, blue: 0.985))
+                .ignoresSafeArea()
+            RadialGradient(colors: [tint.opacity(0.16), .clear],
+                           center: .topLeading, startRadius: 12, endRadius: 620)
+                .ignoresSafeArea()
+            BloomBoxWizardAmbientSymbols(isDark: scheme == .dark, accentHex: accentHex)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 21) {
+                    Label(english ? "YOUR EXPERIENCE" : "TU EXPERIENCIA",
+                          systemImage: "gamecontroller.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(tint)
+                    Text(english ? "How do you want to use BloomBox?" :
+                         "¿Cómo quieres usar BloomBox?")
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .foregroundStyle(ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(english ? "You can change this at any time. Your apps and profiles stay intact." :
+                         "Puedes cambiarlo cuando quieras. Tus apps y perfiles se conservan.")
+                        .font(.subheadline)
+                        .foregroundStyle(ink.opacity(0.68))
+
+                    option("hybrid", symbol: "square.on.square",
+                           title: "Híbrido", englishTitle: "Hybrid",
+                           detail: "Escritorio iOS y GameBox automático para juegos compatibles.",
+                           englishDetail: "iOS Home with automatic GameBox for compatible games.",
+                           recommended: true)
+                    option("ios", symbol: "square.grid.3x3.fill",
+                           title: "Launcher iOS", englishTitle: "iOS Home",
+                           detail: "Escritorio, widgets y Dock. GameBox a un toque.",
+                           englishDetail: "Home Screen, widgets and Dock. GameBox one tap away.")
+                    option("gamebox", symbol: "gamecontroller.fill",
+                           title: "GameBox", englishTitle: "GameBox",
+                           detail: "Inicia directamente en tu biblioteca de juegos.",
+                           englishDetail: "Start directly in your game library.")
+
+                    HStack(spacing: 12) {
+                        Button(action: onBack) {
+                            Label(english ? "Back" : "Atrás", systemImage: "chevron.left")
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 53)
+                                .background(ink.opacity(0.09),
+                                            in: RoundedRectangle(cornerRadius: 17))
+                        }
+                        Button(action: onFinish) {
+                            HStack {
+                                Text(english ? "Start BloomBox" : "Iniciar BloomBox")
+                                Image(systemName: "arrow.right")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 53)
+                            .foregroundStyle(BloomBoxProfileTheme.ink(for: accentHex))
+                            .background(tint, in: RoundedRectangle(cornerRadius: 17))
+                        }
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(ink)
+                    .padding(.top, 8)
+                }
+                .padding(.horizontal, 22)
+                .padding(.top, 44)
+                .padding(.bottom, 36)
+            }
+        }
+        .accessibilityIdentifier("bloombox.wizard.launcher")
+    }
+
+    private func option(_ id: String, symbol: String, title: String,
+                        englishTitle: String, detail: String, englishDetail: String,
+                        recommended: Bool = false) -> some View {
+        let chosen = selection == id
+        return Button {
+            withAnimation(.easeInOut(duration: 0.18)) { selection = id }
+            UISelectionFeedbackGenerator().selectionChanged()
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: symbol)
+                    .font(.system(size: 25, weight: .medium))
+                    .foregroundStyle(tint)
+                    .frame(width: 53, height: 53)
+                    .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 15))
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 8) {
+                        Text(english ? englishTitle : title)
+                            .font(.headline)
+                        if recommended {
+                            Text(english ? "RECOMMENDED" : "RECOMENDADO")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(BloomBoxProfileTheme.ink(for: accentHex))
+                                .padding(.horizontal, 7).padding(.vertical, 4)
+                                .background(tint, in: Capsule())
+                        }
+                    }
+                    Text(english ? englishDetail : detail)
+                        .font(.caption)
+                        .foregroundStyle(ink.opacity(0.69))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: chosen ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(chosen ? tint : ink.opacity(0.40))
+                    .font(.title3)
+            }
+            .foregroundStyle(ink)
+            .padding(15)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(tint.opacity(chosen ? 0.14 : 0.055),
+                        in: RoundedRectangle(cornerRadius: 22))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22)
+                    .strokeBorder(chosen ? tint.opacity(0.80) : ink.opacity(0.11),
+                                  lineWidth: chosen ? 1.5 : 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(chosen ? .isSelected : [])
+        .accessibilityIdentifier("bloombox.wizard.launcher." + id)
     }
 }
