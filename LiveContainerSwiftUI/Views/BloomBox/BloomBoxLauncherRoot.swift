@@ -176,9 +176,13 @@ struct BloomBoxLauncherRootView: View {
                 introProfile = nil
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: BloomBoxProfileStore.didActivate)) { _ in
-            // Profile-switch keeps each person's chosen launcher and containers.
-            mode = BloomBoxLaunchPreferences.runtimeMode(for: preferredExperience)
+        .onReceive(NotificationCenter.default.publisher(for: BloomBoxProfileStore.didActivate)) { note in
+            // Resolve the ID from the notification itself. AppStorage can
+            // re-render one frame later, especially when switching in GameBox.
+            let id = (note.object as? String) ?? BloomBoxProfileStore.active.id
+            let selection = BloomBoxLaunchPreferences.preferredMode(
+                defaults: LCUtils.appGroupUserDefault, profileID: id)
+            mode = BloomBoxLaunchPreferences.runtimeMode(for: selection)
             showProfileIntro(force: true)
         }
         .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in
