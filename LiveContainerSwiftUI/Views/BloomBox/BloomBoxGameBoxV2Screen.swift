@@ -107,6 +107,11 @@ struct BloomBoxGameBoxV2Screen: View {
     @State private var alphabetical = false
     @State private var quickMenu = false
     @State private var showNikaidoPanel = false
+    @State private var showProfileSwitcher = false
+    @AppStorage(BloomBoxProfileStore.activeKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var activeProfileID = BloomBoxUserProfile.primaryID
+    @AppStorage(BloomBoxProfileStore.profilesKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var storedProfiles = Data()
     @State private var dualSenseBatteryPercent: Int?
     @State private var showDiagnostics = false
     @State private var showExpiryReminders = false
@@ -126,6 +131,15 @@ struct BloomBoxGameBoxV2Screen: View {
     @State private var artworkError: String?
 
     private var reduceMotion: Bool { systemReduceMotion || localReduceMotion || constrained }
+    private var gameBoxProfiles: [BloomBoxUserProfile] {
+        guard let saved = try? JSONDecoder().decode([BloomBoxUserProfile].self, from: storedProfiles),
+              !saved.isEmpty else { return [.initial] }
+        return saved.contains(where: { $0.id == BloomBoxUserProfile.primaryID })
+            ? saved : [.initial] + saved
+    }
+    private var currentProfile: BloomBoxUserProfile {
+        gameBoxProfiles.first(where: { $0.id == activeProfileID }) ?? gameBoxProfiles[0]
+    }
     private var autoBackgroundTaskID: String {
         (focusedKey ?? "") + ":" + String(autoBackgrounds) + ":" +
         String(safeGraphics) + ":" + String(constrained) + ":" +
@@ -217,6 +231,11 @@ struct BloomBoxGameBoxV2Screen: View {
                         .padding(.horizontal, compact ? 12 : 25)
                 }
                 .padding(.vertical, compact ? 3 : 12)
+                if showProfileSwitcher {
+                    gameBoxProfilePicker(width: safeWidth, height: safeHeight)
+                        .transition(.opacity.combined(with: .scale(scale: 0.97)))
+                        .zIndex(30)
+                }
                 if artworkIntroVisible {
                     BloomBoxGameBoxArtworkIntro(
                         icons: Array(visibleApps.prefix(5).compactMap(\.icon)),
@@ -300,6 +319,7 @@ struct BloomBoxGameBoxV2Screen: View {
             artworkIntroVisible = false
             artworkIntroDidRun = false
             wallpaperCatalogReady = false
+            showProfileSwitcher = false
         }
         // The catalog refresh is independent of icon swiping. Resolve the
         // selected game's wallpaper only after we have validated the rules
@@ -436,6 +456,57 @@ struct BloomBoxGameBoxV2Screen: View {
             Text(BloomBoxGameBoxL10n.t(upcomingFeature ?? ""))
         }
         .accessibilityIdentifier("bloombox.gamebox.v2")
+    }
+
+    private func gameBoxProfilePicker(width: CGFloat, height: CGFloat) -> some View {
+        ZStack {
+            Color.black.opacity(0.49)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.22)) {
+                        showProfileSwitcher = false
+                    }
+                }
+                .accessibilityLabel("Cerrar selector de perfiles")
+
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: "person.2.circle.fill")
+                        .foregroundStyle(BloomBoxWizardPalette.color(currentProfile.accentHex))
+                    Text(BloomBoxGameBoxL10n.t("Cambiar perfil"))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            showProfileSwitcher = false
+                        }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(.white.opacity(0.8))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(BloomBoxGameBoxL10n.t("Cerrar"))
+                }
+                .padding(.horizontal, 5)
+
+                // The exact same widget as in News: switch, add, edit and
+                // safely remove profiles through its management view.
+                BloomBoxProfileSwitcherWidget()
+            }
+            .padding(14)
+            .frame(width: min(max(240, width - 30), 420))
+            .background(.ultraThinMaterial,
+                        in: RoundedRectangle(cornerRadius: 29, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 29, style: .continuous)
+                .strokeBorder(.white.opacity(0.25), lineWidth: 1))
+            .shadow(color: .black.opacity(0.33), radius: 24, y: 12)
+            .frame(maxHeight: height - 8)
+        }
+        .frame(width: width, height: height)
+        .accessibilityIdentifier("bloombox.gamebox.profiles.popup")
     }
 
     private var consoleBackground: some View {
