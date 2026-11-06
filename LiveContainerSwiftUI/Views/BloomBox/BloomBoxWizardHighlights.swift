@@ -39,7 +39,7 @@ struct BloomBoxWizardHighlightsView: View {
                     Label("BloomBox", systemImage: "sparkle")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                     Spacer()
-                    Text("03 / 04")
+                    Text("03 / 05")
                         .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
                 }
                 .foregroundStyle(ink.opacity(0.7))
@@ -206,7 +206,7 @@ struct BloomBoxWizardValidationView: View {
                         Label("BloomBox", systemImage: "sparkle")
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                         Spacer()
-                        Text("04 / 04")
+                        Text("04 / 05")
                             .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
                     }
                     .foregroundStyle(ink.opacity(0.70))
