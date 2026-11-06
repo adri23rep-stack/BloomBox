@@ -112,7 +112,7 @@ struct BloomBoxProfileEditorView: View {
                             Label("BloomBox", systemImage: "sparkle")
                                 .font(.system(size: 14, weight: .bold, design: .rounded))
                             Spacer()
-                            Text("02 / 04")
+                            Text("02 / 05")
                                 .font(.system(size: 12, weight: .medium, design: .rounded)
                                         .monospacedDigit())
                         }
