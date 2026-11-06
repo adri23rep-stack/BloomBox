@@ -24,7 +24,13 @@ assert "BloomBoxHomeAppPolicy.addingCategory(value, to: homeCategories)" in home
 assert "BloomBoxHomeContextMenu(state: menuState, actions: actions)" in home
 assert "BloomBoxHomeSearchPanel(" in home
 assert ".modifier(BloomBoxHomeNameDialogs(" in home
-assert "BloomBoxHomeControlTile(title: title, detail: detail" in home
+# The old full-screen seven-card menu is retired: Home has a focused
+# customization hub, while stores/JIT/apps remain available in their own areas.
+assert "desktopHubTile(" in home
+assert "requestDesktopAction(.edit)" in home
+assert "requestDesktopAction(.interface)" in home
+assert "case .widgets:" in home and "case .pages:" in home
+assert "BloomBoxHomeControlTile(title: title, detail: detail" not in home
 assert "onCreateFolder: { key, name in" in home
 assert "onRename: { key, name in" in home
 assert "searchMenu(key, app: app)" in home
