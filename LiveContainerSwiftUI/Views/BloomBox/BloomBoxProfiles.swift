@@ -21,6 +21,7 @@ enum BloomBoxProfileStore {
     static let activeKey = "BloomBoxActiveUserProfileV1"
     static let didActivate = Notification.Name("BloomBoxActiveProfileDidActivate")
     static let containerMapKey = "BloomBoxProfileContainersV1"
+    static let revisionKey = "BloomBoxUserProfilesRevisionV1"
     static let palette = ["8A6CF4", "F064A7", "F28B55", "E5B83F",
                           "48BBA3", "58A3ED", "6A6CD9", "DF6574"]
 
@@ -191,6 +192,9 @@ enum BloomBoxProfileStore {
     private static func persist(_ profiles: [BloomBoxUserProfile]) {
         guard let data = try? JSONEncoder().encode(profiles) else { return }
         defaults.set(data, forKey: profilesKey)
+        // Updating a photo in place does not change its filename. This token
+        // tells every profile avatar to reload even when JSON is unchanged.
+        defaults.set(UUID().uuidString, forKey: revisionKey)
     }
 
     private static func cleanedName(_ name: String) -> String {
