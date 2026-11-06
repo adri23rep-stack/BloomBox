@@ -16,7 +16,7 @@ enum BloomBoxProfileContainerAdapter {
         if profile.id == BloomBoxUserProfile.primaryID {
             // Switching back to profile 1 restores the original default, not
             // the last container used by profile 2.
-            return app.uiDefaultDataFolder ?? app.appInfo.dataUUID
+            return app.uiDefaultDataFolder ?? app.appInfo.dataUUID ?? app.uiContainers.first?.folderName
         }
 
         guard let bundleID = app.appInfo.bundleIdentifier(), !bundleID.isEmpty else {
@@ -54,9 +54,12 @@ enum BloomBoxProfileContainerAdapter {
         }
 
         let folderName = UUID().uuidString
+        // Each additional user gets isolated app-group storage as well as
+        // its own guest documents and keychain group.
         let container = LCContainer(folderName: folderName,
                                     name: tag + " " + profile.name,
-                                    isShared: app.uiIsShared)
+                                    isShared: app.uiIsShared,
+                                    isolateAppGroup: true)
         let path = container.containerURL
         var createdHere = false
         do {
