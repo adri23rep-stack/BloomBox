@@ -579,6 +579,8 @@ struct BloomBoxWizardLauncherChoiceView: View {
     let onFinish: () -> Void
 
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var previewGameBox = false
     @AppStorage("BloomBoxPreferredLanguage", store: LiveContainerPreferencesAdapter.defaults)
     private var language = "system"
 
@@ -619,6 +621,7 @@ struct BloomBoxWizardLauncherChoiceView: View {
                         .font(.subheadline)
                         .foregroundStyle(ink.opacity(0.68))
 
+                    hybridPreview
                     option("hybrid", symbol: "square.on.square",
                            title: "Híbrido", englishTitle: "Hybrid",
                            detail: "Escritorio iOS y GameBox automático para juegos compatibles.",
@@ -663,6 +666,54 @@ struct BloomBoxWizardLauncherChoiceView: View {
             }
         }
         .accessibilityIdentifier("bloombox.wizard.launcher")
+        .task(id: selection) {
+            guard selection == "hybrid", !reduceMotion else {
+                previewGameBox = false
+                return
+            }
+            while !Task.isCancelled {
+                do { try await Task.sleep(nanoseconds: 2_200_000_000) }
+                catch { return }
+                withAnimation(.easeInOut(duration: 0.48)) {
+                    previewGameBox.toggle()
+                }
+            }
+        }
+    }
+
+    private var hybridPreview: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 17)
+                    .fill(ink.opacity(0.07))
+                Image(systemName: "square.grid.3x3.fill")
+                    .font(.system(size: 31))
+                    .foregroundStyle(previewGameBox ? tint.opacity(0.45) : tint)
+                    .scaleEffect(previewGameBox ? 0.85 : 1)
+            }
+            .frame(width: 72, height: 65)
+            Image(systemName: "arrow.left.arrow.right")
+                .font(.system(size: 19, weight: .medium))
+                .foregroundStyle(tint)
+            ZStack {
+                RoundedRectangle(cornerRadius: 17)
+                    .fill(tint.opacity(previewGameBox ? 0.21 : 0.07))
+                Image(systemName: "gamecontroller.fill")
+                    .font(.system(size: 31))
+                    .foregroundStyle(previewGameBox ? tint : tint.opacity(0.45))
+                    .scaleEffect(previewGameBox ? 1.10 : 0.84)
+            }
+            .frame(width: 72, height: 65)
+            Spacer(minLength: 0)
+            Text(english ? "Home → GameBox" : "Inicio → GameBox")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(ink.opacity(0.72))
+        }
+        .padding(13)
+        .background(ink.opacity(0.055), in: RoundedRectangle(cornerRadius: 21))
+        .accessibilityLabel(english ? "Hybrid switches between Home and GameBox" :
+                            "Híbrido alterna entre escritorio y GameBox")
+        .accessibilityIdentifier("bloombox.wizard.hybrid.preview")
     }
 
     private func option(_ id: String, symbol: String, title: String,
