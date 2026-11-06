@@ -57,6 +57,7 @@ enum BloomBoxLaunchPreferences {
         recent.insert(title, at: 0)
         all[profileID] = Array(recent.prefix(4))
         defaults.set(all, forKey: recentGamesKey)
+        defaults.set(UUID().uuidString, forKey: "BloomBoxGameBoxRecentRevisionV1")
     }
 
     static func recentGames(profileID: String, defaults: UserDefaults) -> [String] {
