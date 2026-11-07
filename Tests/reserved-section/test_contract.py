@@ -17,7 +17,9 @@ for name in (
     assert not (ui / name).exists(), f"Removed console still has source: {name}"
 assert not (root / "LiveContainerSwiftUI/Utilities/BloomBoxGameModeGate.swift").exists()
 assert "BloomBoxReservedSection(backToHome:" in host
-assert '"reserved"' in launcher and "Espacio reservado" in launcher
+assert 'liveBoardMode == "reserved"' in host
+assert '"BloomBoxReservedSection"' in reserved or "struct BloomBoxReservedSection" in reserved
+assert 'value: "hybrid"' in launcher
 assert "BloomBoxRequestGameMode" not in launcher + host
 assert "GameBox" not in reserved
 assert 'value: "gamebox"' in launcher
@@ -228,6 +230,8 @@ assert "gameRoutePrompt" not in host and "gameGatePrompt" not in host
 assert "BloomBoxRAMPlusView" in host and "LiveBoardJITSetup" in host
 assert "approveEmulatorLaunch" in host and "remoteGameProfiles" in host
 assert "LiveBoardOrientation.beginGuest" in host and "landscapeGuest" in host
-assert 'defaults.set("ios", forKey: sessionKey)' in prefs
+assert 'defaults.set(runtime, forKey: sessionKey)' in prefs
+assert 'static let profileModesKey = "BloomBoxProfileLauncherModesV1"' in prefs
+assert 'return preference == "gamebox"' not in prefs  # routing handled by runtimeMode
 assert "LiveBoardHomeLayout" in (ui / "BloomBoxHomeScreen.swift").read_text()
 print("PASS: Original console retired; GameBox v2 glass UI, inert Nikaido slot, Home/JIT/RAM+ preserved.")

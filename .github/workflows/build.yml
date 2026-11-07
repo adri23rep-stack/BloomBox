@@ -127,10 +127,13 @@ jobs:
           assert "struct BloomBoxLauncherRootView: View" in host
           assert "typealias LiveBoardRootView = BloomBoxLauncherRootView" in host
           for term in ("LCAppListView(openInterface:", "BloomBoxLaunchPreferences.resetForNewProcess",
-                       'value: "reserved"', "Espacio reservado"):
+                       'value: "ios"', 'value: "gamebox"', 'value: "hybrid"'):
               assert term in host, term
+          app_list = (root / "AppList/LCAppListView.swift").read_text()
+          assert 'liveBoardMode == "reserved"' in app_list
+          assert "BloomBoxReservedSection(" in app_list
           assert not (root / "LiveBoard.swift").exists()
-          print("Native Home host and empty future-destination slot preserved")
+          print("Native Home host has iOS/GameBox/Hybrid choices and preserves reserved route")
           PY
       - name: Reject removed stock ribbon wallpapers from the active launcher
         run: |

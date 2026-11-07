@@ -23,3 +23,24 @@ for oldMode in ["bigPicture", "reserved", "unknown", "cinematic"] {
     precondition(defaults.string(forKey: BloomBoxLaunchPreferences.sessionKey) == "ios")
 }
 print("PASS: Retired launcher selections return to Home without removing user data.")
+
+let firstProfile = "primary"
+let gamesProfile = "second-" + UUID().uuidString
+BloomBoxLaunchPreferences.setPreferredMode("hybrid", profileID: firstProfile, defaults: defaults)
+BloomBoxLaunchPreferences.setPreferredMode("gamebox", profileID: gamesProfile, defaults: defaults)
+precondition(BloomBoxLaunchPreferences.preferredMode(defaults: defaults, profileID: firstProfile) == "hybrid")
+precondition(BloomBoxLaunchPreferences.preferredMode(defaults: defaults, profileID: gamesProfile) == "gamebox")
+precondition(BloomBoxLaunchPreferences.preferredMode(defaults: defaults, profileID: "new-profile") == "ios")
+precondition(BloomBoxLaunchPreferences.resetForNewProcess(defaults: defaults, profileID: firstProfile) == "ios")
+precondition(defaults.string(forKey: BloomBoxLaunchPreferences.sessionKey) == "ios")
+precondition(BloomBoxLaunchPreferences.resetForNewProcess(defaults: defaults, profileID: gamesProfile) == "gamebox")
+precondition(defaults.string(forKey: BloomBoxLaunchPreferences.sessionKey) == "gamebox")
+BloomBoxLaunchPreferences.setPreferredMode("reserved", profileID: firstProfile, defaults: defaults)
+precondition(BloomBoxLaunchPreferences.preferredMode(defaults: defaults, profileID: firstProfile) == "hybrid")
+BloomBoxLaunchPreferences.rememberGame("Husk", profileID: firstProfile, defaults: defaults)
+BloomBoxLaunchPreferences.rememberGame("Husk", profileID: firstProfile, defaults: defaults)
+BloomBoxLaunchPreferences.rememberGame("MelonNX", profileID: firstProfile, defaults: defaults)
+precondition(BloomBoxLaunchPreferences.recentGames(profileID: firstProfile, defaults: defaults) == ["MelonNX", "Husk"])
+precondition(BloomBoxLaunchPreferences.recentGames(profileID: gamesProfile, defaults: defaults).isEmpty)
+precondition(defaults.string(forKey: "LiveBoardHomeLayout") == "keep-home-layout")
+print("PASS: Hybrid/GameBox/iOS persist independently for each profile; no stale game sessions.")

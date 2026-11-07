@@ -128,8 +128,13 @@ if "struct BloomBoxReservedSection: View" not in reserved:
 for code in (reserved, launcher, app_list):
     if "BloomBoxRequestGameMode" in code or "BloomBoxGameBoxScreen" in code:
         raise SystemExit("Retired console route returned")
-if 'value: "gamebox"' not in launcher or 'value: "reserved"' not in launcher:
-    raise SystemExit("GameBox v2 and independent reserved destination must both exist")
+# Three user-facing launcher modes are iOS, GameBox and Hybrid.
+# The retired reserved destination stays isolated in the host for future use,
+# but does not need to appear as a fourth onboarding/interface option.
+if 'value: "gamebox"' not in launcher or 'value: "hybrid"' not in launcher:
+    raise SystemExit("GameBox and Hybrid launcher choices must exist")
+if 'liveBoardMode == "reserved"' not in app_list or 'BloomBoxReservedSection(' not in app_list:
+    raise SystemExit("Independent reserved destination must remain available to the host")
 gamebox_v2 = (VIEWS / "BloomBox/BloomBoxGameBoxV2Screen.swift").read_text(encoding="utf-8")
 if "BloomBoxNikaidoControllerSlot" not in gamebox_v2 or ".allowsHitTesting(false)" not in gamebox_v2:
     raise SystemExit("Nikaido controller reservation must stay inert")
