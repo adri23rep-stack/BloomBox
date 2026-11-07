@@ -32,6 +32,15 @@ struct BloomBoxHomeScreen: View {
         (preferredLanguage == "system" &&
          (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("en"))
     }
+    @AppStorage(BloomBoxProfileStore.activeKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var themeActiveID = BloomBoxUserProfile.primaryID
+    @AppStorage(BloomBoxProfileStore.profilesKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var themeProfilesData = Data()
+    private var profileAccentHex: String {
+        BloomBoxProfileTheme.hex(activeID: themeActiveID, profilesData: themeProfilesData)
+    }
+    private var profileAccent: Color { BloomBoxWizardPalette.color(profileAccentHex) }
+
     @ObservedObject private var ramPlus = BloomBoxRAMPlus.shared
     @State private var pendingModuleDestination: BloomBoxModulesPanel.Destination?
     @State private var storeFocusedApp: LCAppModel?
@@ -180,7 +189,7 @@ struct BloomBoxHomeScreen: View {
         "Si tiembla, saluda.",
         "La siguiente pantalla te espera."
     ]
-    private enum DesktopAction { case interface, sources, tweaks, wallpaper, apps, settings, jit }
+    private enum DesktopAction { case edit, widgets, pages, icons, customize, interface }
 
     private var appKeys: [String] {
         LiveContainerHomeAdapter.visibleKeys(apps)
@@ -658,16 +667,18 @@ struct BloomBoxHomeScreen: View {
             Button("Cancel", role: .cancel) { }
         }
         .sheet(isPresented: $desktopSettings, onDismiss: performDesktopAction) {
-            NavigationView {
+            if #available(iOS 16.4, *) {
                 controls
-                    .navigationTitle("Escritorio")
-                    .navigationBarTitleDisplayMode(.large)
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Listo") { desktopSettings = false }
-                        }
-                    }
-            }.navigationViewStyle(.stack)
+                    .presentationDetents([.height(455), .large])
+                    .presentationDragIndicator(.visible)
+                    .presentationCornerRadius(34)
+            } else if #available(iOS 16.0, *) {
+                controls
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            } else {
+                controls
+            }
         }
         .sheet(item: $expandedLibraryCategory) { section in
             NavigationView {
@@ -2616,32 +2627,140 @@ struct BloomBoxHomeScreen: View {
         )
     }
 
+    // Personalización del escritorio, no un segundo menú de tiendas/módulos.
+    // Sources, Tweaks, Apps, LiveContainer y JIT mantienen sus accesos propios.
     private var controls: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                Button { requestDesktopAction(.interface) } label: { controlCard("Interface", detail: "iOS Home Screen", symbol: "square.grid.3x3.fill", wide: true) }
-                HStack(spacing: 16) {
-                    Button { requestDesktopAction(.sources) } label: {
-                        controlCard("lc.tabView.sources".loc, detail: secondaryInstance ? "Manage in primary instance" : "Discover & install", symbol: "books.vertical", wide: false)
-                    }.disabled(secondaryInstance).accessibilityIdentifier("home.controls.sources")
-                    Button { requestDesktopAction(.tweaks) } label: {
-                        controlCard("lc.tabView.tweaks".loc, detail: secondaryInstance ? "Manage in primary instance" : "App extensions", symbol: "wrench.and.screwdriver", wide: false)
-                    }.disabled(secondaryInstance).accessibilityIdentifier("home.controls.tweaks")
+        ZStack {
+            BloomBoxProfileThemeBackdrop()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 19) {
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 7) {
+                            Text(englishUI ? "Make it yours" : "A tu estilo")
+                                .font(.system(size: 29, weight: .bold, design: .rounded))
+                            Text(englishUI ? "Your Home Screen, your way." : "Personaliza tu escritorio a tu gusto.")
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.67))
+                        }
+                        Spacer(minLength: 4)
+                        Button { desktopSettings = false } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .frame(width: 34, height: 34)
+                                .background(.white.opacity(0.12), in: Circle())
+                        }
+                        .accessibilityLabel(englishUI ? "Close" : "Cerrar")
+                    }
+                    .padding(.top, 25)
+
+                    Text(englishUI ? "What would you like to change?" : "¿Qué quieres cambiar?")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.72))
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 13) {
+                            desktopHubTile(
+                                englishUI ? "Wallpaper" : "Fondos",
+                                symbol: "photo.on.rectangle.angled",
+                                tint: Color(red: 1, green: 0.60, blue: 0.76),
+                                action: .customize
+                            )
+                            desktopHubTile(
+                                "Widgets",
+                                symbol: "square.grid.2x2.fill",
+                                tint: Color(red: 0.47, green: 0.81, blue: 1),
+                                action: .widgets
+                            )
+                            desktopHubTile(
+                                englishUI ? "Pages" : "Páginas",
+                                symbol: "square.on.square",
+                                tint: Color(red: 0.78, green: 0.69, blue: 1),
+                                action: .pages
+                            )
+                            desktopHubTile(
+                                englishUI ? "Icons" : "Iconos",
+                                symbol: "app.fill",
+                                tint: Color(red: 0.98, green: 0.84, blue: 0.49),
+                                action: .icons
+                            )
+                        }
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                    }
+                    .accessibilityIdentifier("home.controls.shortcuts")
+
+                    Button { requestDesktopAction(.edit) } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "pencil")
+                            Text(englishUI ? "Edit Home Screen" : "Editar escritorio")
+                                .fontWeight(.semibold)
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .padding(.horizontal, 18)
+                        .frame(height: 52)
+                        .foregroundStyle(BloomBoxProfileTheme.ink(for: profileAccentHex))
+                        .background(
+                            LinearGradient(colors: [profileAccent, profileAccent.opacity(0.82)],
+                                           startPoint: .topLeading, endPoint: .bottomTrailing),
+                            in: RoundedRectangle(cornerRadius: 17, style: .continuous)
+                        )
+                        .shadow(color: profileAccent.opacity(0.18), radius: 17, y: 6)
+                    }
+                    .accessibilityIdentifier("home.controls.edit")
+
+                    Button { requestDesktopAction(.interface) } label: {
+                        HStack {
+                            Label(englishUI ? "Interface options" : "Opciones de interfaz",
+                                  systemImage: "slider.horizontal.3")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(profileAccent)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 8)
+                    }
+                    .accessibilityIdentifier("home.controls.interface")
+                    .padding(.bottom, 12)
                 }
-                HStack(spacing: 16) {
-                    Button { requestDesktopAction(.wallpaper) } label: { controlCard("Wallpaper", detail: "Customize", symbol: "photo", wide: false) }
-                    Button { requestDesktopAction(.apps) } label: { controlCard("Apps", detail: "Install & manage", symbol: "square.stack.3d.up", wide: false) }
-                }
-                HStack(spacing: 16) {
-                    Button { requestDesktopAction(.settings) } label: { controlCard("lc.tabView.settings".loc, detail: "LiveContainer", symbol: "gearshape.fill", wide: false) }.accessibilityIdentifier("home.controls.settings")
-                    Button { requestDesktopAction(.jit) } label: { controlCard("JIT", detail: "Setup & providers", symbol: "bolt.fill", wide: false) }.accessibilityIdentifier("home.controls.jit")
-                }
-            }.buttonStyle(.plain).padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 20)
+                .padding(.horizontal, 22)
+            }
         }
+        .foregroundStyle(.white)
+        .preferredColorScheme(.dark)
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("bloombox.home.customize")
     }
-    private func controlCard(_ title: String, detail: String, symbol: String, wide: Bool) -> some View {
-        BloomBoxHomeControlTile(title: title, detail: detail, symbol: symbol, wide: wide)
+
+    private func desktopHubTile(_ title: String, symbol: String,
+                                tint: Color, action: DesktopAction) -> some View {
+        Button { requestDesktopAction(action) } label: {
+            VStack(spacing: 10) {
+                Image(systemName: symbol)
+                    .font(.system(size: 25, weight: .medium))
+                    .foregroundStyle(tint)
+                    .frame(width: 64, height: 64)
+                    .background(profileAccent.opacity(0.15), in: Circle())
+                    .overlay {
+                        Circle()
+                            .strokeBorder(profileAccent.opacity(0.62), lineWidth: 1.2)
+                    }
+                    .shadow(color: profileAccent.opacity(0.16), radius: 12)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(width: 74)
+        }
+        .accessibilityLabel(title)
     }
+
     private var searchResults: [LCAppModel] {
         BloomBoxHomeAppPolicy.matching(
             apps, query: query,
@@ -2798,13 +2917,20 @@ struct BloomBoxHomeScreen: View {
         guard let action = desktopAction else { return }
         desktopAction = nil
         switch action {
+        case .edit:
+            if page <= 0 || page >= libraryPageIndex {
+                page = (visiblePageIndices.first ?? 0) + 1
+            }
+            editing = true
+        case .widgets:
+            if page <= 0 || page >= libraryPageIndex {
+                page = (visiblePageIndices.first ?? 0) + 1
+            }
+            showWidgetGallery = true
+        case .pages: pageManager = true
+        case .icons: iconCustomization = true
+        case .customize: customizing = true
         case .interface: openInterface()
-        case .sources: openTab(.sources)
-        case .tweaks: openTab(.tweaks)
-        case .wallpaper: customizing = true
-        case .apps: openManagement()
-        case .settings: openTab(.settings)
-        case .jit: jitSetup = true
         }
     }
 

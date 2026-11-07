@@ -70,12 +70,24 @@ struct BloomBoxModulesIcon: View {
 struct BloomBoxModulesPanel: View {
     @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
     private var preferredLanguage = "system"
+    private var englishUI: Bool {
+        preferredLanguage == "en" ||
+        (preferredLanguage == "system" &&
+         (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("en"))
+    }
     @AppStorage("BloomBoxRAMPlusExperimentalControls", store: LCUtils.appGroupUserDefault)
     private var ramExperimentalControlsEnabled = false
     @AppStorage("BloomBoxJITTryMeloNXScriptForOtherAppsV2", store: LCUtils.appGroupUserDefault)
     private var melonScriptCrossAppEnabled = false
     @AppStorage("BloomBoxJITUseLegacyLaunchUI", store: LCUtils.appGroupUserDefault)
     private var legacyJITUI = false
+    @AppStorage(BloomBoxProfileStore.activeKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var themeActiveID = BloomBoxUserProfile.primaryID
+    @AppStorage(BloomBoxProfileStore.profilesKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var themeProfilesData = Data()
+    private var profileAccent: Color {
+        BloomBoxProfileTheme.color(activeID: themeActiveID, profilesData: themeProfilesData)
+    }
     @State private var showWizardPreview = false
     @AppStorage("BloomBoxWizardPreviewAppearanceV1", store: LCUtils.appGroupUserDefault)
     private var wizardPreviewAppearance = "system"
@@ -144,9 +156,11 @@ struct BloomBoxModulesPanel: View {
                 VStack(alignment: .leading, spacing: 23) {
                     HStack(spacing: 16) {
                         BloomBoxModulesIcon(size: 55)
+                            .shadow(color: profileAccent.opacity(0.32), radius: 18)
                         VStack(alignment: .leading, spacing: 5) {
                             Text("Módulos")
                                 .font(.system(size: 31, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
                             Text("Tu centro de control, sin menús escondidos")
                                 .font(.subheadline)
                                 .foregroundStyle(.white.opacity(0.7))
@@ -174,6 +188,13 @@ struct BloomBoxModulesPanel: View {
                             .accessibilityIdentifier("bloombox.modules.\(module.rawValue)")
                         }
                     }
+                    Button { onSelect(.settings) } label: {
+                        moduleShortcut(englishUI ? "LiveContainer Settings" : "Ajustes de LiveContainer",
+                                       subtitle: englishUI ? "App and container preferences" : "Configuración de apps y contenedores",
+                                       symbol: "gearshape.fill", color: .gray)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("bloombox.modules.livecontainer.settings")
                     Text("Accesos directos a funciones reales. JIT y RAM+ conservan sus comprobaciones y permisos originales.")
                         .font(.footnote)
                         .foregroundStyle(.white.opacity(0.66))
@@ -183,6 +204,7 @@ struct BloomBoxModulesPanel: View {
             }
             .background(moduleBackdrop)
             .foregroundStyle(.white)
+            .tint(profileAccent)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -234,13 +256,14 @@ struct BloomBoxModulesPanel: View {
                 .fill(Color(red: 0.105, green: 0.12, blue: 0.18).opacity(0.88))
                 .overlay {
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(LinearGradient(colors: [module.tint.opacity(0.17), .clear],
+                        .fill(LinearGradient(colors: [profileAccent.opacity(0.16),
+                                                      module.tint.opacity(0.12), .clear],
                                              startPoint: .topLeading, endPoint: .bottomTrailing))
                 }
         }
         .overlay {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(LinearGradient(colors: [module.tint.opacity(0.62), .white.opacity(0.10)],
+                .strokeBorder(LinearGradient(colors: [profileAccent.opacity(0.48), module.tint.opacity(0.32)],
                                              startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
         }
         .accessibilityElement(children: .combine)
@@ -263,25 +286,27 @@ struct BloomBoxModulesPanel: View {
     }
 
     private var moduleBackdrop: some View {
-        Color(red: 0.055, green: 0.065, blue: 0.13).opacity(0.87)
-            .ignoresSafeArea()
+        BloomBoxProfileThemeBackdrop()
     }
 
     private var desktopDetail: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Label("Escritorio", systemImage: "display")
+                Label(englishUI ? "Home Screen" : "Escritorio", systemImage: "display")
                     .font(.title2.bold())
-                Text("Los accesos del menú Escritorio, ahora dentro de Módulos.")
+                Text(englishUI
+                     ? "Wallpapers, widgets, pages and icons in one place. Apps, stores and JIT have their own shortcuts."
+                     : "Fondos, widgets, páginas e iconos reunidos en un solo lugar. Las apps, las tiendas y JIT tienen sus propios accesos.")
                     .font(.subheadline).foregroundStyle(.white.opacity(0.7))
+                Button { onSelect(.desktop) } label: {
+                    moduleShortcut(englishUI ? "Customize Home" : "Personalizar escritorio",
+                                   subtitle: englishUI ? "Wallpapers, widgets, pages & icons" : "Fondos, widgets, páginas e iconos",
+                                   symbol: "paintbrush.pointed.fill", color: .pink)
+                }
                 Button { onSelect(.interface) } label: {
-                    moduleShortcut("Interface", subtitle: "iOS Home Screen", symbol: "square.grid.3x3.fill", color: .cyan)
-                }
-                Button { onSelect(.wallpaper) } label: {
-                    moduleShortcut("Wallpaper", subtitle: "Fotos, videos, GIF y fondo", symbol: "photo.fill", color: .pink)
-                }
-                Button { onSelect(.apps) } label: {
-                    moduleShortcut("Apps", subtitle: "Instalar y administrar apps", symbol: "square.stack.3d.up.fill", color: .purple)
+                    moduleShortcut(englishUI ? "Interface options" : "Opciones de interfaz",
+                                   subtitle: englishUI ? "Home screen appearance" : "Apariencia del inicio",
+                                   symbol: "slider.horizontal.3", color: .cyan)
                 }
             }
             .buttonStyle(.plain)

@@ -24,7 +24,13 @@ assert "BloomBoxHomeAppPolicy.addingCategory(value, to: homeCategories)" in home
 assert "BloomBoxHomeContextMenu(state: menuState, actions: actions)" in home
 assert "BloomBoxHomeSearchPanel(" in home
 assert ".modifier(BloomBoxHomeNameDialogs(" in home
-assert "BloomBoxHomeControlTile(title: title, detail: detail" in home
+# The old full-screen seven-card menu is retired: Home has a focused
+# customization hub, while stores/JIT/apps remain available in their own areas.
+assert "desktopHubTile(" in home
+assert "requestDesktopAction(.edit)" in home
+assert "requestDesktopAction(.interface)" in home
+assert "case .widgets:" in home and "case .pages:" in home
+assert "BloomBoxHomeControlTile(title: title, detail: detail" not in home
 assert "onCreateFolder: { key, name in" in home
 assert "onRename: { key, name in" in home
 assert "searchMenu(key, app: app)" in home
@@ -53,4 +59,27 @@ for old in ('Button("Launch", systemImage:', 'Button("Rename", systemImage:',
     assert old not in home, "Old Strata context-menu view is still in Home: " + old
 for pref in ("LiveBoardHomeLayout", "LiveBoardFavorites", "LiveBoardCategories", "LiveBoardHomeCategories"):
     assert pref in home, "Legacy user preference was renamed: " + pref
+# Profile favorite accent must stay linked to the wizard and live profile edits.
+# Home, integrated stores and modules intentionally reuse one backdrop.
+visuals = (ui / "BloomBoxProfileVisuals.swift").read_text()
+wizard = (ui / "BloomBoxWizardWelcome.swift").read_text()
+stores = (ui / "BloomBoxRemoteStores.swift").read_text()
+modules = (ui / "BloomBoxModulesAndJIT.swift").read_text()
+profiles = (ui / "BloomBoxProfiles.swift").read_text()
+assert "struct BloomBoxProfileThemeBackdrop: View" in visuals
+assert "BloomBoxWizardAmbientSymbols(isDark: dark, accentHex: hex)" in visuals
+assert 'fallbackHex = "F064A7"' in visuals
+assert "BloomBoxProfileStore.profilesKey" in visuals
+assert "BloomBoxProfileStore.activeKey" in visuals
+assert "BloomBoxWizardAmbientSymbols: View" in wizard
+assert "func updateColor(_ hex: String, for id: String)" in profiles
+assert "BloomBoxProfileThemeBackdrop()" in home
+assert "BloomBoxProfileThemeBackdrop()" in modules
+assert stores.count("BloomBoxProfileThemeBackdrop()") == 2
+assert stores.count("symbolInk: BloomBoxProfileTheme.ink(for: profileAccentHex)") == 2
+assert "BloomBoxProfileTheme.ink(for: profileAccentHex)" in home
+assert "BloomBoxProfileTheme.color(activeID: themeActiveID" in modules
+assert "accent: Color(red: 0.20, green: 0.55, blue: 0.77)" not in stores
+assert "accent: Color(red: 0.48, green: 0.32, blue: 0.76)" not in stores
+
 print("BloomBox Home Stage 1 boundary checks passed.")

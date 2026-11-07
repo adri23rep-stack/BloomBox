@@ -1,6 +1,73 @@
 import SwiftUI
 import UIKit
 
+
+// MARK: - Shared profile-driven appearance for BloomBox screens
+
+/// Reads the same active profile and favorite color selected in the wizard.
+/// No parallel theme preference is introduced, so switching/editing profiles
+/// immediately updates every screen that uses this palette.
+enum BloomBoxProfileTheme {
+    static let fallbackHex = "F064A7" // Kirby pink for profiles not yet configured
+
+    static func hex(activeID: String, profilesData: Data) -> String {
+        guard let profiles = try? JSONDecoder().decode([BloomBoxUserProfile].self, from: profilesData),
+              !profiles.isEmpty else { return fallbackHex }
+        let profile = profiles.first(where: { $0.id == activeID })
+            ?? profiles.first(where: { $0.id == BloomBoxUserProfile.primaryID })
+        let saved = profile?.accentHex.uppercased() ?? fallbackHex
+        return BloomBoxProfileStore.palette.contains(saved) ? saved : fallbackHex
+    }
+
+    static func color(activeID: String, profilesData: Data) -> Color {
+        BloomBoxWizardPalette.color(hex(activeID: activeID, profilesData: profilesData))
+    }
+
+    static func ink(for hex: String) -> Color {
+        // Keep text/icon contrast legible on the bright Yellow Bowser accent.
+        hex == "E5B83F" ? Color.black : Color.white
+    }
+}
+
+/// Same hand-drawn, softly floating symbols used throughout the first-run wizard.
+/// Pure decoration: never captures taps and respects Reduce Motion through the
+/// existing BloomBoxWizardAmbientSymbols implementation.
+struct BloomBoxProfileThemeBackdrop: View {
+    @AppStorage(BloomBoxProfileStore.activeKey,
+                store: LiveContainerPreferencesAdapter.defaults)
+    private var activeID = BloomBoxUserProfile.primaryID
+    @AppStorage(BloomBoxProfileStore.profilesKey,
+                store: LiveContainerPreferencesAdapter.defaults)
+    private var profilesData = Data()
+    @Environment(\.colorScheme) private var scheme
+
+    private var hex: String {
+        BloomBoxProfileTheme.hex(activeID: activeID, profilesData: profilesData)
+    }
+
+    var body: some View {
+        let tint = BloomBoxWizardPalette.color(hex)
+        let dark = scheme == .dark
+        return ZStack {
+            (dark ? Color(red: 0.055, green: 0.055, blue: 0.095)
+                  : Color(red: 0.975, green: 0.970, blue: 0.983))
+            RadialGradient(
+                colors: [tint.opacity(dark ? 0.23 : 0.15), .clear],
+                center: .topLeading, startRadius: 12, endRadius: 590
+            )
+            RadialGradient(
+                colors: [tint.opacity(dark ? 0.09 : 0.07), .clear],
+                center: .bottomTrailing, startRadius: 20, endRadius: 460
+            )
+            BloomBoxWizardAmbientSymbols(isDark: dark, accentHex: hex)
+                .opacity(dark ? 0.90 : 0.75)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 /// Profile image used by the launcher greeting and the News profile switcher.
 struct BloomBoxProfileAvatar: View {
     let profile: BloomBoxUserProfile

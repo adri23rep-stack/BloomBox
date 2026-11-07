@@ -362,12 +362,13 @@ private struct BloomBoxV2StoreHeader: View {
     let title: String
     let subtitle: String
     let accent: Color
+    let symbolInk: Color
 
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: symbol)
                 .font(.system(size: 27, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(symbolInk)
                 .frame(width: 62, height: 62)
                 .background(
                     LinearGradient(colors: [accent, accent.opacity(0.7)],
@@ -388,7 +389,7 @@ private struct BloomBoxV2StoreHeader: View {
                     .fill(accent.opacity(0.085)))
         .overlay {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(accent.opacity(0.20), lineWidth: 1)
+                 .strokeBorder(accent.opacity(0.36), lineWidth: 1)
         }
     }
 }
@@ -401,6 +402,14 @@ struct BloomBoxTweakStore: View {
         self.apps = apps
         self.focusedApp = focusedApp
     }
+    @AppStorage(BloomBoxProfileStore.activeKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var themeActiveID = BloomBoxUserProfile.primaryID
+    @AppStorage(BloomBoxProfileStore.profilesKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var themeProfilesData = Data()
+    private var profileAccentHex: String {
+        BloomBoxProfileTheme.hex(activeID: themeActiveID, profilesData: themeProfilesData)
+    }
+    private var profileAccent: Color { BloomBoxWizardPalette.color(profileAccentHex) }
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var sharedModel: SharedModel
     @ObservedObject private var catalog = BloomBoxTweakCatalog.shared
@@ -438,7 +447,8 @@ struct BloomBoxTweakStore: View {
                         symbol: "puzzlepiece.extension.fill",
                         title: "Tweak Store",
                         subtitle: "Correcciones, personalización y herramientas",
-                        accent: Color(red: 0.48, green: 0.32, blue: 0.76)
+                        accent: profileAccent,
+                        symbolInk: BloomBoxProfileTheme.ink(for: profileAccentHex)
                     )
                     HStack {
                         Label("\(catalog.entries.count) tweaks en catálogo", systemImage: "arrow.triangle.2.circlepath")
@@ -509,6 +519,8 @@ struct BloomBoxTweakStore: View {
                 }
                 .padding(20)
             }
+            .background(BloomBoxProfileThemeBackdrop())
+            .tint(profileAccent)
             .navigationTitle("Tweak Store")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Cerrar") { dismiss() } } }
@@ -1039,6 +1051,14 @@ struct BloomBoxAppStore: View {
         self.openSources = openSources
     }
 
+    @AppStorage(BloomBoxProfileStore.activeKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var themeActiveID = BloomBoxUserProfile.primaryID
+    @AppStorage(BloomBoxProfileStore.profilesKey, store: LiveContainerPreferencesAdapter.defaults)
+    private var themeProfilesData = Data()
+    private var profileAccentHex: String {
+        BloomBoxProfileTheme.hex(activeID: themeActiveID, profilesData: themeProfilesData)
+    }
+    private var profileAccent: Color { BloomBoxWizardPalette.color(profileAccentHex) }
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var sharedModel: SharedModel
     @ObservedObject private var catalog = BloomBoxAppCatalog.shared
@@ -1105,7 +1125,8 @@ struct BloomBoxAppStore: View {
                         symbol: "bag.fill",
                         title: "BloomBox App Store",
                         subtitle: "Aplicaciones de creadores independientes",
-                        accent: Color(red: 0.20, green: 0.55, blue: 0.77)
+                        accent: profileAccent,
+                        symbolInk: BloomBoxProfileTheme.ink(for: profileAccentHex)
                     )
 
                     HStack {
@@ -1145,6 +1166,10 @@ struct BloomBoxAppStore: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16)
+                            .strokeBorder(profileAccent.opacity(0.24), lineWidth: 1)
+                    }
 
                     if visibleListings.isEmpty && !catalog.refreshing {
                         VStack(alignment: .leading, spacing: 6) {
@@ -1173,6 +1198,8 @@ struct BloomBoxAppStore: View {
                         .font(.footnote).foregroundStyle(.secondary)
                 }.padding(20)
             }
+            .background(BloomBoxProfileThemeBackdrop())
+            .tint(profileAccent)
             .navigationTitle("App Store")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
