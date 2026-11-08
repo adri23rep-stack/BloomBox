@@ -270,7 +270,7 @@ struct BloomBoxModulesPanel: View {
                                              startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(module.title). \(module.subtitle)")
+        .accessibilityLabel("\(BloomBoxL10n.t(module.title)). \(BloomBoxL10n.t(module.subtitle))")
     }
 
     @ViewBuilder private func detail(for module: Module) -> some View {
@@ -494,7 +494,7 @@ struct BloomBoxModulesPanel: View {
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .background(moduleBackdrop)
-        .navigationTitle(module.title)
+        .navigationTitle(LocalizedStringKey(module.title))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showJITDemo, onDismiss: {
             // No persistent "unconfigured" state after the recording closes.
@@ -909,7 +909,7 @@ private struct BloomBoxJITGuestExperimentRow: View {
             }
             Picker("JIT al abrir", selection: $jitMode) {
                 ForEach(BloomBoxJITGuestPolicy.Mode.allCases, id: \.self) { mode in
-                    Text(mode.title).tag(mode)
+                    Text(LocalizedStringKey(mode.title)).tag(mode)
                 }
             }
             .tint(.orange)
