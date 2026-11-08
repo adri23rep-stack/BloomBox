@@ -72,7 +72,14 @@ struct BloomBoxJITSetup: View {
 
     var body: some View {
         Group {
-            if embedded {
+            if demoUnconfigured {
+                // A fully interactive rehearsal of the normal onboarding flow.
+                // The real controls below are not reached while rehearsing.
+                BloomBoxJITRecordingFlow(englishUI: englishUI) {
+                    demoUnconfigured = false
+                    dismiss()
+                }
+            } else if embedded {
                 if #available(iOS 16.0, *) {
                     jitForm.scrollContentBackground(.hidden).navigationTitle("JIT")
                 } else {
@@ -101,6 +108,7 @@ struct BloomBoxJITSetup: View {
             if phase == .active { refreshPairing() }
         }
         .onChange(of: pairing.phase) { phase in
+            guard !demoUnconfigured else { return }
             guard case .paired = phase else { return }
             hasPairing = true
             refreshPairing()
@@ -489,3 +497,576 @@ struct BloomBoxJITSetup: View {
 
 // Source alias for host modules; pairing/JIT credentials keep their old saved IDs.
 typealias LiveBoardJITSetup = BloomBoxJITSetup
+
+
+/// Rehearsal of the complete JIT onboarding, intended to record an animated
+/// tutorial before the real GIF is available. All inputs here are local SwiftUI
+/// @State: no user defaults, credentials, VPN, pairing service, debugger,
+/// application settings or real caches are changed.
+private struct BloomBoxJITRecordingFlow: View {
+    let englishUI: Bool
+    let exit: () -> Void
+    @State private var activated = false
+    @State private var automaticPairing = true
+    @State private var paired = false
+    @State private var vpnReady = false
+    @State private var prepared = false
+    @State private var preparing = false
+    @State private var pairingStarted = false
+    @State private var pairingCodeVisible = false
+    @State private var privateDataAllowed = false
+    @State private var remotePort = ""
+    @State private var selectedProvider = JITEnablerType.BuiltIn.rawValue
+    @State private var showWizard = false
+    @State private var showImporter = false
+    @State private var step = 0
+    @State private var feedback = ""
+    @State private var preparationStep = ""
+
+    private func tr(_ es: String, _ en: String) -> String {
+        englishUI ? en : es
+    }
+
+    private var pairingLabel: String {
+        paired ? tr("Emparejamiento listo", "Pairing ready")
+               : tr("Emparejamiento pendiente", "Pairing required")
+    }
+    private var readyForLaunch: Bool { paired && vpnReady && prepared && activated }
+    private var controlColor: Color { readyForLaunch ? .green : .orange }
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section {
+                    HStack {
+                        Image(systemName: "bolt.shield.fill")
+                            .foregroundStyle(.orange)
+                        Text(tr("Configuración de JIT", "JIT setup"))
+                            .font(.headline)
+                        Spacer(minLength: 8)
+                        Text(tr("PRUEBA", "DEMO"))
+                            .font(.caption2.bold())
+                            .foregroundStyle(.orange)
+                    }
+                    Text(tr("Recorrido para grabar las instrucciones. Todos los botones funcionan en esta vista sin tocar tu JIT real.",
+                            "Interactive tutorial rehearsal. All controls work here without changing your real JIT."))
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Button(tr("Reiniciar recorrido", "Restart walkthrough")) {
+                        reset()
+                    }
+                    .accessibilityIdentifier("bloombox.jit.demo.restart")
+                }
+                Section {
+                    Toggle(isOn: Binding(
+                        get: { activated },
+                        set: { enabled in
+                            activated = enabled
+                            if enabled && !readyForLaunch {
+                                step = paired ? (vpnReady ? 3 : 2) : 0
+                                showWizard = true
+                            }
+                        }
+                    )) {
+                        Label(tr("Activar JIT", "Enable JIT"), systemImage: "bolt.fill")
+                    }
+                    .tint(.orange)
+                    .accessibilityIdentifier("bloombox.jit.demo.activate")
+
+                    Label(readyForLaunch
+                          ? tr("Listo para iniciar aplicaciones con JIT", "Ready to launch apps with JIT")
+                          : activated
+                            ? tr("Completa los pasos de configuración", "Complete setup steps")
+                            : tr("JIT sin configurar", "JIT not configured"),
+                          systemImage: readyForLaunch ? "checkmark.circle.fill" : "circle.dotted")
+                        .foregroundStyle(controlColor)
+
+                    Button {
+                        step = readyForLaunch ? 4 : (paired ? (vpnReady ? 3 : 2) : 0)
+                        showWizard = true
+                    } label: {
+                        Label(readyForLaunch
+                              ? tr("Ver pasos de configuración", "Review setup steps")
+                              : tr("Configurar JIT paso a paso", "Set up JIT step by step"),
+                              systemImage: "list.number")
+                    }
+                    .accessibilityIdentifier("bloombox.jit.demo.setupGuide")
+                } header: {
+                    Text(tr("Activación", "Activation"))
+                }
+
+                Section {
+                    Toggle(isOn: $automaticPairing) {
+                        Label(tr("Emparejamiento automático", "Automatic pairing"),
+                              systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .tint(.orange)
+                    .accessibilityIdentifier("bloombox.jit.demo.automaticPairing")
+
+                    Label(pairingLabel, systemImage: paired
+                          ? "checkmark.shield.fill" : "exclamationmark.triangle.fill")
+                        .foregroundStyle(paired ? .green : .orange)
+
+                    if !paired {
+                        Button {
+                            step = 1
+                            showWizard = true
+                        } label: {
+                            Label(tr("Emparejar en este iPhone", "Pair on this iPhone"),
+                                  systemImage: "iphone.gen3.radiowaves.left.and.right")
+                        }
+                        Button {
+                            showImporter = true
+                        } label: {
+                            Label(tr("Importar pairing", "Import pairing"),
+                                  systemImage: "doc.badge.plus")
+                        }
+                    }
+                } header: {
+                    Text(tr("Emparejamiento", "Pairing"))
+                }
+
+                Section {
+                    Label(vpnReady ? tr("LocalDevVPN conectada", "LocalDevVPN connected")
+                          : tr("Conectar LocalDevVPN", "Connect LocalDevVPN"),
+                          systemImage: vpnReady ? "checkmark.circle.fill" : "network")
+                        .foregroundStyle(vpnReady ? .green : .orange)
+                    Button(vpnReady ? tr("Comprobar VPN otra vez", "Check VPN again")
+                                    : tr("Comprobar conexión VPN", "Check VPN connection")) {
+                        // An intentional simulated confirmation, never a network probe.
+                        vpnReady = true
+                        feedback = tr("VPN verificada para esta demostración.", "VPN checked in this rehearsal.")
+                    }
+                    .accessibilityIdentifier("bloombox.jit.demo.vpn")
+
+                    Button {
+                        startPreparation()
+                    } label: {
+                        Label(tr("Preparar dispositivo", "Prepare device"),
+                              systemImage: "bolt.shield.fill")
+                    }
+                    .disabled(!paired || !vpnReady || preparing)
+                    .accessibilityIdentifier("bloombox.jit.demo.prepare")
+
+                    if preparing { ProgressView(preparationStep) }
+                    if prepared {
+                        Label(tr("Dispositivo preparado", "Device prepared"),
+                              systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                    if !feedback.isEmpty {
+                        Text(feedback).font(.footnote).foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text(tr("Preparación", "Preparation"))
+                }
+
+                Section {
+                    NavigationLink {
+                        advancedScreen
+                    } label: {
+                        Label(tr("Opciones avanzadas", "Advanced options"),
+                              systemImage: "slider.horizontal.3")
+                    }
+                    .accessibilityIdentifier("bloombox.jit.demo.advanced")
+                }
+                Section {
+                    Button(role: .cancel) {
+                        exit()
+                    } label: {
+                        Label(tr("Salir y restaurar JIT real", "Exit and restore real JIT"),
+                              systemImage: "arrow.uturn.backward")
+                    }
+                    .accessibilityIdentifier("bloombox.jit.demo.exit")
+                } footer: {
+                    Text(tr("Al salir, todos los valores de esta grabación se descartan. No se modifica SideStore, pairing, VPN, RAM+ ni JIT.",
+                            "Recording values are discarded on exit. SideStore, pairing, VPN, RAM+ and JIT remain unchanged."))
+                }
+            }
+            .navigationTitle(tr("JIT integrado", "Built-in JIT"))
+            .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showWizard) {
+                NavigationView {
+                    wizardScreen
+                        .navigationTitle(tr("Configurar JIT", "Set up JIT"))
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(tr("Cerrar", "Close")) { showWizard = false }
+                            }
+                        }
+                }
+                .navigationViewStyle(.stack)
+            }
+            .fileImporter(isPresented: $showImporter, allowedContentTypes: [.data]) { result in
+                // The iOS file picker is real; we neither read nor store the
+                // selected file. It is only a visual import step in the demo.
+                if case .success = result {
+                    paired = true
+                    feedback = tr("Pairing importado (solo demostración).",
+                                  "Pairing imported (demo only).")
+                    if showWizard { step = 2 }
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+    }
+
+    @ViewBuilder
+    private var wizardScreen: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack {
+                    Text(tr("PASO \(min(step + 1, 5)) DE 5",
+                            "STEP \(min(step + 1, 5)) OF 5"))
+                        .font(.caption.bold()).foregroundStyle(.secondary)
+                    Spacer()
+                    Label(tr("Grabación", "Recording"), systemImage: "video")
+                        .font(.caption).foregroundStyle(.orange)
+                }
+                HStack(spacing: 5) {
+                    ForEach(0..<5, id: \.self) { index in
+                        Capsule()
+                            .fill(index <= step ? Color.orange : Color.gray.opacity(0.2))
+                            .frame(height: 4)
+                    }
+                }
+
+                switch step {
+                case 0: welcomeStep
+                case 1: pairingStep
+                case 2: vpnStep
+                case 3: prepareStep
+                default: finishedStep
+                }
+
+                HStack(spacing: 12) {
+                    if step > 0 {
+                        Button(tr("Atrás", "Back")) {
+                            step -= 1
+                        }.buttonStyle(.bordered)
+                    }
+                    Spacer()
+                    if step == 0 {
+                        Button(tr("Continuar", "Continue")) { step = 1 }
+                            .buttonStyle(.borderedProminent)
+                    } else if step == 1 && paired {
+                        Button(tr("Siguiente", "Next")) { step = 2 }
+                            .buttonStyle(.borderedProminent)
+                    } else if step == 2 && vpnReady {
+                        Button(tr("Siguiente", "Next")) { step = 3 }
+                            .buttonStyle(.borderedProminent)
+                    } else if step == 3 && prepared {
+                        Button(tr("Siguiente", "Next")) { step = 4 }
+                            .buttonStyle(.borderedProminent)
+                    } else if step == 4 {
+                        Button(tr("Finalizar", "Finish")) {
+                            activated = true
+                            showWizard = false
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+            }
+            .padding(22)
+        }
+        .accessibilityIdentifier("bloombox.jit.demo.wizard")
+    }
+
+    private var welcomeStep: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            Image(systemName: "bolt.shield.fill")
+                .font(.system(size: 52)).foregroundStyle(.orange)
+            Text(tr("Bienvenido al JIT integrado", "Welcome to built-in JIT"))
+                .font(.title2.bold())
+            Text(tr("Vamos a configurar lo necesario para iniciar juegos con JIT: emparejamiento, LocalDevVPN y preparación del dispositivo.",
+                    "Set up everything needed to launch games with JIT: pairing, LocalDevVPN and device preparation."))
+            Label(tr("Modo tutorial: no cambia tu configuración real.", "Tutorial mode: real settings are untouched."),
+                  systemImage: "info.circle")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var pairingStep: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label(tr("Emparejar el iPhone", "Pair your iPhone"), systemImage: "iphone")
+                .font(.title2.bold())
+            Text(tr("1. Inicia el emparejamiento en BloomBox.\n2. Abre Ajustes → Privacidad y seguridad → Modo desarrollador.\n3. Selecciona emparejar con BloomBox e introduce el código mostrado.\n4. Vuelve a BloomBox para continuar.",
+                    "1. Start pairing in BloomBox.\n2. Open Settings → Privacy & Security → Developer Mode.\n3. Select pair with BloomBox and enter the displayed code.\n4. Return to BloomBox."))
+                .font(.body)
+            if paired {
+                Label(tr("Emparejamiento completado", "Pairing completed"),
+                      systemImage: "checkmark.shield.fill")
+                    .foregroundStyle(.green)
+                Button(tr("Repetir emparejamiento", "Pair again")) {
+                    paired = false
+                    pairingStarted = false
+                    pairingCodeVisible = false
+                    prepared = false
+                }
+            } else {
+                Button {
+                    pairingStarted = true
+                    pairingCodeVisible = true
+                } label: {
+                    Label(tr("Iniciar emparejamiento", "Start pairing"),
+                          systemImage: "antenna.radiowaves.left.and.right")
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("bloombox.jit.demo.startPairing")
+                if pairingStarted {
+                    Label(tr("Esperando al iPhone…", "Waiting for your iPhone…"),
+                          systemImage: "antenna.radiowaves.left.and.right")
+                    if pairingCodeVisible {
+                        Text("123456")
+                            .font(.system(size: 36, weight: .bold, design: .monospaced))
+                            .frame(maxWidth: .infinity)
+                        Text(tr("Código de ejemplo para la grabación; no se puede usar para emparejar realmente.",
+                                "Example code for recording only; it cannot actually pair the device."))
+                            .font(.caption).foregroundStyle(.secondary)
+                        Button(tr("Abrir Ajustes del iPhone", "Open iPhone Settings")) {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        Button {
+                            paired = true
+                            pairingStarted = false
+                            pairingCodeVisible = false
+                        } label: {
+                            Label(tr("Confirmar emparejamiento", "Confirm pairing"),
+                                  systemImage: "checkmark.shield.fill")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("bloombox.jit.demo.confirmPairing")
+                    }
+                }
+                Button(tr("Importar archivo de pairing", "Import pairing file")) {
+                    showImporter = true
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+    }
+
+    private var vpnStep: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("LocalDevVPN", systemImage: "network")
+                .font(.title2.bold())
+            Text(tr("Activa LocalDevVPN en tu iPhone. Mantén Modo desarrollador activo y regresa a BloomBox cuando la VPN esté conectada.",
+                    "Connect LocalDevVPN on your iPhone. Keep Developer Mode on and return to BloomBox when the VPN is connected."))
+            Label(vpnReady ? tr("VPN conectada", "VPN connected")
+                           : tr("Esperando conexión VPN", "Waiting for VPN"),
+                  systemImage: vpnReady ? "checkmark.circle.fill" : "wifi")
+                .foregroundStyle(vpnReady ? .green : .orange)
+            Button {
+                vpnReady = true
+            } label: {
+                Label(tr("Ya conecté la VPN", "I connected the VPN"),
+                      systemImage: "checkmark.circle")
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("bloombox.jit.demo.confirmVPN")
+            Text(tr("En la demostración este botón confirma el paso visualmente; no verifica la red real.",
+                    "In this rehearsal the button advances the visuals; it does not test the actual network."))
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var prepareStep: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label(tr("Preparar el dispositivo", "Prepare device"),
+                  systemImage: "bolt.shield.fill")
+                .font(.title2.bold())
+            Text(tr("Con el pairing y LocalDevVPN listos, BloomBox prepara los servicios de depuración antes de iniciar una app.",
+                    "With pairing and LocalDevVPN ready, BloomBox prepares debug services before a guest launches."))
+            if preparing {
+                ProgressView(preparationStep)
+                    .padding(.vertical, 6)
+            } else if prepared {
+                Label(tr("Preparación completada", "Preparation completed"),
+                      systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            }
+            Button {
+                startPreparation()
+            } label: {
+                Label(prepared ? tr("Preparar de nuevo", "Prepare again")
+                               : tr("Preparar dispositivo", "Prepare device"),
+                      systemImage: "bolt.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(preparing || !paired || !vpnReady)
+            .accessibilityIdentifier("bloombox.jit.demo.wizard.prepare")
+            Text(tr("La animación de conexión es solo para grabar el tutorial. No se ejecuta el depurador real.",
+                    "Connection progress is for recording the tutorial; no real debugger is run."))
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var finishedStep: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 56))
+                .foregroundStyle(.green)
+            Text(tr("¡JIT configurado!", "JIT is configured!"))
+                .font(.title2.bold())
+            Text(tr("Ya puedes abrir un juego compatible desde BloomBox o GameBox y usar «Iniciar con JIT».",
+                    "Now launch a compatible game from BloomBox or GameBox using Launch with JIT."))
+            Label(tr("Pairing", "Pairing"), systemImage: "checkmark.shield.fill")
+                .foregroundStyle(.green)
+            Label("LocalDevVPN", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+            Label(tr("Dispositivo preparado", "Device prepared"),
+                  systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+            Text(tr("Finalizar solo termina el recorrido de grabación; la activación real de JIT se comprueba al iniciar cada app.",
+                    "Finish ends the recording walkthrough only; actual JIT is verified when launching each guest."))
+                .font(.footnote).foregroundStyle(.secondary)
+        }
+    }
+
+    private var advancedScreen: some View {
+        Form {
+            Section(tr("Método JIT", "JIT method")) {
+                Picker(tr("Activar JIT con", "Enable JIT using"), selection: $selectedProvider) {
+                    ForEach(JITEnablerType.allCases) { item in
+                        Text(item.displayName).tag(item.rawValue)
+                    }
+                }
+                Button(tr("Usar JIT integrado", "Use built-in JIT")) {
+                    selectedProvider = JITEnablerType.BuiltIn.rawValue
+                }
+            }
+            Section(tr("Emparejamiento", "Pairing")) {
+                Label(pairingLabel, systemImage: paired ? "checkmark.circle" : "doc.badge.plus")
+                    .foregroundStyle(paired ? .green : .orange)
+                Button(tr("Emparejar en este iPhone", "Pair on this iPhone")) {
+                    step = 1
+                    showWizard = true
+                }
+                Button(paired ? tr("Reemplazar pairing", "Replace pairing")
+                              : tr("Importar pairing remoto", "Import remote pairing")) {
+                    showImporter = true
+                }
+                if paired {
+                    Button(tr("Quitar pairing", "Remove pairing"), role: .destructive) {
+                        paired = false
+                        prepared = false
+                        feedback = tr("Pairing de prueba eliminado.", "Demo pairing removed.")
+                    }
+                }
+                Button(tr("Comprobar sincronización", "Check pairing synchronization")) {
+                    feedback = paired
+                        ? tr("Pairing de demostración disponible.", "Demo pairing available.")
+                        : tr("No hay pairing configurado todavía.", "No pairing configured yet.")
+                }
+            }
+            Section(tr("Conexión", "Connection")) {
+                HStack {
+                    Text(tr("Puerto de emparejamiento", "Pairing port"))
+                    Spacer()
+                    TextField(tr("Automático", "Auto"), text: $remotePort)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 120)
+                }
+                Label(vpnReady ? tr("VPN conectada", "VPN connected")
+                               : tr("VPN sin comprobar", "VPN not checked"),
+                      systemImage: vpnReady ? "checkmark.circle.fill" : "network")
+                Button(tr("Comprobar VPN", "Check VPN")) { vpnReady = true }
+                Button(tr("Preparar dispositivo", "Prepare device")) {
+                    startPreparation()
+                }
+                .disabled(!paired || !vpnReady || preparing)
+                Button(tr("Restablecer caché DDI", "Reset DDI cache")) {
+                    prepared = false
+                    feedback = tr("Caché DDI de prueba restablecida.", "Demo DDI cache reset.")
+                }
+                if preparing { ProgressView(preparationStep) }
+                if prepared { Label(tr("Listo", "Ready"), systemImage: "checkmark.circle.fill") }
+            }
+            Section(tr("Permisos", "Permissions")) {
+                Toggle(tr("Permitir datos privados en LiveProcess", "Allow private data in LiveProcess"),
+                       isOn: $privateDataAllowed)
+                Text(tr("Esta opción es solo de demostración; el permiso global real sigue intacto.",
+                        "Demo only; the real global permission remains unchanged."))
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            Section(tr("Diagnóstico e historial", "Diagnostics & history")) {
+                NavigationLink {
+                    demoDiagnostics
+                } label: {
+                    Label(tr("Ver registros JIT", "View JIT logs"),
+                          systemImage: "doc.text.magnifyingglass")
+                }
+                if !feedback.isEmpty {
+                    Text(feedback).font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle(tr("Opciones avanzadas", "Advanced options"))
+    }
+
+    private var demoDiagnostics: some View {
+        Form {
+            Section(tr("Diagnóstico", "Diagnostics")) {
+                Label(paired ? tr("Pairing disponible", "Pairing available")
+                             : tr("Pairing pendiente", "Pairing missing"),
+                      systemImage: paired ? "checkmark.circle.fill" : "circle")
+                Label(vpnReady ? tr("VPN conectada", "VPN connected")
+                               : tr("VPN pendiente", "VPN missing"),
+                      systemImage: vpnReady ? "checkmark.circle.fill" : "circle")
+                Label(prepared ? tr("DDI preparado", "DDI ready")
+                               : tr("DDI pendiente", "DDI not prepared"),
+                      systemImage: prepared ? "checkmark.circle.fill" : "circle")
+            }
+            Section(tr("Registro del recorrido", "Walkthrough log")) {
+                Text(prepared
+                    ? tr("checkingReachability\ncheckingDDI\nready\nPreparación completada.",
+                         "checkingReachability\ncheckingDDI\nready\nPreparation completed.")
+                    : tr("Esperando preparación del dispositivo.", "Waiting for device preparation."))
+                    .font(.system(.footnote, design: .monospaced))
+            }
+            Text(tr("Registro ilustrativo, no es un log real del depurador.",
+                    "Illustrative log only, not a real debugger log."))
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .navigationTitle(tr("Diagnósticos JIT", "JIT diagnostics"))
+    }
+
+    private func reset() {
+        activated = false
+        automaticPairing = true
+        paired = false
+        vpnReady = false
+        prepared = false
+        preparing = false
+        pairingStarted = false
+        pairingCodeVisible = false
+        privateDataAllowed = false
+        remotePort = ""
+        selectedProvider = JITEnablerType.BuiltIn.rawValue
+        step = 0
+        feedback = ""
+        preparationStep = ""
+        showWizard = false
+    }
+
+    private func startPreparation() {
+        guard paired, vpnReady, !preparing else { return }
+        preparing = true
+        prepared = false
+        Task { @MainActor in
+            preparationStep = tr("Conectando depurador…", "Connecting debugger…")
+            try? await Task.sleep(nanoseconds: 950_000_000)
+            preparationStep = tr("Comprobando DDI…", "Checking DDI…")
+            try? await Task.sleep(nanoseconds: 950_000_000)
+            preparationStep = tr("Preparando JIT…", "Preparing JIT…")
+            try? await Task.sleep(nanoseconds: 950_000_000)
+            prepared = true
+            preparing = false
+            feedback = tr("Preparación de prueba completada.", "Demo preparation complete.")
+        }
+    }
+}
