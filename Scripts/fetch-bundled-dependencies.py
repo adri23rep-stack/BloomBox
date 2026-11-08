@@ -7,6 +7,8 @@ asset changes, the digest check fails closed instead of silently upgrading.
 from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
+import time
 import hashlib
 import json
 import os
@@ -24,6 +26,20 @@ def sha256(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def open_with_transient_retries(request, opener):
+    """Retry gateway/network trouble without ever weakening SHA-256 checks."""
+    for attempt in range(4):
+        try:
+            return opener(request, timeout=120)
+        except HTTPError as error:
+            if error.code not in (502, 503, 504) or attempt == 3:
+                raise
+        except URLError:
+            if attempt == 3:
+                raise
+        time.sleep(min(2 ** attempt, 8))
 
 
 def restore(root: Path, manifest: dict, opener=urlopen) -> list[str]:
@@ -52,7 +68,7 @@ def restore(root: Path, manifest: dict, opener=urlopen) -> list[str]:
             with tempfile.NamedTemporaryFile(dir=destination.parent, prefix=".upstream-", delete=False) as output:
                 temp_path = Path(output.name)
                 request = Request(url, headers={"User-Agent": "BloomBox-dependency-restore/1"})
-                with opener(request, timeout=120) as response:
+                with open_with_transient_retries(request, opener) as response:
                     count = 0
                     while chunk := response.read(1024 * 1024):
                         count += len(chunk)
