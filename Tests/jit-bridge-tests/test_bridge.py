@@ -30,7 +30,7 @@ assert '"PairingFile_RemoteRP.plist"' in coordinator
 assert '"Documents/SideStore/Documents"' in coordinator
 assert "roots.append(LCPath.docPath)" in coordinator, "Must search built-in SideStore's host Documents"
 assert 'BloomBoxJITSideStorePairingLastVerified' in coordinator
-assert 'case .disabled, synchronized, alreadyCurrent, olderSource, invalidSource, unreadableSource, unavailable' in coordinator
+assert 'case disabled, synchronized, alreadyCurrent, olderSource, invalidSource, unreadableSource, unavailable' in coordinator
 assert 'bloombox.jit.checkPairingSync' in setup
 assert 'Last verified match' in setup
 assert 'lastPairingVerified' in setup
