@@ -42,6 +42,13 @@ def brand(ipa: pathlib.Path, assets: pathlib.Path):
         if not data.startswith(b"\x89PNG\r\n\x1a\n"):
             raise ValueError(f"BloomBox RGB icon missing/invalid: {icon}")
         new_icons[ROOT + name] = data
+    # SwiftUI's source phrases must be available in the actual signed host
+    # bundle. Xcode's file-synchronized resources may otherwise leave out the
+    # hand-maintained en.lproj table (or package a stale one).
+    english_table = pathlib.Path("Resources/en.lproj/Localizable.strings").read_bytes()
+    if english_table.count(b" = ") < 700:
+        raise ValueError("The BloomBox English localization table is incomplete")
+    english_target = ROOT + "en.lproj/Localizable.strings"
     fd, tmp = tempfile.mkstemp(prefix="manzana-build-", suffix=".ipa", dir=str(ipa.parent))
     os.close(fd)
     try:
@@ -59,13 +66,19 @@ def brand(ipa: pathlib.Path, assets: pathlib.Path):
                     data = translated_name(data)
                 elif name in new_icons:
                     data = new_icons[name]
+                elif name == english_target:
+                    data = english_table
                 out.writestr(entry, data)
+            if english_target not in names:
+                out.writestr(english_target, english_table)
         with zipfile.ZipFile(tmp) as check:
             if check.testzip() is not None:
                 raise ValueError("Corrupt branded IPA")
             info = plistlib.loads(check.read(ROOT + "Info.plist"))
             if info.get("CFBundleDisplayName") != "BloomBox" or info.get("CFBundleName") != "BloomBox":
                 raise ValueError("BloomBox branding is missing in the IPA")
+            if check.read(english_target) != english_table:
+                raise ValueError("Packaged BloomBox English phrases are missing or outdated")
             if not info.get("NSSupportsLiveActivities"):
                 raise ValueError("ActivityKit disabled in final host Info.plist")
             for name, data in new_icons.items():
