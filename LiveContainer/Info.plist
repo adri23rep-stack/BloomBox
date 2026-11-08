@@ -10,6 +10,8 @@
 	<true/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>BloomBoxReleaseTag</key>
+	<string>development</string>
 	<key>CFBundleDisplayName</key>
 	<string>BloomBox</string>
 	<key>CFBundleDocumentTypes</key>
