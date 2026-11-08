@@ -97,7 +97,7 @@ struct BloomBoxModulesPanel: View {
 
     enum Destination { case jit, desktop, interface, wallpaper, apps, settings, tweaks, sidestore }
     enum Module: String, CaseIterable, Identifiable {
-        case ram, jit, desktop, connectivity, privacy, experimental
+        case ram, jit, desktop, connectivity, privacy, autoupdate, experimental
         var id: String { rawValue }
 
         var title: String {
@@ -107,6 +107,7 @@ struct BloomBoxModulesPanel: View {
             case .desktop: return "Escritorio"
             case .connectivity: return "Conectividad"
             case .privacy: return "Privacidad"
+            case .autoupdate: return "AutoUpdate"
             case .experimental: return "Experimental"
             }
         }
@@ -117,6 +118,7 @@ struct BloomBoxModulesPanel: View {
             case .desktop: return "Personalización"
             case .connectivity: return "Internet y red"
             case .privacy: return "Aislamiento y permisos"
+            case .autoupdate: return "Actualizaciones de BloomBox"
             case .experimental: return "Funciones avanzadas"
             }
         }
@@ -127,6 +129,7 @@ struct BloomBoxModulesPanel: View {
             case .desktop: return "display"
             case .connectivity: return "wifi"
             case .privacy: return "shield.lefthalf.filled"
+            case .autoupdate: return "arrow.triangle.2.circlepath.circle.fill"
             case .experimental: return "flask.fill"
             }
         }
@@ -137,6 +140,7 @@ struct BloomBoxModulesPanel: View {
             case .desktop: return Color(red: 0.31, green: 0.78, blue: 1)
             case .connectivity: return Color(red: 0.35, green: 0.92, blue: 0.68)
             case .privacy: return Color(red: 1, green: 0.48, blue: 0.75)
+            case .autoupdate: return Color(red: 0.30, green: 0.68, blue: 1)
             case .experimental: return Color(red: 0.72, green: 0.45, blue: 1)
             }
         }
@@ -283,6 +287,8 @@ struct BloomBoxModulesPanel: View {
             desktopDetail
         case .connectivity:
             BloomBoxConnectivityModule(apps: apps)
+        case .autoupdate:
+            BloomBoxAutoUpdateSettingsView()
         case .privacy, .experimental:
             moduleDetail(module)
         }
