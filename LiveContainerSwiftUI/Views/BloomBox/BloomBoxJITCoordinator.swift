@@ -59,6 +59,8 @@ enum BloomBoxJITPairingSync {
             for folder in folders {
                 let base = folder.isEmpty ? root : root.appendingPathComponent(folder, isDirectory: true)
                 for name in names {
+                    // Legacy generic filenames are trusted only inside SideStore-owned folders.
+                    guard name == "PairingFile_RemoteRP.plist" || folder.lowercased().contains("sidestore") else { continue }
                     let url = base.appendingPathComponent(name).standardizedFileURL
                     guard url != destination, visited.insert(url.path).inserted,
                           let details = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey]),
