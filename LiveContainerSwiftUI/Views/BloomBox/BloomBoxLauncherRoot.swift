@@ -84,8 +84,8 @@ struct BloomBoxLauncherRootView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         launcherOption(
-                            title: language == "en" ? "Hybrid · Recommended" : "Híbrido · Recomendado",
-                            detail: language == "en" ? "iOS Home; compatible games enter GameBox automatically." : "Escritorio iOS; los juegos compatibles entran automáticamente en GameBox.",
+                            title: BloomBoxL10n.isEnglish ? "Hybrid · Recommended" : "Híbrido · Recomendado",
+                            detail: BloomBoxL10n.isEnglish ? "iOS Home; compatible games enter GameBox automatically." : "Escritorio iOS; los juegos compatibles entran automáticamente en GameBox.",
                             icon: "square.on.square", value: "hybrid")
                         launcherOption(title: "iOS Home", detail: "Escritorio, apps y widgets.",
                                        icon: "square.grid.3x3.fill", value: "ios")
@@ -102,7 +102,7 @@ struct BloomBoxLauncherRootView: View {
                         }
                         .buttonStyle(.plain)
                         Toggle(isOn: $showGameBoxShortcut) {
-                            Label(language == "en" ? "Show GameBox button on Home" : "Mostrar botón GameBox en el escritorio",
+                            Label(BloomBoxL10n.isEnglish ? "Show GameBox button on Home" : "Mostrar botón GameBox en el escritorio",
                                   systemImage: "gamecontroller.fill")
                         }
                         .tint(.cyan)
@@ -110,14 +110,14 @@ struct BloomBoxLauncherRootView: View {
                         .background(Color.white.opacity(0.06),
                                     in: RoundedRectangle(cornerRadius: 16))
                         Toggle(isOn: $protectBottomGestures) {
-                            Label(language == "en" ? "Protect bottom-edge gestures" : "Proteger gestos del borde inferior",
+                            Label(BloomBoxL10n.isEnglish ? "Protect bottom-edge gestures" : "Proteger gestos del borde inferior",
                                   systemImage: "hand.draw.fill")
                         }
                         .tint(.cyan)
                         .padding(16)
                         .background(Color.white.opacity(0.06),
                                     in: RoundedRectangle(cornerRadius: 16))
-                        Text(language == "en"
+                        Text(BloomBoxL10n.isEnglish
                              ? "Reduces accidental exits while using BloomBox. iOS may require a second swipe to go Home. You can turn this off anytime."
                              : "Evita salidas accidentales del launcher. iOS puede pedir un segundo deslizamiento para ir al inicio. Puedes desactivarlo cuando quieras.")
                             .font(.caption)
@@ -132,7 +132,7 @@ struct BloomBoxLauncherRootView: View {
                         Text("La detección funciona al usar BloomBox. iOS no permite abrirla desde cero cuando está cerrada o suspendida.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text(language == "en" ? "Your choice is saved per profile. Existing profiles keep their iOS Home setting until you change it." : "Tu selección se guarda por perfil. Los perfiles existentes conservan su inicio iOS hasta que lo cambies.")
+                        Text(BloomBoxL10n.isEnglish ? "Your choice is saved per profile. Existing profiles keep their iOS Home setting until you change it." : "Tu selección se guarda por perfil. Los perfiles existentes conservan su inicio iOS hasta que lo cambies.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
