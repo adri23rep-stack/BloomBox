@@ -754,7 +754,7 @@ struct BloomBoxHomeScreen: View {
                     }
                     .padding(20)
                 }
-                .navigationTitle(section.title)
+                .navigationTitle(LocalizedStringKey(section.title))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
@@ -1035,7 +1035,7 @@ struct BloomBoxHomeScreen: View {
                         ForEach(librarySections) { section in
                             VStack(spacing: 9) {
                                 librarySectionTile(section)
-                                Text(section.title)
+                                Text(LocalizedStringKey(section.title))
                                     .font(.system(size: 14, weight: .medium))
                                     .lineLimit(1)
                                     .minimumScaleFactor(0.8)
@@ -1058,7 +1058,7 @@ struct BloomBoxHomeScreen: View {
                             } label: {
                                 HStack(spacing: 14) {
                                     miniatureIcon(key, size: 43)
-                                    Text(title(key))
+                                    Text(BloomBoxL10n.t(title(key)))
                                         .font(.system(size: 17))
                                     Spacer()
                                 }
@@ -1107,7 +1107,7 @@ struct BloomBoxHomeScreen: View {
                     }
                     .frame(width: size, height: size)
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Abrir categoría \(section.title)")
+                    .accessibilityLabel(BloomBoxL10n.isEnglish ? "Open \(BloomBoxL10n.t(section.title))" : "Abrir categoría \(section.title)")
                 }
             }
             .padding(pad)
@@ -1140,7 +1140,7 @@ struct BloomBoxHomeScreen: View {
                     .frame(width: size, height: size)
                     .clipShape(RoundedRectangle(cornerRadius: size * 0.23, style: .continuous))
                 if label {
-                    Text(title(key))
+                    Text(BloomBoxL10n.t(title(key)))
                         .font(.system(size: 12))
                         .lineLimit(1)
                         .foregroundStyle(.white)
@@ -1155,7 +1155,7 @@ struct BloomBoxHomeScreen: View {
             }
         }
         .onDrag { NSItemProvider(object: key as NSString) }
-        .accessibilityLabel("Abrir \(title(key))")
+        .accessibilityLabel(BloomBoxL10n.isEnglish ? "Open \(BloomBoxL10n.t(title(key)))" : "Abrir \(title(key))")
     }
 
 
@@ -2085,7 +2085,7 @@ struct BloomBoxHomeScreen: View {
                 ForEach(appKeys.filter { appMap[$0] != nil }.sorted {
                     title($0).localizedCaseInsensitiveCompare(title($1)) == .orderedAscending
                 }, id: \.self) { key in
-                    Button(title(key)) {
+                    Button(BloomBoxL10n.t(title(key))) {
                         updateWidget(widget.id) { $0.tapActionKey = key }
                     }
                 }
@@ -2313,7 +2313,7 @@ struct BloomBoxHomeScreen: View {
                 .offset(x: -7, y: -8)
                 .zIndex(2)
                 .transition(reduceMotion ? .opacity : .scale(scale: 0.7).combined(with: .opacity))
-                .accessibilityLabel("Opciones para quitar \(title(key))")
+                .accessibilityLabel(BloomBoxL10n.isEnglish ? "Remove options for \(BloomBoxL10n.t(title(key)))" : "Opciones para quitar \(title(key))")
             }
         }
         .onDrag { NSItemProvider(object: key as NSString) }
@@ -2364,7 +2364,7 @@ struct BloomBoxHomeScreen: View {
                 .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
                          phase: isSideStore ? 0.7 : 2.1))
                 if showLabel {
-                    Text(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : isModules ? "Módulos" : isThemes ? "Temas" : "Instalar app")
+                    Text(LocalizedStringKey(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : isModules ? "Módulos" : isThemes ? "Temas" : "Instalar app"))
                         .font(.system(size: 12))
                         .lineLimit(1)
                         .foregroundStyle(.white)
@@ -2411,7 +2411,7 @@ struct BloomBoxHomeScreen: View {
                 }
             }
         }
-        .accessibilityLabel(isThemes ? "Temas" : title(key))
+        .accessibilityLabel(BloomBoxL10n.t(isThemes ? "Temas" : title(key)))
     }
 
     private func appMenu(_ key: String, app: LCAppModel) -> some View {
@@ -2541,7 +2541,7 @@ struct BloomBoxHomeScreen: View {
     private var pageControl: some View {
         HStack(spacing: 5) {
             Button { page = 1 } label: { Image(systemName: "house.fill").frame(width: 32, height: 32) }
-                .accessibilityLabel("Pantalla de inicio")
+                .accessibilityLabel(englishUI ? "Home Screen" : "Pantalla de inicio")
             Button { beginSearch() } label: {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 12, weight: .semibold)).frame(width: 28, height: 32)
@@ -2558,7 +2558,7 @@ struct BloomBoxHomeScreen: View {
                         .frame(width: 27, height: 40)
                         .contentShape(Rectangle())
                 }
-                .accessibilityLabel(index == 0 ? "Widgets" : "Página \(index)")
+                .accessibilityLabel(index == 0 ? "Widgets" : (englishUI ? "Page \(index)" : "Página \(index)"))
                 // Do not attach a drop target to navigation buttons; it can
                 // consume taps. Use the widget's "Mover a página" menu instead.
             }
@@ -2646,7 +2646,7 @@ struct BloomBoxHomeScreen: View {
             // While editing it is a drag *source*, not a competing drop
             // target/context menu. The parent homeItem's onDrag can lift it.
             folderTile
-                .accessibilityLabel("\(folder.name), carpeta movible")
+                .accessibilityLabel(englishUI ? "\(folder.name), movable folder" : "\(folder.name), carpeta movible")
         } else {
             folderTile
                 .contextMenu {
@@ -2671,7 +2671,7 @@ struct BloomBoxHomeScreen: View {
                 .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
                     acceptDrop(providers) { key in layout.put(key, in: folder.id); reconcile() }
                 })
-                .accessibilityLabel("\(folder.name), carpeta, \(folder.apps.count) apps")
+                .accessibilityLabel(englishUI ? "\(folder.name), folder, \(folder.apps.count) apps" : "\(folder.name), carpeta, \(folder.apps.count) apps")
         }
     }
 
