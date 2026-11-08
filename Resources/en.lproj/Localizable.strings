@@ -896,3 +896,9 @@
 "Guardado en el iPhone · .bbtheme" = "Saved on iPhone · .bbtheme";
 "Todavía no se publican temas de la comunidad. Puedes importar y compartir los tuyos." = "No community themes have been published yet. You can still import and share your own themes.";
 "Abrir sitio del autor en el navegador" = "Open developer's website in browser";
+
+/* Final storage totals and manual source management labels. */
+"Total en este contenedor · incluye las apps de abajo" = "Total in this container · includes the apps below";
+"Copiar lista de fuentes" = "Copy sources list";
+"Puedes guardar o compartir los enlaces; no se exportan datos privados ni archivos IPA." = "You can save or share the links; private data and IPA files are not exported.";
+"Pega una fuente AltStore (.json) o el enlace a un elemento de Internet Archive que contenga archivos .ipa." = "Paste an AltStore source (.json) or a link to an Internet Archive item containing .ipa files.";
