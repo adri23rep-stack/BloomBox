@@ -22,6 +22,16 @@ with zipfile.ZipFile(ipa) as archive:
             raise SystemExit(f"Missing essential IPA component: {relative}")
     if not any("/SideStoreApp.framework/" in name for name in entries):
         raise SystemExit("Embedded SideStore app is missing")
+    # Verify the bytes in the IPA itself, not just a successful CI lint of
+    # a source file that Xcode may have excluded from the app.
+    translation_path = app + "en.lproj/Localizable.strings"
+    if translation_path not in entries:
+        raise SystemExit("BloomBox IPA is missing the English language table")
+    english_table = archive.read(translation_path)
+    expected_table = Path("Resources/en.lproj/Localizable.strings").read_bytes()
+    if english_table != expected_table or english_table.count(b" = ") < 700:
+        raise SystemExit("BloomBox IPA does not contain the complete English translations")
+
     # Verify the exact owner-supplied starter theme bytes, not just filenames.
     for theme, sha256 in {
         "KirbyPink": "307754522eedd7d152d9a74e4eb4b881ec0f466c3cdf962834601942ebacfa78",

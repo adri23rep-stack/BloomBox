@@ -13,7 +13,7 @@ struct BloomBoxHomeInstallationNotice: View {
                 ProgressView()
                     .tint(.white)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Instalando aplicación…")
+                    Text(BloomBoxL10n.t("Instalando aplicación…"))
                         .font(.subheadline.weight(.semibold))
                     ProgressView(value: amount, total: 1)
                         .tint(.white)
@@ -31,8 +31,8 @@ struct BloomBoxHomeInstallationNotice: View {
         }
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Instalando aplicación")
-        .accessibilityValue("\(Int(amount * 100)) por ciento")
+        .accessibilityLabel(BloomBoxL10n.t("Instalando aplicación"))
+        .accessibilityValue(BloomBoxL10n.isEnglish ? "\(Int(amount * 100)) percent" : "\(Int(amount * 100)) por ciento")
     }
 }
 
@@ -50,7 +50,7 @@ struct BloomBoxHomeWelcome: View {
                     .font(.system(size: 52, weight: .bold, design: .rounded))
                     .tracking(-2)
                     .shadow(color: .white.opacity(0.25), radius: 23)
-                Text(LocalizedStringKey(message))
+                Text(BloomBoxL10n.t(message))
                     .font(.system(size: 18, weight: .heavy, design: .rounded))
                     .foregroundStyle(Color(red: 1, green: 0.87, blue: 0.38))
                     .shadow(color: .black.opacity(0.5), radius: 8, y: 3)
@@ -96,7 +96,7 @@ struct BloomBoxHomeEditorToolbar: View {
                 Button("Biblioteca de apps", systemImage: "square.grid.2x2",
                        action: openLibrary)
             } label: {
-                Text("Editar")
+                Text(BloomBoxL10n.t("Editar"))
                     .font(.system(size: 16, weight: .semibold))
                     .padding(.horizontal, 18)
                     .frame(minHeight: 44)
@@ -106,7 +106,7 @@ struct BloomBoxHomeEditorToolbar: View {
             .accessibilityIdentifier("bloombox.home.edit")
             Spacer(minLength: 12)
             Button(action: finish) {
-                Text("Listo")
+                Text(BloomBoxL10n.t("Listo"))
                     .font(.system(size: 16, weight: .semibold))
                     .padding(.horizontal, 18)
                     .frame(minHeight: 44)

@@ -84,13 +84,13 @@ struct BloomBoxLauncherRootView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         launcherOption(
-                            title: language == "en" ? "Hybrid · Recommended" : "Híbrido · Recomendado",
-                            detail: language == "en" ? "iOS Home; compatible games enter GameBox automatically." : "Escritorio iOS; los juegos compatibles entran automáticamente en GameBox.",
+                            title: BloomBoxL10n.isEnglish ? "Hybrid · Recommended" : "Híbrido · Recomendado",
+                            detail: BloomBoxL10n.isEnglish ? "iOS Home; compatible games enter GameBox automatically." : "Escritorio iOS; los juegos compatibles entran automáticamente en GameBox.",
                             icon: "square.on.square", value: "hybrid")
-                        launcherOption(title: "iOS Home", detail: "Escritorio, apps y widgets.",
+                        launcherOption(title: "iOS Home", detail: BloomBoxL10n.t("Escritorio, apps y widgets."),
                                        icon: "square.grid.3x3.fill", value: "ios")
                         if #available(iOS 16.0, *) {
-                            launcherOption(title: "GameBox v2", detail: "Interfaz de consola con carátulas, fondos y cristal.",
+                            launcherOption(title: "GameBox v2", detail: BloomBoxL10n.t("Interfaz de consola con carátulas, fondos y cristal."),
                                            icon: "gamecontroller.fill", value: "gamebox")
                         }
                         NavigationLink(destination: BloomBoxDiagnosticsView()) {
@@ -102,7 +102,7 @@ struct BloomBoxLauncherRootView: View {
                         }
                         .buttonStyle(.plain)
                         Toggle(isOn: $showGameBoxShortcut) {
-                            Label(language == "en" ? "Show GameBox button on Home" : "Mostrar botón GameBox en el escritorio",
+                            Label(BloomBoxL10n.isEnglish ? "Show GameBox button on Home" : "Mostrar botón GameBox en el escritorio",
                                   systemImage: "gamecontroller.fill")
                         }
                         .tint(.cyan)
@@ -110,38 +110,38 @@ struct BloomBoxLauncherRootView: View {
                         .background(Color.white.opacity(0.06),
                                     in: RoundedRectangle(cornerRadius: 16))
                         Toggle(isOn: $protectBottomGestures) {
-                            Label(language == "en" ? "Protect bottom-edge gestures" : "Proteger gestos del borde inferior",
+                            Label(BloomBoxL10n.isEnglish ? "Protect bottom-edge gestures" : "Proteger gestos del borde inferior",
                                   systemImage: "hand.draw.fill")
                         }
                         .tint(.cyan)
                         .padding(16)
                         .background(Color.white.opacity(0.06),
                                     in: RoundedRectangle(cornerRadius: 16))
-                        Text(language == "en"
+                        Text(BloomBoxL10n.isEnglish
                              ? "Reduces accidental exits while using BloomBox. iOS may require a second swipe to go Home. You can turn this off anytime."
                              : "Evita salidas accidentales del launcher. iOS puede pedir un segundo deslizamiento para ir al inicio. Puedes desactivarlo cuando quieras.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Toggle(isOn: $autoGameBoxOnController) {
-                            Label("Abrir GameBox al conectar un control", systemImage: "gamecontroller.fill")
+                            Label(BloomBoxL10n.t("Abrir GameBox al conectar un control"), systemImage: "gamecontroller.fill")
                         }
                         .tint(.cyan)
                         .padding(16)
                         .background(Color.white.opacity(0.06),
                                     in: RoundedRectangle(cornerRadius: 16))
-                        Text("La detección funciona al usar BloomBox. iOS no permite abrirla desde cero cuando está cerrada o suspendida.")
+                        Text(BloomBoxL10n.t("La detección funciona al usar BloomBox. iOS no permite abrirla desde cero cuando está cerrada o suspendida."))
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text(language == "en" ? "Your choice is saved per profile. Existing profiles keep their iOS Home setting until you change it." : "Tu selección se guarda por perfil. Los perfiles existentes conservan su inicio iOS hasta que lo cambies.")
+                        Text(BloomBoxL10n.isEnglish ? "Your choice is saved per profile. Existing profiles keep their iOS Home setting until you change it." : "Tu selección se guarda por perfil. Los perfiles existentes conservan su inicio iOS hasta que lo cambies.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                     .padding()
                 }
-                .navigationTitle("Interface")
+                .navigationTitle(BloomBoxL10n.isEnglish ? "Interface" : "Interfaz")
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") { showModeSheet = false }
+                        Button(BloomBoxL10n.isEnglish ? "Done" : "Listo") { showModeSheet = false }
                     }
                 }
             }
@@ -152,7 +152,7 @@ struct BloomBoxLauncherRootView: View {
             sharedModel.selectedTab = .apps
         }) {
             VStack(spacing: 0) {
-                HStack { Spacer(); Button("Done") { showDestination = false }.padding() }
+                HStack { Spacer(); Button(BloomBoxL10n.isEnglish ? "Done" : "Listo") { showDestination = false }.padding() }
                 destinationContent
             }
         }
@@ -161,17 +161,17 @@ struct BloomBoxLauncherRootView: View {
                 BloomBoxDiagnosticsView()
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
-                            Button("Listo") { showDiagnostics = false }
+                            Button(BloomBoxL10n.t("Listo")) { showDiagnostics = false }
                         }
                     }
             }
             .navigationViewStyle(.stack)
         }
-        .alert("GameBox recuperado", isPresented: $showRecoveryNotice) {
-            Button("Ver registro") { showDiagnostics = true }
-            Button("Seguir en inicio", role: .cancel) { }
+        .alert(BloomBoxL10n.t("GameBox recuperado"), isPresented: $showRecoveryNotice) {
+            Button(BloomBoxL10n.t("Ver registro")) { showDiagnostics = true }
+            Button(BloomBoxL10n.t("Seguir en inicio"), role: .cancel) { }
         } message: {
-            Text("La sesión anterior terminó mientras GameBox estaba abierto. BloomBox inició en el escritorio para evitar un ciclo de cierres. Guardamos los últimos pasos para investigar.")
+            Text(BloomBoxL10n.t("La sesión anterior terminó mientras GameBox estaba abierto. BloomBox inició en el escritorio para evitar un ciclo de cierres. Guardamos los últimos pasos para investigar."))
         }
         .onChange(of: sharedModel.selectedTab) { tab in
             if tab == .apps {

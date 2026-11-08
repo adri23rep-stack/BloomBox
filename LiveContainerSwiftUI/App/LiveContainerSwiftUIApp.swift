@@ -133,6 +133,7 @@ struct LiveContainerSwiftUIApp : SwiftUI.App {
             WindowGroup(id: "appView", for: String.self) { $id in
                 if let id {
                     MultitaskAppWindow(id: id)
+                        .environment(\.locale, bloomBoxLocale)
                 }
             }
 

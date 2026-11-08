@@ -63,8 +63,8 @@ struct BloomBoxWidgetMediaPresentation: ViewModifier {
             .confirmationDialog("Foto o GIF para el widget",
                                 isPresented: $sourcePresented,
                                 titleVisibility: .visible) {
-                Button("Elegir de Fotos", action: openPhotos)
-                Button("Importar de Archivos", action: openFiles)
+                Button(BloomBoxL10n.t("Elegir de Fotos"), action: openPhotos)
+                Button(BloomBoxL10n.t("Importar de Archivos"), action: openFiles)
                 Button("Cancelar", role: .cancel, action: cancel)
             }
             .sheet(isPresented: $photoPresented) {
@@ -121,7 +121,7 @@ struct BloomBoxWidgetInteraction<MenuContent: View>: ViewModifier {
                                 .onChanged { _ in select() }
                                 .onEnded { value in move(value.translation) }
                         )
-                        .accessibilityLabel("Arrastrar widget")
+                        .accessibilityLabel(BloomBoxL10n.t("Arrastrar widget"))
                         .accessibilityHint("Usa Opciones para moverlo a otra página")
                 }
             }

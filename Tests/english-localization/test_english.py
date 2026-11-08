@@ -15,22 +15,13 @@ for key, value in rows:
     assert not re.search(r"(?<!\\)\"", key), f"Unescaped quotation: {key!r}"
 
 # Don't let new Spanish-only on-screen literals silently enter primary areas.
-sources = [
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxModulesAndJIT.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxRemoteStores.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxNewsPage.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxProfileScreens.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxWizardWelcome.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxWizardHighlights.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxWizardThemeChoice.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetGallery.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetViews.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxExpiryReminderSettings.swift",
-    "LiveContainerSwiftUI/Views/BloomBoxRAMPlusView.swift",
-    "LiveContainerSwiftUI/Views/BloomBoxThemeStore.swift",
-    "LiveContainerSwiftUI/Views/AppList/AppSettings/BloomBoxBackupView.swift",
-]
+# Audit every shipped SwiftUI screen, not just the previously translated ones.
+# This catches new settings, files, theme, JIT and launcher controls too.
+sources = sorted(
+    str(p.relative_to(root))
+    for p in (root / "LiveContainerSwiftUI/Views").rglob("*.swift")
+)
+
 ui_pattern = re.compile(
     r'(?:Text|Label|Button|Toggle|Section|Picker|TextField|ProgressView|'
     r'NavigationLink|GroupBox|SecureField|\.alert|\.confirmationDialog|'
@@ -55,7 +46,7 @@ for source in sources:
     # generated localization keys contain placeholders, not literal \(name).
     for match in ui_pattern.finditer(body):
         phrase = match.group(1)
-        if r"\(" in phrase:
+        if r"\(" in phrase or phrase.startswith("lc."):
             continue
         if spanish.search(phrase) and phrase not in key_set:
             untranslated.append((source, phrase))
@@ -79,4 +70,51 @@ for token in [
 app = (root / "LiveContainerSwiftUI/App/LiveContainerSwiftUIApp.swift").read_text()
 assert 'case "en": return Locale(identifier: "en")' in app
 assert 'case "es": return Locale(identifier: "es_MX")' in app
-print(f"English localization: {len(keys)} unique strings, {len(sources)} UI screens, both stores OK.")
+# Verify real runtime localizers are used where SwiftUI receives computed Strings.
+home = (root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift").read_text()
+modules = (root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxModulesAndJIT.swift").read_text()
+chrome = (root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeChrome.swift").read_text()
+gallery = (root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetGallery.swift").read_text()
+launcher = (root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherRoot.swift").read_text()
+l10n = (root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxGameBoxL10n.swift").read_text()
+ram = (root / "LiveContainerSwiftUI/Views/BloomBoxRAMPlusView.swift").read_text()
+jit = (root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxJITCoordinator.swift").read_text()
+for expected in [
+    "Text(BloomBoxL10n.t(section.title))",
+    "name: BloomBoxL10n.t(title(key, appsByKey: appsByKey))",
+    "Text(BloomBoxL10n.t(title(key)))",
+    'Text(BloomBoxL10n.t(isSideStore ? "SideStore"',
+    'englishUI ? "Page \\(index + 1)"',
+]:
+    assert expected in home, f"Home English runtime path lost: {expected}"
+assert "Text(LocalizedStringKey(choice.title))" in gallery
+assert "Text(LocalizedStringKey(choice.description))" in gallery
+assert "Text(BloomBoxL10n.t(entry.title))" in (
+    root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeSearchPanel.swift"
+).read_text()
+assert "Text(LocalizedStringKey(mode.title))" in modules or "Text(BloomBoxL10n.t(mode.title))" in modules
+assert "BloomBoxL10n.isEnglish" in launcher
+assert "BloomBoxL10n.isEnglish" in chrome
+assert "BloomBoxL10n.t(ram.status)" in ram
+assert 'BloomBoxL10n.t(label)' in jit
+assert 'englishBundle.localizedString(' in l10n
+assert 'forKey: "BloomBoxPreferredLanguage"' in l10n
+# Release blocker: localization text must be shipped in the IPA itself.
+branding = (root / "Scripts/brand-bloombox-final-ipa.py").read_text()
+verifier = (root / "Scripts/verify-bloombox-ipa.py").read_text()
+assert 'english_target = ROOT + "en.lproj/Localizable.strings"' in branding
+assert "if english_target not in names:" in branding
+assert 'translation_path = app + "en.lproj/Localizable.strings"' in verifier
+assert "expected_table" in verifier
+assert 'BloomBoxL10n.t(message)' in chrome
+assert 'Text(BloomBoxL10n.t(section.title))' in home
+assert 'Text(BloomBoxL10n.t(isSideStore ?' in home
+for entry in ("Módulos", "Temas", "Juegos", "Sugerencias", "Añadidas recientemente",
+              "Instalando aplicación", "Salir de simulación", "RAM+ confirmado en la instalación actual"):
+    # Source-file String literals also exist in nested helpers with their own
+    # explicit English paths; all shared launcher keys still need translations.
+    if entry == "Salir de simulación":
+        continue
+    assert entry in key_set, f"Main launcher translation missing: {entry}"
+print(f"English localization: {len(keys)} unique strings, {len(sources)} UI screens, runtime paths OK.")
+

@@ -448,6 +448,8 @@ jobs:
         run: |
           python3 Scripts/brand-bloombox-final-ipa.py "LiveContainer+SideStore.ipa"
           python3 Scripts/brand-bloombox-final-ipa.py "LiveContainer.ipa"
+      - name: Verify shipped English launcher localization inside IPA
+        run: python3 Tests/english-localization/test_packaged_english.py "LiveContainer+SideStore.ipa"
       - name: Verify Dynamic Island + SideStore IPA contents
         run: python3 Scripts/verify-bloombox-ipa.py "LiveContainer+SideStore.ipa"
 

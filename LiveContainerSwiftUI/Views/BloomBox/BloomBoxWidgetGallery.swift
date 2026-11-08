@@ -81,8 +81,8 @@ struct BloomBoxWidgetGallery: View {
                     .frame(width: 36, height: 36)
                     .foregroundStyle(active ? Color.green : Color.primary)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(choice.title).font(.headline)
-                    Text(choice.description).font(.caption).foregroundStyle(.secondary)
+                    Text(LocalizedStringKey(choice.title)).font(.headline)
+                    Text(LocalizedStringKey(choice.description)).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 4)
                 if active {
@@ -142,7 +142,7 @@ struct BloomBoxWidgetGallery: View {
         default:
             VStack(alignment: .leading, spacing: 9) {
                 Image(systemName: "note.text").font(.title3)
-                Text(note.isEmpty ? "Escribe algo para recordar…" : note)
+                Text(note.isEmpty ? BloomBoxL10n.t("Escribe algo para recordar…") : note)
                     .font(.subheadline)
                     .lineLimit(3)
             }

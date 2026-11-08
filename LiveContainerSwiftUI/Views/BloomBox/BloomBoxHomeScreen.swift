@@ -503,7 +503,7 @@ struct BloomBoxHomeScreen: View {
                         .font(.system(size: 19, weight: .semibold))
                         .foregroundStyle(.white)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(networkNoticeText)
+                        Text(BloomBoxL10n.t(networkNoticeText))
                             .font(.system(size: 14, weight: .semibold))
                         Text("Se aplica al reiniciar BloomBox. Algunas conexiones de iCloud pueden continuar.")
                             .font(.system(size: 11))
@@ -637,14 +637,15 @@ struct BloomBoxHomeScreen: View {
                                             }
                                         }
                                         .accessibilityLabel(index == -1
-                                            ? "Página de widgets" : "Página \(index + 1). Mantén pulsado para eliminarla")
+                                            ? BloomBoxL10n.t("Página de widgets")
+                                            : (englishUI ? "Page \(index + 1). Long-press to delete" : "Página \(index + 1). Mantén pulsado para eliminarla"))
                                         if index == -1 {
                                             Image(systemName: "checkmark.circle.fill")
                                                 .font(.system(size: 29, weight: .light))
                                                 .foregroundStyle(.white)
                                                 .frame(width: 45, height: 42)
                                                 .liveBoardGlass(radius: 22)
-                                                .accessibilityLabel("Página de widgets siempre disponible")
+                                                .accessibilityLabel(BloomBoxL10n.t("Página de widgets siempre disponible"))
                                         } else {
                                             Button { togglePageVisibility(index) } label: {
                                                 Image(systemName: hiddenPageIndices.contains(index)
@@ -656,7 +657,8 @@ struct BloomBoxHomeScreen: View {
                                             }
                                             .buttonStyle(.plain)
                                             .accessibilityLabel(hiddenPageIndices.contains(index)
-                                                ? "Mostrar página \(index + 1)" : "Ocultar página \(index + 1)")
+                                                ? (englishUI ? "Show page \(index + 1)" : "Mostrar página \(index + 1)")
+                                                : (englishUI ? "Hide page \(index + 1)" : "Ocultar página \(index + 1)"))
                                         }
                                     }
                                 }
@@ -754,7 +756,7 @@ struct BloomBoxHomeScreen: View {
                     }
                     .padding(20)
                 }
-                .navigationTitle(section.title)
+                .navigationTitle(BloomBoxL10n.t(section.title))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
@@ -799,8 +801,8 @@ struct BloomBoxHomeScreen: View {
                 pendingAlertTweak = nil
             }
         } message: {
-            Text(pendingAlertTweak?.alertMessage ??
-                 "La app necesita una corrección de compatibilidad para abrir correctamente.")
+            Text(pendingAlertTweak?.localizedAlertMessage(english: englishUI) ??
+                 BloomBoxL10n.t("La app necesita una corrección de compatibilidad para abrir correctamente."))
         }
         .sheet(isPresented: $customizing) { customizeSheet }
         .sheet(isPresented: $iconCustomization) { iconCustomizationSheet }
@@ -847,7 +849,7 @@ struct BloomBoxHomeScreen: View {
         )) {
             Button("Aceptar") { widgetMediaError = nil }
         } message: {
-            Text(widgetMediaError ?? "")
+            Text(BloomBoxL10n.t(widgetMediaError ?? ""))
         }
         .sheet(isPresented: $choosingMotionWallpaperPhotos) {
             BloomBoxMotionWallpaperPhotosPicker { result in
@@ -980,7 +982,7 @@ struct BloomBoxHomeScreen: View {
         return appKeys.map { key in
             BloomBoxAppLibraryPolicy.Entry(
                 key: key,
-                name: title(key, appsByKey: appsByKey),
+                name: BloomBoxL10n.t(title(key, appsByKey: appsByKey)),
                 bundleID: appsByKey[key]?.bundleIdentifier ?? "",
                 isBuiltIn: builtIns.contains(key)
             )
@@ -1035,7 +1037,7 @@ struct BloomBoxHomeScreen: View {
                         ForEach(librarySections) { section in
                             VStack(spacing: 9) {
                                 librarySectionTile(section)
-                                Text(section.title)
+                                Text(BloomBoxL10n.t(section.title))
                                     .font(.system(size: 14, weight: .medium))
                                     .lineLimit(1)
                                     .minimumScaleFactor(0.8)
@@ -1058,7 +1060,7 @@ struct BloomBoxHomeScreen: View {
                             } label: {
                                 HStack(spacing: 14) {
                                     miniatureIcon(key, size: 43)
-                                    Text(title(key))
+                                    Text(BloomBoxL10n.t(title(key)))
                                         .font(.system(size: 17))
                                     Spacer()
                                 }
@@ -1107,7 +1109,7 @@ struct BloomBoxHomeScreen: View {
                     }
                     .frame(width: size, height: size)
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Abrir categoría \(section.title)")
+                    .accessibilityLabel(BloomBoxL10n.isEnglish ? "Open \(BloomBoxL10n.t(section.title))" : "Abrir categoría \(section.title)")
                 }
             }
             .padding(pad)
@@ -1140,7 +1142,7 @@ struct BloomBoxHomeScreen: View {
                     .frame(width: size, height: size)
                     .clipShape(RoundedRectangle(cornerRadius: size * 0.23, style: .continuous))
                 if label {
-                    Text(title(key))
+                    Text(BloomBoxL10n.t(title(key)))
                         .font(.system(size: 12))
                         .lineLimit(1)
                         .foregroundStyle(.white)
@@ -1155,7 +1157,7 @@ struct BloomBoxHomeScreen: View {
             }
         }
         .onDrag { NSItemProvider(object: key as NSString) }
-        .accessibilityLabel("Abrir \(title(key))")
+        .accessibilityLabel(BloomBoxL10n.isEnglish ? "Open \(BloomBoxL10n.t(title(key)))" : "Abrir \(title(key))")
     }
 
 
@@ -1263,7 +1265,7 @@ struct BloomBoxHomeScreen: View {
                 TimelineView(.periodic(from: .now, by: 60)) { timeline in
                     VStack(spacing: 9) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Reloj")
+                            Text(BloomBoxL10n.t("Reloj"))
                                 .font(.system(size: 9, weight: .medium))
                                 .foregroundStyle(.white.opacity(0.85))
                             Text(timeline.date, format: .dateTime.hour().minute())
@@ -1294,7 +1296,7 @@ struct BloomBoxHomeScreen: View {
                             .clipShape(RoundedRectangle(cornerRadius: 13))
                             VStack(alignment: .leading, spacing: 6) {
                                 Image(systemName: "note.text")
-                                Text(miniatureNote.isEmpty ? "Notas" : miniatureNote)
+                                Text(miniatureNote.isEmpty ? BloomBoxL10n.t("Notas") : miniatureNote)
                                     .lineLimit(3)
                             }
                             .font(.system(size: 9))
@@ -2085,7 +2087,7 @@ struct BloomBoxHomeScreen: View {
                 ForEach(appKeys.filter { appMap[$0] != nil }.sorted {
                     title($0).localizedCaseInsensitiveCompare(title($1)) == .orderedAscending
                 }, id: \.self) { key in
-                    Button(title(key)) {
+                    Button(BloomBoxL10n.t(title(key))) {
                         updateWidget(widget.id) { $0.tapActionKey = key }
                     }
                 }
@@ -2118,7 +2120,8 @@ struct BloomBoxHomeScreen: View {
             Button("Cambiar imagen o GIF", systemImage: "photo.badge.plus") {
                 requestWidgetMedia(for: widget.id)
             }
-            Button(widget.fill ? "Mostrar imagen completa" : "Rellenar widget",
+            Button(englishUI ? (widget.fill ? "Show full image" : "Fill widget")
+                             : (widget.fill ? "Mostrar imagen completa" : "Rellenar widget"),
                    systemImage: "arrow.up.left.and.arrow.down.right") {
                 updateWidget(widget.id) { $0.fill.toggle() }
             }
@@ -2220,7 +2223,7 @@ struct BloomBoxHomeScreen: View {
         }
         Menu("Mover a página", systemImage: "rectangle.on.rectangle") {
             ForEach(layout.pages.indices, id: \.self) { target in
-                Button("Página \(target + 1)") {
+                Button(englishUI ? "Page \(target + 1)" : "Página \(target + 1)") {
                     movePlacedWidget(widget.id, to: target, slot: nil)
                 }.disabled(target == index)
             }
@@ -2313,7 +2316,7 @@ struct BloomBoxHomeScreen: View {
                 .offset(x: -7, y: -8)
                 .zIndex(2)
                 .transition(reduceMotion ? .opacity : .scale(scale: 0.7).combined(with: .opacity))
-                .accessibilityLabel("Opciones para quitar \(title(key))")
+                .accessibilityLabel(BloomBoxL10n.isEnglish ? "Remove options for \(BloomBoxL10n.t(title(key)))" : "Opciones para quitar \(title(key))")
             }
         }
         .onDrag { NSItemProvider(object: key as NSString) }
@@ -2364,7 +2367,7 @@ struct BloomBoxHomeScreen: View {
                 .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
                          phase: isSideStore ? 0.7 : 2.1))
                 if showLabel {
-                    Text(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : isModules ? "Módulos" : isThemes ? "Temas" : "Instalar app")
+                    Text(BloomBoxL10n.t(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : isModules ? "Módulos" : isThemes ? "Temas" : "Instalar app"))
                         .font(.system(size: 12))
                         .lineLimit(1)
                         .foregroundStyle(.white)
@@ -2387,7 +2390,7 @@ struct BloomBoxHomeScreen: View {
             }
             Menu("Mover a página", systemImage: "rectangle.on.rectangle") {
                 ForEach(layout.pages.indices, id: \.self) { index in
-                    Button("Página \(index + 1)") {
+                    Button(englishUI ? "Page \(index + 1)" : "Página \(index + 1)") {
                         layout.place(key, on: index); page = index + 1; reconcile()
                     }
                 }
@@ -2411,7 +2414,7 @@ struct BloomBoxHomeScreen: View {
                 }
             }
         }
-        .accessibilityLabel(isThemes ? "Temas" : title(key))
+        .accessibilityLabel(BloomBoxL10n.t(isThemes ? "Temas" : title(key)))
     }
 
     private func appMenu(_ key: String, app: LCAppModel) -> some View {
@@ -2460,8 +2463,8 @@ struct BloomBoxHomeScreen: View {
                 let name = guest.displayName
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                     showNetworkNotice(blocked
-                        ? "«\(name)» ya no contará con acceso a Internet."
-                        : "«\(name)» volverá a tener acceso a Internet.")
+                        ? (englishUI ? "Internet disabled for «\(name)»." : "«\(name)» ya no contará con acceso a Internet.")
+                        : (englishUI ? "Internet restored for «\(name)»." : "«\(name)» volverá a tener acceso a Internet."))
                 }
             },
             addTweak: {
@@ -2541,7 +2544,7 @@ struct BloomBoxHomeScreen: View {
     private var pageControl: some View {
         HStack(spacing: 5) {
             Button { page = 1 } label: { Image(systemName: "house.fill").frame(width: 32, height: 32) }
-                .accessibilityLabel("Pantalla de inicio")
+                .accessibilityLabel(englishUI ? "Home Screen" : "Pantalla de inicio")
             Button { beginSearch() } label: {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 12, weight: .semibold)).frame(width: 28, height: 32)
@@ -2558,7 +2561,7 @@ struct BloomBoxHomeScreen: View {
                         .frame(width: 27, height: 40)
                         .contentShape(Rectangle())
                 }
-                .accessibilityLabel(index == 0 ? "Widgets" : "Página \(index)")
+                .accessibilityLabel(index == 0 ? "Widgets" : (englishUI ? "Page \(index)" : "Página \(index)"))
                 // Do not attach a drop target to navigation buttons; it can
                 // consume taps. Use the widget's "Mover a página" menu instead.
             }
@@ -2572,7 +2575,7 @@ struct BloomBoxHomeScreen: View {
                     .foregroundStyle(.white.opacity(page == libraryPageIndex ? 1 : 0.55))
                     .frame(width: 21, height: 32)
             }
-            .accessibilityLabel("Biblioteca de apps")
+            .accessibilityLabel(BloomBoxL10n.t("Biblioteca de apps"))
             if editing {
                 Button { pageManager = true } label: {
                     Image(systemName: "rectangle.stack")
@@ -2646,7 +2649,7 @@ struct BloomBoxHomeScreen: View {
             // While editing it is a drag *source*, not a competing drop
             // target/context menu. The parent homeItem's onDrag can lift it.
             folderTile
-                .accessibilityLabel("\(folder.name), carpeta movible")
+                .accessibilityLabel(englishUI ? "\(folder.name), movable folder" : "\(folder.name), carpeta movible")
         } else {
             folderTile
                 .contextMenu {
@@ -2656,7 +2659,7 @@ struct BloomBoxHomeScreen: View {
                     }
                     Menu("Mover a página") {
                         ForEach(layout.pages.indices, id: \.self) { index in
-                            Button("Página \(index + 1)") {
+                            Button(englishUI ? "Page \(index + 1)" : "Página \(index + 1)") {
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
                                     layout.place(folder.id, on: index)
                                     reconcile()
@@ -2671,7 +2674,7 @@ struct BloomBoxHomeScreen: View {
                 .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
                     acceptDrop(providers) { key in layout.put(key, in: folder.id); reconcile() }
                 })
-                .accessibilityLabel("\(folder.name), carpeta, \(folder.apps.count) apps")
+                .accessibilityLabel(englishUI ? "\(folder.name), folder, \(folder.apps.count) apps" : "\(folder.name), carpeta, \(folder.apps.count) apps")
         }
     }
 

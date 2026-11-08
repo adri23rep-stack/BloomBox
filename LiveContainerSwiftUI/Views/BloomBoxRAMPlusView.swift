@@ -326,7 +326,7 @@ struct BloomBoxRAMPlusView: View {
                     showWarning = ram.needsAttention
                 }))
                 .accessibilityIdentifier("bloombox.modules.ram.activate")
-                Label(ram.status.loc, systemImage: ram.validation.confirmed ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                Label(BloomBoxL10n.t(ram.status), systemImage: ram.validation.confirmed ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
                     .foregroundStyle(ram.validation.confirmed ? Color.green : Color.orange)
                 if ram.needsAttention {
                     Text("El switch está encendido, pero RAM+ todavía no está confirmada. Completa la activación y vuelve a comprobar.")

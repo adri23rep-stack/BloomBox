@@ -25,6 +25,8 @@ struct BloomBoxTweakEntry: Codable, Identifiable {
     let alertLevel: Int?
     let alertTitle: String?
     let alertMessage: String?
+    let alertTitleEn: String?
+    let alertMessageEn: String?
     let bundleID: String?
     let supportedApps: [BloomBoxTweakTarget]?
     let minAppVersion: String?
@@ -57,6 +59,14 @@ struct BloomBoxTweakEntry: Codable, Identifiable {
         english ? (descriptionEn ?? description ?? "Compatibility fix") : (description ?? "Corrección de compatibilidad")
     }
     func localizedNotes(english: Bool) -> String? { english ? (notesEn ?? notes) : notes }
+
+    func localizedAlertMessage(english: Bool) -> String? {
+        english ? (alertMessageEn ?? alertMessage.map(BloomBoxL10n.t)) : alertMessage
+    }
+
+    func localizedAlertTitle(english: Bool) -> String? {
+        english ? (alertTitleEn ?? alertTitle.map(BloomBoxL10n.t)) : alertTitle
+    }
 
     var projectLinkLabel: String {
         guard let url = officialProjectURL else { return "Sitio del autor" }
