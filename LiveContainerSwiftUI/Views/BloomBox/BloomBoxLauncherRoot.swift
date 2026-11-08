@@ -39,6 +39,15 @@ struct BloomBoxLauncherRootView: View {
     }
 
     var body: some View {
+        if #available(iOS 16.0, *) {
+            launcherContent
+                .defersSystemGestures(on: protectBottomGestures ? .bottom : [])
+        } else {
+            launcherContent
+        }
+    }
+
+    private var launcherContent: some View {
         Group {
             if ready {
                 LCAppListView(openInterface: { showModeSheet = true })
@@ -48,7 +57,6 @@ struct BloomBoxLauncherRootView: View {
             }
         }
         .environment(\.locale, locale)
-        .defersSystemGestures(on: protectBottomGestures ? .bottom : [])
         .overlay(alignment: .top) {
             if let introProfile, wizardCompleted, !showFirstRunWizard {
                 BloomBoxActiveProfileIntro(profile: introProfile) {
