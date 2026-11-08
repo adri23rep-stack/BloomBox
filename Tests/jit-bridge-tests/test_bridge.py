@@ -34,6 +34,7 @@ assert 'case disabled, synchronized, alreadyCurrent, olderSource, invalidSource,
 assert 'bloombox.jit.checkPairingSync' in setup
 assert 'Last verified match' in setup
 assert 'lastPairingVerified' in setup
+assert "LabeledContent(" not in setup, "JIT setup must build on iOS 15 target"
 # New front-page activation has a real, persisted Built-in launch gate.
 assert '"BloomBoxJITMainEnabled"' in setup
 assert 'bloombox.jit.mainEnabled' in setup
