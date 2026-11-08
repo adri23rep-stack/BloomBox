@@ -88,7 +88,8 @@ final class BloomBoxAutoUpdate: ObservableObject {
             case .offerOnly:
                 status = localized("Última versión estable: \(asset.tag). Esta instalación no tiene una versión BloomBox verificable; actualiza manualmente.",
                                    "Latest stable: \(asset.tag). This build has no verified BloomBox version; update manually.")
-                notifyOnce(tag: asset.tag)
+                // An unstamped development build may be newer than this release.
+                // Do not claim it has an update until its installed tag is known.
             case .eligible:
                 status = localized("Actualización disponible: \(asset.tag)", "Update available: \(asset.tag)")
                 notifyOnce(tag: asset.tag)
@@ -233,10 +234,18 @@ struct BloomBoxAutoUpdateSettingsView: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent(english ? "Installed BloomBox version" : "Versión instalada de BloomBox",
-                               value: Bundle.main.object(forInfoDictionaryKey: "BloomBoxReleaseTag") as? String ?? "Legacy / Dev")
+                HStack {
+                    Text(english ? "Installed BloomBox version" : "Versión instalada de BloomBox")
+                    Spacer()
+                    Text(Bundle.main.object(forInfoDictionaryKey: "BloomBoxReleaseTag") as? String ?? "Legacy / Dev")
+                        .foregroundStyle(.secondary)
+                }
                 if let tag = updater.offeredTag {
-                    LabeledContent(english ? "Latest stable release" : "Última versión estable", value: tag)
+                    HStack {
+                        Text(english ? "Latest stable release" : "Última versión estable")
+                        Spacer()
+                        Text(tag).foregroundStyle(.secondary)
+                    }
                 }
                 Label(updater.status, systemImage: "arrow.triangle.2.circlepath")
                     .font(.footnote)
