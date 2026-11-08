@@ -11,7 +11,7 @@
   },
   "tmp/SideStore.ipa": {
     "url": "https://github.com/LiveContainer/SideStore/releases/download/nightly/SideStore.ipa",
-    "sha256": "f9d2d9af51285dcbdece08c51aadc02e8a2d756da6ca8dfca16724c801ae2fcd",
+    "sha256": "f65f5a5e1adca962e663563bc8ade90f64da98dd7f1d1b51f2d5b33002ced00e",
     "max_bytes": 50000000
   },
   "dylibify": {
