@@ -60,7 +60,12 @@ final class BloomBoxAutoUpdate: ObservableObject {
     func checkIfDue(force: Bool = false) async {
         guard UIApplication.shared.applicationState == .active, !busy else { return }
         let last = defaults.object(forKey: "BloomBoxAutoUpdateLastCheck") as? Date ?? .distantPast
-        if !force && Date().timeIntervalSince(last) < checkInterval { return }
+        // A fresh process always checks; a resumed process can finish an update
+        // prepared earlier instead of silently waiting another six hours.
+        if !force && currentAsset != nil && Date().timeIntervalSince(last) < checkInterval {
+            await installAutomaticallyIfPossible()
+            return
+        }
         busy = true
         status = localized("Buscando actualizaciones…", "Checking for updates…")
         defer { busy = false }
