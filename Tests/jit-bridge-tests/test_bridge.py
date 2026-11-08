@@ -26,5 +26,4 @@ for preserved in ('providerChooser', 'Replace pairing file', 'Remove pairing fil
 assert 'BloomBoxJITPairingSync.synchronize()' in coordinator
 assert 'try storage.save(bytes)' in coordinator
 assert 'if let destinationDate, candidate.date < destinationDate' in coordinator
-assert 'Pairing' not in coordinator.split('private static func saveLaunchStatus', 1)[1].split('static func enable', 1)[0] or True
 print("BloomBox JIT cross-language IPC, principal class and guarded hook match")
