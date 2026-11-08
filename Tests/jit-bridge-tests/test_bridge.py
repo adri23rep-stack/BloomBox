@@ -25,5 +25,9 @@ for preserved in ('providerChooser', 'Replace pairing file', 'Remove pairing fil
     assert preserved in setup, preserved
 assert 'BloomBoxJITPairingSync.synchronize()' in coordinator
 assert 'try storage.save(bytes)' in coordinator
+# The bundled SideStore stores RemoteRP pairing under the guest Documents folder.
+assert '"PairingFile_RemoteRP.plist"' in coordinator
+assert '"Documents/SideStore/Documents"' in coordinator
+assert 'name == "PairingFile_RemoteRP.plist" || folder.lowercased().contains("sidestore")' in coordinator
 assert 'if let destinationDate, candidate.date < destinationDate' in coordinator
 print("BloomBox JIT cross-language IPC, principal class and guarded hook match")
