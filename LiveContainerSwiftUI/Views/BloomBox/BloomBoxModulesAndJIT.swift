@@ -89,6 +89,9 @@ struct BloomBoxModulesPanel: View {
         BloomBoxProfileTheme.color(activeID: themeActiveID, profilesData: themeProfilesData)
     }
     @State private var showWizardPreview = false
+    @State private var showJITDemo = false
+    @AppStorage("BloomBoxJITDemoUnconfigured", store: LCUtils.appGroupUserDefault)
+    private var jitDemoUnconfigured = false
     @AppStorage("BloomBoxWizardPreviewAppearanceV1", store: LCUtils.appGroupUserDefault)
     private var wizardPreviewAppearance = "system"
 
@@ -420,6 +423,23 @@ struct BloomBoxModulesPanel: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Divider()
+                    Button {
+                        // This only controls the onboarding rehearsal screen.
+                        // Do not clear pairing, disable JIT, change provider or touch VPN.
+                        jitDemoUnconfigured = true
+                        showJITDemo = true
+                    } label: {
+                        Label(englishUI ? "Preview JIT first-time setup" : "Simular JIT sin activar",
+                              systemImage: "video.badge.waveform")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .accessibilityIdentifier("bloombox.experiments.jit.demo")
+                    Text(englishUI
+                         ? "Opens the new JIT screen as if setup were missing, ready for your tutorial video. Does not change the real pairing, JIT, VPN or app settings. Use 'Exit demo mode' to restore the real view."
+                         : "Abre la nueva pantalla JIT como si todavía no estuviera configurada para grabar tu video. No cambia el pairing, JIT ni VPN reales. Pulsa «Salir de simulación» para volver a la vista normal.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Divider()
                     Toggle("Usar pantalla JIT anterior", isOn: $legacyJITUI)
                         .tint(.purple)
                         .accessibilityIdentifier("bloombox.experiments.jitLegacyUI.toggle")
@@ -476,6 +496,12 @@ struct BloomBoxModulesPanel: View {
         .background(moduleBackdrop)
         .navigationTitle(module.title)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showJITDemo, onDismiss: {
+            // No persistent "unconfigured" state after the recording closes.
+            jitDemoUnconfigured = false
+        }) {
+            LiveBoardJITSetup()
+        }
     }
 
     private func detailDescription(_ module: Module) -> String {

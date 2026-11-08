@@ -2,6 +2,123 @@ import Foundation
 import Combine
 import SwiftUI
 
+
+/** Best-effort, read-only discovery of the bundled signer's remote pairing file.
+    Only validated records are copied into BloomBox's existing JIT storage.
+    Never inspect guest app containers, expose pairing bytes in logs, or delete the source.
+    If SideStore keeps its record in an inaccessible container, manual import remains available. */
+@MainActor
+enum BloomBoxJITPairingSync {
+    static let preferenceKey = "BloomBoxJITSyncWithSideStore"
+    static let lastVerifiedKey = "BloomBoxJITSideStorePairingLastVerified"
+
+    enum Result {
+        case disabled, synchronized, alreadyCurrent, olderSource, invalidSource, unreadableSource, unavailable
+    }
+
+    static var enabled: Bool {
+        let defaults = LCUtils.appGroupUserDefault
+        return defaults.object(forKey: preferenceKey) == nil || defaults.bool(forKey: preferenceKey)
+    }
+
+    static func synchronize() -> Result {
+        guard enabled else { return .disabled }
+        let fileManager = FileManager.default
+        let storage = BloomBoxJITPairingStorage()
+        let destination = storage.pairingURL.standardizedFileURL
+        let existing = try? storage.load()
+        let destinationDate = (try? destination.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+
+        // The bundled SideStore and BloomBox can sometimes access the same app group.
+        // Also check only the host's own Documents/Application Support locations.
+        var roots: [URL] = []
+        if let group = LCSharedUtils.appGroupID(),
+           let url = fileManager.containerURL(forSecurityApplicationGroupIdentifier: group) {
+            roots.append(url)
+        }
+        // LiveContainer's built-in SideStore runs inside its own virtual
+        // Documents/SideStore home. LCPath.docPath is the canonical host
+        // Documents folder and may differ from Foundation's process directory.
+        // Search only the known SideStore document location under each root.
+        roots.append(LCPath.docPath)
+        roots.append(LCPath.lcGroupDocPath)
+        roots.append(LCPath.lcGroupDocPath.deletingLastPathComponent())
+        if let home = ProcessInfo.processInfo.environment["LC_HOME_PATH"], !home.isEmpty {
+            roots.append(URL(fileURLWithPath: home).appendingPathComponent("Documents", isDirectory: true))
+        }
+        if let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            roots.append(documents.deletingLastPathComponent())
+        }
+
+        let folders = [
+            "", "Documents", "SideStore", "SideStore/Documents",
+            "Documents/SideStore", "Documents/SideStore/Documents",
+            "Library/Application Support", "Library/Application Support/SideStore",
+            "Library/Application Support/AltStore", "Library/SideStore",
+            "Application Support/SideStore"
+        ]
+        let names = [
+            // SideStore (2026) stores the remote protocol separately from USB lockdown.
+            "PairingFile_RemoteRP.plist",
+            "pairingFile.plist", "PairingFile.plist", "pairing.plist",
+            "RPPairing.plist", "ALTPairingFile.plist", "pairingFile"
+        ]
+        var found: [(url: URL, date: Date)] = []
+        var sawUnreadable = false
+        var visited = Set<String>()
+        for root in roots {
+            for folder in folders {
+                let base = folder.isEmpty ? root : root.appendingPathComponent(folder, isDirectory: true)
+                for name in names {
+                    // Legacy generic filenames are trusted only inside SideStore-owned folders.
+                    guard name == "PairingFile_RemoteRP.plist" || folder.lowercased().contains("sidestore") else { continue }
+                    let url = base.appendingPathComponent(name).standardizedFileURL
+                    guard url != destination, visited.insert(url.path).inserted else { continue }
+                    do {
+                        let details = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey])
+                        guard details.isRegularFile == true,
+                              let size = details.fileSize, size > 0, size <= 512 * 1024 else { continue }
+                        found.append((url, details.contentModificationDate ?? .distantPast))
+                    } catch {
+                        // A missing file is normal. Only signal a read error if
+                        // the file is visible but permissions block access.
+                        if fileManager.fileExists(atPath: url.path) { sawUnreadable = true }
+                    }
+                }
+            }
+        }
+        // The most recently saved valid SideStore record wins. Never replace a
+        // newer, functional BloomBox record with an older copy found on disk.
+        var sawOlder = false
+        var sawInvalid = false
+        for candidate in found.sorted(by: { $0.date > $1.date }) {
+            guard let bytes = try? Data(contentsOf: candidate.url, options: .mappedIfSafe) else {
+                sawUnreadable = true
+                continue
+            }
+            if let existing, existing == bytes {
+                LCUtils.appGroupUserDefault.set(Date(), forKey: lastVerifiedKey)
+                return .alreadyCurrent
+            }
+            if let destinationDate, candidate.date < destinationDate {
+                sawOlder = true
+                continue
+            }
+            do {
+                try storage.save(bytes) // Existing storage validates the remote pairing.
+                LCUtils.appGroupUserDefault.set(Date(), forKey: lastVerifiedKey)
+                return .synchronized
+            } catch {
+                sawInvalid = true // Keep the working JIT record untouched.
+            }
+        }
+        if sawInvalid { return .invalidSource }
+        if sawOlder { return .olderSource }
+        if sawUnreadable { return .unreadableSource }
+        return .unavailable
+    }
+}
+
 @MainActor
 enum BloomBoxBuiltInJIT {
     private static var busy = false
@@ -63,6 +180,9 @@ enum BloomBoxBuiltInJIT {
         busy = true
         defer { busy = false }
         guard operation == "enable" || LCUtils.bloomBoxCanDebug() else { report("This installation lacks debugging permission (get-task-allow). Re-sign using a compatible signing method."); return false }
+        // Refresh a changed SideStore pairing before every preparation or JIT launch.
+        // Failing to discover a shared source never invalidates an existing record.
+        _ = BloomBoxJITPairingSync.synchronize()
         let data: Data
         do { data = try BloomBoxJITPairingStorage().load() }
         catch { report(error.localizedDescription); return false }

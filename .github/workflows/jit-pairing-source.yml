@@ -1,0 +1,28 @@
+name: JIT pairing source checks
+
+on:
+  push:
+    branches:
+      - feature/jit-pairing-simple-advanced-20261107
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  pairing-source:
+    name: Parse JIT source and verify the bridge
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test JIT bridge and pairing UI contracts
+        run: python3 Tests/jit-bridge-tests/test_bridge.py
+      - name: Check Dock layout and bottom-edge gesture contracts
+        run: python3 Tests/home-dock-gesture-tests/test_dock_gesture.py
+      - name: Parse modified Swift files without downloading third-party binaries
+        run: |
+          xcrun swiftc -frontend -parse LiveContainerSwiftUI/Views/BloomBox/BloomBoxJITSetup.swift
+          xcrun swiftc -frontend -parse LiveContainerSwiftUI/Views/BloomBox/BloomBoxJITCoordinator.swift
+          xcrun swiftc -frontend -parse LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift
+          xcrun swiftc -frontend -parse LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherRoot.swift
+          xcrun swiftc -frontend -parse LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherVisuals.swift

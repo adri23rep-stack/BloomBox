@@ -292,18 +292,19 @@ struct BloomBoxHomeScreen: View {
                         .tag(0)
                     ForEach(visiblePageIndices, id: \.self) { index in
                         ZStack(alignment: .bottom) {
+                            // Reserve the real height of page controls + Dock. Negative
+                            // Dock padding used to push its glass outside its layout.
                             homePage(index,
                                      width: geometry.size.width,
-                                     height: max(400, geometry.size.height - 146))
-                                .padding(.bottom, 146)
+                                     height: max(400, geometry.size.height - (largeIcons ? 178 : 164)))
+                                .padding(.bottom, largeIcons ? 178 : 164)
                             VStack(spacing: 0) {
                                 pageControl
-                                    .padding(.bottom, 18)
+                                    .padding(.bottom, 12)
                                 dock(width: geometry.size.width, homePageIndex: index)
                                     .padding(.horizontal, 12)
-                                    .padding(.bottom, -22)
                             }
-                            .padding(.bottom, 8)
+                            .padding(.bottom, 4)
                         }
                         .frame(width: geometry.size.width, height: geometry.size.height)
                         .tag(index + 1)
@@ -2502,7 +2503,10 @@ struct BloomBoxHomeScreen: View {
     }
 
     private func dock(width: CGFloat, homePageIndex: Int) -> some View {
-        HStack(spacing: 0) {
+        let panelWidth = max(240, width - 24)
+        let panelHeight: CGFloat = largeIcons ? 112 : 102
+        let cellWidth = (panelWidth - 16) / 4
+        return HStack(spacing: 0) {
             ForEach(0..<4, id: \.self) { slot in
                 ZStack {
                     if layout.dock.indices.contains(slot) {
@@ -2511,10 +2515,10 @@ struct BloomBoxHomeScreen: View {
                                  delay: 0.69 + Double(slot) * 0.16, key: layout.dock[slot]))
                     } else {
                         Color.clear
-                            .frame(width: largeIcons ? 76 : 64, height: largeIcons ? 76 : 80)
+                            .frame(width: largeIcons ? 76 : 64, height: largeIcons ? 76 : 64)
                     }
                 }
-                .frame(width: (width - 32) / 4, height: 110)
+                .frame(width: cellWidth, height: panelHeight)
                 .contentShape(Rectangle())
                 .onDrop(of: [UTType.text], delegate: LiveBoardMoveDropDelegate { providers in
                     acceptDrop(providers) { key in
@@ -2527,10 +2531,10 @@ struct BloomBoxHomeScreen: View {
                 .accessibilityIdentifier("home.dock.slot.\(slot)")
             }
         }
-        .frame(height: 110)
-        .frame(maxWidth: .infinity)
-        .liveBoardGlass(radius: 34, interactive: false)
-        .contentShape(RoundedRectangle(cornerRadius: 34))
+        .padding(.horizontal, 8)
+        .frame(width: panelWidth, height: panelHeight)
+        .bloomBoxHomeDockGlass(radius: 33)
+        .contentShape(RoundedRectangle(cornerRadius: 33))
         .accessibilityIdentifier("home.dock")
     }
 

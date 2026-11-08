@@ -197,6 +197,38 @@ extension View {
     }
 }
 
+/// A deliberately more legible Dock material. The generic .clear glass lets
+/// detailed wallpapers distort through the icons, making the Dock look broken.
+private struct BloomBoxHomeDockGlassSurface: ViewModifier {
+    let radius: CGFloat
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        if reduceTransparency {
+            content
+                .background(Color(white: 0.13).opacity(0.95), in: shape)
+                .overlay(shape.strokeBorder(.white.opacity(0.28), lineWidth: 1))
+        } else if #available(iOS 26.0, *) {
+            content
+                .background(Color.black.opacity(0.16), in: shape)
+                .glassEffect(.regular.interactive(false), in: shape)
+                .overlay(shape.strokeBorder(.white.opacity(0.24), lineWidth: 0.9))
+        } else {
+            content
+                .background(.ultraThinMaterial, in: shape)
+                .overlay(shape.strokeBorder(.white.opacity(0.23), lineWidth: 0.9))
+        }
+    }
+}
+
+extension View {
+    func bloomBoxHomeDockGlass(radius: CGFloat = 33) -> some View {
+        modifier(BloomBoxHomeDockGlassSurface(radius: radius))
+    }
+}
+
+
 /// Explicit move proposal prevents iOS from advertising a green copy (+) badge
 /// while rearranging an icon over Home, Dock, page controls or folders.
 struct LiveBoardMoveDropDelegate: DropDelegate {

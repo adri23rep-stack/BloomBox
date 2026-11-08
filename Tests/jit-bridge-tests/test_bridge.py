@@ -13,4 +13,66 @@ assert "'NSExtensionPrincipalClass': 'BloomBoxJITRequestHandler'" in embed
 for stale in ('@"StrataJITRequestHandler"', 'launchOptions[@"strataJIT"]'):
     assert stale not in hook, "Stale extension bridge: " + stale
 assert "if (!class) return;" in hook and "if (!method) return;" in hook
+# The simple pairing screen must keep the original expert controls accessible.
+setup = (root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxJITSetup.swift").read_text()
+coordinator = (root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxJITCoordinator.swift").read_text()
+assert 'bloombox.jit.automaticPairing' in setup
+assert 'bloombox.jit.advancedOptions' in setup
+assert 'private var advancedJITForm' in setup
+for preserved in ('providerChooser', 'Replace pairing file', 'Remove pairing file',
+                  'Remote Pairing port', 'Reset developer disk image cache',
+                  'LCJITLessDiagnoseView', 'sharePrivateDataWithLiveProcess'):
+    assert preserved in setup, preserved
+assert 'BloomBoxJITPairingSync.synchronize()' in coordinator
+assert 'try storage.save(bytes)' in coordinator
+# The bundled SideStore stores RemoteRP pairing under the guest Documents folder.
+assert '"PairingFile_RemoteRP.plist"' in coordinator
+assert '"Documents/SideStore/Documents"' in coordinator
+assert "roots.append(LCPath.docPath)" in coordinator, "Must search built-in SideStore's host Documents"
+assert 'BloomBoxJITSideStorePairingLastVerified' in coordinator
+assert 'case disabled, synchronized, alreadyCurrent, olderSource, invalidSource, unreadableSource, unavailable' in coordinator
+assert 'bloombox.jit.checkPairingSync' in setup
+assert 'Last verified match' in setup
+assert 'lastPairingVerified' in setup
+assert "LabeledContent(" not in setup, "JIT setup must build on iOS 15 target"
+# New front-page activation has a real, persisted Built-in launch gate.
+assert '"BloomBoxJITMainEnabled"' in setup
+assert 'bloombox.jit.mainEnabled' in setup
+assert 'mainJITEnabled = enabled' in setup
+assert 'if enabled { provider = JITEnablerType.BuiltIn.rawValue }' in setup
+app_model = (root / "LiveContainerSwiftUI/Models/LCAppModel.swift").read_text()
+assert '"BloomBoxJITMainEnabled"' in app_model
+assert 'let wantsJIT = integratedJITAllowed && BloomBoxJITGuestPolicy.wantsJIT(' in app_model
+assert 'if !integratedJITAllowed && forceJIT == true' in app_model
+assert 'let builtInProvider = defaults.integer(forKey: "LCJITEnablerType")' in app_model
+# Experimental demo is a preview only: do not wipe pairing or alter real JIT.
+modules = (root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxModulesAndJIT.swift").read_text()
+assert 'bloombox.experiments.jit.demo' in modules
+assert 'jitDemoUnconfigured = true' in modules
+assert 'showJITDemo = true' in modules
+assert 'bloombox.jit.demo.exit' in setup
+assert 'if demoUnconfigured {' in setup
+assert 'syncMessage = nil' in setup
+assert '.disabled(demoUnconfigured)' in setup
+assert 'demoUnconfigured ? demoSwitchOn' in setup
+# Full recording walkthrough must expose all real-world setup phases as
+# interactive simulated steps, with a totally separate in-memory state.
+assert "private struct BloomBoxJITRecordingFlow: View" in setup
+assert "if demoUnconfigured {" in setup and "BloomBoxJITRecordingFlow(englishUI: englishUI)" in setup
+for item in ("bloombox.jit.demo.activate", "bloombox.jit.demo.setupGuide",
+             "bloombox.jit.demo.startPairing", "bloombox.jit.demo.confirmPairing",
+             "bloombox.jit.demo.confirmVPN", "bloombox.jit.demo.wizard.prepare",
+             "bloombox.jit.demo.restart", "bloombox.jit.demo.advanced",
+             "bloombox.jit.demo.exit", "checkingReachability",
+             "private var advancedScreen", "private var demoDiagnostics"):
+    assert item in setup, item
+assert "no real debugger is run" in setup
+assert "if case .success = result" in setup
+assert "try LiveBoardBuiltInJIT.importPairing(selected)" in setup, "Real import must remain"
+assert "guard !demoUnconfigured else { return }" in setup
+assert 'private var pairingSwitch: Binding<Bool>' in setup
+assert 'selectedProvider = JITEnablerType.BuiltIn.rawValue' in setup
+assert "jitDemoUnconfigured = false" in modules, "Dismiss must restore normal screen"
+assert 'name == "PairingFile_RemoteRP.plist" || folder.lowercased().contains("sidestore")' in coordinator
+assert 'if let destinationDate, candidate.date < destinationDate' in coordinator
 print("BloomBox JIT cross-language IPC, principal class and guarded hook match")

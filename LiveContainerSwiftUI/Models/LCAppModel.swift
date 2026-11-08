@@ -280,7 +280,16 @@ class LCAppModel: ObservableObject, Hashable {
             throw "El JIT está desactivado para esta app en Módulos > Experimental. Cambia la política de la app para usar Launch with JIT."
         }
         let builtInProvider = defaults.integer(forKey: "LCJITEnablerType") == JITEnablerType.BuiltIn.rawValue
-        let wantsJIT = BloomBoxJITGuestPolicy.wantsJIT(
+        // New global Built-in JIT switch is ON by default for existing installs.
+        // It gates the next JIT launch, never kills a running guest or alters
+        // external StikDebug providers. The recording preview is UI-only.
+        let integratedJITAllowed = !builtInProvider ||
+            defaults.object(forKey: "BloomBoxJITMainEnabled") == nil ||
+            defaults.bool(forKey: "BloomBoxJITMainEnabled")
+        if !integratedJITAllowed && forceJIT == true {
+            throw "Activa JIT en Módulos > JIT > Habilitar JIT antes de iniciar esta app con Built-in JIT."
+        }
+        let wantsJIT = integratedJITAllowed && BloomBoxJITGuestPolicy.wantsJIT(
             automatic: !bundledSideStore && (appInfo.isJITNeeded || appInfo.is32bit || melonProfile),
             forced: bundledSideStore ? false : forceJIT, mode: guestPolicy)
         let experimentSelected = BloomBoxJITGuestPolicy.shouldTryMeloNXScript(
