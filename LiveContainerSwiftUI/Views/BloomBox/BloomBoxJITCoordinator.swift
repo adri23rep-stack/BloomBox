@@ -41,12 +41,15 @@ enum BloomBoxJITPairingSync {
         }
 
         let folders = [
-            "", "Documents", "SideStore", "Documents/SideStore",
+            "", "Documents", "SideStore", "SideStore/Documents",
+            "Documents/SideStore", "Documents/SideStore/Documents",
             "Library/Application Support", "Library/Application Support/SideStore",
             "Library/Application Support/AltStore", "Library/SideStore",
             "Application Support/SideStore"
         ]
         let names = [
+            // SideStore (2026) stores the remote protocol separately from USB lockdown.
+            "PairingFile_RemoteRP.plist",
             "pairingFile.plist", "PairingFile.plist", "pairing.plist",
             "RPPairing.plist", "ALTPairingFile.plist", "pairingFile"
         ]
