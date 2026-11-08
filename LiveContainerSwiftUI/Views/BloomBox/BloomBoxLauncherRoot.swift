@@ -87,10 +87,10 @@ struct BloomBoxLauncherRootView: View {
                             title: BloomBoxL10n.isEnglish ? "Hybrid · Recommended" : "Híbrido · Recomendado",
                             detail: BloomBoxL10n.isEnglish ? "iOS Home; compatible games enter GameBox automatically." : "Escritorio iOS; los juegos compatibles entran automáticamente en GameBox.",
                             icon: "square.on.square", value: "hybrid")
-                        launcherOption(title: "iOS Home", detail: "Escritorio, apps y widgets.",
+                        launcherOption(title: "iOS Home", detail: BloomBoxL10n.t("Escritorio, apps y widgets."),
                                        icon: "square.grid.3x3.fill", value: "ios")
                         if #available(iOS 16.0, *) {
-                            launcherOption(title: "GameBox v2", detail: "Interfaz de consola con carátulas, fondos y cristal.",
+                            launcherOption(title: "GameBox v2", detail: BloomBoxL10n.t("Interfaz de consola con carátulas, fondos y cristal."),
                                            icon: "gamecontroller.fill", value: "gamebox")
                         }
                         NavigationLink(destination: BloomBoxDiagnosticsView()) {
@@ -138,10 +138,10 @@ struct BloomBoxLauncherRootView: View {
                     }
                     .padding()
                 }
-                .navigationTitle("Interface")
+                .navigationTitle(BloomBoxL10n.isEnglish ? "Interface" : "Interfaz")
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") { showModeSheet = false }
+                        Button(BloomBoxL10n.isEnglish ? "Done" : "Listo") { showModeSheet = false }
                     }
                 }
             }
@@ -152,7 +152,7 @@ struct BloomBoxLauncherRootView: View {
             sharedModel.selectedTab = .apps
         }) {
             VStack(spacing: 0) {
-                HStack { Spacer(); Button("Done") { showDestination = false }.padding() }
+                HStack { Spacer(); Button(BloomBoxL10n.isEnglish ? "Done" : "Listo") { showDestination = false }.padding() }
                 destinationContent
             }
         }
