@@ -916,3 +916,9 @@
 "Carpeta" = "Folder";
 "Página" = "Page";
 "Nada instalado" = "Nothing installed";
+
+/* Full SwiftUI view audit: final stray labels. */
+"No" = "No";
+"Los próximos intentos aparecerán aquí." = "Future attempts will appear here.";
+"Esta sección está lista para una función nueva de BloomBox." = "This section is reserved for a new BloomBox feature.";
+"Caducidad · Isla Dinámica (8 horas)" = "Expiration · Dynamic Island (8 hours)";
