@@ -97,7 +97,8 @@ final class BloomBoxAutoUpdate: ObservableObject {
             status = localized("No se pudo comprobar: ", "Could not check: ") + error.localizedDescription
             return
         }
-        // Allow the state to be visible before any potentially disruptive handoff.
+        // Release the check lock before starting the installer.
+        busy = false
         await installAutomaticallyIfPossible()
     }
 
