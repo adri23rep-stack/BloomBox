@@ -193,11 +193,15 @@ struct BloomBoxLauncherRootView: View {
                 showRecoveryNotice = BloomBoxCrashJournal.shared.previousInterrupted
                 routeConnectedControllerIfAllowed()
                 showProfileIntro()
+                Task { await BloomBoxAutoUpdate.shared.checkIfDue() }
             }
         }
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 showProfileIntro()
+                if wizardCompleted {
+                    Task { await BloomBoxAutoUpdate.shared.checkIfDue() }
+                }
             } else if phase == .background {
                 introProfile = nil
             }
