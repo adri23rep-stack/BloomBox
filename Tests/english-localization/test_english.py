@@ -80,10 +80,10 @@ l10n = (root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxGameBoxL10n.swift").
 ram = (root / "LiveContainerSwiftUI/Views/BloomBoxRAMPlusView.swift").read_text()
 jit = (root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxJITCoordinator.swift").read_text()
 for expected in [
-    "Text(LocalizedStringKey(section.title))",
+    "Text(BloomBoxL10n.t(section.title))",
     "name: BloomBoxL10n.t(title(key, appsByKey: appsByKey))",
     "Text(BloomBoxL10n.t(title(key)))",
-    'Text(LocalizedStringKey(isSideStore ? "SideStore"',
+    'Text(BloomBoxL10n.t(isSideStore ? "SideStore"',
     'englishUI ? "Page \\(index + 1)"',
 ]:
     assert expected in home, f"Home English runtime path lost: {expected}"
@@ -92,13 +92,23 @@ assert "Text(LocalizedStringKey(choice.description))" in gallery
 assert "Text(BloomBoxL10n.t(entry.title))" in (
     root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeSearchPanel.swift"
 ).read_text()
-assert "Text(LocalizedStringKey(mode.title))" in modules
+assert "Text(LocalizedStringKey(mode.title))" in modules or "Text(BloomBoxL10n.t(mode.title))" in modules
 assert "BloomBoxL10n.isEnglish" in launcher
 assert "BloomBoxL10n.isEnglish" in chrome
 assert "BloomBoxL10n.t(ram.status)" in ram
 assert 'BloomBoxL10n.t(label)' in jit
 assert 'englishBundle.localizedString(' in l10n
 assert 'forKey: "BloomBoxPreferredLanguage"' in l10n
+# Release blocker: localization text must be shipped in the IPA itself.
+branding = (root / "Scripts/brand-bloombox-final-ipa.py").read_text()
+verifier = (root / "Scripts/verify-bloombox-ipa.py").read_text()
+assert 'english_target = ROOT + "en.lproj/Localizable.strings"' in branding
+assert "if english_target not in names:" in branding
+assert 'translation_path = app + "en.lproj/Localizable.strings"' in verifier
+assert "expected_table" in verifier
+assert 'BloomBoxL10n.t(message)' in chrome
+assert 'Text(BloomBoxL10n.t(section.title))' in home
+assert 'Text(BloomBoxL10n.t(isSideStore ?' in home
 for entry in ("Módulos", "Temas", "Juegos", "Sugerencias", "Añadidas recientemente",
               "Instalando aplicación", "Salir de simulación", "RAM+ confirmado en la instalación actual"):
     # Source-file String literals also exist in nested helpers with their own
