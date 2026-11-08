@@ -118,7 +118,7 @@ struct BloomBoxModulesPanel: View {
             case .desktop: return "Personalización"
             case .connectivity: return "Internet y red"
             case .privacy: return "Aislamiento y permisos"
-            case .autoupdate: return "Actualizaciones de BloomBox"
+            case .autoupdate: return BloomBoxL10n.isEnglish ? "BloomBox updates" : "Actualizaciones de BloomBox"
             case .experimental: return "Funciones avanzadas"
             }
         }
