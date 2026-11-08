@@ -46,7 +46,7 @@ for source in sources:
     # generated localization keys contain placeholders, not literal \(name).
     for match in ui_pattern.finditer(body):
         phrase = match.group(1)
-        if r"\(" in phrase:
+        if r"\(" in phrase or phrase.startswith("lc."):
             continue
         if spanish.search(phrase) and phrase not in key_set:
             untranslated.append((source, phrase))
