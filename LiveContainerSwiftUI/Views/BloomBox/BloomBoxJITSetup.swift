@@ -40,6 +40,13 @@ struct BloomBoxJITSetup: View {
     }
     // Only the preview switch is fictional; the real state is never changed
     // during the recording simulation.
+    private var pairingSwitch: Binding<Bool> {
+        Binding(
+            get: { demoUnconfigured ? false : automaticPairing },
+            set: { if !demoUnconfigured { automaticPairing = $0 } }
+        )
+    }
+
     private var activationSwitch: Binding<Bool> {
         Binding(
             get: {
@@ -168,11 +175,12 @@ struct BloomBoxJITSetup: View {
             }
 
             Section {
-                Toggle(isOn: $automaticPairing) {
+                Toggle(isOn: pairingSwitch) {
                     Label(words("Emparejamiento automático", "Automatic pairing"),
                           systemImage: "arrow.triangle.2.circlepath")
                 }
                 .accessibilityIdentifier("bloombox.jit.automaticPairing")
+                .disabled(demoUnconfigured)
 
                 Label(
                     demoUnconfigured
@@ -261,6 +269,12 @@ struct BloomBoxJITSetup: View {
     }
 
     private func refreshPairing() {
+        // Demo never runs actual synchronization, even when the screen appears
+        // or returns to foreground. It is a visual rehearsal only.
+        if demoUnconfigured {
+            syncMessage = nil
+            return
+        }
         let result = BloomBoxJITPairingSync.synchronize()
         hasPairing = (try? BloomBoxJITPairingStorage().load()) != nil
         lastPairingVerified = LCUtils.appGroupUserDefault.object(forKey: BloomBoxJITPairingSync.lastVerifiedKey) as? Date
