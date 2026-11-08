@@ -10,9 +10,10 @@ import SwiftUI
 @MainActor
 enum BloomBoxJITPairingSync {
     static let preferenceKey = "BloomBoxJITSyncWithSideStore"
+    static let lastVerifiedKey = "BloomBoxJITSideStorePairingLastVerified"
 
     enum Result {
-        case disabled, synchronized, alreadyCurrent, unavailable
+        case disabled, synchronized, alreadyCurrent, olderSource, invalidSource, unreadableSource, unavailable
     }
 
     static var enabled: Bool {
@@ -35,7 +36,16 @@ enum BloomBoxJITPairingSync {
            let url = fileManager.containerURL(forSecurityApplicationGroupIdentifier: group) {
             roots.append(url)
         }
+        // LiveContainer's built-in SideStore runs inside its own virtual
+        // Documents/SideStore home. LCPath.docPath is the canonical host
+        // Documents folder and may differ from Foundation's process directory.
+        // Search only the known SideStore document location under each root.
+        roots.append(LCPath.docPath)
+        roots.append(LCPath.lcGroupDocPath)
         roots.append(LCPath.lcGroupDocPath.deletingLastPathComponent())
+        if let home = ProcessInfo.processInfo.environment["LC_HOME_PATH"], !home.isEmpty {
+            roots.append(URL(fileURLWithPath: home).appendingPathComponent("Documents", isDirectory: true))
+        }
         if let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
             roots.append(documents.deletingLastPathComponent())
         }
@@ -54,6 +64,7 @@ enum BloomBoxJITPairingSync {
             "RPPairing.plist", "ALTPairingFile.plist", "pairingFile"
         ]
         var found: [(url: URL, date: Date)] = []
+        var sawUnreadable = false
         var visited = Set<String>()
         for root in roots {
             for folder in folders {
@@ -62,27 +73,48 @@ enum BloomBoxJITPairingSync {
                     // Legacy generic filenames are trusted only inside SideStore-owned folders.
                     guard name == "PairingFile_RemoteRP.plist" || folder.lowercased().contains("sidestore") else { continue }
                     let url = base.appendingPathComponent(name).standardizedFileURL
-                    guard url != destination, visited.insert(url.path).inserted,
-                          let details = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey]),
-                          details.isRegularFile == true,
-                          let size = details.fileSize, size > 0, size <= 512 * 1024 else { continue }
-                    found.append((url, details.contentModificationDate ?? .distantPast))
+                    guard url != destination, visited.insert(url.path).inserted else { continue }
+                    do {
+                        let details = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey])
+                        guard details.isRegularFile == true,
+                              let size = details.fileSize, size > 0, size <= 512 * 1024 else { continue }
+                        found.append((url, details.contentModificationDate ?? .distantPast))
+                    } catch {
+                        // A missing file is normal. Only signal a read error if
+                        // the file is visible but permissions block access.
+                        if fileManager.fileExists(atPath: url.path) { sawUnreadable = true }
+                    }
                 }
             }
         }
         // The most recently saved valid SideStore record wins. Never replace a
         // newer, functional BloomBox record with an older copy found on disk.
+        var sawOlder = false
+        var sawInvalid = false
         for candidate in found.sorted(by: { $0.date > $1.date }) {
-            guard let bytes = try? Data(contentsOf: candidate.url, options: .mappedIfSafe) else { continue }
-            if let existing, existing == bytes { return .alreadyCurrent }
-            if let destinationDate, candidate.date < destinationDate { continue }
+            guard let bytes = try? Data(contentsOf: candidate.url, options: .mappedIfSafe) else {
+                sawUnreadable = true
+                continue
+            }
+            if let existing, existing == bytes {
+                LCUtils.appGroupUserDefault.set(Date(), forKey: lastVerifiedKey)
+                return .alreadyCurrent
+            }
+            if let destinationDate, candidate.date < destinationDate {
+                sawOlder = true
+                continue
+            }
             do {
-                try storage.save(bytes) // The storage validates the remote pairing format.
+                try storage.save(bytes) // Existing storage validates the remote pairing.
+                LCUtils.appGroupUserDefault.set(Date(), forKey: lastVerifiedKey)
                 return .synchronized
             } catch {
-                continue // Ignore invalid files; preserve the current pairing.
+                sawInvalid = true // Keep the working JIT record untouched.
             }
         }
+        if sawInvalid { return .invalidSource }
+        if sawOlder { return .olderSource }
+        if sawUnreadable { return .unreadableSource }
         return .unavailable
     }
 }
