@@ -235,7 +235,7 @@ struct BloomBoxModulesPanel: View {
                             in: RoundedRectangle(cornerRadius: 14))
             Spacer(minLength: 0)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(LocalizedStringKey(module.title))
+                Text(BloomBoxL10n.t(module.title))
                     .font(.system(size: 17, weight: .bold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.80)
@@ -244,7 +244,7 @@ struct BloomBoxModulesPanel: View {
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.white.opacity(0.65))
             }
-            Text(LocalizedStringKey(module.subtitle))
+            Text(BloomBoxL10n.t(module.subtitle))
                 .font(.system(size: 12))
                 .foregroundStyle(.white.opacity(0.72))
                 .lineLimit(2)
@@ -329,8 +329,8 @@ struct BloomBoxModulesPanel: View {
                 .frame(width: 53, height: 53)
                 .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 15))
             VStack(alignment: .leading, spacing: 5) {
-                Text(LocalizedStringKey(title)).font(.headline)
-                Text(LocalizedStringKey(subtitle)).font(.footnote).foregroundStyle(.white.opacity(0.65))
+                Text(BloomBoxL10n.t(title)).font(.headline)
+                Text(BloomBoxL10n.t(subtitle)).font(.footnote).foregroundStyle(.white.opacity(0.65))
             }
             Spacer(minLength: 4)
             Image(systemName: "chevron.right")
@@ -351,7 +351,7 @@ struct BloomBoxModulesPanel: View {
             VStack(alignment: .leading, spacing: 20) {
             Label(LocalizedStringKey(module.title), systemImage: module.symbol)
                 .font(.title2.bold())
-                Text(LocalizedStringKey(detailDescription(module)))
+                Text(BloomBoxL10n.t(detailDescription(module)))
                     .font(.body)
                     .foregroundStyle(.secondary)
             Button {
@@ -363,7 +363,7 @@ struct BloomBoxModulesPanel: View {
                 case .ram: break
                 }
             } label: {
-                Label(LocalizedStringKey(detailButton(module)), systemImage: "arrow.up.right.square")
+                Label(BloomBoxL10n.t(detailButton(module)), systemImage: "arrow.up.right.square")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
