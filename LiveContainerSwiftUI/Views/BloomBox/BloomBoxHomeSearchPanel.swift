@@ -129,7 +129,7 @@ struct BloomBoxHomeSearchPanel<Icon: View, Context: View>: View {
                             icon(entry.key)
                                 .frame(width: 60, height: 60)
                                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            Text(entry.title)
+                            Text(BloomBoxL10n.t(entry.title))
                                 .font(.system(size: 12))
                                 .lineLimit(1)
                         }
@@ -152,7 +152,7 @@ struct BloomBoxHomeSearchPanel<Icon: View, Context: View>: View {
                             icon(entry.key)
                                 .frame(width: 44, height: 44)
                                 .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
-                            Text(entry.title)
+                            Text(BloomBoxL10n.t(entry.title))
                                 .font(.system(size: 17))
                                 .lineLimit(1)
                             Spacer()
