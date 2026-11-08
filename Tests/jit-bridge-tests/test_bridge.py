@@ -55,6 +55,24 @@ assert 'if demoUnconfigured {' in setup
 assert 'syncMessage = nil' in setup
 assert '.disabled(demoUnconfigured)' in setup
 assert 'demoUnconfigured ? demoSwitchOn' in setup
+# Full recording walkthrough must expose all real-world setup phases as
+# interactive simulated steps, with a totally separate in-memory state.
+assert "private struct BloomBoxJITRecordingFlow: View" in setup
+assert "if demoUnconfigured {" in setup and "BloomBoxJITRecordingFlow(englishUI: englishUI)" in setup
+for item in ("bloombox.jit.demo.activate", "bloombox.jit.demo.setupGuide",
+             "bloombox.jit.demo.startPairing", "bloombox.jit.demo.confirmPairing",
+             "bloombox.jit.demo.confirmVPN", "bloombox.jit.demo.wizard.prepare",
+             "bloombox.jit.demo.restart", "bloombox.jit.demo.advanced",
+             "bloombox.jit.demo.exit", "checkingReachability",
+             "private var advancedScreen", "private var demoDiagnostics"):
+    assert item in setup, item
+assert "no real debugger is run" in setup
+assert "if case .success = result" in setup
+assert "try LiveBoardBuiltInJIT.importPairing(selected)" in setup, "Real import must remain"
+assert "guard !demoUnconfigured else { return }" in setup
+assert 'private var pairingSwitch: Binding<Bool>' in setup
+assert 'selectedProvider = JITEnablerType.BuiltIn.rawValue' in setup
+assert "jitDemoUnconfigured = false" in modules, "Dismiss must restore normal screen"
 assert 'name == "PairingFile_RemoteRP.plist" || folder.lowercased().contains("sidestore")' in coordinator
 assert 'if let destinationDate, candidate.date < destinationDate' in coordinator
 print("BloomBox JIT cross-language IPC, principal class and guarded hook match")
