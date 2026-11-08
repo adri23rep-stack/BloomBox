@@ -15,36 +15,13 @@ for key, value in rows:
     assert not re.search(r"(?<!\\)\"", key), f"Unescaped quotation: {key!r}"
 
 # Don't let new Spanish-only on-screen literals silently enter primary areas.
-sources = [
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeScreen.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxModulesAndJIT.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxRemoteStores.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxNewsPage.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxProfileScreens.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxWizardWelcome.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxWizardHighlights.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxWizardThemeChoice.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetGallery.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxWidgetViews.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxExpiryReminderSettings.swift",
-    "LiveContainerSwiftUI/Views/BloomBoxRAMPlusView.swift",
-    "LiveContainerSwiftUI/Views/BloomBoxThemeStore.swift",
-    "LiveContainerSwiftUI/Views/AppList/AppSettings/BloomBoxBackupView.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeChrome.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeContextMenu.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxHomeSearchPanel.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherRoot.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxLauncherInteractions.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxIconCustomization.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxGameBoxV2Screen.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxNikaidoController.swift",
-    "LiveContainerSwiftUI/Views/BloomBox/BloomBoxJITSetup.swift",
-    "LiveContainerSwiftUI/Views/Settings/DataManagement/LCStorageManagementView.swift",
-    "LiveContainerSwiftUI/Views/Settings/DataManagement/LCStorageManagementSections.swift",
-    "LiveContainerSwiftUI/Views/Settings/LCMultitaskSettingView.swift",
-    "LiveContainerSwiftUI/Views/LCAltStoreSourcesView.swift",
-    "LiveContainerSwiftUI/Views/LCTweaksView.swift",
-]
+# Audit every shipped SwiftUI screen, not just the previously translated ones.
+# This catches new settings, files, theme, JIT and launcher controls too.
+sources = sorted(
+    str(p.relative_to(root))
+    for p in (root / "LiveContainerSwiftUI/Views").rglob("*.swift")
+)
+
 ui_pattern = re.compile(
     r'(?:Text|Label|Button|Toggle|Section|Picker|TextField|ProgressView|'
     r'NavigationLink|GroupBox|SecureField|\.alert|\.confirmationDialog|'
