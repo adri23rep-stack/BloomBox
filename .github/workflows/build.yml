@@ -71,6 +71,9 @@ jobs:
           assert module.tag_for_build("refs/tags/v2.1.0", "push", "") == "v2.1.0"
           print("BloomBox release stamping safeguards passed")
           PY
+      - name: Parse AutoUpdate Swift sources before external dependency downloads
+        run: |
+          xcrun swiftc -frontend -parse LiveContainerSwiftUI/Utilities/BloomBoxAutoUpdatePolicy.swift LiveContainerSwiftUI/Views/BloomBoxAdapters/BloomBoxAutoUpdate.swift
       - name: Reject stale launcher media types
         run: |
           if grep -REn '(ManzanaWallpaperMedia|ManzanaAnimatedWallpaper)' LiveContainerSwiftUI --include='*.swift'; then
