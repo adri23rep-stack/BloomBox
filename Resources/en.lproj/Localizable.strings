@@ -717,3 +717,35 @@
 "Modo desarrollador" = "Developer Mode";
 "Preparar dispositivo" = "Prepare device";
 "Comprobar sincronización" = "Check synchronization";
+
+/* News, backups, diagnostics and remaining on-screen strings. */
+"Abrir de todas formas" = "Open anyway";
+"No se encontraron aplicaciones" = "No apps found";
+"Borde del color del brillo · activar/desactivar" = "Glow color border · toggle";
+"Actualizar novedades" = "Refresh news";
+"Cambiar fuente de noticias" = "Change news source";
+"Fuente de novedades" = "News source";
+"Puedes modificar las noticias desde cualquier archivo JSON remoto, sin reinstalar BloomBox." = "You can load news from any remote JSON file without reinstalling BloomBox.";
+"Widgets" = "Widgets";
+"Contador de caducidad (8 horas)" = "Expiration countdown (8 hours)";
+"Actualizar fechas y recordatorios" = "Refresh dates and reminders";
+"Guarda pasos de GameBox y LiveProcess en este iPhone. Si iOS entrega un diagnóstico técnico, también se conserva. No se envía nada automáticamente." = "Saves GameBox and LiveProcess activity on this iPhone. If iOS provides a technical diagnostic, it is saved too. Nothing is sent automatically.";
+"Se detectó una sesión interrumpida. BloomBox arrancó en el escritorio para evitar repetir el problema." = "An interrupted session was detected. BloomBox opened the Home Screen to avoid repeating the issue.";
+"Desactiva fondos pesados y carátulas personalizadas hasta que puedas probarlos otra vez." = "Disable heavy wallpapers and custom cover art until you can test them again.";
+"Los archivos se restauran en la carpeta principal." = "Files are restored to the main folder.";
+"Solo cambia el aspecto del wizard de prueba. No altera el modo claro/oscuro del iPhone." = "Only changes the setup preview's appearance. It does not change your iPhone's Light or Dark Mode.";
+"Experimental: sigue esperando al primer breakpoint. No significa que JIT esté activo. Si la app no responde, ciérrala manualmente." = "Experimental: still waiting for the first breakpoint. This does not mean JIT is enabled. If the app stops responding, close it manually.";
+"Los cambios necesitan reiniciar BloomBox completamente: ciérralo desde el selector de apps y vuelve a abrirlo. iOS no permite un reinicio automático del proceso. El filtro es experimental y algunas conexiones, incluidas las de iCloud, pueden continuar." = "These changes require a full BloomBox restart: quit it from the app switcher and reopen it. iOS does not allow an automatic process restart. The filter is experimental, and some connections, including iCloud, may continue.";
+"Guarda archivos, ajustes y partidas de todos los perfiles de esta app. Instala primero la misma app en BloomBox para restaurar la copia." = "Save files, settings, and game progress from every profile of this app. Install the same app in BloomBox before restoring a backup.";
+"Exportar datos de la app" = "Export app data";
+"Importar copia de datos" = "Import data backup";
+"Copia lista para restaurar" = "Backup ready to restore";
+"Se crearán perfiles nuevos y se activará el principal de la copia. Tus perfiles actuales se conservarán. Los datos compartidos recuperados quedarán separados de otras apps." = "New profiles will be created and the backup's primary profile will become active. Existing profiles stay intact. Restored shared data remains separate from other apps.";
+"Restaurar esta copia" = "Restore this backup";
+"Qué se puede recuperar" = "What can be recovered";
+"Incluye los datos locales, grupos compartidos identificables y credenciales accesibles. iCloud, compras, claves protegidas, archivos externos y sesiones que dependan de un servidor pueden requerir recuperación o inicio de sesión aparte." = "Includes local data, identifiable shared groups, and accessible credentials. iCloud, purchases, protected keys, external files, and server-dependent sessions may need separate sign-in or recovery.";
+"Cierra la app y otras apps que compartan sus datos antes de exportar o importar. Mantén BloomBox abierto hasta terminar." = "Close the app and any others that share its data before exporting or importing. Keep BloomBox open until the operation finishes.";
+"La copia contiene información privada y no lleva contraseña. Guárdala en un lugar seguro." = "The backup contains private information and has no password. Keep it somewhere safe.";
+"Copia de datos" = "Data backup";
+"Exportar información privada" = "Export private information";
+"La copia incluirá archivos y credenciales que BloomBox pueda leer. No tiene contraseña. Compártela únicamente con personas de confianza." = "The backup includes files and credentials BloomBox can read. It has no password. Only share it with trusted people.";
