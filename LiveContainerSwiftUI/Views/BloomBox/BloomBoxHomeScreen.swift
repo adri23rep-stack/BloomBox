@@ -503,7 +503,7 @@ struct BloomBoxHomeScreen: View {
                         .font(.system(size: 19, weight: .semibold))
                         .foregroundStyle(.white)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(networkNoticeText)
+                        Text(BloomBoxL10n.t(networkNoticeText))
                             .font(.system(size: 14, weight: .semibold))
                         Text("Se aplica al reiniciar BloomBox. Algunas conexiones de iCloud pueden continuar.")
                             .font(.system(size: 11))
@@ -801,8 +801,8 @@ struct BloomBoxHomeScreen: View {
                 pendingAlertTweak = nil
             }
         } message: {
-            Text(pendingAlertTweak?.alertMessage ??
-                 "La app necesita una corrección de compatibilidad para abrir correctamente.")
+            Text(pendingAlertTweak?.localizedAlertMessage(english: englishUI) ??
+                 BloomBoxL10n.t("La app necesita una corrección de compatibilidad para abrir correctamente."))
         }
         .sheet(isPresented: $customizing) { customizeSheet }
         .sheet(isPresented: $iconCustomization) { iconCustomizationSheet }
@@ -849,7 +849,7 @@ struct BloomBoxHomeScreen: View {
         )) {
             Button("Aceptar") { widgetMediaError = nil }
         } message: {
-            Text(widgetMediaError ?? "")
+            Text(BloomBoxL10n.t(widgetMediaError ?? ""))
         }
         .sheet(isPresented: $choosingMotionWallpaperPhotos) {
             BloomBoxMotionWallpaperPhotosPicker { result in
@@ -2463,8 +2463,8 @@ struct BloomBoxHomeScreen: View {
                 let name = guest.displayName
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                     showNetworkNotice(blocked
-                        ? "«\(name)» ya no contará con acceso a Internet."
-                        : "«\(name)» volverá a tener acceso a Internet.")
+                        ? (englishUI ? "Internet disabled for «\(name)»." : "«\(name)» ya no contará con acceso a Internet.")
+                        : (englishUI ? "Internet restored for «\(name)»." : "«\(name)» volverá a tener acceso a Internet."))
                 }
             },
             addTweak: {
