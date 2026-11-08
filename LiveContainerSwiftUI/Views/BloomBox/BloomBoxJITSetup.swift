@@ -11,8 +11,8 @@ struct BloomBoxJITSetup: View {
     // Never turn this on automatically: it affects all private guest containers.
     @AppStorage("LCSharePrivateDataWithLiveProcess") private var sharePrivateDataWithLiveProcess = false
     @State private var importing = false
-    @State private var hasPairing = BloomBoxJITPairingStorage().hasRecord
-    @AppStorage(BloomBoxJITPairingSync.preferenceKey, store: LCUtils.appGroupUserDefault)
+    @State private var hasPairing = (try? BloomBoxJITPairingStorage().load()) != nil
+    @AppStorage("BloomBoxJITSyncWithSideStore", store: LCUtils.appGroupUserDefault)
     private var automaticPairing = true
     @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
     private var preferredLanguage = "system"
@@ -158,7 +158,7 @@ struct BloomBoxJITSetup: View {
 
     private func refreshPairing() {
         let result = BloomBoxJITPairingSync.synchronize()
-        hasPairing = BloomBoxJITPairingStorage().hasRecord
+        hasPairing = (try? BloomBoxJITPairingStorage().load()) != nil
         switch result {
         case .disabled:
             syncMessage = words("Sincronización desactivada.", "Synchronization is off.")
