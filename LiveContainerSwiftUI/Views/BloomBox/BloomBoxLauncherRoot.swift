@@ -27,6 +27,10 @@ struct BloomBoxLauncherRootView: View {
     private var wizardCompleted = false
     @AppStorage("BloomBoxAutoGameBoxOnController", store: LCUtils.appGroupUserDefault)
     private var autoGameBoxOnController = true
+    // Ask iOS to prioritize BloomBox's bottom-edge gestures. iOS controls
+    // whether a second swipe is needed; never trap the user in the launcher.
+    @AppStorage("BloomBoxDeferBottomSystemGestures", store: LCUtils.appGroupUserDefault)
+    private var protectBottomGestures = true
     @AppStorage(BloomBoxLaunchPreferences.shortcutKey, store: LCUtils.appGroupUserDefault)
     private var showGameBoxShortcut = true
 
@@ -44,6 +48,7 @@ struct BloomBoxLauncherRootView: View {
             }
         }
         .environment(\.locale, locale)
+        .defersSystemGestures(on: protectBottomGestures ? .bottom : [])
         .overlay(alignment: .top) {
             if let introProfile, wizardCompleted, !showFirstRunWizard {
                 BloomBoxActiveProfileIntro(profile: introProfile) {
@@ -96,6 +101,19 @@ struct BloomBoxLauncherRootView: View {
                         .padding(16)
                         .background(Color.white.opacity(0.06),
                                     in: RoundedRectangle(cornerRadius: 16))
+                        Toggle(isOn: $protectBottomGestures) {
+                            Label(language == "en" ? "Protect bottom-edge gestures" : "Proteger gestos del borde inferior",
+                                  systemImage: "hand.draw.fill")
+                        }
+                        .tint(.cyan)
+                        .padding(16)
+                        .background(Color.white.opacity(0.06),
+                                    in: RoundedRectangle(cornerRadius: 16))
+                        Text(language == "en"
+                             ? "Reduces accidental exits while using BloomBox. iOS may require a second swipe to go Home. You can turn this off anytime."
+                             : "Evita salidas accidentales del launcher. iOS puede pedir un segundo deslizamiento para ir al inicio. Puedes desactivarlo cuando quieras.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         Toggle(isOn: $autoGameBoxOnController) {
                             Label("Abrir GameBox al conectar un control", systemImage: "gamecontroller.fill")
                         }
