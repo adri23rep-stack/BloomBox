@@ -1067,14 +1067,14 @@ private struct BloomBoxConnectivityRow: View {
                     Text("Firma en curso")
                         .font(.caption2).foregroundStyle(.orange)
                 } else {
-                    Label(app.uiNetworkBlocked ? "Internet bloqueado" : "Internet permitido",
+                    Label(LocalizedStringKey(app.uiNetworkBlocked ? "Internet bloqueado" : "Internet permitido"),
                           systemImage: app.uiNetworkBlocked ? "wifi.slash" : "wifi")
                         .font(.caption2)
                         .foregroundStyle(app.uiNetworkBlocked ? Color.orange : Color.green)
                 }
             }
             Spacer(minLength: 4)
-            Toggle("Internet de \(app.appInfo.displayName())", isOn: Binding(
+            Toggle(BloomBoxL10n.isEnglish ? "Internet access for \(app.appInfo.displayName())" : "Internet de \(app.appInfo.displayName())", isOn: Binding(
                 get: { !app.uiNetworkBlocked },
                 set: { allowed in
                     guard !app.isAppRunning && !app.isSigningInProgress else { return }
