@@ -319,10 +319,14 @@ struct BloomBoxJITSetup: View {
                         .accessibilityIdentifier("bloombox.jit.checkPairingSync")
 
                         if let lastPairingVerified {
-                            LabeledContent(
-                                words("Última coincidencia verificada", "Last verified match"),
-                                value: lastPairingVerified.formatted(date: .abbreviated, time: .shortened)
-                            )
+                            HStack {
+                                Text(words("Última coincidencia verificada", "Last verified match"))
+                                Spacer(minLength: 8)
+                                Text(lastPairingVerified.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.trailing)
+                            }
                         } else {
                             Text(words("Aún no se ha podido confirmar la coincidencia con SideStore.",
                                        "No matching SideStore pairing has been confirmed yet."))
