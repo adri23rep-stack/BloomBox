@@ -123,13 +123,13 @@ struct BloomBoxLauncherRootView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Toggle(isOn: $autoGameBoxOnController) {
-                            Label("Abrir GameBox al conectar un control", systemImage: "gamecontroller.fill")
+                            Label(BloomBoxL10n.t("Abrir GameBox al conectar un control"), systemImage: "gamecontroller.fill")
                         }
                         .tint(.cyan)
                         .padding(16)
                         .background(Color.white.opacity(0.06),
                                     in: RoundedRectangle(cornerRadius: 16))
-                        Text("La detección funciona al usar BloomBox. iOS no permite abrirla desde cero cuando está cerrada o suspendida.")
+                        Text(BloomBoxL10n.t("La detección funciona al usar BloomBox. iOS no permite abrirla desde cero cuando está cerrada o suspendida."))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text(BloomBoxL10n.isEnglish ? "Your choice is saved per profile. Existing profiles keep their iOS Home setting until you change it." : "Tu selección se guarda por perfil. Los perfiles existentes conservan su inicio iOS hasta que lo cambies.")
@@ -161,17 +161,17 @@ struct BloomBoxLauncherRootView: View {
                 BloomBoxDiagnosticsView()
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
-                            Button("Listo") { showDiagnostics = false }
+                            Button(BloomBoxL10n.t("Listo")) { showDiagnostics = false }
                         }
                     }
             }
             .navigationViewStyle(.stack)
         }
-        .alert("GameBox recuperado", isPresented: $showRecoveryNotice) {
-            Button("Ver registro") { showDiagnostics = true }
-            Button("Seguir en inicio", role: .cancel) { }
+        .alert(BloomBoxL10n.t("GameBox recuperado"), isPresented: $showRecoveryNotice) {
+            Button(BloomBoxL10n.t("Ver registro")) { showDiagnostics = true }
+            Button(BloomBoxL10n.t("Seguir en inicio"), role: .cancel) { }
         } message: {
-            Text("La sesión anterior terminó mientras GameBox estaba abierto. BloomBox inició en el escritorio para evitar un ciclo de cierres. Guardamos los últimos pasos para investigar.")
+            Text(BloomBoxL10n.t("La sesión anterior terminó mientras GameBox estaba abierto. BloomBox inició en el escritorio para evitar un ciclo de cierres. Guardamos los últimos pasos para investigar."))
         }
         .onChange(of: sharedModel.selectedTab) { tab in
             if tab == .apps {
