@@ -645,7 +645,7 @@ struct BloomBoxHomeScreen: View {
                                                 .foregroundStyle(.white)
                                                 .frame(width: 45, height: 42)
                                                 .liveBoardGlass(radius: 22)
-                                                .accessibilityLabel("Página de widgets siempre disponible")
+                                                .accessibilityLabel(BloomBoxL10n.t("Página de widgets siempre disponible"))
                                         } else {
                                             Button { togglePageVisibility(index) } label: {
                                                 Image(systemName: hiddenPageIndices.contains(index)
@@ -756,7 +756,7 @@ struct BloomBoxHomeScreen: View {
                     }
                     .padding(20)
                 }
-                .navigationTitle(LocalizedStringKey(section.title))
+                .navigationTitle(BloomBoxL10n.t(section.title))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
@@ -2367,7 +2367,7 @@ struct BloomBoxHomeScreen: View {
                 .modifier(LiveBoardEditWobble(active: editing && !reduceMotion,
                          phase: isSideStore ? 0.7 : 2.1))
                 if showLabel {
-                    Text(LocalizedStringKey(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : isModules ? "Módulos" : isThemes ? "Temas" : "Instalar app"))
+                    Text(BloomBoxL10n.t(isSideStore ? "SideStore" : isTweakStore ? "Tweak Store" : isAppStore ? "App Store" : isModules ? "Módulos" : isThemes ? "Temas" : "Instalar app"))
                         .font(.system(size: 12))
                         .lineLimit(1)
                         .foregroundStyle(.white)
@@ -2575,7 +2575,7 @@ struct BloomBoxHomeScreen: View {
                     .foregroundStyle(.white.opacity(page == libraryPageIndex ? 1 : 0.55))
                     .frame(width: 21, height: 32)
             }
-            .accessibilityLabel("Biblioteca de apps")
+            .accessibilityLabel(BloomBoxL10n.t("Biblioteca de apps"))
             if editing {
                 Button { pageManager = true } label: {
                     Image(systemName: "rectangle.stack")
