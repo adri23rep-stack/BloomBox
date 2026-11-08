@@ -18,6 +18,7 @@ struct BloomBoxJITSetup: View {
     private var preferredLanguage = "system"
     @Environment(\.scenePhase) private var scenePhase
     @State private var syncMessage: String?
+    @State private var lastPairingVerified: Date?
 
     private var englishUI: Bool {
         preferredLanguage == "en" ||
@@ -159,13 +160,20 @@ struct BloomBoxJITSetup: View {
     private func refreshPairing() {
         let result = BloomBoxJITPairingSync.synchronize()
         hasPairing = (try? BloomBoxJITPairingStorage().load()) != nil
+        lastPairingVerified = LCUtils.appGroupUserDefault.object(forKey: BloomBoxJITPairingSync.lastVerifiedKey) as? Date
         switch result {
         case .disabled:
             syncMessage = words("Sincronización desactivada.", "Synchronization is off.")
         case .synchronized:
             syncMessage = words("Pairing de SideStore sincronizado.", "SideStore pairing synchronized.")
         case .alreadyCurrent:
-            syncMessage = words("Pairing de SideStore actualizado.", "SideStore pairing is current.")
+            syncMessage = words("Pairing verificado: coincide con SideStore.", "Verified: pairing matches SideStore.")
+        case .olderSource:
+            syncMessage = words("SideStore tiene una copia anterior; se conserva tu pairing actual.", "SideStore has an older copy; your current pairing is preserved.")
+        case .invalidSource:
+            syncMessage = words("El archivo encontrado no es un pairing remoto válido. No se reemplazó nada.", "The found file is not a valid remote pairing record. Nothing was replaced.")
+        case .unreadableSource:
+            syncMessage = words("BloomBox encontró un archivo, pero no pudo leerlo. Revisa los permisos.", "BloomBox found a file but could not read it. Check permissions.")
         case .unavailable:
             syncMessage = automaticPairing
                 ? words("No se encontró un pairing compartido de SideStore. Se conserva el archivo actual.",
@@ -183,6 +191,39 @@ struct BloomBoxJITSetup: View {
                     }
                 }
                 if provider == JITEnablerType.BuiltIn.rawValue {
+                    Section {
+                        Button {
+                            refreshPairing()
+                        } label: {
+                            Label(words("Comprobar sincronización", "Check pairing synchronization"),
+                                  systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .disabled(!automaticPairing)
+                        .accessibilityIdentifier("bloombox.jit.checkPairingSync")
+
+                        if let lastPairingVerified {
+                            LabeledContent(
+                                words("Última coincidencia verificada", "Last verified match"),
+                                value: lastPairingVerified.formatted(date: .abbreviated, time: .shortened)
+                            )
+                        } else {
+                            Text(words("Aún no se ha podido confirmar la coincidencia con SideStore.",
+                                       "No matching SideStore pairing has been confirmed yet."))
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        if let syncMessage {
+                            Text(syncMessage)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(words("Comprobar no borra el pairing guardado ni reinicia el JIT. Si detecta una versión más reciente y válida de SideStore, la sincroniza.",
+                                   "Checking does not erase saved pairing or restart JIT. A newer valid SideStore record is synchronized when found."))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    } header: {
+                        Text(words("Diagnóstico de pairing", "Pairing diagnostics"))
+                    }
                     if ManzanaOnDevicePairing.isSupported {
                         Section("Pair on this iPhone (iOS 27)") {
                             Text("One-time setup. BloomBox acts like a local computer so your iPhone can pair with it without a PC. Wi-Fi and Local Network permission are required.")
