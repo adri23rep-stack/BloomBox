@@ -12,6 +12,22 @@ struct BloomBoxJITSetup: View {
     @AppStorage("LCSharePrivateDataWithLiveProcess") private var sharePrivateDataWithLiveProcess = false
     @State private var importing = false
     @State private var hasPairing = BloomBoxJITPairingStorage().hasRecord
+    @AppStorage(BloomBoxJITPairingSync.preferenceKey, store: LCUtils.appGroupUserDefault)
+    private var automaticPairing = true
+    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
+    private var preferredLanguage = "system"
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var syncMessage: String?
+
+    private var englishUI: Bool {
+        preferredLanguage == "en" ||
+        (preferredLanguage == "system" &&
+         (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("en"))
+    }
+
+    private func words(_ spanish: String, _ english: String) -> String {
+        englishUI ? english : spanish
+    }
     let embedded: Bool
 
     init(embedded: Bool = false) {
@@ -39,15 +55,126 @@ struct BloomBoxJITSetup: View {
             }
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.data], onCompletion: importPairing)
+        .onAppear { refreshPairing() }
+        .onChange(of: automaticPairing) { _ in refreshPairing() }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active { refreshPairing() }
+        }
         .onChange(of: pairing.phase) { phase in
             guard case .paired = phase else { return }
             hasPairing = true
+            refreshPairing()
             provider = JITEnablerType.BuiltIn.rawValue
             session.message = "Pairing saved. Keep LocalDevVPN connected, then tap Prepare device."
         }
     }
 
+    // The everyday screen only needs one pairing switch, its real status and a
+    // route to every existing expert control. None of those settings are removed.
     private var jitForm: some View {
+        Form {
+            Section {
+                Toggle(isOn: $automaticPairing) {
+                    Label(words("Emparejamiento automático", "Automatic pairing"),
+                          systemImage: "arrow.triangle.2.circlepath")
+                }
+                .accessibilityIdentifier("bloombox.jit.automaticPairing")
+
+                Label(
+                    hasPairing
+                        ? words("Archivo de emparejamiento disponible", "Pairing file available")
+                        : words("Falta el archivo de emparejamiento", "Pairing file missing"),
+                    systemImage: hasPairing ? "checkmark.shield.fill" : "exclamationmark.triangle.fill"
+                )
+                .foregroundStyle(hasPairing ? .green : .orange)
+
+                if let syncMessage {
+                    Text(syncMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                if provider == JITEnablerType.BuiltIn.rawValue {
+                    if hasPairing {
+                        Button {
+                            perform("prepare")
+                        } label: {
+                            Label(words("Preparar dispositivo", "Prepare device"),
+                                  systemImage: "bolt.shield.fill")
+                        }
+                        .disabled(session.busy)
+                    } else {
+                        Text(words(
+                            "Si SideStore no comparte su archivo, impórtalo desde Opciones avanzadas.",
+                            "If SideStore cannot share its file, import it from Advanced options."
+                        ))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Text(words("Hay otro proveedor de JIT seleccionado.",
+                               "Another JIT provider is currently selected."))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Button(words("Usar JIT integrado", "Use built-in JIT")) {
+                        provider = JITEnablerType.BuiltIn.rawValue
+                    }
+                }
+                if session.busy {
+                    HStack {
+                        ProgressView()
+                        Text(words("Preparando…", "Preparing…"))
+                        Spacer()
+                        Button(words("Cancelar", "Cancel")) { session.cancel() }
+                    }
+                }
+            } header: {
+                Text(words("JIT integrado", "Built-in JIT"))
+            } footer: {
+                Text(words(
+                    "Activado: BloomBox busca un pairing actualizado de SideStore antes de iniciar JIT. Si no puede acceder al archivo, conserva el actual. Apagado: usa el pairing instalado manualmente.",
+                    "On: BloomBox checks for an updated SideStore pairing before JIT starts. If the file is inaccessible, it preserves the existing record. Off: use your manually imported pairing."
+                ))
+            }
+
+            if provider == JITEnablerType.BuiltIn.rawValue {
+                Section {
+                    connectionFeedback
+                }
+            }
+
+            Section {
+                NavigationLink {
+                    advancedJITForm
+                        .navigationTitle(words("Opciones avanzadas", "Advanced options"))
+                } label: {
+                    Label(words("Opciones avanzadas", "Advanced options"),
+                          systemImage: "slider.horizontal.3")
+                }
+                .accessibilityIdentifier("bloombox.jit.advancedOptions")
+            }
+        }
+    }
+
+    private func refreshPairing() {
+        let result = BloomBoxJITPairingSync.synchronize()
+        hasPairing = BloomBoxJITPairingStorage().hasRecord
+        switch result {
+        case .disabled:
+            syncMessage = words("Sincronización desactivada.", "Synchronization is off.")
+        case .synchronized:
+            syncMessage = words("Pairing de SideStore sincronizado.", "SideStore pairing synchronized.")
+        case .alreadyCurrent:
+            syncMessage = words("Pairing de SideStore actualizado.", "SideStore pairing is current.")
+        case .unavailable:
+            syncMessage = automaticPairing
+                ? words("No se encontró un pairing compartido de SideStore. Se conserva el archivo actual.",
+                        "No shared SideStore pairing was found. Your existing file is preserved.")
+                : nil
+        }
+    }
+
+    private var advancedJITForm: some View {
         Form {
                 Section("JIT method") {
                     providerChooser
