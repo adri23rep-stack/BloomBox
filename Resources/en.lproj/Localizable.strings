@@ -902,3 +902,17 @@
 "Copiar lista de fuentes" = "Copy sources list";
 "Puedes guardar o compartir los enlaces; no se exportan datos privados ni archivos IPA." = "You can save or share the links; private data and IPA files are not exported.";
 "Pega una fuente AltStore (.json) o el enlace a un elemento de Internet Archive que contenga archivos .ipa." = "Paste an AltStore source (.json) or a link to an Internet Archive item containing .ipa files.";
+
+/* Dynamic module and widget gallery source values. */
+"Privacidad" = "Privacy";
+"Experimental" = "Experimental";
+"Internet y red" = "Internet and network";
+"Setup y proveedores" = "Setup and providers";
+"Fotos" = "Photos";
+"Un recordatorio siempre a la vista" = "A reminder always in sight";
+"Configurar JIT" = "Configure JIT";
+"Abrir controles del escritorio" = "Open Home Screen controls";
+"Abrir ajustes avanzados" = "Open advanced settings";
+"Carpeta" = "Folder";
+"Página" = "Page";
+"Nada instalado" = "Nothing installed";
