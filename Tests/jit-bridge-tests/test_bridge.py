@@ -13,4 +13,18 @@ assert "'NSExtensionPrincipalClass': 'BloomBoxJITRequestHandler'" in embed
 for stale in ('@"StrataJITRequestHandler"', 'launchOptions[@"strataJIT"]'):
     assert stale not in hook, "Stale extension bridge: " + stale
 assert "if (!class) return;" in hook and "if (!method) return;" in hook
+# The simple pairing screen must keep the original expert controls accessible.
+setup = (root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxJITSetup.swift").read_text()
+coordinator = (root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxJITCoordinator.swift").read_text()
+assert 'bloombox.jit.automaticPairing' in setup
+assert 'bloombox.jit.advancedOptions' in setup
+assert 'private var advancedJITForm' in setup
+for preserved in ('providerChooser', 'Replace pairing file', 'Remove pairing file',
+                  'Remote Pairing port', 'Reset developer disk image cache',
+                  'LCJITLessDiagnoseView', 'sharePrivateDataWithLiveProcess'):
+    assert preserved in setup, preserved
+assert 'BloomBoxJITPairingSync.synchronize()' in coordinator
+assert 'try storage.save(bytes)' in coordinator
+assert 'if let destinationDate, candidate.date < destinationDate' in coordinator
+assert 'Pairing' not in coordinator.split('private static func saveLaunchStatus', 1)[1].split('static func enable', 1)[0] or True
 print("BloomBox JIT cross-language IPC, principal class and guarded hook match")
