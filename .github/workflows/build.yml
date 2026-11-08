@@ -309,6 +309,10 @@ jobs:
         run: |
           swiftc LiveContainerSwiftUI/Utilities/BloomBoxRAMRelease.swift Tests/ram-release/main.swift -o "$RUNNER_TEMP/ram-release-tests"
           "$RUNNER_TEMP/ram-release-tests"
+      - name: Verify complete English UI translations
+        run: |
+          python3 Tests/english-localization/test_english.py
+          plutil -lint Resources/en.lproj/Localizable.strings
       - name: Test direct-upstream dependency validation (offline)
         run: python3 -m unittest discover -s Tests/dependency-source-tests -p 'test_*.py' -v
       - name: Restore pinned StikJIT and runtime dependencies
