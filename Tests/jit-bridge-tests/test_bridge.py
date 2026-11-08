@@ -28,6 +28,12 @@ assert 'try storage.save(bytes)' in coordinator
 # The bundled SideStore stores RemoteRP pairing under the guest Documents folder.
 assert '"PairingFile_RemoteRP.plist"' in coordinator
 assert '"Documents/SideStore/Documents"' in coordinator
+assert "roots.append(LCPath.docPath)" in coordinator, "Must search built-in SideStore's host Documents"
+assert 'BloomBoxJITSideStorePairingLastVerified' in coordinator
+assert 'case .disabled, synchronized, alreadyCurrent, olderSource, invalidSource, unreadableSource, unavailable' in coordinator
+assert 'bloombox.jit.checkPairingSync' in setup
+assert 'Last verified match' in setup
+assert 'lastPairingVerified' in setup
 assert 'name == "PairingFile_RemoteRP.plist" || folder.lowercased().contains("sidestore")' in coordinator
 assert 'if let destinationDate, candidate.date < destinationDate' in coordinator
 print("BloomBox JIT cross-language IPC, principal class and guarded hook match")
