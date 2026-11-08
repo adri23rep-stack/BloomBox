@@ -22,6 +22,8 @@ assert ".glassEffect(.regular.interactive(false), in: shape)" in visuals
 assert '"BloomBoxDeferBottomSystemGestures"' in launcher
 assert "private var protectBottomGestures = true" in launcher
 assert ".defersSystemGestures(on: protectBottomGestures ? .bottom : [])" in launcher
+assert "if #available(iOS 16.0, *)" in launcher, "Defer modifier must be gated for the iOS 15 deployment target"
+assert "private var launcherContent: some View" in launcher
 assert "Toggle(isOn: $protectBottomGestures)" in launcher
 assert "second swipe" in launcher
 print("BloomBox Dock geometry and switchable bottom-edge iOS gesture deferral are preserved.")
