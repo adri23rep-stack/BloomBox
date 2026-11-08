@@ -105,6 +105,8 @@ final class BloomBoxAutoUpdate: ObservableObject {
     private func installAutomaticallyIfPossible() async {
         guard !busy, automatic, decision == .eligible,
               UIApplication.shared.applicationState == .active,
+              // Never interrupt a currently selected guest/game to install.
+              UserDefaults.standard.string(forKey: "selected") == nil,
               let asset = currentAsset,
               defaults.string(forKey: "BloomBoxAutoUpdateAttemptedTag") != asset.tag else { return }
         await install(forceRetry: false)
@@ -293,6 +295,9 @@ struct BloomBoxAutoUpdateSettingsView: View {
         .task { await updater.checkIfDue(force: true) }
         .onChange(of: automatic) { enabled in
             if enabled { Task { await updater.checkIfDue(force: true) } }
+        }
+        .onChange(of: wifiOnly) { _ in
+            Task { await updater.checkIfDue(force: true) }
         }
     }
 }
