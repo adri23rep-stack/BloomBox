@@ -1037,7 +1037,7 @@ struct BloomBoxHomeScreen: View {
                         ForEach(librarySections) { section in
                             VStack(spacing: 9) {
                                 librarySectionTile(section)
-                                Text(LocalizedStringKey(section.title))
+                                Text(BloomBoxL10n.t(section.title))
                                     .font(.system(size: 14, weight: .medium))
                                     .lineLimit(1)
                                     .minimumScaleFactor(0.8)
@@ -1265,7 +1265,7 @@ struct BloomBoxHomeScreen: View {
                 TimelineView(.periodic(from: .now, by: 60)) { timeline in
                     VStack(spacing: 9) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Reloj")
+                            Text(BloomBoxL10n.t("Reloj"))
                                 .font(.system(size: 9, weight: .medium))
                                 .foregroundStyle(.white.opacity(0.85))
                             Text(timeline.date, format: .dateTime.hour().minute())
