@@ -328,16 +328,18 @@ final class BloomBoxJITLogStore: ObservableObject {
         var messages: [String]
 
         var displayStatus: String {
+            let label: String
             switch status {
-            case "running": return "Activando"
-            case "debugger_attached": return "Debugger conectado · sin confirmar"
-            case "awaiting_guest": return "Esperando respuesta del juego"
-            case "timed_out_attached": return "Sin confirmación del juego"
-            case "completed": return "JIT completado"
-            case "failed": return "Falló la activación"
-            case "interrupted": return "Proceso interrumpido"
-            default: return status
+            case "running": label = "Activando"
+            case "debugger_attached": label = "Debugger conectado · sin confirmar"
+            case "awaiting_guest": label = "Esperando respuesta del juego"
+            case "timed_out_attached": label = "Sin confirmación del juego"
+            case "completed": label = "JIT completado"
+            case "failed": label = "Falló la activación"
+            case "interrupted": label = "Proceso interrumpido"
+            default: label = status
             }
+            return BloomBoxL10n.t(label)
         }
 
         var exportText: String {
@@ -540,9 +542,9 @@ struct BloomBoxJITFloatingView: View {
     private var subtitle: String {
         switch history.phase {
         case .working: return history.activeAppName
-        case .waiting: return "Debugger conectado · " + history.activeAppName
-        case .success: return history.activeAppName + " está listo"
-        case .failure: return "Toca para ver el registro"
+        case .waiting: return BloomBoxL10n.isEnglish ? "Debugger connected · " + history.activeAppName : "Debugger conectado · " + history.activeAppName
+        case .success: return history.activeAppName + (BloomBoxL10n.isEnglish ? " is ready" : " está listo")
+        case .failure: return BloomBoxL10n.t("Toca para ver el registro")
         }
     }
 
@@ -686,7 +688,7 @@ struct BloomBoxJITFloatingView: View {
                 floatingSurface
                     .shadow(color: tint.opacity(colorScheme == .dark ? 0.25 : 0.14), radius: 18, y: 7)
                     .accessibilityIdentifier("bloombox.jit.floating")
-                    .accessibilityLabel(label + ". Toca para ver el registro.")
+                    .accessibilityLabel(label + (BloomBoxL10n.isEnglish ? ". Tap to view the log." : ". Toca para ver el registro."))
                     // Arrive from slightly below with a gentle glass "pop"; leave
                     // by dissolving and contracting towards the orb's anchor.
                     .transition(reduceMotion ? .opacity : .asymmetric(
