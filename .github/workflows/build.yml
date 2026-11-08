@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/bloombox-autoupdate-20261108
       - fix/jit-guest-orientation-ios27
       - feature/cinematic-game-mode-ram-jit-gate
       - refactor/remove-gamebox-reserve-slot-20261104
@@ -51,6 +52,25 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: recursive
+      - name: Stamp BloomBox release identity
+        env:
+          BLOOMBOX_HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: python3 Scripts/stamp-bloombox-release.py
+      - name: Test AutoUpdate version and downgrade safety
+        run: |
+          swiftc LiveContainerSwiftUI/Utilities/BloomBoxAutoUpdatePolicy.swift Tests/autoupdate/main.swift -o "$RUNNER_TEMP/bloombox-autoupdate-tests"
+          "$RUNNER_TEMP/bloombox-autoupdate-tests"
+          python3 - <<'PY'
+          from importlib.util import spec_from_file_location, module_from_spec
+          spec = spec_from_file_location("stamp", "Scripts/stamp-bloombox-release.py")
+          module = module_from_spec(spec)
+          spec.loader.exec_module(module)
+          assert module.tag_for_build("refs/heads/feature/bloombox-autoupdate-20261108", "push", "") == "development"
+          assert module.tag_for_build("refs/heads/main", "push", "feat: fixes") == "development"
+          assert module.tag_for_build("refs/heads/main", "push", "release: BloomBox v2.1.0") == "v2.1.0"
+          assert module.tag_for_build("refs/tags/v2.1.0", "push", "") == "v2.1.0"
+          print("BloomBox release stamping safeguards passed")
+          PY
       - name: Reject stale launcher media types
         run: |
           if grep -REn '(ManzanaWallpaperMedia|ManzanaAnimatedWallpaper)' LiveContainerSwiftUI --include='*.swift'; then
