@@ -21,6 +21,8 @@ struct BloomBoxLauncherRootView: View {
     @State private var showModeSheet = false
     @State private var showDestination = false
     @State private var showDiagnostics = false
+    @State private var showUpdateSheet = false
+    @ObservedObject private var autoUpdate = BloomBoxAutoUpdate.shared
     @State private var showRecoveryNotice = false
     @State private var showFirstRunWizard = false
     @AppStorage("BloomBoxWizardInitialCompletedV1", store: LCUtils.appGroupUserDefault)
@@ -68,6 +70,40 @@ struct BloomBoxLauncherRootView: View {
                 .allowsHitTesting(false)
                 .transition(.opacity)
             }
+        }
+        .overlay(alignment: .top) {
+            if autoUpdate.decision == .eligible, !autoUpdate.busy, wizardCompleted,
+               !showFirstRunWizard, !showModeSheet, !showDestination,
+               UserDefaults.standard.string(forKey: "selected") == nil {
+                Button { showUpdateSheet = true } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.cyan)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(BloomBoxL10n.isEnglish ? "BloomBox update available" : "Nueva actualización de BloomBox")
+                                .font(.subheadline.weight(.semibold))
+                            Text(autoUpdate.offeredTag ?? "")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 4)
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(12)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 22)
+                .padding(.top, 90)
+                .accessibilityIdentifier("bloombox.autoupdate.banner")
+            }
+        }
+        .sheet(isPresented: $showUpdateSheet) {
+            NavigationView { BloomBoxAutoUpdateSettingsView() }
+                .navigationViewStyle(.stack)
+                .environment(\.locale, locale)
         }
         .fullScreenCover(isPresented: $showFirstRunWizard) {
             BloomBoxWizardFlowView(isPreview: false) {
