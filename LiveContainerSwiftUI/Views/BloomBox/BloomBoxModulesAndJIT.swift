@@ -496,7 +496,10 @@ struct BloomBoxModulesPanel: View {
         .background(moduleBackdrop)
         .navigationTitle(module.title)
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showJITDemo) {
+        .sheet(isPresented: $showJITDemo, onDismiss: {
+            // No persistent "unconfigured" state after the recording closes.
+            jitDemoUnconfigured = false
+        }) {
             LiveBoardJITSetup()
         }
     }
