@@ -34,6 +34,26 @@ assert 'case disabled, synchronized, alreadyCurrent, olderSource, invalidSource,
 assert 'bloombox.jit.checkPairingSync' in setup
 assert 'Last verified match' in setup
 assert 'lastPairingVerified' in setup
+# New front-page activation has a real, persisted Built-in launch gate.
+assert '"BloomBoxJITMainEnabled"' in setup
+assert 'bloombox.jit.mainEnabled' in setup
+assert 'mainJITEnabled = enabled' in setup
+assert 'if enabled { provider = JITEnablerType.BuiltIn.rawValue }' in setup
+app_model = (root / "LiveContainerSwiftUI/Models/LCAppModel.swift").read_text()
+assert '"BloomBoxJITMainEnabled"' in app_model
+assert 'let wantsJIT = integratedJITAllowed && BloomBoxJITGuestPolicy.wantsJIT(' in app_model
+assert 'if !integratedJITAllowed && forceJIT == true' in app_model
+assert 'let builtInProvider = defaults.integer(forKey: "LCJITEnablerType")' in app_model
+# Experimental demo is a preview only: do not wipe pairing or alter real JIT.
+modules = (root / "LiveContainerSwiftUI/Views/BloomBox/BloomBoxModulesAndJIT.swift").read_text()
+assert 'bloombox.experiments.jit.demo' in modules
+assert 'jitDemoUnconfigured = true' in modules
+assert 'showJITDemo = true' in modules
+assert 'bloombox.jit.demo.exit' in setup
+assert 'if demoUnconfigured {' in setup
+assert 'syncMessage = nil' in setup
+assert '.disabled(demoUnconfigured)' in setup
+assert 'demoUnconfigured ? demoSwitchOn' in setup
 assert 'name == "PairingFile_RemoteRP.plist" || folder.lowercased().contains("sidestore")' in coordinator
 assert 'if let destinationDate, candidate.date < destinationDate' in coordinator
 print("BloomBox JIT cross-language IPC, principal class and guarded hook match")
