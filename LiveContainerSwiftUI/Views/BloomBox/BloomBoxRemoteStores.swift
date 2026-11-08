@@ -20,6 +20,7 @@ struct BloomBoxTweakEntry: Codable, Identifiable {
     // Never use this URL as a tweak download source.
     let officialSourceURL: String?
     let description: String?
+    let descriptionEn: String?
     let priority: String?
     let alertLevel: Int?
     let alertTitle: String?
@@ -40,6 +41,7 @@ struct BloomBoxTweakEntry: Codable, Identifiable {
     let useAtOwnRisk: Bool?
     let targetAppName: String?
     let notes: String?
+    let notesEn: String?
     let downloadURL: String
     let sha256: String
 
@@ -50,6 +52,11 @@ struct BloomBoxTweakEntry: Codable, Identifiable {
               link.user == nil, link.password == nil else { return nil }
         return link
     }
+
+    func localizedDescription(english: Bool) -> String {
+        english ? (descriptionEn ?? description ?? "Compatibility fix") : (description ?? "Corrección de compatibilidad")
+    }
+    func localizedNotes(english: Bool) -> String? { english ? (notesEn ?? notes) : notes }
 
     var projectLinkLabel: String {
         guard let url = officialProjectURL else { return "Sitio del autor" }
@@ -379,8 +386,8 @@ private struct BloomBoxV2StoreHeader: View {
                         .strokeBorder(.white.opacity(0.24), lineWidth: 1)
                 }
             VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.system(size: 22, weight: .bold, design: .rounded))
-                Text(subtitle).font(.footnote).foregroundStyle(.secondary)
+                Text(LocalizedStringKey(title)).font(.system(size: 22, weight: .bold, design: .rounded))
+                Text(LocalizedStringKey(subtitle)).font(.footnote).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
         }
@@ -412,6 +419,9 @@ struct BloomBoxTweakStore: View {
     private var profileAccent: Color { BloomBoxWizardPalette.color(profileAccentHex) }
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var sharedModel: SharedModel
+    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
+    private var preferredLanguage = "system"
+    private var englishUI: Bool { preferredLanguage == "en" || (preferredLanguage == "system" && (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("en")) }
     @ObservedObject private var catalog = BloomBoxTweakCatalog.shared
     @State private var installingID: String?
     @State private var notice: String?
@@ -451,7 +461,7 @@ struct BloomBoxTweakStore: View {
                         symbolInk: BloomBoxProfileTheme.ink(for: profileAccentHex)
                     )
                     HStack {
-                        Label("\(catalog.entries.count) tweaks en catálogo", systemImage: "arrow.triangle.2.circlepath")
+                        Label(englishUI ? "\(catalog.entries.count) tweaks in catalog" : "\(catalog.entries.count) tweaks en catálogo", systemImage: "arrow.triangle.2.circlepath")
                             .font(.caption).foregroundStyle(.secondary)
                         Spacer()
                         Button("Actualizar") { Task { await catalog.refreshIfNeeded(force: true) } }
@@ -572,7 +582,7 @@ struct BloomBoxTweakStore: View {
                                         .background(.secondary.opacity(0.12), in: Capsule())
                                 }
                             }
-                            Text(match.entry.description ?? "Corrección de compatibilidad")
+                            Text(match.entry.localizedDescription(english: englishUI))
                                 .font(.subheadline).foregroundStyle(.secondary)
                             if match.entry.useAtOwnRisk == true {
                                 Label("Uso bajo tu propio riesgo · No verificado en BloomBox",
@@ -580,7 +590,7 @@ struct BloomBoxTweakStore: View {
                                     .font(.caption.weight(.medium))
                                     .foregroundStyle(.orange)
                             }
-                            if let notes = match.entry.notes {
+                            if let notes = match.entry.localizedNotes(english: englishUI) {
                                 Text(notes).font(.caption).foregroundStyle(.secondary)
                             }
                             Text("\(match.app.displayName) · \(match.app.uiIsShared ? "Compartida" : "Privada")")
@@ -671,7 +681,7 @@ struct BloomBoxTweakStore: View {
                 }
                 Spacer(minLength: 0)
             }
-            Text(entry.description ?? "Tweak disponible en GitHub")
+            Text(entry.localizedDescription(english: englishUI))
                 .font(.subheadline).foregroundStyle(.secondary)
             if entry.useAtOwnRisk == true {
                 Label("Uso bajo tu propio riesgo · No verificado en BloomBox",
@@ -690,7 +700,7 @@ struct BloomBoxTweakStore: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            if let notes = entry.notes {
+            if let notes = entry.localizedNotes(english: englishUI) {
                 Text(notes).font(.caption).foregroundStyle(.secondary)
             }
             Text("Versión \(entry.version) · Autor: \(entry.creditedAuthor)")
@@ -820,6 +830,7 @@ private struct BloomBoxAppListing: Decodable, Identifiable {
     let creator: String
     let category: String
     let description: String
+    let descriptionEn: String?
     let officialWebsite: String
     let officialReleases: String
     let currentOfficialRelease: String?
@@ -832,6 +843,7 @@ private struct BloomBoxAppListing: Decodable, Identifiable {
     let featured: Bool?
     let useAtOwnRisk: Bool?
     let notes: String?
+    let notesEn: String?
     let warnings: [String]?
     let jit: JITInfo?
     let bundleID: String?
@@ -876,6 +888,9 @@ private struct BloomBoxAppListing: Decodable, Identifiable {
               parts[3] == "download", parts[5] == fileName else { return nil }
         return url
     }
+
+    func localizedDescription(english: Bool) -> String { english ? (descriptionEn ?? description) : description }
+    func localizedNotes(english: Bool) -> String? { english ? (notesEn ?? notes) : notes }
 
     var shouldWarn: Bool { useAtOwnRisk != false }
     var requiresJIT: Bool { jit?.externalHelper != nil }
@@ -1061,6 +1076,9 @@ struct BloomBoxAppStore: View {
     private var profileAccent: Color { BloomBoxWizardPalette.color(profileAccentHex) }
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var sharedModel: SharedModel
+    @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
+    private var preferredLanguage = "system"
+    private var englishUI: Bool { preferredLanguage == "en" || (preferredLanguage == "system" && (Locale.preferredLanguages.first ?? "en").lowercased().hasPrefix("en")) }
     @ObservedObject private var catalog = BloomBoxAppCatalog.shared
 
     @State private var section = 0
@@ -1078,7 +1096,7 @@ struct BloomBoxAppStore: View {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !needle.isEmpty else { return base }
         return base.filter {
-            [$0.name, $0.creator, $0.categoryTitle, $0.description]
+            [$0.name, $0.creator, $0.categoryTitle, $0.description, $0.descriptionEn ?? ""]
                 .contains { $0.localizedCaseInsensitiveContains(needle) }
         }
     }
@@ -1124,13 +1142,13 @@ struct BloomBoxAppStore: View {
                     BloomBoxV2StoreHeader(
                         symbol: "bag.fill",
                         title: "BloomBox App Store",
-                        subtitle: "Aplicaciones de creadores independientes",
+                        subtitle: englishUI ? "Apps from independent developers" : "Aplicaciones de creadores independientes",
                         accent: profileAccent,
                         symbolInk: BloomBoxProfileTheme.ink(for: profileAccentHex)
                     )
 
                     HStack {
-                        Label("\(catalog.listings.count) apps en catálogo",
+                        Label(englishUI ? "\(catalog.listings.count) apps in catalog" : "\(catalog.listings.count) apps en catálogo",
                               systemImage: "square.stack.3d.up")
                             .font(.caption).foregroundStyle(.secondary)
                         Spacer()
@@ -1239,7 +1257,7 @@ struct BloomBoxAppStore: View {
                     Text(item.name).font(.headline)
                     Text(item.creator)
                         .font(.caption).foregroundStyle(.secondary)
-                    Text(item.categoryTitle)
+                    Text(LocalizedStringKey(item.categoryTitle))
                         .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
@@ -1249,7 +1267,7 @@ struct BloomBoxAppStore: View {
                         .accessibilityLabel("Instalada")
                 }
             }
-            Text(item.description)
+            Text(item.localizedDescription(english: englishUI))
                 .font(.subheadline).foregroundStyle(.secondary)
             if item.requiresJIT {
                 Label("Puede requerir JIT · \(item.jit?.externalHelper ?? "depurador")",
@@ -1261,7 +1279,7 @@ struct BloomBoxAppStore: View {
                       systemImage: "exclamationmark.triangle.fill")
                     .font(.caption.weight(.medium)).foregroundStyle(.orange)
             }
-            if let note = item.notes, !note.isEmpty {
+            if let note = item.localizedNotes(english: englishUI), !note.isEmpty {
                 Text(note).font(.caption).foregroundStyle(.secondary)
             }
             if let release = item.currentOfficialRelease {
