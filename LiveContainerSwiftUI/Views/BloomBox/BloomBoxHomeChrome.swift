@@ -32,7 +32,7 @@ struct BloomBoxHomeInstallationNotice: View {
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Instalando aplicación")
-        .accessibilityValue("\(Int(amount * 100)) por ciento")
+        .accessibilityValue(BloomBoxL10n.isEnglish ? "\(Int(amount * 100)) percent" : "\(Int(amount * 100)) por ciento")
     }
 }
 
