@@ -470,7 +470,7 @@ struct BloomBoxTweakStore: View {
                     if catalog.refreshing {
                         ProgressView("Sincronizando catálogo...")
                     } else if let lastSuccess = catalog.lastSuccessfulSync {
-                        Label("Catálogo sincronizado: \(lastSuccess.formatted(date: .abbreviated, time: .shortened))",
+                        Label(englishUI ? "Catalog synced: \(lastSuccess.formatted(date: .abbreviated, time: .shortened))" : "Catálogo sincronizado: \(lastSuccess.formatted(date: .abbreviated, time: .shortened))",
                               systemImage: "checkmark.arrow.trianglehead.clockwise")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -481,7 +481,7 @@ struct BloomBoxTweakStore: View {
                             .foregroundStyle(.secondary)
                     }
                     if let lastError = catalog.lastError {
-                        Text("Sin conexión o catálogo no disponible. Se conserva la última lista válida. \(lastError)")
+                        Text(englishUI ? "Offline or catalog unavailable. Keeping the last valid list. \(lastError)" : "Sin conexión o catálogo no disponible. Se conserva la última lista válida. \(lastError)")
                             .font(.caption).foregroundStyle(.orange)
                     }
                     if let notice {
@@ -566,7 +566,7 @@ struct BloomBoxTweakStore: View {
                                 BloomBoxTweakTargetIcon(app: match.app, entry: match.entry)
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(match.entry.name).font(.headline)
-                                    Text("Para: \(match.app.displayName)")
+                                    Text(englishUI ? "For: \(match.app.displayName)" : "Para: \(match.app.displayName)")
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
                                 Spacer(minLength: 4)
@@ -576,7 +576,7 @@ struct BloomBoxTweakStore: View {
                                         .padding(.horizontal, 8).padding(.vertical, 5)
                                         .background(.orange.opacity(0.22), in: Capsule())
                                 } else if let level = match.entry.alertLevel, level > 0 {
-                                    Text("NIVEL \(level)")
+                                    Text(englishUI ? "LEVEL \(level)" : "NIVEL \(level)")
                                         .font(.caption2.bold())
                                         .padding(.horizontal, 8).padding(.vertical, 5)
                                         .background(.secondary.opacity(0.12), in: Capsule())
@@ -593,12 +593,12 @@ struct BloomBoxTweakStore: View {
                             if let notes = match.entry.localizedNotes(english: englishUI) {
                                 Text(notes).font(.caption).foregroundStyle(.secondary)
                             }
-                            Text("\(match.app.displayName) · \(match.app.uiIsShared ? "Compartida" : "Privada")")
+                            Text("\(match.app.displayName) · \(englishUI ? (match.app.uiIsShared ? "Shared" : "Private") : (match.app.uiIsShared ? "Compartida" : "Privada"))")
                                 .font(.footnote.bold())
-                            Text("Bundle: \(match.app.bundleIdentifier) · Carpeta: \(match.app.appInfo.relativeBundlePath ?? "?")")
+                            Text(englishUI ? "Bundle: \(match.app.bundleIdentifier) · Folder: \(match.app.appInfo.relativeBundlePath ?? "?")" : "Bundle: \(match.app.bundleIdentifier) · Carpeta: \(match.app.appInfo.relativeBundlePath ?? "?")")
                                 .font(.caption2).foregroundStyle(.secondary)
                                 .textSelection(.enabled)
-                            Text("Versión \(match.entry.version)")
+                            Text(englishUI ? "Version \(match.entry.version)" : "Versión \(match.entry.version)")
                                 .font(.caption2).foregroundStyle(.secondary)
                             HStack(alignment: .center, spacing: 10) {
                                 Image(systemName: "person.crop.circle")
@@ -615,7 +615,7 @@ struct BloomBoxTweakStore: View {
                             }
                             if let originalURL = match.entry.officialProjectURL {
                                 Link(destination: originalURL) {
-                                    Label(match.entry.projectLinkLabel, systemImage: "arrow.up.right.square")
+                                    Label(LocalizedStringKey(match.entry.projectLinkLabel), systemImage: "arrow.up.right.square")
                                         .font(.footnote.weight(.medium))
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                 }
@@ -676,7 +676,7 @@ struct BloomBoxTweakStore: View {
                 BloomBoxTweakTargetIcon(app: nil, entry: entry)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(entry.name).font(.headline)
-                    Text("Para: \(entry.targetAppName ?? entry.targetBundleID ?? "Varios juegos y apps")")
+                    Text(englishUI ? "For: \(entry.targetAppName ?? entry.targetBundleID ?? "Various games and apps")" : "Para: \(entry.targetAppName ?? entry.targetBundleID ?? "Varios juegos y apps")")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
@@ -703,11 +703,11 @@ struct BloomBoxTweakStore: View {
             if let notes = entry.localizedNotes(english: englishUI) {
                 Text(notes).font(.caption).foregroundStyle(.secondary)
             }
-            Text("Versión \(entry.version) · Autor: \(entry.creditedAuthor)")
+            Text(englishUI ? "Version \(entry.version) · Author: \(entry.creditedAuthor)" : "Versión \(entry.version) · Autor: \(entry.creditedAuthor)")
                 .font(.caption).foregroundStyle(.secondary)
             if let original = entry.officialProjectURL {
                 Link(destination: original) {
-                    Label(entry.projectLinkLabel, systemImage: "arrow.up.right.square")
+                    Label(LocalizedStringKey(entry.projectLinkLabel), systemImage: "arrow.up.right.square")
                         .font(.footnote.weight(.medium))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -1159,12 +1159,12 @@ struct BloomBoxAppStore: View {
                     if catalog.refreshing {
                         ProgressView("Actualizando tienda...")
                     } else if let last = catalog.lastSync {
-                        Label("Sincronizado: \(last.formatted(date: .abbreviated, time: .shortened))",
+                        Label(englishUI ? "Synced: \(last.formatted(date: .abbreviated, time: .shortened))" : "Sincronizado: \(last.formatted(date: .abbreviated, time: .shortened))",
                               systemImage: "checkmark.circle")
                             .font(.caption2).foregroundStyle(.secondary)
                     }
                     if let error = catalog.lastError {
-                        Label("Sin conexión: se conserva la última lista válida. \(error)",
+                        Label(englishUI ? "Offline: keeping the last valid list. \(error)" : "Sin conexión: se conserva la última lista válida. \(error)",
                               systemImage: "wifi.exclamationmark")
                             .font(.caption).foregroundStyle(.orange)
                     }
@@ -1270,7 +1270,7 @@ struct BloomBoxAppStore: View {
             Text(item.localizedDescription(english: englishUI))
                 .font(.subheadline).foregroundStyle(.secondary)
             if item.requiresJIT {
-                Label("Puede requerir JIT · \(item.jit?.externalHelper ?? "depurador")",
+                Label(englishUI ? "May require JIT · \(item.jit?.externalHelper ?? "debugger")" : "Puede requerir JIT · \(item.jit?.externalHelper ?? "depurador")",
                       systemImage: "bolt.fill")
                     .font(.caption).foregroundStyle(.orange)
             }
@@ -1283,7 +1283,7 @@ struct BloomBoxAppStore: View {
                 Text(note).font(.caption).foregroundStyle(.secondary)
             }
             if let release = item.currentOfficialRelease {
-                Text("Versión publicada: \(release)")
+                Text(englishUI ? "Published version: \(release)" : "Versión publicada: \(release)")
                     .font(.caption2).foregroundStyle(.secondary)
             }
             if installed(item) {
