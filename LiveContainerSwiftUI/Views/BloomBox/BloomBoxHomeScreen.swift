@@ -637,7 +637,8 @@ struct BloomBoxHomeScreen: View {
                                             }
                                         }
                                         .accessibilityLabel(index == -1
-                                            ? "Página de widgets" : "Página \(index + 1). Mantén pulsado para eliminarla")
+                                            ? BloomBoxL10n.t("Página de widgets")
+                                            : (englishUI ? "Page \(index + 1). Long-press to delete" : "Página \(index + 1). Mantén pulsado para eliminarla"))
                                         if index == -1 {
                                             Image(systemName: "checkmark.circle.fill")
                                                 .font(.system(size: 29, weight: .light))
@@ -656,7 +657,8 @@ struct BloomBoxHomeScreen: View {
                                             }
                                             .buttonStyle(.plain)
                                             .accessibilityLabel(hiddenPageIndices.contains(index)
-                                                ? "Mostrar página \(index + 1)" : "Ocultar página \(index + 1)")
+                                                ? (englishUI ? "Show page \(index + 1)" : "Mostrar página \(index + 1)")
+                                                : (englishUI ? "Hide page \(index + 1)" : "Ocultar página \(index + 1)"))
                                         }
                                     }
                                 }
@@ -980,7 +982,7 @@ struct BloomBoxHomeScreen: View {
         return appKeys.map { key in
             BloomBoxAppLibraryPolicy.Entry(
                 key: key,
-                name: title(key, appsByKey: appsByKey),
+                name: BloomBoxL10n.t(title(key, appsByKey: appsByKey)),
                 bundleID: appsByKey[key]?.bundleIdentifier ?? "",
                 isBuiltIn: builtIns.contains(key)
             )
@@ -1294,7 +1296,7 @@ struct BloomBoxHomeScreen: View {
                             .clipShape(RoundedRectangle(cornerRadius: 13))
                             VStack(alignment: .leading, spacing: 6) {
                                 Image(systemName: "note.text")
-                                Text(miniatureNote.isEmpty ? "Notas" : miniatureNote)
+                                Text(miniatureNote.isEmpty ? BloomBoxL10n.t("Notas") : miniatureNote)
                                     .lineLimit(3)
                             }
                             .font(.system(size: 9))
@@ -2118,7 +2120,8 @@ struct BloomBoxHomeScreen: View {
             Button("Cambiar imagen o GIF", systemImage: "photo.badge.plus") {
                 requestWidgetMedia(for: widget.id)
             }
-            Button(widget.fill ? "Mostrar imagen completa" : "Rellenar widget",
+            Button(englishUI ? (widget.fill ? "Show full image" : "Fill widget")
+                             : (widget.fill ? "Mostrar imagen completa" : "Rellenar widget"),
                    systemImage: "arrow.up.left.and.arrow.down.right") {
                 updateWidget(widget.id) { $0.fill.toggle() }
             }
@@ -2220,7 +2223,7 @@ struct BloomBoxHomeScreen: View {
         }
         Menu("Mover a página", systemImage: "rectangle.on.rectangle") {
             ForEach(layout.pages.indices, id: \.self) { target in
-                Button("Página \(target + 1)") {
+                Button(englishUI ? "Page \(target + 1)" : "Página \(target + 1)") {
                     movePlacedWidget(widget.id, to: target, slot: nil)
                 }.disabled(target == index)
             }
@@ -2387,7 +2390,7 @@ struct BloomBoxHomeScreen: View {
             }
             Menu("Mover a página", systemImage: "rectangle.on.rectangle") {
                 ForEach(layout.pages.indices, id: \.self) { index in
-                    Button("Página \(index + 1)") {
+                    Button(englishUI ? "Page \(index + 1)" : "Página \(index + 1)") {
                         layout.place(key, on: index); page = index + 1; reconcile()
                     }
                 }
@@ -2656,7 +2659,7 @@ struct BloomBoxHomeScreen: View {
                     }
                     Menu("Mover a página") {
                         ForEach(layout.pages.indices, id: \.self) { index in
-                            Button("Página \(index + 1)") {
+                            Button(englishUI ? "Page \(index + 1)" : "Página \(index + 1)") {
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
                                     layout.place(folder.id, on: index)
                                     reconcile()
