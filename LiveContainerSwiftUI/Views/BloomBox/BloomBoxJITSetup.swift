@@ -14,6 +14,15 @@ struct BloomBoxJITSetup: View {
     @State private var hasPairing = (try? BloomBoxJITPairingStorage().load()) != nil
     @AppStorage("BloomBoxJITSyncWithSideStore", store: LCUtils.appGroupUserDefault)
     private var automaticPairing = true
+    // Preserve current users' working JIT on upgrade. Turning this OFF
+    // disables automatic and explicit Built-in JIT requests on future launches.
+    @AppStorage("BloomBoxJITMainEnabled", store: LCUtils.appGroupUserDefault)
+    private var mainJITEnabled = true
+    // Experimental UI-only rehearsal for GIF/video recording. Never writes to
+    // pairing files, VPN, JIT provider, private data access or JIT preferences.
+    @AppStorage("BloomBoxJITDemoUnconfigured", store: LCUtils.appGroupUserDefault)
+    private var demoUnconfigured = false
+    @State private var demoSwitchOn = false
     @AppStorage("BloomBoxPreferredLanguage", store: LCUtils.appGroupUserDefault)
     private var preferredLanguage = "system"
     @Environment(\.scenePhase) private var scenePhase
@@ -29,6 +38,25 @@ struct BloomBoxJITSetup: View {
     private func words(_ spanish: String, _ english: String) -> String {
         englishUI ? english : spanish
     }
+    // Only the preview switch is fictional; the real state is never changed
+    // during the recording simulation.
+    private var activationSwitch: Binding<Bool> {
+        Binding(
+            get: {
+                demoUnconfigured ? demoSwitchOn :
+                    (mainJITEnabled && provider == JITEnablerType.BuiltIn.rawValue)
+            },
+            set: { enabled in
+                if demoUnconfigured {
+                    demoSwitchOn = enabled
+                } else {
+                    mainJITEnabled = enabled
+                    if enabled { provider = JITEnablerType.BuiltIn.rawValue }
+                }
+            }
+        )
+    }
+
     let embedded: Bool
 
     init(embedded: Bool = false) {
@@ -57,6 +85,10 @@ struct BloomBoxJITSetup: View {
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.data], onCompletion: importPairing)
         .onAppear { refreshPairing() }
+        .onChange(of: demoUnconfigured) { enabled in
+            if enabled { demoSwitchOn = false }
+            refreshPairing()
+        }
         .onChange(of: automaticPairing) { _ in refreshPairing() }
         .onChange(of: scenePhase) { phase in
             if phase == .active { refreshPairing() }
@@ -74,6 +106,67 @@ struct BloomBoxJITSetup: View {
     // route to every existing expert control. None of those settings are removed.
     private var jitForm: some View {
         Form {
+            if demoUnconfigured {
+                Section {
+                    Label(words("Modo demostración · sin configurar", "Demo mode · not configured"),
+                          systemImage: "video.badge.waveform")
+                        .foregroundStyle(.orange)
+                    Text(words(
+                        "Solo se está simulando el primer uso para grabar las instrucciones. El pairing, la VPN y el JIT reales no cambiaron.",
+                        "First-time setup is simulated for recording only. Your actual pairing, VPN and JIT are unchanged."
+                    ))
+                    .font(.footnote)
+                    Button {
+                        demoUnconfigured = false
+                        demoSwitchOn = false
+                        refreshPairing()
+                    } label: {
+                        Label(words("Salir de simulación", "Exit demo mode"),
+                              systemImage: "arrow.uturn.backward")
+                    }
+                    .accessibilityIdentifier("bloombox.jit.demo.exit")
+                }
+            }
+
+            Section {
+                Toggle(isOn: activationSwitch) {
+                    Label(words("Activar JIT", "Enable JIT"), systemImage: "bolt.fill")
+                }
+                .accessibilityIdentifier("bloombox.jit.mainEnabled")
+
+                if demoUnconfigured {
+                    Label(
+                        demoSwitchOn
+                            ? words("Configuración pendiente · asistente próximamente", "Setup pending · wizard coming soon")
+                            : words("JIT sin configurar (simulación)", "JIT not configured (demo)"),
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .foregroundStyle(.orange)
+                    Text(words(
+                        "Aquí mostraremos el asistente con tu GIF. Aún no hay activación real en este modo.",
+                        "The setup wizard will appear here with your GIF. This demo never activates JIT."
+                    ))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                } else {
+                    Label(
+                        mainJITEnabled && provider == JITEnablerType.BuiltIn.rawValue
+                            ? words("JIT permitido para próximos lanzamientos", "JIT enabled for upcoming launches")
+                            : words("JIT integrado desactivado", "Built-in JIT is off"),
+                        systemImage: mainJITEnabled && provider == JITEnablerType.BuiltIn.rawValue
+                            ? "checkmark.circle.fill" : "circle"
+                    )
+                    .foregroundStyle(mainJITEnabled && provider == JITEnablerType.BuiltIn.rawValue ? .green : .secondary)
+                    Text(words(
+                        "Al encenderlo se selecciona Built-in JIT. Se activa para cada app al iniciarla con JIT; este switch no confirma memoria JIT en un juego abierto.",
+                        "Turning it on selects Built-in JIT. JIT activates when a guest launches with JIT; this switch does not confirm JIT memory in an already-open game."
+                    ))
+                    .font(.footnote).foregroundStyle(.secondary)
+                }
+            } header: {
+                Text(words("Activación", "Activation"))
+            }
+
             Section {
                 Toggle(isOn: $automaticPairing) {
                     Label(words("Emparejamiento automático", "Automatic pairing"),
@@ -82,20 +175,26 @@ struct BloomBoxJITSetup: View {
                 .accessibilityIdentifier("bloombox.jit.automaticPairing")
 
                 Label(
-                    hasPairing
-                        ? words("Archivo de emparejamiento disponible", "Pairing file available")
-                        : words("Falta el archivo de emparejamiento", "Pairing file missing"),
-                    systemImage: hasPairing ? "checkmark.shield.fill" : "exclamationmark.triangle.fill"
+                    demoUnconfigured
+                        ? words("Pairing pendiente (simulación)", "Pairing pending (demo)")
+                        : hasPairing
+                            ? words("Archivo de emparejamiento disponible", "Pairing file available")
+                            : words("Falta el archivo de emparejamiento", "Pairing file missing"),
+                    systemImage: !demoUnconfigured && hasPairing ? "checkmark.shield.fill" : "exclamationmark.triangle.fill"
                 )
-                .foregroundStyle(hasPairing ? .green : .orange)
+                .foregroundStyle(!demoUnconfigured && hasPairing ? .green : .orange)
 
-                if let syncMessage {
+                if !demoUnconfigured, let syncMessage {
                     Text(syncMessage)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
 
-                if provider == JITEnablerType.BuiltIn.rawValue {
+                if demoUnconfigured {
+                    Text(words("El pairing original está protegido; la simulación no ejecuta comprobaciones ni preparaciones reales.",
+                               "Your pairing is protected; the demo performs no real pairing or preparation."))
+                        .font(.footnote).foregroundStyle(.secondary)
+                } else if provider == JITEnablerType.BuiltIn.rawValue && mainJITEnabled {
                     if hasPairing {
                         Button {
                             perform("prepare")
@@ -112,16 +211,20 @@ struct BloomBoxJITSetup: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     }
-                } else {
+                } else if !demoUnconfigured && !mainJITEnabled {
+                    Text(words("Activa JIT arriba para preparar el dispositivo y usar el JIT integrado en tus apps.",
+                               "Enable JIT above to prepare the device and use built-in JIT in your apps."))
+                        .font(.footnote).foregroundStyle(.secondary)
+                } else if !demoUnconfigured {
                     Text(words("Hay otro proveedor de JIT seleccionado.",
                                "Another JIT provider is currently selected."))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(.footnote).foregroundStyle(.secondary)
                     Button(words("Usar JIT integrado", "Use built-in JIT")) {
                         provider = JITEnablerType.BuiltIn.rawValue
+                        mainJITEnabled = true
                     }
                 }
-                if session.busy {
+                if !demoUnconfigured && session.busy {
                     HStack {
                         ProgressView()
                         Text(words("Preparando…", "Preparing…"))
@@ -138,7 +241,7 @@ struct BloomBoxJITSetup: View {
                 ))
             }
 
-            if provider == JITEnablerType.BuiltIn.rawValue {
+            if !demoUnconfigured && provider == JITEnablerType.BuiltIn.rawValue {
                 Section {
                     connectionFeedback
                 }
