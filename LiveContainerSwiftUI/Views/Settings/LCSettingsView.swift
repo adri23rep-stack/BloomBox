@@ -193,6 +193,14 @@ struct LCSettingsView: View {
                 }
                 
                 if #available(iOS 16.2, *) {
+                    Section("BloomBox · AutoUpdate") {
+                        NavigationLink {
+                            BloomBoxAutoUpdateSettingsView()
+                        } label: {
+                            Label("AutoUpdate", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .accessibilityIdentifier("bloombox.settings.autoupdate.open")
+                    }
                     Section("BloomBox · SideStore") {
                         NavigationLink {
                             ManzanaExpiryReminderSettings()
