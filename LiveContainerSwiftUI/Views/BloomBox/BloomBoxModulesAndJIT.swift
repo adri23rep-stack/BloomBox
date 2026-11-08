@@ -732,8 +732,8 @@ private struct BloomBoxJITSwitchRow: View {
                 .background(Color.purple.opacity(0.16), in: RoundedRectangle(cornerRadius: 11))
             VStack(alignment: .leading, spacing: 3) {
                 Text(app.displayName).font(.subheadline.weight(.semibold)).lineLimit(1)
-                Text(app.jitLaunchScriptJs?.isEmpty == false ? "Script personalizado" :
-                     specialMeloNX ? "Script propio de MeloNX" : "Universal JIT")
+                Text(LocalizedStringKey(app.jitLaunchScriptJs?.isEmpty == false ? "Script personalizado" :
+                     specialMeloNX ? "Script propio de MeloNX" : "Universal JIT"))
                     .font(.caption2).foregroundStyle(.secondary)
             }
             Spacer(minLength: 4)
