@@ -10,6 +10,9 @@ struct BloomBoxPlayniteSwitchStyle {
     let name: String
     let accent: Color
     let selectionColor: Color
+    let focusStartColor: Color
+    let focusEndColor: Color
+    let focusAnimationSeconds: Double
     let background: Color
     let logo: UIImage?
     let settingsIcon: UIImage?
@@ -174,10 +177,25 @@ final class BloomBoxPlayniteSwitchThemeStore: ObservableObject {
         let background = Self.color(in: constants, pattern:
             #"<SolidColorBrush\s+x:Key="MainBackgourndBrush"\s+Color="(#[0-9A-Fa-f]{6,8})""#)
             ?? Color(red: 0.18, green: 0.18, blue: 0.18)
+        let listStyle = (try? String(
+            contentsOf: root.appendingPathComponent("DerivedStyles/ListGameItemStyle.xaml"),
+            encoding: .utf8)) ?? ""
+        // Read the actual focus glow from the original ListGameItemStyle.xaml,
+        // rather than inventing GameBox-only colors or timing.
+        let focusStart = Self.color(in: listStyle, pattern:
+            #"<ColorAnimation\s+From="(#[0-9A-Fa-f]{6,8})""#) ?? selectionColor
+        let focusEnd = Self.color(in: listStyle, pattern:
+            #"<ColorAnimation[^>]*\sTo="(#[0-9A-Fa-f]{6,8})""#) ?? selectionColor
+        let focusDuration = Self.duration(in: listStyle, pattern:
+            #"<ColorAnimation[^>]*Duration="([0-9:.]+)""#) ?? 0.55
+
         style = BloomBoxPlayniteSwitchStyle(
             name: "Nintendo Switch-ish",
             accent: accent,
             selectionColor: selectionColor,
+            focusStartColor: focusStart,
+            focusEndColor: focusEnd,
+            focusAnimationSeconds: focusDuration,
             background: background,
             logo: Self.smallImage(root.appendingPathComponent("Images/applogo_clean.png")),
             settingsIcon: Self.smallImage(root.appendingPathComponent("Images/settings.png")),
@@ -199,6 +217,16 @@ final class BloomBoxPlayniteSwitchThemeStore: ObservableObject {
         let blue = Double(parsed & 255) / 255.0
         let alpha = hex.count == 8 ? Double((parsed >> 24) & 255) / 255.0 : 1.0
         return Color(red: red, green: green, blue: blue).opacity(alpha)
+    }
+
+    nonisolated private static func duration(in text: String, pattern: String) -> Double? {
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let range = Range(match.range(at: 1), in: text) else { return nil }
+        let parts = String(text[range]).split(separator: ":").compactMap { Double($0) }
+        guard parts.count == 3 else { return nil }
+        let seconds = parts[0] * 3600 + parts[1] * 60 + parts[2]
+        return seconds.isFinite && (0.1...3).contains(seconds) ? seconds : nil
     }
 
     nonisolated private static func smallImage(_ file: URL) -> UIImage? {
