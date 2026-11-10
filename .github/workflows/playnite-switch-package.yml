@@ -41,3 +41,24 @@ jobs:
               print("Theme manifest:\n", manifest_text[:1200])
               assert "Nintendo Switch-ish_0d020ed5-0f3c-4c1a-bf9a-c983ef7d74b7" in manifest_text
           PY
+
+  native-extraction:
+    name: Test actual iOS archive extractor on macOS
+    runs-on: macos-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download pinned original Nintendo Switch-ish release
+        run: |
+          curl -fL --retry 3 --connect-timeout 20 --max-time 120 \
+            "https://github.com/davidkgriggs/Nintendo-Switch-ish/releases/download/v2.0.0/Nintendo_Switch-ish_0d020ed5-0f3c-4c1a-bf9a-c983ef7d74b7_2_0_0.pthm" \
+            -o "$RUNNER_TEMP/original.pthm"
+          echo "58037adb78519e822896ff524c9a6f78fa90457ccf6e28baeecdad3030d59d8e  $RUNNER_TEMP/original.pthm" | shasum -a 256 -c -
+      - name: Compile and exercise native unpacker, path defenses, and original assets
+        run: |
+          clang -fobjc-arc -framework Foundation -larchive \
+            -I LiveContainerSwiftUI/Utilities \
+            Tests/playnite-switch-tests/main.m \
+            LiveContainerSwiftUI/Utilities/BloomBoxArchive.m \
+            -o "$RUNNER_TEMP/playnite-switch-tests"
+          "$RUNNER_TEMP/playnite-switch-tests" "$RUNNER_TEMP/original.pthm"
