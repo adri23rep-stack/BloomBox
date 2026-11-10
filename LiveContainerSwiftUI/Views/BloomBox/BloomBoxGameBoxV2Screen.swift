@@ -232,18 +232,6 @@ struct BloomBoxGameBoxV2Screen: View {
                 : min(max(safeHeight * 0.41, 110), min(safeWidth * 0.18, 174))
             ZStack {
                 consoleBackground
-                if isSwitchTheme {
-                    VStack(spacing: 0) {
-                        HStack(spacing: 0) {
-                            Color.white.opacity(0.88)
-                            playniteSwitch.style?.accent ?? Color(red: 0.24, green: 0.86, blue: 0.73)
-                        }
-                        .frame(height: 4)
-                        Spacer(minLength: 0)
-                    }
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-                }
                 VStack(spacing: compact ? 7 : 15) {
                     Group {
                         if isSwitchTheme {
@@ -276,10 +264,16 @@ struct BloomBoxGameBoxV2Screen: View {
                             .padding(.horizontal, compact ? 12 : 25)
                             .accessibilityHidden(true)
                     }
-                    detailPanel(compact: compact)
-                        // Slimmer by ~11%, preserving room for the title and controls.
-                        .frame(height: compact ? 100 : 120)
-                        .padding(.horizontal, compact ? 12 : 25)
+                    if isSwitchTheme {
+                        switchFooter(compact: compact)
+                            .frame(height: compact ? 76 : 92)
+                            .padding(.horizontal, compact ? 12 : 25)
+                    } else {
+                        detailPanel(compact: compact)
+                            // Original Liquid Glass layout is unaffected.
+                            .frame(height: compact ? 100 : 120)
+                            .padding(.horizontal, compact ? 12 : 25)
+                    }
                 }
                 .padding(.vertical, compact ? 3 : 12)
                 if showProfileSwitcher {
@@ -708,14 +702,14 @@ struct BloomBoxGameBoxV2Screen: View {
                         .scaledToFill()
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
-                        .blur(radius: constrained ? 4 : (isSwitchTheme ? 9 : 17))
-                        .opacity(constrained ? 0.46 : (isSwitchTheme ? 0.38 : 0.74))
+                        .blur(radius: constrained ? 4 : (isSwitchTheme ? 14 : 17))
+                        .opacity(isSwitchTheme ? 0.18 : (constrained ? 0.56 : 0.74))
                 }
                 .allowsHitTesting(false)
             }
             LinearGradient(
                 colors: isSwitchTheme
-                    ? [.black.opacity(0.20), .clear, .black.opacity(0.58)]
+                    ? [.black.opacity(0.30), .black.opacity(0.08), .black.opacity(0.46)]
                     : [.black.opacity(0.45), .black.opacity(0.06), .black.opacity(0.64)],
                 startPoint: .top, endPoint: .bottom
             )
@@ -1042,6 +1036,135 @@ struct BloomBoxGameBoxV2Screen: View {
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: isSwitchTheme ? 10 : max(6, size * 0.23),
                                      style: .continuous))
+    }
+
+    // Native adaptation of Nintendo Switch-ish Main.xaml bottom action row.
+    // The original WPF controls cannot run on iOS: these call GameBox's
+    // existing host actions so JIT, signing and guest launches stay intact.
+    private func switchFooter(compact: Bool) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 9) {
+                if let app = selectedApp {
+                    Text(title(app))
+                        .font(.system(size: compact ? 18 : 23, weight: .semibold, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                    if app.requiresJIT {
+                        Label("JIT", systemImage: "bolt.fill")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(playniteSwitch.style?.accent ?? .white)
+                    }
+                } else {
+                    Text(BloomBoxL10n.isEnglish ? "No games installed" : "No hay juegos instalados")
+                        .font(.system(size: 15, weight: .medium))
+                }
+                Spacer(minLength: 0)
+                if let controller = playniteSwitch.style?.controllerIcon,
+                   !safeGraphics {
+                    Image(uiImage: controller).resizable().scaledToFit()
+                        .frame(width: compact ? 31 : 40, height: compact ? 25 : 32)
+                        .accessibilityHidden(true)
+                }
+            }
+            .foregroundStyle(.white)
+            .frame(height: compact ? 29 : 38)
+
+            Rectangle()
+                .fill(.white.opacity(0.48))
+                .frame(height: 1)
+                .accessibilityHidden(true)
+
+            HStack(spacing: compact ? 4 : 9) {
+                if let app = selectedApp {
+                    switchAction("play.fill",
+                                 title: BloomBoxL10n.isEnglish ? "Play" : "Jugar",
+                                 compact: compact, emphasized: true) {
+                        requestLaunch(app, forceJIT: false)
+                    }
+                    .disabled(launchPending)
+                    .accessibilityIdentifier("bloombox.gamebox.switch.play")
+
+                    if app.requiresJIT {
+                        switchAction("bolt.fill", title: "JIT", compact: compact) {
+                            requestLaunch(app, forceJIT: true)
+                        }
+                        .disabled(launchPending)
+                    }
+
+                    switchAction(favorites.contains(key(app)) ? "heart.fill" : "heart",
+                                 title: BloomBoxL10n.isEnglish ? "Favorite" : "Favorito",
+                                 compact: compact) {
+                        toggleFavorite(app)
+                    }
+
+                    Menu {
+                        Button(BloomBoxL10n.isEnglish ? "Game settings" : "Ajustes del juego",
+                               systemImage: "slider.horizontal.3") { manage(key(app)) }
+                        Button(BloomBoxL10n.isEnglish ? "Cover from Photos" : "Carátula desde Fotos",
+                               systemImage: "photo") { chooseArtwork(for: app, kind: .cover) }
+                        Button(BloomBoxL10n.isEnglish ? "Background from Photos" : "Fondo desde Fotos",
+                               systemImage: "photo.on.rectangle") { chooseArtwork(for: app, kind: .background) }
+                        Button(BloomBoxL10n.isEnglish ? "Cover from Files" : "Carátula desde Archivos",
+                               systemImage: "folder") { chooseArtworkFromFiles(for: app, kind: .cover) }
+                        Button(BloomBoxL10n.isEnglish ? "Background from Files" : "Fondo desde Archivos",
+                               systemImage: "folder.fill") { chooseArtworkFromFiles(for: app, kind: .background) }
+                    } label: {
+                        switchActionLabel("ellipsis.circle",
+                                          title: BloomBoxL10n.isEnglish ? "Options" : "Opciones",
+                                          compact: compact)
+                    }
+                    .accessibilityLabel(BloomBoxL10n.isEnglish ? "Game options" : "Opciones del juego")
+                }
+
+                Spacer(minLength: 0)
+
+                switchAction("gamecontroller.fill",
+                             title: BloomBoxL10n.isEnglish ? "Controller" : "Control",
+                             compact: compact) { showNikaidoPanel = true }
+                switchAction("square.grid.2x2.fill",
+                             title: BloomBoxL10n.isEnglish ? "Library" : "Biblioteca",
+                             compact: compact, action: openManagement)
+                switchAction("plus.circle",
+                             title: BloomBoxL10n.isEnglish ? "Install" : "Instalar",
+                             compact: compact, action: openInstall)
+                switchAction("house",
+                             title: BloomBoxL10n.isEnglish ? "Desktop" : "Escritorio",
+                             compact: compact, action: backToHome)
+            }
+            .frame(height: compact ? 45 : 53)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("bloombox.gamebox.switch.footer")
+    }
+
+    private func switchAction(_ symbol: String, title: String,
+                              compact: Bool, emphasized: Bool = false,
+                              action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            switchActionLabel(symbol, title: title, compact: compact,
+                              emphasized: emphasized)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+
+    private func switchActionLabel(_ symbol: String, title: String,
+                                   compact: Bool, emphasized: Bool = false) -> some View {
+        VStack(spacing: compact ? 1 : 4) {
+            Image(systemName: symbol)
+                .font(.system(size: compact ? 17 : 21,
+                              weight: emphasized ? .bold : .medium))
+            Text(title)
+                .font(.system(size: compact ? 9 : 11,
+                              weight: emphasized ? .semibold : .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+        }
+        .foregroundStyle(emphasized
+                         ? (playniteSwitch.style?.accent ?? .white)
+                         : .white.opacity(0.92))
+        .frame(minWidth: compact ? 52 : 66, minHeight: compact ? 40 : 49)
+        .contentShape(Rectangle())
     }
 
     private func detailPanel(compact: Bool) -> some View {
