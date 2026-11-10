@@ -5,6 +5,8 @@ NS_ASSUME_NONNULL_BEGIN
 + (BOOL)packDirectory:(NSURL *)source toURL:(NSURL *)destination error:(NSError **)error NS_SWIFT_NAME(pack(source:destination:));
 + (BOOL)unpackFile:(NSURL *)source toURL:(NSURL *)destination error:(NSError **)error NS_SWIFT_NAME(unpack(source:destination:));
 /// Read/verify IPA entries without extraction. Does not authenticate its publisher.
+/// Restricted Playnite .pthm ZIP extraction for data-only theme files; no executables.
++ (BOOL)unpackPlayniteTheme:(NSURL *)source toURL:(NSURL *)destination error:(NSError **)error NS_SWIFT_NAME(unpackPlayniteTheme(source:destination:));
 + (nullable NSDictionary<NSString *, id> *)inspectIPA:(NSURL *)source error:(NSError **)error NS_SWIFT_NAME(inspectIPA(_:));
 @end
 NS_ASSUME_NONNULL_END

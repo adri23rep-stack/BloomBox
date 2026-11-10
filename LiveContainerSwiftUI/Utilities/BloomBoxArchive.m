@@ -130,6 +130,94 @@ static BOOL safePath(NSString *path) {
     return YES;
 }
 
+// A Playnite theme is untrusted visual data, NOT a backup. Never use the
+// 64 GiB backup extractor for .pthm downloads.
++ (BOOL)unpackPlayniteTheme:(NSURL *)source toURL:(NSURL *)destination error:(NSError **)error {
+    NSFileManager *fm = NSFileManager.defaultManager;
+    NSDictionary *attributes = [fm attributesOfItemAtPath:source.path error:error];
+    if (!attributes) return NO;
+    const uint64_t compressedLimit = 48ULL * 1024 * 1024;
+    const uint64_t expandedLimit = 220ULL * 1024 * 1024;
+    const uint64_t singleFileLimit = 32ULL * 1024 * 1024;
+    if ([attributes fileSize] == 0 || [attributes fileSize] > compressedLimit)
+        return fail(error, @"El archivo .pthm está vacío o supera el límite de 48 MB.");
+    if ([fm fileExistsAtPath:destination.path])
+        return fail(error, @"La carpeta temporal del tema ya existe.");
+    if (![fm createDirectoryAtURL:destination withIntermediateDirectories:YES
+                        attributes:nil error:error]) return NO;
+
+    struct archive *a = archive_read_new();
+    archive_read_support_format_zip(a);
+    BOOL ok = archive_read_open_filename(a, source.fileSystemRepresentation, 65536) == ARCHIVE_OK;
+    NSString *reason = ok ? @"El tema está dañado o no es un ZIP compatible." : archiveMessage(a);
+    uint64_t expanded = 0;
+    NSUInteger entries = 0;
+    NSMutableSet<NSString *> *seen = [NSMutableSet set];
+    NSSet<NSString *> *allowedExtensions = [NSSet setWithArray:@[
+        @"yaml", @"yml", @"xaml", @"png", @"jpg", @"jpeg", @"gif",
+        @"bmp", @"webp", @"ico", @"ttf", @"otf", @"txt", @"md"
+    ]];
+    struct archive_entry *entry = NULL;
+    int status = ARCHIVE_OK;
+    while (ok && (status = archive_read_next_header(a, &entry)) == ARCHIVE_OK) {
+        const char *raw = archive_entry_pathname(entry);
+        NSString *path = raw ? [NSString stringWithUTF8String:raw] : nil;
+        NSString *canonical = path.stringByStandardizingPath.lowercaseString;
+        mode_t type = archive_entry_filetype(entry);
+        int64_t declared = archive_entry_size(entry);
+        if (!safePath(path) || ++entries > 4000 || [seen containsObject:canonical] ||
+            archive_entry_symlink(entry) || archive_entry_hardlink(entry) ||
+            (type != AE_IFREG && type != AE_IFDIR) || declared < 0 ||
+            (uint64_t)declared > expandedLimit - expanded) {
+            ok = NO; reason = @"El tema contiene rutas, enlaces o tamaños inseguros."; break;
+        }
+        [seen addObject:canonical];
+        expanded += (uint64_t)declared;
+        if (type == AE_IFDIR) continue;
+        if (![allowedExtensions containsObject:path.pathExtension.lowercaseString]) {
+            if (archive_read_data_skip(a) != ARCHIVE_OK) {
+                ok = NO; reason = archiveMessage(a); break;
+            }
+            continue; // Never extract plugins, binaries, scripts or executables.
+        }
+        if ((uint64_t)declared > singleFileLimit) {
+            ok = NO; reason = @"Una imagen o archivo del tema es demasiado grande."; break;
+        }
+        NSURL *target = [destination URLByAppendingPathComponent:path];
+        NSURL *parent = target.URLByDeletingLastPathComponent;
+        if (![fm createDirectoryAtURL:parent withIntermediateDirectories:YES
+                            attributes:nil error:error]) {
+            ok = NO; reason = @"No se pudo crear la carpeta del tema."; break;
+        }
+        int fd = open(target.fileSystemRepresentation, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+        if (fd < 0) { ok = NO; reason = @"No se pudo crear un archivo del tema."; break; }
+        char buf[65536];
+        la_ssize_t readCount = 0;
+        int64_t received = 0;
+        while ((readCount = archive_read_data(a, buf, sizeof(buf))) > 0) {
+            received += readCount;
+            if (received > declared) { ok = NO; break; }
+            ssize_t sent = 0;
+            while (sent < readCount) {
+                ssize_t written = write(fd, buf + sent, (size_t)(readCount - sent));
+                if (written <= 0) { ok = NO; break; }
+                sent += written;
+            }
+            if (!ok) break;
+        }
+        if (close(fd) != 0) ok = NO;
+        if (readCount < 0 || received != declared) ok = NO;
+        if (!ok) { reason = @"Un archivo del tema está dañado o no se pudo guardar."; break; }
+    }
+    if (ok && status != ARCHIVE_EOF) { ok = NO; reason = archiveMessage(a); }
+    archive_read_free(a);
+    if (!ok) {
+        [fm removeItemAtURL:destination error:nil];
+        return fail(error, reason);
+    }
+    return YES;
+}
+
 + (nullable NSDictionary<NSString *, id> *)inspectIPA:(NSURL *)source error:(NSError **)error {
     struct archive *a = archive_read_new();
     archive_read_support_format_zip(a);

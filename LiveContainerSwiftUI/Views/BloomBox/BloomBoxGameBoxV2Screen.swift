@@ -81,9 +81,21 @@ struct BloomBoxGameBoxV2Screen: View {
     let openInstall: () -> Void
 
     @StateObject private var artwork = BloomBoxArtworkLibrary()
+    @StateObject private var playniteSwitch = BloomBoxPlayniteSwitchThemeStore()
+    @State private var importingPlayniteFile = false
+    @State private var playniteInstallInProgress = false
+    @State private var playniteNotice: String?
+    @State private var switchFocusPulse = false
     @ObservedObject private var wallpaperRules = BloomBoxRemoteWallpaperRules.shared
     @AppStorage("BloomBoxGameBoxAutoBackgrounds", store: LiveContainerPreferencesAdapter.defaults)
     private var autoBackgrounds = true
+    // Theme selection affects GameBox presentation only, never app launch/JIT.
+    @AppStorage("BloomBoxGameBoxThemeID", store: LiveContainerPreferencesAdapter.defaults)
+    private var selectedThemeID = "glass"
+    @State private var choosingTheme = false
+    private var isSwitchTheme: Bool {
+        selectedThemeID == "switch-ish" && playniteSwitch.installed
+    }
     @State private var fetchingAutoBackground: String?
     @State private var wallpaperLookupStatus: [String: String] = [:]
     private let autoBackgroundMode = "autoGameBox"
@@ -173,6 +185,9 @@ struct BloomBoxGameBoxV2Screen: View {
         visibleApps.first(where: { key($0) == focusedKey }) ?? visibleApps.first
     }
     private var focusedAccent: Color {
+        if isSwitchTheme {
+            return playniteSwitch.style?.accent ?? Color(red: 0.24, green: 0.86, blue: 0.73)
+        }
         guard let app = selectedApp else { return Color(red: 0.42, green: 0.79, blue: 0.98) }
         return accent(for: app)
     }
@@ -212,13 +227,28 @@ struct BloomBoxGameBoxV2Screen: View {
             let compact = safeHeight < 520
             // Real app icons, no card shells. Size is bounded by screen height
             // and width, so icons remain whole on iPhone landscape and iPad.
-            let iconSize = min(max(safeHeight * 0.41, 110), min(safeWidth * 0.18, 174))
+            let iconSize = isSwitchTheme
+                ? min(max(safeHeight * 0.37, 105), min(safeWidth * 0.17, 160))
+                : min(max(safeHeight * 0.41, 110), min(safeWidth * 0.18, 174))
             ZStack {
                 consoleBackground
                 VStack(spacing: compact ? 7 : 15) {
-                    header(compact: compact)
+                    Group {
+                        if isSwitchTheme {
+                            switchHeader(compact: compact)
+                        } else {
+                            header(compact: compact)
+                        }
+                    }
                         .frame(height: compact ? 42 : 55)
                         .padding(.horizontal, compact ? 12 : 25)
+                    if isSwitchTheme {
+                        Rectangle()
+                            .fill(.white.opacity(0.55))
+                            .frame(height: 1)
+                            .padding(.horizontal, compact ? 12 : 25)
+                            .accessibilityHidden(true)
+                    }
                     Spacer(minLength: 0)
                     if visibleApps.isEmpty {
                         emptyLibrary
@@ -227,10 +257,23 @@ struct BloomBoxGameBoxV2Screen: View {
                         carousel(iconSize: iconSize)
                             .frame(height: iconSize + 28)
                     }
-                    detailPanel(compact: compact)
-                        // Slimmer by ~11%, preserving room for the title and controls.
-                        .frame(height: compact ? 100 : 120)
-                        .padding(.horizontal, compact ? 12 : 25)
+                    if isSwitchTheme {
+                        Rectangle()
+                            .fill(.white.opacity(0.55))
+                            .frame(height: 1)
+                            .padding(.horizontal, compact ? 12 : 25)
+                            .accessibilityHidden(true)
+                    }
+                    if isSwitchTheme {
+                        switchFooter(compact: compact)
+                            .frame(height: compact ? 76 : 92)
+                            .padding(.horizontal, compact ? 12 : 25)
+                    } else {
+                        detailPanel(compact: compact)
+                            // Original Liquid Glass layout is unaffected.
+                            .frame(height: compact ? 100 : 120)
+                            .padding(.horizontal, compact ? 12 : 25)
+                    }
                 }
                 .padding(.vertical, compact ? 3 : 12)
                 if showProfileSwitcher {
@@ -257,6 +300,16 @@ struct BloomBoxGameBoxV2Screen: View {
         .navigationBarHidden(true)
         .preferredColorScheme(.dark)
         .photosPicker(isPresented: $photoPickerPresented, selection: $selectedPhoto, matching: .images)
+        .fileImporter(isPresented: $importingPlayniteFile, allowedContentTypes: [.item]) { result in
+            switch result {
+            case .success(let url):
+                installPlayniteFromFiles(url)
+            case .failure(let error):
+                if (error as NSError).code != NSUserCancelledError {
+                    playniteNotice = error.localizedDescription
+                }
+            }
+        }
         .fileImporter(isPresented: $filesPickerPresented, allowedContentTypes: [.image]) { result in
             guard let target = artworkTargetKey else { return }
             let kind = artworkTargetKind
@@ -291,8 +344,10 @@ struct BloomBoxGameBoxV2Screen: View {
             }
         }
         .overlay {
-            if importingArtwork {
-                ProgressView("Importando imagen…")
+            if importingArtwork || playniteInstallInProgress {
+                ProgressView(playniteInstallInProgress
+                    ? (BloomBoxL10n.isEnglish ? "Installing Nintendo Switch-ish…" : "Instalando Nintendo Switch-ish…")
+                    : "Importando imagen…")
                     .padding(18)
                     .background(.black.opacity(0.85),
                                 in: RoundedRectangle(cornerRadius: 16))
@@ -321,6 +376,7 @@ struct BloomBoxGameBoxV2Screen: View {
             UIDevice.current.isBatteryMonitoringEnabled = true
             refreshBattery()
             beginArtworkIntroIfNeeded()
+            if isSwitchTheme && !reduceMotion { switchFocusPulse = true }
         }
         .onDisappear {
             BloomBoxCrashJournal.shared.leaveGameBox()
@@ -390,6 +446,9 @@ struct BloomBoxGameBoxV2Screen: View {
             }
             .navigationViewStyle(.stack)
         }
+        .onChange(of: selectedThemeID) { _ in
+            switchFocusPulse = isSwitchTheme && !reduceMotion
+        }
         .onChange(of: entries.map(key)) { keys in
             if let focusedKey, !keys.contains(focusedKey) {
                 self.focusedKey = visibleApps.first.map(key)
@@ -443,11 +502,75 @@ struct BloomBoxGameBoxV2Screen: View {
                     await resolveAutomaticBackground(force: true)
                 }
             }
+            Button(BloomBoxL10n.isEnglish ? "GameBox theme" : "Tema de GameBox",
+                   systemImage: "paintpalette.fill") { choosingTheme = true }
+            Button(BloomBoxL10n.isEnglish ? "Switch theme credits · David Griggs (MIT)" : "Créditos tema Switch · David Griggs (MIT)",
+                   systemImage: "link") {
+                if let url = URL(string: "https://github.com/davidkgriggs/Nintendo-Switch-ish") {
+                    UIApplication.shared.open(url)
+                }
+            }
+            if playniteSwitch.installed {
+                Button(BloomBoxL10n.isEnglish ? "Remove imported Switch theme" : "Eliminar tema Switch importado",
+                       systemImage: "trash") {
+                    do {
+                        try playniteSwitch.uninstall()
+                        selectedThemeID = "glass"
+                        playniteNotice = BloomBoxL10n.isEnglish ? "Theme removed." : "Tema eliminado."
+                    } catch {
+                        playniteNotice = error.localizedDescription
+                    }
+                }
+            } else {
+                Button(BloomBoxL10n.isEnglish ? "Download original Switch theme (.pthm)" : "Descargar tema Switch original (.pthm)",
+                       systemImage: "arrow.down.circle") {
+                    downloadOriginalPlayniteSwitch()
+                }
+                .disabled(playniteInstallInProgress)
+                Button(BloomBoxL10n.isEnglish ? "Import Nintendo Switch-ish (.pthm)" : "Importar Nintendo Switch-ish (.pthm)",
+                       systemImage: "doc") {
+                    importingPlayniteFile = true
+                }
+                .disabled(playniteInstallInProgress)
+            }
             Button("Diagnósticos y recuperación") { showDiagnostics = true }
             Button("Administrar aplicaciones", action: openManagement)
             Button("Instalar IPA", action: openInstall)
             Button("Cambiar interfaz", action: openInterface)
             Button("Volver al escritorio", action: backToHome)
+        }
+        .confirmationDialog(
+            BloomBoxL10n.isEnglish ? "Choose GameBox theme" : "Elegir tema de GameBox",
+            isPresented: $choosingTheme, titleVisibility: .visible
+        ) {
+            Button("GameBox · Liquid Glass" + (isSwitchTheme ? "" : " ✓")) {
+                selectedThemeID = "glass"
+                selectionHaptic()
+            }
+            if playniteSwitch.installed {
+                Button("Nintendo Switch-ish · Beta" + (isSwitchTheme ? " ✓" : "")) {
+                    selectedThemeID = "switch-ish"
+                    selectionHaptic()
+                }
+            } else {
+                Button(BloomBoxL10n.isEnglish ? "Download original Nintendo Switch-ish" : "Descargar Nintendo Switch-ish original") {
+                    downloadOriginalPlayniteSwitch()
+                }
+                Button(BloomBoxL10n.isEnglish ? "Import .pthm from Files" : "Importar .pthm desde Archivos") {
+                    importingPlayniteFile = true
+                }
+            }
+        }
+        .alert(BloomBoxL10n.isEnglish ? "Playnite theme" : "Tema de Playnite",
+               isPresented: Binding(
+                   get: { playniteNotice != nil },
+                   set: { if !$0 { playniteNotice = nil } }
+               )) {
+            Button(BloomBoxL10n.isEnglish ? "OK" : "Entendido", role: .cancel) {
+                playniteNotice = nil
+            }
+        } message: {
+            Text(playniteNotice ?? "")
         }
         .alert("Fondos desactivados por seguridad", isPresented: $showSafeGraphicsAlert) {
             Button("Activar fondos") { resumeSafeGraphicsAndLoadArt() }
@@ -464,6 +587,44 @@ struct BloomBoxGameBoxV2Screen: View {
             Text(BloomBoxGameBoxL10n.t(upcomingFeature ?? ""))
         }
         .accessibilityIdentifier("bloombox.gamebox.v2")
+    }
+
+    private func downloadOriginalPlayniteSwitch() {
+        guard !playniteInstallInProgress else { return }
+        playniteInstallInProgress = true
+        Task {
+            defer { playniteInstallInProgress = false }
+            do {
+                try await playniteSwitch.downloadOriginal()
+                selectedThemeID = "switch-ish"
+                BloomBoxCrashJournal.shared.record("gamebox.playnite.original.download.installed")
+                playniteNotice = BloomBoxL10n.isEnglish
+                    ? "Original Playnite theme installed. Its colors and icons are loaded; full XAML layouts are not converted yet."
+                    : "Tema original de Playnite instalado. Sus colores e iconos ya se usan; aún falta convertir el diseño XAML completo."
+            } catch {
+                BloomBoxCrashJournal.shared.record("gamebox.playnite.original.download.failed")
+                playniteNotice = error.localizedDescription
+            }
+        }
+    }
+
+    private func installPlayniteFromFiles(_ file: URL) {
+        guard !playniteInstallInProgress else { return }
+        playniteInstallInProgress = true
+        Task {
+            defer { playniteInstallInProgress = false }
+            do {
+                try await playniteSwitch.importOriginal(file)
+                selectedThemeID = "switch-ish"
+                BloomBoxCrashJournal.shared.record("gamebox.playnite.original.file.installed")
+                playniteNotice = BloomBoxL10n.isEnglish
+                    ? "Original Nintendo Switch-ish theme imported."
+                    : "Tema original Nintendo Switch-ish importado correctamente."
+            } catch {
+                BloomBoxCrashJournal.shared.record("gamebox.playnite.original.file.failed")
+                playniteNotice = error.localizedDescription
+            }
+        }
     }
 
     private func gameBoxProfilePicker(width: CGFloat, height: CGFloat) -> some View {
@@ -523,10 +684,15 @@ struct BloomBoxGameBoxV2Screen: View {
 
     private var consoleBackground: some View {
         ZStack {
-            LinearGradient(
-                colors: [.black, focusedAccent.opacity(0.42), Color(red: 0.05, green: 0.07, blue: 0.15)],
-                startPoint: .topLeading, endPoint: .bottomTrailing
-            )
+            if isSwitchTheme {
+                playniteSwitch.style?.background ?? Color(red: 0.18, green: 0.18, blue: 0.18)
+            } else {
+                LinearGradient(
+                    colors: [.black, focusedAccent.opacity(0.42),
+                             Color(red: 0.05, green: 0.07, blue: 0.15)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
+            }
             // Low Power Mode only softens animation. It must not hide cached
             // wallpapers or prohibit user-enabled automatic backgrounds.
             if let app = selectedApp, let image = backdrop(app) {
@@ -536,13 +702,15 @@ struct BloomBoxGameBoxV2Screen: View {
                         .scaledToFill()
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
-                        .blur(radius: constrained ? 4 : 17)
-                        .opacity(constrained ? 0.56 : 0.74)
+                        .blur(radius: constrained ? 4 : (isSwitchTheme ? 14 : 17))
+                        .opacity(isSwitchTheme ? 0.18 : (constrained ? 0.56 : 0.74))
                 }
                 .allowsHitTesting(false)
             }
             LinearGradient(
-                colors: [.black.opacity(0.45), .black.opacity(0.06), .black.opacity(0.64)],
+                colors: isSwitchTheme
+                    ? [.black.opacity(0.30), .black.opacity(0.08), .black.opacity(0.46)]
+                    : [.black.opacity(0.45), .black.opacity(0.06), .black.opacity(0.64)],
                 startPoint: .top, endPoint: .bottom
             )
         }
@@ -550,6 +718,77 @@ struct BloomBoxGameBoxV2Screen: View {
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.34), value: focusedKey)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: artwork.revision)
         .accessibilityHidden(true)
+    }
+
+    // The original Nintendo Switch-ish Main.xaml places the profile/All Games
+    // at the left and the clock, Wi-Fi, battery, and settings on the right.
+    // Keep the existing host actions, but present them in that compact order.
+    private func switchHeader(compact: Bool) -> some View {
+        HStack(spacing: compact ? 9 : 13) {
+            topButton("ellipsis", label: "Menú") { quickMenu = true }
+            Button {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) {
+                    showProfileSwitcher.toggle()
+                }
+                selectionHaptic()
+            } label: {
+                HStack(spacing: 6) {
+                    BloomBoxProfileAvatar(profile: currentProfile,
+                                          size: compact ? 29 : 36)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(currentProfile.name)
+                            .font(.system(size: compact ? 10 : 13, weight: .semibold))
+                            .lineLimit(1)
+                        Text(BloomBoxL10n.isEnglish ? "ALL GAMES" : "TODOS LOS JUEGOS")
+                            .font(.system(size: compact ? 11 : 14, weight: .bold, design: .rounded))
+                            .lineLimit(1)
+                    }
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: compact ? 192 : 260, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(BloomBoxGameBoxL10n.t("Cambiar perfil") + ": " + currentProfile.name)
+            .accessibilityIdentifier("bloombox.gamebox.profiles.open")
+            Spacer(minLength: 0)
+            TimelineView(.periodic(from: .now, by: 60)) { time in
+                Text(time.date, format: .dateTime.hour().minute())
+                    .font(.system(size: compact ? 13 : 17, weight: .medium))
+                    .monospacedDigit()
+            }
+            if !safeGraphics, let icon = playniteSwitch.style?.wifiIcon {
+                Image(uiImage: icon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: compact ? 17 : 25, height: compact ? 17 : 25)
+                    .accessibilityHidden(true)
+            } else {
+                Image(systemName: "wifi")
+                    .font(.system(size: compact ? 13 : 19))
+            }
+            if let batteryPercent {
+                HStack(spacing: 4) {
+                    Text("\(batteryPercent)%")
+                        .font(.system(size: compact ? 12 : 16, weight: .medium))
+                        .monospacedDigit()
+                    Image(systemName: batteryPercent >= 80 ? "battery.100" :
+                          batteryPercent >= 50 ? "battery.50" :
+                          batteryPercent >= 20 ? "battery.25" : "battery.0")
+                        .font(.system(size: compact ? 13 : 17))
+                }
+            }
+            if safeGraphics {
+                Text("SAFE")
+                    .font(.system(size: 10, weight: .heavy))
+                    .foregroundStyle(.orange)
+            }
+            topButton("gearshape.fill", label: "Menú de GameBox") {
+                quickMenu = true
+            }
+        }
+        .foregroundStyle(.white)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
     }
 
     private func header(compact: Bool) -> some View {
@@ -560,6 +799,18 @@ struct BloomBoxGameBoxV2Screen: View {
             topButton("arrow.up.arrow.down", label: "Ordenar") {
                 alphabetical.toggle()
                 selectionHaptic()
+            }
+            if isSwitchTheme {
+                if let logo = playniteSwitch.style?.logo, !safeGraphics {
+                    Image(uiImage: logo)
+                        .resizable().scaledToFit()
+                        .frame(width: compact ? 24 : 29, height: compact ? 24 : 29)
+                        .accessibilityHidden(true)
+                }
+                Text("SWITCH-ISH")
+                    .font(.system(size: compact ? 10 : 12, weight: .heavy, design: .rounded))
+                    .tracking(1.4)
+                    .foregroundStyle(.white.opacity(0.90))
             }
             Spacer(minLength: 4)
             HStack(spacing: compact ? 5 : 8) {
@@ -610,6 +861,13 @@ struct BloomBoxGameBoxV2Screen: View {
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                 }
+                if isSwitchTheme, let wifiIcon = playniteSwitch.style?.wifiIcon, !safeGraphics {
+                    Image(uiImage: wifiIcon)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: compact ? 15 : 19, height: compact ? 15 : 19)
+                        .accessibilityHidden(true)
+                }
                 if let batteryPercent {
                     Image(systemName: batteryPercent >= 85 ? "battery.100" :
                           batteryPercent >= 60 ? "battery.75" :
@@ -650,14 +908,23 @@ struct BloomBoxGameBoxV2Screen: View {
 
     private func topButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 15, weight: .semibold))
+            Group {
+                if isSwitchTheme && symbol == "gearshape.fill",
+                   let imported = playniteSwitch.style?.settingsIcon, !safeGraphics {
+                    Image(uiImage: imported).resizable().scaledToFit().padding(8)
+                } else {
+                    Image(systemName: symbol)
+                        .font(.system(size: 15, weight: .semibold))
+                }
+            }
                 .foregroundStyle(.white)
                 .frame(width: 39, height: 39)
                 .background {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .opacity(0.38)
+                    if isSwitchTheme {
+                        Circle().fill(Color.white.opacity(0.12))
+                    } else {
+                        Circle().fill(.ultraThinMaterial).opacity(0.38)
+                    }
                 }
                 .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
         }
@@ -670,7 +937,7 @@ struct BloomBoxGameBoxV2Screen: View {
     // scrollTo, or change focusedKey during a drag.
     private func carousel(iconSize: CGFloat) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(alignment: .center, spacing: 18) {
+            LazyHStack(alignment: .center, spacing: isSwitchTheme ? 10 : 18) {
                 ForEach(visibleApps, id: \.id) { app in
                     appIconItem(app, size: iconSize)
                 }
@@ -697,9 +964,20 @@ struct BloomBoxGameBoxV2Screen: View {
         return ZStack(alignment: .topTrailing) {
             gameIcon(app, size: size)
                 .overlay {
-                    RoundedRectangle(cornerRadius: max(10, size * 0.23), style: .continuous)
-                        .strokeBorder(selected ? .white.opacity(0.98) : .white.opacity(0.12),
-                                      lineWidth: selected ? 3 : 1)
+                    RoundedRectangle(cornerRadius: isSwitchTheme ? 13 : max(10, size * 0.23),
+                                     style: .continuous)
+                        .strokeBorder(selected
+                                      ? (isSwitchTheme
+                                         ? (switchFocusPulse
+                                            ? (playniteSwitch.style?.focusEndColor ?? .white)
+                                            : (playniteSwitch.style?.focusStartColor ?? .white))
+                                         : .white.opacity(0.98))
+                                      : .white.opacity(0.12),
+                                      lineWidth: selected ? (isSwitchTheme ? 5 : 3) : 1)
+                        .animation(isSwitchTheme && !reduceMotion
+                            ? .easeInOut(duration: playniteSwitch.style?.focusAnimationSeconds ?? 0.55)
+                                .repeatForever(autoreverses: true)
+                            : nil, value: switchFocusPulse)
                 }
                 .shadow(color: selected ? accent(for: app).opacity(0.45) : .black.opacity(0.16),
                         radius: selected ? 14 : 4, y: 4)
@@ -756,7 +1034,137 @@ struct BloomBoxGameBoxV2Screen: View {
             }
         }
         .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: max(6, size * 0.23), style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: isSwitchTheme ? 10 : max(6, size * 0.23),
+                                     style: .continuous))
+    }
+
+    // Native adaptation of Nintendo Switch-ish Main.xaml bottom action row.
+    // The original WPF controls cannot run on iOS: these call GameBox's
+    // existing host actions so JIT, signing and guest launches stay intact.
+    private func switchFooter(compact: Bool) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 9) {
+                if let app = selectedApp {
+                    Text(title(app))
+                        .font(.system(size: compact ? 18 : 23, weight: .semibold, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                    if app.requiresJIT {
+                        Label("JIT", systemImage: "bolt.fill")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(playniteSwitch.style?.accent ?? .white)
+                    }
+                } else {
+                    Text(BloomBoxL10n.isEnglish ? "No games installed" : "No hay juegos instalados")
+                        .font(.system(size: 15, weight: .medium))
+                }
+                Spacer(minLength: 0)
+                if let controller = playniteSwitch.style?.controllerIcon,
+                   !safeGraphics {
+                    Image(uiImage: controller).resizable().scaledToFit()
+                        .frame(width: compact ? 31 : 40, height: compact ? 25 : 32)
+                        .accessibilityHidden(true)
+                }
+            }
+            .foregroundStyle(.white)
+            .frame(height: compact ? 29 : 38)
+
+            Rectangle()
+                .fill(.white.opacity(0.48))
+                .frame(height: 1)
+                .accessibilityHidden(true)
+
+            HStack(spacing: compact ? 4 : 9) {
+                if let app = selectedApp {
+                    switchAction("play.fill",
+                                 title: BloomBoxL10n.isEnglish ? "Play" : "Jugar",
+                                 compact: compact, emphasized: true) {
+                        requestLaunch(app, forceJIT: false)
+                    }
+                    .disabled(launchPending)
+                    .accessibilityIdentifier("bloombox.gamebox.switch.play")
+
+                    if app.requiresJIT {
+                        switchAction("bolt.fill", title: "JIT", compact: compact) {
+                            requestLaunch(app, forceJIT: true)
+                        }
+                        .disabled(launchPending)
+                    }
+
+                    switchAction(favorites.contains(key(app)) ? "heart.fill" : "heart",
+                                 title: BloomBoxL10n.isEnglish ? "Favorite" : "Favorito",
+                                 compact: compact) {
+                        toggleFavorite(app)
+                    }
+
+                    Menu {
+                        Button(BloomBoxL10n.isEnglish ? "Game settings" : "Ajustes del juego",
+                               systemImage: "slider.horizontal.3") { manage(key(app)) }
+                        Button(BloomBoxL10n.isEnglish ? "Cover from Photos" : "Carátula desde Fotos",
+                               systemImage: "photo") { chooseArtwork(for: app, kind: .cover) }
+                        Button(BloomBoxL10n.isEnglish ? "Background from Photos" : "Fondo desde Fotos",
+                               systemImage: "photo.on.rectangle") { chooseArtwork(for: app, kind: .background) }
+                        Button(BloomBoxL10n.isEnglish ? "Cover from Files" : "Carátula desde Archivos",
+                               systemImage: "folder") { chooseArtworkFromFiles(for: app, kind: .cover) }
+                        Button(BloomBoxL10n.isEnglish ? "Background from Files" : "Fondo desde Archivos",
+                               systemImage: "folder.fill") { chooseArtworkFromFiles(for: app, kind: .background) }
+                    } label: {
+                        switchActionLabel("ellipsis.circle",
+                                          title: BloomBoxL10n.isEnglish ? "Options" : "Opciones",
+                                          compact: compact)
+                    }
+                    .accessibilityLabel(BloomBoxL10n.isEnglish ? "Game options" : "Opciones del juego")
+                }
+
+                Spacer(minLength: 0)
+
+                switchAction("gamecontroller.fill",
+                             title: BloomBoxL10n.isEnglish ? "Controller" : "Control",
+                             compact: compact) { showNikaidoPanel = true }
+                switchAction("square.grid.2x2.fill",
+                             title: BloomBoxL10n.isEnglish ? "Library" : "Biblioteca",
+                             compact: compact, action: openManagement)
+                switchAction("plus.circle",
+                             title: BloomBoxL10n.isEnglish ? "Install" : "Instalar",
+                             compact: compact, action: openInstall)
+                switchAction("house",
+                             title: BloomBoxL10n.isEnglish ? "Desktop" : "Escritorio",
+                             compact: compact, action: backToHome)
+            }
+            .frame(height: compact ? 45 : 53)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("bloombox.gamebox.switch.footer")
+    }
+
+    private func switchAction(_ symbol: String, title: String,
+                              compact: Bool, emphasized: Bool = false,
+                              action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            switchActionLabel(symbol, title: title, compact: compact,
+                              emphasized: emphasized)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+
+    private func switchActionLabel(_ symbol: String, title: String,
+                                   compact: Bool, emphasized: Bool = false) -> some View {
+        VStack(spacing: compact ? 1 : 4) {
+            Image(systemName: symbol)
+                .font(.system(size: compact ? 17 : 21,
+                              weight: emphasized ? .bold : .medium))
+            Text(title)
+                .font(.system(size: compact ? 9 : 11,
+                              weight: emphasized ? .semibold : .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+        }
+        .foregroundStyle(emphasized
+                         ? (playniteSwitch.style?.accent ?? .white)
+                         : .white.opacity(0.92))
+        .frame(minWidth: compact ? 52 : 66, minHeight: compact ? 40 : 49)
+        .contentShape(Rectangle())
     }
 
     private func detailPanel(compact: Bool) -> some View {
@@ -781,10 +1189,18 @@ struct BloomBoxGameBoxV2Screen: View {
                         .lineLimit(1)
                     }
                     Spacer(minLength: 6)
-                    Text("GAMEBOX V2")
-                        .font(.system(size: compact ? 9 : 11, weight: .heavy, design: .rounded))
-                        .tracking(1.2)
-                        .foregroundStyle(.white.opacity(0.57))
+                    if isSwitchTheme, let controller = playniteSwitch.style?.controllerIcon,
+                       !safeGraphics {
+                        Image(uiImage: controller)
+                            .resizable().scaledToFit()
+                            .frame(width: compact ? 43 : 58, height: compact ? 24 : 33)
+                            .accessibilityHidden(true)
+                    } else {
+                        Text(isSwitchTheme ? "SWITCH-ISH" : "GAMEBOX V2")
+                            .font(.system(size: compact ? 9 : 11, weight: .heavy, design: .rounded))
+                            .tracking(1.2)
+                            .foregroundStyle(.white.opacity(0.57))
+                    }
                 }
                 HStack(spacing: compact ? 9 : 12) {
                     Button {
@@ -796,7 +1212,9 @@ struct BloomBoxGameBoxV2Screen: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.black)
-                    .background(.white, in: Capsule())
+                    .background(isSwitchTheme
+                                ? (playniteSwitch.style?.accent ?? Color(red: 0.24, green: 0.86, blue: 0.73))
+                                : .white, in: Capsule())
                     .disabled(launchPending)
                     .accessibilityIdentifier("bloombox.gamebox.play")
                     Menu {
@@ -901,13 +1319,18 @@ struct BloomBoxGameBoxV2Screen: View {
         .padding(.vertical, compact ? 6 : 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
-            RoundedRectangle(cornerRadius: 23, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .opacity(0.42)
+            if isSwitchTheme {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(red: 0.10, green: 0.13, blue: 0.17).opacity(0.95))
+            } else {
+                RoundedRectangle(cornerRadius: 23, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .opacity(0.42)
+            }
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 23, style: .continuous)
-                .strokeBorder(.white.opacity(0.19), lineWidth: 0.8)
+            RoundedRectangle(cornerRadius: isSwitchTheme ? 16 : 23, style: .continuous)
+                .strokeBorder(.white.opacity(isSwitchTheme ? 0.10 : 0.19), lineWidth: 0.8)
         }
     }
 
@@ -917,9 +1340,11 @@ struct BloomBoxGameBoxV2Screen: View {
             .frame(width: 38, height: 38)
             .foregroundStyle(.white)
             .background {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .opacity(0.37)
+                if isSwitchTheme {
+                    Circle().fill(Color.white.opacity(0.12))
+                } else {
+                    Circle().fill(.ultraThinMaterial).opacity(0.37)
+                }
             }
             .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
             .accessibilityLabel(BloomBoxGameBoxL10n.t(label))
