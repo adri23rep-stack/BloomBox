@@ -13,7 +13,19 @@ Status: **Nintendo Switch-ish v2 original-package importer implemented on an iso
 - Apply/revert from the GameBox theme picker; remove the imported theme without affecting iOS Home or GameBox app data.
 - GitHub Actions package inspection passed against the **real 14,111,262-byte release with 123 entries**.
 
-The UI still uses a GameBox-owned native composition for navigation, game carousel and Play/launch. It is not a full XAML renderer and does not claim pixel-accurate fidelity yet. The base native Switch-inspired skin alone must not be presented as a successful original theme import.
+The UI still uses a GameBox-owned native composition for navigation, game carousel and Play/launch. It is not a full XAML renderer and does not claim pixel-accurate fidelity yet.
+
+### Device screenshot feedback — 2026-11-09
+
+The first on-device screenshot looked too much like the original GameBox shell: colorful border along the top, a bulky black bottom glass card and strong red wallpaper tint. The new native Switch-specific layout addresses these visible problems:
+
+- Removes the top two-color accent stripe
+- Replaces the GameBox detail card **only for Switch-ish** with a compact footer for Play, optional JIT, Favorites, Game Options (including artwork edits), Controller, Library, Install and return to Desktop
+- Uses a simple title, thin separators and a subdued wallpaper
+- Keeps all existing actions connected to the GameBox host (and leaves original Liquid Glass mode unchanged)
+
+These layout changes are still a *native adaptation*, not direct execution of the author's WPF XAML. Physical iPhone review is required after the new build.
+ The base native Switch-inspired skin alone must not be presented as a successful original theme import.
 
 ### Exact test path
 
