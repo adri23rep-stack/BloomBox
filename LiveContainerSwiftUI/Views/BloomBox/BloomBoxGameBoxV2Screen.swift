@@ -84,6 +84,11 @@ struct BloomBoxGameBoxV2Screen: View {
     @ObservedObject private var wallpaperRules = BloomBoxRemoteWallpaperRules.shared
     @AppStorage("BloomBoxGameBoxAutoBackgrounds", store: LiveContainerPreferencesAdapter.defaults)
     private var autoBackgrounds = true
+    // Theme selection affects GameBox presentation only, never app launch/JIT.
+    @AppStorage("BloomBoxGameBoxThemeID", store: LiveContainerPreferencesAdapter.defaults)
+    private var selectedThemeID = "glass"
+    @State private var choosingTheme = false
+    private var isSwitchTheme: Bool { selectedThemeID == "switch-ish" }
     @State private var fetchingAutoBackground: String?
     @State private var wallpaperLookupStatus: [String: String] = [:]
     private let autoBackgroundMode = "autoGameBox"
@@ -173,6 +178,7 @@ struct BloomBoxGameBoxV2Screen: View {
         visibleApps.first(where: { key($0) == focusedKey }) ?? visibleApps.first
     }
     private var focusedAccent: Color {
+        if isSwitchTheme { return Color(red: 0.25, green: 0.79, blue: 0.97) }
         guard let app = selectedApp else { return Color(red: 0.42, green: 0.79, blue: 0.98) }
         return accent(for: app)
     }
@@ -212,9 +218,23 @@ struct BloomBoxGameBoxV2Screen: View {
             let compact = safeHeight < 520
             // Real app icons, no card shells. Size is bounded by screen height
             // and width, so icons remain whole on iPhone landscape and iPad.
-            let iconSize = min(max(safeHeight * 0.41, 110), min(safeWidth * 0.18, 174))
+            let iconSize = isSwitchTheme
+                ? min(max(safeHeight * 0.37, 105), min(safeWidth * 0.17, 160))
+                : min(max(safeHeight * 0.41, 110), min(safeWidth * 0.18, 174))
             ZStack {
                 consoleBackground
+                if isSwitchTheme {
+                    VStack(spacing: 0) {
+                        HStack(spacing: 0) {
+                            Color(red: 0.93, green: 0.26, blue: 0.28)
+                            Color(red: 0.21, green: 0.75, blue: 0.95)
+                        }
+                        .frame(height: 4)
+                        Spacer(minLength: 0)
+                    }
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                }
                 VStack(spacing: compact ? 7 : 15) {
                     header(compact: compact)
                         .frame(height: compact ? 42 : 55)
@@ -443,11 +463,26 @@ struct BloomBoxGameBoxV2Screen: View {
                     await resolveAutomaticBackground(force: true)
                 }
             }
+            Button(BloomBoxL10n.isEnglish ? "GameBox theme" : "Tema de GameBox",
+                   systemImage: "paintpalette.fill") { choosingTheme = true }
             Button("Diagnósticos y recuperación") { showDiagnostics = true }
             Button("Administrar aplicaciones", action: openManagement)
             Button("Instalar IPA", action: openInstall)
             Button("Cambiar interfaz", action: openInterface)
             Button("Volver al escritorio", action: backToHome)
+        }
+        .confirmationDialog(
+            BloomBoxL10n.isEnglish ? "Choose GameBox theme" : "Elegir tema de GameBox",
+            isPresented: $choosingTheme, titleVisibility: .visible
+        ) {
+            Button("GameBox · Liquid Glass" + (isSwitchTheme ? "" : " ✓")) {
+                selectedThemeID = "glass"
+                selectionHaptic()
+            }
+            Button("Nintendo Switch-ish · Beta" + (isSwitchTheme ? " ✓" : "")) {
+                selectedThemeID = "switch-ish"
+                selectionHaptic()
+            }
         }
         .alert("Fondos desactivados por seguridad", isPresented: $showSafeGraphicsAlert) {
             Button("Activar fondos") { resumeSafeGraphicsAndLoadArt() }
@@ -523,10 +558,19 @@ struct BloomBoxGameBoxV2Screen: View {
 
     private var consoleBackground: some View {
         ZStack {
-            LinearGradient(
-                colors: [.black, focusedAccent.opacity(0.42), Color(red: 0.05, green: 0.07, blue: 0.15)],
-                startPoint: .topLeading, endPoint: .bottomTrailing
-            )
+            if isSwitchTheme {
+                LinearGradient(
+                    colors: [Color(red: 0.12, green: 0.14, blue: 0.18),
+                             Color(red: 0.08, green: 0.11, blue: 0.15)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
+            } else {
+                LinearGradient(
+                    colors: [.black, focusedAccent.opacity(0.42),
+                             Color(red: 0.05, green: 0.07, blue: 0.15)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
+            }
             // Low Power Mode only softens animation. It must not hide cached
             // wallpapers or prohibit user-enabled automatic backgrounds.
             if let app = selectedApp, let image = backdrop(app) {
@@ -536,13 +580,15 @@ struct BloomBoxGameBoxV2Screen: View {
                         .scaledToFill()
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
-                        .blur(radius: constrained ? 4 : 17)
-                        .opacity(constrained ? 0.56 : 0.74)
+                        .blur(radius: constrained ? 4 : (isSwitchTheme ? 9 : 17))
+                        .opacity(constrained ? 0.46 : (isSwitchTheme ? 0.38 : 0.74))
                 }
                 .allowsHitTesting(false)
             }
             LinearGradient(
-                colors: [.black.opacity(0.45), .black.opacity(0.06), .black.opacity(0.64)],
+                colors: isSwitchTheme
+                    ? [.black.opacity(0.20), .clear, .black.opacity(0.58)]
+                    : [.black.opacity(0.45), .black.opacity(0.06), .black.opacity(0.64)],
                 startPoint: .top, endPoint: .bottom
             )
         }
@@ -560,6 +606,12 @@ struct BloomBoxGameBoxV2Screen: View {
             topButton("arrow.up.arrow.down", label: "Ordenar") {
                 alphabetical.toggle()
                 selectionHaptic()
+            }
+            if isSwitchTheme {
+                Text("SWITCH-ISH")
+                    .font(.system(size: compact ? 10 : 12, weight: .heavy, design: .rounded))
+                    .tracking(1.4)
+                    .foregroundStyle(.white.opacity(0.90))
             }
             Spacer(minLength: 4)
             HStack(spacing: compact ? 5 : 8) {
@@ -655,9 +707,11 @@ struct BloomBoxGameBoxV2Screen: View {
                 .foregroundStyle(.white)
                 .frame(width: 39, height: 39)
                 .background {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .opacity(0.38)
+                    if isSwitchTheme {
+                        Circle().fill(Color.white.opacity(0.12))
+                    } else {
+                        Circle().fill(.ultraThinMaterial).opacity(0.38)
+                    }
                 }
                 .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
         }
@@ -670,7 +724,7 @@ struct BloomBoxGameBoxV2Screen: View {
     // scrollTo, or change focusedKey during a drag.
     private func carousel(iconSize: CGFloat) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(alignment: .center, spacing: 18) {
+            LazyHStack(alignment: .center, spacing: isSwitchTheme ? 10 : 18) {
                 ForEach(visibleApps, id: \.id) { app in
                     appIconItem(app, size: iconSize)
                 }
@@ -697,9 +751,10 @@ struct BloomBoxGameBoxV2Screen: View {
         return ZStack(alignment: .topTrailing) {
             gameIcon(app, size: size)
                 .overlay {
-                    RoundedRectangle(cornerRadius: max(10, size * 0.23), style: .continuous)
+                    RoundedRectangle(cornerRadius: isSwitchTheme ? 13 : max(10, size * 0.23),
+                                     style: .continuous)
                         .strokeBorder(selected ? .white.opacity(0.98) : .white.opacity(0.12),
-                                      lineWidth: selected ? 3 : 1)
+                                      lineWidth: selected ? (isSwitchTheme ? 4 : 3) : 1)
                 }
                 .shadow(color: selected ? accent(for: app).opacity(0.45) : .black.opacity(0.16),
                         radius: selected ? 14 : 4, y: 4)
@@ -756,7 +811,8 @@ struct BloomBoxGameBoxV2Screen: View {
             }
         }
         .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: max(6, size * 0.23), style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: isSwitchTheme ? 10 : max(6, size * 0.23),
+                                     style: .continuous))
     }
 
     private func detailPanel(compact: Bool) -> some View {
@@ -781,7 +837,7 @@ struct BloomBoxGameBoxV2Screen: View {
                         .lineLimit(1)
                     }
                     Spacer(minLength: 6)
-                    Text("GAMEBOX V2")
+                    Text(isSwitchTheme ? "SWITCH-ISH" : "GAMEBOX V2")
                         .font(.system(size: compact ? 9 : 11, weight: .heavy, design: .rounded))
                         .tracking(1.2)
                         .foregroundStyle(.white.opacity(0.57))
@@ -796,7 +852,8 @@ struct BloomBoxGameBoxV2Screen: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.black)
-                    .background(.white, in: Capsule())
+                    .background(isSwitchTheme ? Color(red: 0.28, green: 0.80, blue: 0.98) : .white,
+                                in: Capsule())
                     .disabled(launchPending)
                     .accessibilityIdentifier("bloombox.gamebox.play")
                     Menu {
@@ -901,13 +958,18 @@ struct BloomBoxGameBoxV2Screen: View {
         .padding(.vertical, compact ? 6 : 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
-            RoundedRectangle(cornerRadius: 23, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .opacity(0.42)
+            if isSwitchTheme {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(red: 0.10, green: 0.13, blue: 0.17).opacity(0.95))
+            } else {
+                RoundedRectangle(cornerRadius: 23, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .opacity(0.42)
+            }
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 23, style: .continuous)
-                .strokeBorder(.white.opacity(0.19), lineWidth: 0.8)
+            RoundedRectangle(cornerRadius: isSwitchTheme ? 16 : 23, style: .continuous)
+                .strokeBorder(.white.opacity(isSwitchTheme ? 0.10 : 0.19), lineWidth: 0.8)
         }
     }
 
@@ -917,9 +979,11 @@ struct BloomBoxGameBoxV2Screen: View {
             .frame(width: 38, height: 38)
             .foregroundStyle(.white)
             .background {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .opacity(0.37)
+                if isSwitchTheme {
+                    Circle().fill(Color.white.opacity(0.12))
+                } else {
+                    Circle().fill(.ultraThinMaterial).opacity(0.37)
+                }
             }
             .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.8))
             .accessibilityLabel(BloomBoxGameBoxL10n.t(label))
