@@ -485,6 +485,12 @@ struct BloomBoxGameBoxV2Screen: View {
             }
             Button(BloomBoxL10n.isEnglish ? "GameBox theme" : "Tema de GameBox",
                    systemImage: "paintpalette.fill") { choosingTheme = true }
+            Button(BloomBoxL10n.isEnglish ? "Switch theme credits · David Griggs (MIT)" : "Créditos tema Switch · David Griggs (MIT)",
+                   systemImage: "link") {
+                if let url = URL(string: "https://github.com/davidkgriggs/Nintendo-Switch-ish") {
+                    UIApplication.shared.open(url)
+                }
+            }
             if playniteSwitch.installed {
                 Button(BloomBoxL10n.isEnglish ? "Remove imported Switch theme" : "Eliminar tema Switch importado",
                        systemImage: "trash") {
