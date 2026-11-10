@@ -4,6 +4,7 @@
 import Foundation
 import SwiftUI
 import ImageIO
+import CryptoKit
 
 struct BloomBoxPlayniteSwitchStyle {
     let name: String
@@ -29,7 +30,10 @@ final class BloomBoxPlayniteSwitchThemeStore: ObservableObject {
     @Published private(set) var style: BloomBoxPlayniteSwitchStyle?
     var installed: Bool { style != nil }
 
-    private static let expectedID = "Nintendo Switch-ish_0d020ed5-0f3c-4c1a-bf9a-c983ef7d74b7"
+    nonisolated private static let expectedID = "Nintendo Switch-ish_0d020ed5-0f3c-4c1a-bf9a-c983ef7d74b7"
+    // Verified against the upstream v2.0.0 release ZIP in the branch CI job.
+    nonisolated private static let officialSHA256 =
+        "58037adb78519e822896ff524c9a6f78fa90457ccf6e28baeecdad3030d59d8e"
     static let officialRelease = URL(string:
         "https://github.com/davidkgriggs/Nintendo-Switch-ish/releases/download/v2.0.0/Nintendo_Switch-ish_0d020ed5-0f3c-4c1a-bf9a-c983ef7d74b7_2_0_0.pthm")!
 
@@ -79,6 +83,13 @@ final class BloomBoxPlayniteSwitchThemeStore: ObservableObject {
         let fm = FileManager.default
         let root = libraryRoot
         try fm.createDirectory(at: root, withIntermediateDirectories: true)
+        // This intentionally supports this *one* authentic release, not arbitrary
+        // Playnite executables or third-party theme archives.
+        let input = try Data(contentsOf: file, options: .mappedIfSafe)
+        let digest = SHA256.hash(data: input).map { String(format: "%02x", $0) }.joined()
+        guard digest == officialSHA256 else {
+            throw ImportError.invalid("El archivo no coincide con el tema original Nintendo Switch-ish 2.0.")
+        }
         let staging = root.appendingPathComponent("incoming-" + UUID().uuidString, isDirectory: true)
         defer { try? fm.removeItem(at: staging) }
         try BloomBoxArchive.unpackPlayniteTheme(source: file, destination: staging)
