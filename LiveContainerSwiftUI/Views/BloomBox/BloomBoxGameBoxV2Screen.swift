@@ -592,10 +592,12 @@ struct BloomBoxGameBoxV2Screen: View {
             do {
                 try await playniteSwitch.downloadOriginal()
                 selectedThemeID = "switch-ish"
+                BloomBoxCrashJournal.shared.record("gamebox.playnite.original.download.installed")
                 playniteNotice = BloomBoxL10n.isEnglish
                     ? "Original Playnite theme installed. Its colors and icons are loaded; full XAML layouts are not converted yet."
                     : "Tema original de Playnite instalado. Sus colores e iconos ya se usan; aún falta convertir el diseño XAML completo."
             } catch {
+                BloomBoxCrashJournal.shared.record("gamebox.playnite.original.download.failed")
                 playniteNotice = error.localizedDescription
             }
         }
@@ -609,10 +611,12 @@ struct BloomBoxGameBoxV2Screen: View {
             do {
                 try await playniteSwitch.importOriginal(file)
                 selectedThemeID = "switch-ish"
+                BloomBoxCrashJournal.shared.record("gamebox.playnite.original.file.installed")
                 playniteNotice = BloomBoxL10n.isEnglish
                     ? "Original Nintendo Switch-ish theme imported."
                     : "Tema original Nintendo Switch-ish importado correctamente."
             } catch {
+                BloomBoxCrashJournal.shared.record("gamebox.playnite.original.file.failed")
                 playniteNotice = error.localizedDescription
             }
         }
