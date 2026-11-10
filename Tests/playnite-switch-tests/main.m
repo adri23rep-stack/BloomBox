@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
                 @"Temp folder");
         NSURL *package = [NSURL fileURLWithPath:[NSString stringWithUTF8String:argv[1]]];
         NSURL *extracted = [root URLByAppendingPathComponent:@"original"];
-        require([BloomBoxArchive unpackPlayniteThemeWithSource:package destination:extracted error:&error],
+        require([BloomBoxArchive unpackPlayniteTheme:package toURL:extracted error:&error],
                 error.description ?: @"Original Playnite extraction failed");
         NSString *yaml = [NSString stringWithContentsOfURL:
             [extracted URLByAppendingPathComponent:@"theme.yaml"] encoding:NSUTF8StringEncoding
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
         require([fm fileExistsAtPath:
             [extracted URLByAppendingPathComponent:@"Images/applogo_clean.png"].path],
             @"Original image present");
-        require(![BloomBoxArchive unpackPlayniteThemeWithSource:package destination:extracted error:&error],
+        require(![BloomBoxArchive unpackPlayniteTheme:package toURL:extracted error:&error],
                 @"Must not overwrite an existing theme directory");
 
         NSArray *unsafe = @[@"../../escape.png", @"/absolute.png", @"a/../escape.png", @"a\\..\\escape.png"];
@@ -57,15 +57,15 @@ int main(int argc, char **argv) {
             NSURL *bad = [root URLByAppendingPathComponent:@"unsafe.zip"];
             hostileArchive(bad, name.UTF8String, AE_IFREG);
             NSURL *target = [root URLByAppendingPathComponent:@"rejected"];
-            require(![BloomBoxArchive unpackPlayniteThemeWithSource:bad destination:target error:&error],
+            require(![BloomBoxArchive unpackPlayniteTheme:bad toURL:target error:&error],
                     @"Reject unsafe file path");
             require(![fm fileExistsAtPath:target.path], @"Remove rejected extraction");
             [fm removeItemAtURL:bad error:nil];
         }
         NSURL *linkZip = [root URLByAppendingPathComponent:@"link.zip"];
         hostileArchive(linkZip, "Images/rogue.png", AE_IFLNK);
-        require(![BloomBoxArchive unpackPlayniteThemeWithSource:linkZip
-            destination:[root URLByAppendingPathComponent:@"link"] error:&error],
+        require(![BloomBoxArchive unpackPlayniteTheme:linkZip
+            toURL:[root URLByAppendingPathComponent:@"link"] error:&error],
             @"Reject archive symlink");
 
         require(![fm fileExistsAtPath:[root URLByAppendingPathComponent:@"escape.png"].path],
