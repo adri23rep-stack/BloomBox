@@ -247,6 +247,13 @@ struct BloomBoxGameBoxV2Screen: View {
                     header(compact: compact)
                         .frame(height: compact ? 42 : 55)
                         .padding(.horizontal, compact ? 12 : 25)
+                    if isSwitchTheme {
+                        Rectangle()
+                            .fill(.white.opacity(0.55))
+                            .frame(height: 1)
+                            .padding(.horizontal, compact ? 12 : 25)
+                            .accessibilityHidden(true)
+                    }
                     Spacer(minLength: 0)
                     if visibleApps.isEmpty {
                         emptyLibrary
@@ -254,6 +261,13 @@ struct BloomBoxGameBoxV2Screen: View {
                     } else {
                         carousel(iconSize: iconSize)
                             .frame(height: iconSize + 28)
+                    }
+                    if isSwitchTheme {
+                        Rectangle()
+                            .fill(.white.opacity(0.55))
+                            .frame(height: 1)
+                            .padding(.horizontal, compact ? 12 : 25)
+                            .accessibilityHidden(true)
                     }
                     detailPanel(compact: compact)
                         // Slimmer by ~11%, preserving room for the title and controls.
@@ -767,6 +781,13 @@ struct BloomBoxGameBoxV2Screen: View {
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                 }
+                if isSwitchTheme, let wifiIcon = playniteSwitch.style?.wifiIcon, !safeGraphics {
+                    Image(uiImage: wifiIcon)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: compact ? 15 : 19, height: compact ? 15 : 19)
+                        .accessibilityHidden(true)
+                }
                 if let batteryPercent {
                     Image(systemName: batteryPercent >= 85 ? "battery.100" :
                           batteryPercent >= 60 ? "battery.75" :
@@ -865,7 +886,11 @@ struct BloomBoxGameBoxV2Screen: View {
                 .overlay {
                     RoundedRectangle(cornerRadius: isSwitchTheme ? 13 : max(10, size * 0.23),
                                      style: .continuous)
-                        .strokeBorder(selected ? .white.opacity(0.98) : .white.opacity(0.12),
+                        .strokeBorder(selected
+                                      ? (isSwitchTheme
+                                         ? (playniteSwitch.style?.selectionColor ?? .white)
+                                         : .white.opacity(0.98))
+                                      : .white.opacity(0.12),
                                       lineWidth: selected ? (isSwitchTheme ? 4 : 3) : 1)
                 }
                 .shadow(color: selected ? accent(for: app).opacity(0.45) : .black.opacity(0.16),
@@ -949,10 +974,18 @@ struct BloomBoxGameBoxV2Screen: View {
                         .lineLimit(1)
                     }
                     Spacer(minLength: 6)
-                    Text(isSwitchTheme ? "SWITCH-ISH" : "GAMEBOX V2")
-                        .font(.system(size: compact ? 9 : 11, weight: .heavy, design: .rounded))
-                        .tracking(1.2)
-                        .foregroundStyle(.white.opacity(0.57))
+                    if isSwitchTheme, let controller = playniteSwitch.style?.controllerIcon,
+                       !safeGraphics {
+                        Image(uiImage: controller)
+                            .resizable().scaledToFit()
+                            .frame(width: compact ? 43 : 58, height: compact ? 24 : 33)
+                            .accessibilityHidden(true)
+                    } else {
+                        Text(isSwitchTheme ? "SWITCH-ISH" : "GAMEBOX V2")
+                            .font(.system(size: compact ? 9 : 11, weight: .heavy, design: .rounded))
+                            .tracking(1.2)
+                            .foregroundStyle(.white.opacity(0.57))
+                    }
                 }
                 HStack(spacing: compact ? 9 : 12) {
                     Button {
@@ -964,8 +997,9 @@ struct BloomBoxGameBoxV2Screen: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.black)
-                    .background(isSwitchTheme ? Color(red: 0.28, green: 0.80, blue: 0.98) : .white,
-                                in: Capsule())
+                    .background(isSwitchTheme
+                                ? (playniteSwitch.style?.accent ?? Color(red: 0.24, green: 0.86, blue: 0.73))
+                                : .white, in: Capsule())
                     .disabled(launchPending)
                     .accessibilityIdentifier("bloombox.gamebox.play")
                     Menu {
