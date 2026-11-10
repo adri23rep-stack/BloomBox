@@ -9,10 +9,12 @@ import CryptoKit
 struct BloomBoxPlayniteSwitchStyle {
     let name: String
     let accent: Color
+    let selectionColor: Color
     let background: Color
     let logo: UIImage?
     let settingsIcon: UIImage?
     let wifiIcon: UIImage?
+    let controllerIcon: UIImage?
 }
 
 /// Intentionally limited to Nintendo Switch-ish v2 and isolated from
@@ -166,16 +168,21 @@ final class BloomBoxPlayniteSwitchThemeStore: ObservableObject {
         let accent = Self.color(in: constants, pattern:
             #"<Color\s+x:Key="ControlBackgroundColor">\s*(#[0-9A-Fa-f]{6,8})"#)
             ?? Color(red: 0.24, green: 0.86, blue: 0.73)
+        let selectionColor = Self.color(in: constants, pattern:
+            #"<Color\s+x:Key="SelectionLightColor">\s*(#[0-9A-Fa-f]{6,8})"#)
+            ?? accent
         let background = Self.color(in: constants, pattern:
             #"<SolidColorBrush\s+x:Key="MainBackgourndBrush"\s+Color="(#[0-9A-Fa-f]{6,8})""#)
             ?? Color(red: 0.18, green: 0.18, blue: 0.18)
         style = BloomBoxPlayniteSwitchStyle(
             name: "Nintendo Switch-ish",
             accent: accent,
+            selectionColor: selectionColor,
             background: background,
             logo: Self.smallImage(root.appendingPathComponent("Images/applogo_clean.png")),
             settingsIcon: Self.smallImage(root.appendingPathComponent("Images/settings.png")),
-            wifiIcon: Self.smallImage(root.appendingPathComponent("Images/wifi.png"))
+            wifiIcon: Self.smallImage(root.appendingPathComponent("Images/wifi.png")),
+            controllerIcon: Self.smallImage(root.appendingPathComponent("Images/controller.png"))
         )
     }
 
