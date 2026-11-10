@@ -245,7 +245,13 @@ struct BloomBoxGameBoxV2Screen: View {
                     .accessibilityHidden(true)
                 }
                 VStack(spacing: compact ? 7 : 15) {
-                    header(compact: compact)
+                    Group {
+                        if isSwitchTheme {
+                            switchHeader(compact: compact)
+                        } else {
+                            header(compact: compact)
+                        }
+                    }
                         .frame(height: compact ? 42 : 55)
                         .padding(.horizontal, compact ? 12 : 25)
                     if isSwitchTheme {
@@ -718,6 +724,77 @@ struct BloomBoxGameBoxV2Screen: View {
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.34), value: focusedKey)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: artwork.revision)
         .accessibilityHidden(true)
+    }
+
+    // The original Nintendo Switch-ish Main.xaml places the profile/All Games
+    // at the left and the clock, Wi-Fi, battery, and settings on the right.
+    // Keep the existing host actions, but present them in that compact order.
+    private func switchHeader(compact: Bool) -> some View {
+        HStack(spacing: compact ? 9 : 13) {
+            topButton("ellipsis", label: "Menú") { quickMenu = true }
+            Button {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) {
+                    showProfileSwitcher.toggle()
+                }
+                selectionHaptic()
+            } label: {
+                HStack(spacing: 6) {
+                    BloomBoxProfileAvatar(profile: currentProfile,
+                                          size: compact ? 29 : 36)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(currentProfile.name)
+                            .font(.system(size: compact ? 10 : 13, weight: .semibold))
+                            .lineLimit(1)
+                        Text(BloomBoxL10n.isEnglish ? "ALL GAMES" : "TODOS LOS JUEGOS")
+                            .font(.system(size: compact ? 11 : 14, weight: .bold, design: .rounded))
+                            .lineLimit(1)
+                    }
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: compact ? 192 : 260, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(BloomBoxGameBoxL10n.t("Cambiar perfil") + ": " + currentProfile.name)
+            .accessibilityIdentifier("bloombox.gamebox.profiles.open")
+            Spacer(minLength: 0)
+            TimelineView(.periodic(from: .now, by: 60)) { time in
+                Text(time.date, format: .dateTime.hour().minute())
+                    .font(.system(size: compact ? 13 : 17, weight: .medium))
+                    .monospacedDigit()
+            }
+            if !safeGraphics, let icon = playniteSwitch.style?.wifiIcon {
+                Image(uiImage: icon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: compact ? 17 : 25, height: compact ? 17 : 25)
+                    .accessibilityHidden(true)
+            } else {
+                Image(systemName: "wifi")
+                    .font(.system(size: compact ? 13 : 19))
+            }
+            if let batteryPercent {
+                HStack(spacing: 4) {
+                    Text("\(batteryPercent)%")
+                        .font(.system(size: compact ? 12 : 16, weight: .medium))
+                        .monospacedDigit()
+                    Image(systemName: batteryPercent >= 80 ? "battery.100" :
+                          batteryPercent >= 50 ? "battery.50" :
+                          batteryPercent >= 20 ? "battery.25" : "battery.0")
+                        .font(.system(size: compact ? 13 : 17))
+                }
+            }
+            if safeGraphics {
+                Text("SAFE")
+                    .font(.system(size: 10, weight: .heavy))
+                    .foregroundStyle(.orange)
+            }
+            topButton("gearshape.fill", label: "Menú de GameBox") {
+                quickMenu = true
+            }
+        }
+        .foregroundStyle(.white)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
     }
 
     private func header(compact: Bool) -> some View {
