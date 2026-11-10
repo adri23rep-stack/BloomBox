@@ -85,6 +85,7 @@ struct BloomBoxGameBoxV2Screen: View {
     @State private var importingPlayniteFile = false
     @State private var playniteInstallInProgress = false
     @State private var playniteNotice: String?
+    @State private var switchFocusPulse = false
     @ObservedObject private var wallpaperRules = BloomBoxRemoteWallpaperRules.shared
     @AppStorage("BloomBoxGameBoxAutoBackgrounds", store: LiveContainerPreferencesAdapter.defaults)
     private var autoBackgrounds = true
@@ -375,6 +376,7 @@ struct BloomBoxGameBoxV2Screen: View {
             UIDevice.current.isBatteryMonitoringEnabled = true
             refreshBattery()
             beginArtworkIntroIfNeeded()
+            if isSwitchTheme && !reduceMotion { switchFocusPulse = true }
         }
         .onDisappear {
             BloomBoxCrashJournal.shared.leaveGameBox()
@@ -443,6 +445,9 @@ struct BloomBoxGameBoxV2Screen: View {
                     }
             }
             .navigationViewStyle(.stack)
+        }
+        .onChange(of: selectedThemeID) { _ in
+            switchFocusPulse = isSwitchTheme && !reduceMotion
         }
         .onChange(of: entries.map(key)) { keys in
             if let focusedKey, !keys.contains(focusedKey) {
@@ -892,10 +897,16 @@ struct BloomBoxGameBoxV2Screen: View {
                                      style: .continuous)
                         .strokeBorder(selected
                                       ? (isSwitchTheme
-                                         ? (playniteSwitch.style?.selectionColor ?? .white)
+                                         ? (switchFocusPulse
+                                            ? (playniteSwitch.style?.focusEndColor ?? .white)
+                                            : (playniteSwitch.style?.focusStartColor ?? .white))
                                          : .white.opacity(0.98))
                                       : .white.opacity(0.12),
-                                      lineWidth: selected ? (isSwitchTheme ? 4 : 3) : 1)
+                                      lineWidth: selected ? (isSwitchTheme ? 5 : 3) : 1)
+                        .animation(isSwitchTheme && !reduceMotion
+                            ? .easeInOut(duration: playniteSwitch.style?.focusAnimationSeconds ?? 0.55)
+                                .repeatForever(autoreverses: true)
+                            : nil, value: switchFocusPulse)
                 }
                 .shadow(color: selected ? accent(for: app).opacity(0.45) : .black.opacity(0.16),
                         radius: selected ? 14 : 4, y: 4)
