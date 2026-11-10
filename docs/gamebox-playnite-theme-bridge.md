@@ -1,6 +1,28 @@
 # GameBox × Playnite: original theme import roadmap
 
-Status: **planned**, not implemented. Working branch: feature/gamebox-playnite-theme-bridge-20261109. No changes to main or public release.
+Status: **Nintendo Switch-ish v2 original-package importer implemented on an isolated branch; full XAML layout translation remains pending**. Working branch: feature/gamebox-playnite-theme-bridge-20261109. No changes to main or public release.
+
+## What works in this branch (first theme only)
+
+- Download Nintendo Switch-ish v2.0.0 as a real, unchanged .pthm from the author's GitHub release directly inside GameBox.
+- Import the same original .pthm through the iOS Files picker.
+- Require an exact SHA-256 of the public release: `58037adb78519e822896ff524c9a6f78fa90457ccf6e28baeecdad3030d59d8e`.
+- Bounded ZIP extraction of passive images, YAML, XAML and fonts; reject archive traversal, oversized contents, links and dangerous entry types.
+- Validate the original Fullscreen theme ID/version and required original main view and assets.
+- Parse original XAML color values and show original downloaded art/icon within the existing native GameBox shell.
+- Apply/revert from the GameBox theme picker; remove the imported theme without affecting iOS Home or GameBox app data.
+- GitHub Actions package inspection passed against the **real 14,111,262-byte release with 123 entries**.
+
+The UI still uses a GameBox-owned native composition for navigation, game carousel and Play/launch. It is not a full XAML renderer and does not claim pixel-accurate fidelity yet. The base native Switch-inspired skin alone must not be presented as a successful original theme import.
+
+### Exact test path
+
+1. Open GameBox in landscape and open the ellipsis menu.
+2. Choose **Descargar tema Switch original (.pthm)**, or **Importar Nintendo Switch-ish (.pthm)** to select the original local file.
+3. After download and verification, the Switch-ish Beta visual option is enabled. GameBox uses colors and imagery parsed from the original package.
+4. Choose **Tema de GameBox** to switch back to Liquid Glass. Use **Eliminar tema Switch importado** to uninstall only the imported theme.
+
+Do not merge until the new code compiles in GitHub Actions and the device flows are exercised on iPhone 14 Pro iOS 27.
 
 ## Goal and important limitation
 
