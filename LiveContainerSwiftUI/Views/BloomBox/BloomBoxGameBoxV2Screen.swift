@@ -81,6 +81,10 @@ struct BloomBoxGameBoxV2Screen: View {
     let openInstall: () -> Void
 
     @StateObject private var artwork = BloomBoxArtworkLibrary()
+    @StateObject private var playniteSwitch = BloomBoxPlayniteSwitchThemeStore()
+    @State private var importingPlayniteFile = false
+    @State private var playniteInstallInProgress = false
+    @State private var playniteNotice: String?
     @ObservedObject private var wallpaperRules = BloomBoxRemoteWallpaperRules.shared
     @AppStorage("BloomBoxGameBoxAutoBackgrounds", store: LiveContainerPreferencesAdapter.defaults)
     private var autoBackgrounds = true
@@ -88,7 +92,9 @@ struct BloomBoxGameBoxV2Screen: View {
     @AppStorage("BloomBoxGameBoxThemeID", store: LiveContainerPreferencesAdapter.defaults)
     private var selectedThemeID = "glass"
     @State private var choosingTheme = false
-    private var isSwitchTheme: Bool { selectedThemeID == "switch-ish" }
+    private var isSwitchTheme: Bool {
+        selectedThemeID == "switch-ish" && playniteSwitch.installed
+    }
     @State private var fetchingAutoBackground: String?
     @State private var wallpaperLookupStatus: [String: String] = [:]
     private let autoBackgroundMode = "autoGameBox"
@@ -178,7 +184,9 @@ struct BloomBoxGameBoxV2Screen: View {
         visibleApps.first(where: { key($0) == focusedKey }) ?? visibleApps.first
     }
     private var focusedAccent: Color {
-        if isSwitchTheme { return Color(red: 0.25, green: 0.79, blue: 0.97) }
+        if isSwitchTheme {
+            return playniteSwitch.style?.accent ?? Color(red: 0.24, green: 0.86, blue: 0.73)
+        }
         guard let app = selectedApp else { return Color(red: 0.42, green: 0.79, blue: 0.98) }
         return accent(for: app)
     }
@@ -226,8 +234,8 @@ struct BloomBoxGameBoxV2Screen: View {
                 if isSwitchTheme {
                     VStack(spacing: 0) {
                         HStack(spacing: 0) {
-                            Color(red: 0.93, green: 0.26, blue: 0.28)
-                            Color(red: 0.21, green: 0.75, blue: 0.95)
+                            Color.white.opacity(0.88)
+                            playniteSwitch.style?.accent ?? Color(red: 0.24, green: 0.86, blue: 0.73)
                         }
                         .frame(height: 4)
                         Spacer(minLength: 0)
@@ -277,6 +285,16 @@ struct BloomBoxGameBoxV2Screen: View {
         .navigationBarHidden(true)
         .preferredColorScheme(.dark)
         .photosPicker(isPresented: $photoPickerPresented, selection: $selectedPhoto, matching: .images)
+        .fileImporter(isPresented: $importingPlayniteFile, allowedContentTypes: [.item]) { result in
+            switch result {
+            case .success(let url):
+                installPlayniteFromFiles(url)
+            case .failure(let error):
+                if (error as NSError).code != NSUserCancelledError {
+                    playniteNotice = error.localizedDescription
+                }
+            }
+        }
         .fileImporter(isPresented: $filesPickerPresented, allowedContentTypes: [.image]) { result in
             guard let target = artworkTargetKey else { return }
             let kind = artworkTargetKind
@@ -311,8 +329,10 @@ struct BloomBoxGameBoxV2Screen: View {
             }
         }
         .overlay {
-            if importingArtwork {
-                ProgressView("Importando imagen…")
+            if importingArtwork || playniteInstallInProgress {
+                ProgressView(playniteInstallInProgress
+                    ? (BloomBoxL10n.isEnglish ? "Installing Nintendo Switch-ish…" : "Instalando Nintendo Switch-ish…")
+                    : "Importando imagen…")
                     .padding(18)
                     .background(.black.opacity(0.85),
                                 in: RoundedRectangle(cornerRadius: 16))
@@ -465,6 +485,29 @@ struct BloomBoxGameBoxV2Screen: View {
             }
             Button(BloomBoxL10n.isEnglish ? "GameBox theme" : "Tema de GameBox",
                    systemImage: "paintpalette.fill") { choosingTheme = true }
+            if playniteSwitch.installed {
+                Button(BloomBoxL10n.isEnglish ? "Remove imported Switch theme" : "Eliminar tema Switch importado",
+                       systemImage: "trash") {
+                    do {
+                        try playniteSwitch.uninstall()
+                        selectedThemeID = "glass"
+                        playniteNotice = BloomBoxL10n.isEnglish ? "Theme removed." : "Tema eliminado."
+                    } catch {
+                        playniteNotice = error.localizedDescription
+                    }
+                }
+            } else {
+                Button(BloomBoxL10n.isEnglish ? "Download original Switch theme (.pthm)" : "Descargar tema Switch original (.pthm)",
+                       systemImage: "arrow.down.circle") {
+                    downloadOriginalPlayniteSwitch()
+                }
+                .disabled(playniteInstallInProgress)
+                Button(BloomBoxL10n.isEnglish ? "Import Nintendo Switch-ish (.pthm)" : "Importar Nintendo Switch-ish (.pthm)",
+                       systemImage: "doc") {
+                    importingPlayniteFile = true
+                }
+                .disabled(playniteInstallInProgress)
+            }
             Button("Diagnósticos y recuperación") { showDiagnostics = true }
             Button("Administrar aplicaciones", action: openManagement)
             Button("Instalar IPA", action: openInstall)
@@ -479,10 +522,30 @@ struct BloomBoxGameBoxV2Screen: View {
                 selectedThemeID = "glass"
                 selectionHaptic()
             }
-            Button("Nintendo Switch-ish · Beta" + (isSwitchTheme ? " ✓" : "")) {
-                selectedThemeID = "switch-ish"
-                selectionHaptic()
+            if playniteSwitch.installed {
+                Button("Nintendo Switch-ish · Beta" + (isSwitchTheme ? " ✓" : "")) {
+                    selectedThemeID = "switch-ish"
+                    selectionHaptic()
+                }
+            } else {
+                Button(BloomBoxL10n.isEnglish ? "Download original Nintendo Switch-ish" : "Descargar Nintendo Switch-ish original") {
+                    downloadOriginalPlayniteSwitch()
+                }
+                Button(BloomBoxL10n.isEnglish ? "Import .pthm from Files" : "Importar .pthm desde Archivos") {
+                    importingPlayniteFile = true
+                }
             }
+        }
+        .alert(BloomBoxL10n.isEnglish ? "Playnite theme" : "Tema de Playnite",
+               isPresented: Binding(
+                   get: { playniteNotice != nil },
+                   set: { if !$0 { playniteNotice = nil } }
+               )) {
+            Button(BloomBoxL10n.isEnglish ? "OK" : "Entendido", role: .cancel) {
+                playniteNotice = nil
+            }
+        } message: {
+            Text(playniteNotice ?? "")
         }
         .alert("Fondos desactivados por seguridad", isPresented: $showSafeGraphicsAlert) {
             Button("Activar fondos") { resumeSafeGraphicsAndLoadArt() }
@@ -499,6 +562,40 @@ struct BloomBoxGameBoxV2Screen: View {
             Text(BloomBoxGameBoxL10n.t(upcomingFeature ?? ""))
         }
         .accessibilityIdentifier("bloombox.gamebox.v2")
+    }
+
+    private func downloadOriginalPlayniteSwitch() {
+        guard !playniteInstallInProgress else { return }
+        playniteInstallInProgress = true
+        Task {
+            defer { playniteInstallInProgress = false }
+            do {
+                try await playniteSwitch.downloadOriginal()
+                selectedThemeID = "switch-ish"
+                playniteNotice = BloomBoxL10n.isEnglish
+                    ? "Original Playnite theme installed. Its colors and icons are loaded; full XAML layouts are not converted yet."
+                    : "Tema original de Playnite instalado. Sus colores e iconos ya se usan; aún falta convertir el diseño XAML completo."
+            } catch {
+                playniteNotice = error.localizedDescription
+            }
+        }
+    }
+
+    private func installPlayniteFromFiles(_ file: URL) {
+        guard !playniteInstallInProgress else { return }
+        playniteInstallInProgress = true
+        Task {
+            defer { playniteInstallInProgress = false }
+            do {
+                try await playniteSwitch.importOriginal(file)
+                selectedThemeID = "switch-ish"
+                playniteNotice = BloomBoxL10n.isEnglish
+                    ? "Original Nintendo Switch-ish theme imported."
+                    : "Tema original Nintendo Switch-ish importado correctamente."
+            } catch {
+                playniteNotice = error.localizedDescription
+            }
+        }
     }
 
     private func gameBoxProfilePicker(width: CGFloat, height: CGFloat) -> some View {
@@ -559,11 +656,7 @@ struct BloomBoxGameBoxV2Screen: View {
     private var consoleBackground: some View {
         ZStack {
             if isSwitchTheme {
-                LinearGradient(
-                    colors: [Color(red: 0.12, green: 0.14, blue: 0.18),
-                             Color(red: 0.08, green: 0.11, blue: 0.15)],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                )
+                playniteSwitch.style?.background ?? Color(red: 0.18, green: 0.18, blue: 0.18)
             } else {
                 LinearGradient(
                     colors: [.black, focusedAccent.opacity(0.42),
@@ -608,6 +701,12 @@ struct BloomBoxGameBoxV2Screen: View {
                 selectionHaptic()
             }
             if isSwitchTheme {
+                if let logo = playniteSwitch.style?.logo, !safeGraphics {
+                    Image(uiImage: logo)
+                        .resizable().scaledToFit()
+                        .frame(width: compact ? 24 : 29, height: compact ? 24 : 29)
+                        .accessibilityHidden(true)
+                }
                 Text("SWITCH-ISH")
                     .font(.system(size: compact ? 10 : 12, weight: .heavy, design: .rounded))
                     .tracking(1.4)
@@ -702,8 +801,15 @@ struct BloomBoxGameBoxV2Screen: View {
 
     private func topButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 15, weight: .semibold))
+            Group {
+                if isSwitchTheme && symbol == "gearshape.fill",
+                   let imported = playniteSwitch.style?.settingsIcon, !safeGraphics {
+                    Image(uiImage: imported).resizable().scaledToFit().padding(8)
+                } else {
+                    Image(systemName: symbol)
+                        .font(.system(size: 15, weight: .semibold))
+                }
+            }
                 .foregroundStyle(.white)
                 .frame(width: 39, height: 39)
                 .background {
