@@ -113,7 +113,7 @@ final class BloomBoxPlayniteSwitchThemeStore: ObservableObject {
         let candidates = [root, root.appendingPathComponent("source")]
         if let entries = try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey],
                                                      options: [.skipsHiddenFiles]) {
-            for entry in entries where entry.hasDirectoryPath {
+            for entry in entries where (try? entry.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true {
                 // Playnite may wrap all source files in a single top-level folder.
                 if entry.lastPathComponent.hasPrefix("incoming-") { continue }
                 if fm.fileExists(atPath: entry.appendingPathComponent("theme.yaml").path) {
@@ -137,7 +137,7 @@ final class BloomBoxPlayniteSwitchThemeStore: ObservableObject {
             if ["Id", "Name", "Mode", "Version", "Author"].contains(key) {
                 fields[key] = String(value[value.index(after: separator)...])
                     .trimmingCharacters(in: .whitespacesAndNewlines)
-                    .trimmingCharacters(in: CharacterSet(charactersIn: "\\"'"))
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "'"))
             }
         }
         return fields
@@ -145,7 +145,7 @@ final class BloomBoxPlayniteSwitchThemeStore: ObservableObject {
 
     private func reload() {
         guard let root = try? Self.locateThemeBase(Self.installedURL),
-              let root,
+
               let yaml = try? String(contentsOf: root.appendingPathComponent("theme.yaml"), encoding: .utf8),
               Self.parseYAML(yaml)["Id"] == Self.expectedID,
               let constants = try? String(contentsOf: root.appendingPathComponent("Constants.xaml"), encoding: .utf8) else {
